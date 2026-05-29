@@ -1,0 +1,436 @@
+════════════════════════════════════════════════════════════════════════
+  REALTQR — FULL HANDOFF PROMPT FOR GPT
+  Copy everything below this line and paste it into GPT
+════════════════════════════════════════════════════════════════════════
+
+CONTEXT
+───────
+I have been building a SaaS product called RealtQR with Claude (Anthropic).
+It is a lead capture + QR sign tracking system for real estate agents at open houses.
+
+The prototype below is a fully working single-file React component (1,100+ lines).
+It runs as a demo with seed data. I now need your help converting it into a 
+real, deployable production application.
+
+WHAT REALTQR DOES
+─────────────────
+- Agents create a property and generate one QR code per physical sign 
+  (Front Sign, Corner Sign, Directional Sign, etc.)
+- Each QR code links to: /p/{propertyId}?qr={qrId}
+- When a visitor scans the QR at an open house, they see a landing page
+  with the property address and a lead capture form (name, phone, email)
+- On submit: the lead is saved to the database WITH the QR code ID attached
+  (so we know exactly which sign generated the lead)
+- An SMS is sent to the visitor via Twilio
+- Agents see a dashboard with scan counts, leads, and a live sign placement 
+  map (OpenStreetMap / Leaflet) showing where each sign is physically placed
+
+CURRENT FEATURES IN THE PROTOTYPE
+───────────────────────────────────
+✅ Dashboard with properties + QR code management
+✅ Open house active/live toggle per property
+✅ QR code creation with sign type labels (Front, Corner, Directional, etc.)
+✅ QR attribution — every lead is tied to property_id + qr_id
+✅ Lead capture landing page (/p/[propertyId]?qr=[qrId])
+✅ SMS automation flow (Twilio, currently simulated)
+✅ Sign placement map — Leaflet + OpenStreetMap, custom SVG pins
+✅ Drag-to-place coordinate picker for each sign
+✅ CSV lead export (filtered by property or search)
+✅ Mobile bottom navigation bar (agents use this in the field on phones)
+✅ Printable QR sign PDF per code
+✅ Free vs Pro plan gating
+✅ Leads view with search + property filter + SMS resend
+
+TECH STACK TO USE
+──────────────────
+- Frontend: Next.js 14 (App Router)
+- Database + Auth: Supabase (PostgreSQL + Supabase Auth)
+- SMS: Twilio (send on lead form submit)
+- Maps: React Leaflet + OpenStreetMap (free, no API key needed)
+- Hosting: Vercel
+- Payments: Stripe (for Free vs Pro plan billing)
+
+DATABASE SCHEMA (Supabase / PostgreSQL)
+────────────────────────────────────────
+Table: profiles
+  id          uuid (references auth.users)
+  email       text
+  name        text
+  plan        text  -- 'free' or 'pro'
+  created_at  timestamp
+
+Table: properties
+  id          uuid primary key default gen_random_uuid()
+  user_id     uuid references profiles(id)
+  address     text
+  agent_name  text
+  active      boolean default false   -- open house live toggle
+  created_at  timestamp default now()
+
+Table: qrcodes
+  id          uuid primary key default gen_random_uuid()
+  property_id uuid references properties(id) on delete cascade
+  label       text   -- e.g. "Front Sign", "Corner Sign"
+  scan_count  integer default 0
+  lat         float
+  lng         float
+  created_at  timestamp default now()
+
+Table: leads
+  id          uuid primary key default gen_random_uuid()
+  property_id uuid references properties(id)
+  qr_id       uuid references qrcodes(id)
+  name        text
+  phone       text
+  email       text
+  created_at  timestamp default now()
+
+Table: scan_events
+  id          uuid primary key default gen_random_uuid()
+  qr_id       uuid references qrcodes(id)
+  lat         float
+  lng         float
+  created_at  timestamp default now()
+
+CRITICAL LOGIC — DO NOT BREAK THIS
+────────────────────────────────────
+The QR URL structure MUST stay as:
+  /p/[propertyId]?qr=[qrId]
+
+Every lead saved to the database MUST include both property_id and qr_id.
+This is the core attribution system — agents need to know which physical
+sign generated each lead. Do not simplify or remove this.
+
+WHAT I NEED FROM YOU
+──────────────────────
+Please do the following:
+
+1. CONVERT this single React file into a proper Next.js 14 App Router 
+   project structure with separate files for each route and component.
+
+2. REPLACE the in-memory seed data with real Supabase database calls
+   using the @supabase/supabase-js client.
+
+3. ADD Supabase Auth (email/password login + signup page).
+
+4. WIRE UP the Twilio SMS — create a Next.js API route at 
+   /api/send-sms that fires when a lead is submitted on the landing page.
+   SMS template: "Hey {name}, thanks for checking out {address}. 
+   Want more info or a private showing?"
+
+5. KEEP all the UI exactly as designed — colors, fonts, layout, 
+   mobile nav, map, sign pins, CSV export, coordinate picker, everything.
+
+6. CREATE an .env.example file listing all required environment variables:
+   NEXT_PUBLIC_SUPABASE_URL
+   NEXT_PUBLIC_SUPABASE_ANON_KEY
+   SUPABASE_SERVICE_ROLE_KEY
+   TWILIO_ACCOUNT_SID
+   TWILIO_AUTH_TOKEN
+   TWILIO_PHONE_NUMBER
+   NEXT_PUBLIC_APP_URL
+
+7. PROVIDE the Supabase SQL migration to create all tables with proper 
+   RLS (Row Level Security) policies so users can only see their own data.
+
+8. PROVIDE a README.md with step-by-step deployment instructions for 
+   someone non-technical: Supabase setup, Twilio setup, Vercel deploy.
+
+Start by giving me the full Next.js file structure, then generate each 
+file one by one. Start with the most important files first:
+  - /app/layout.tsx
+  - /app/dashboard/page.tsx
+  - /app/p/[propertyId]/page.tsx  (the QR landing page)
+  - /app/api/send-sms/route.ts
+  - /lib/supabase.ts
+  - The Supabase SQL migration
+  - .env.example
+  - README.md
+
+════════════════════════════════════════════════════════════════════════
+  PROTOTYPE SOURCE CODE (RealtQR.jsx — full single-file React component)
+  This is what needs to be converted. All UI comes from this file.
+════════════════════════════════════════════════════════════════════════
+
+import { useState, useEffect, useRef, useCallback } from "react";
+
+// ─── DESIGN TOKENS ─────────────────────────────────────────────────────────
+const T = {
+  bg:"#0A0C10", surface:"#111318", card:"#161A22", border:"#1E2330",
+  borderLight:"#252C3D", accent:"#00D4AA", accentDim:"#00D4AA22",
+  accentHover:"#00EFBF", red:"#FF4757", yellow:"#FFD32A", blue:"#3D8EFF",
+  text:"#F0F2F5", textMuted:"#6B7280", textDim:"#9CA3AF",
+};
+
+// ─── SIGN TYPES ────────────────────────────────────────────────────────────
+const SIGN_TYPES = [
+  {label:"Front Sign",       emoji:"🏠", color:"#00D4AA"},
+  {label:"Corner Sign",      emoji:"🔶", color:"#FFD32A"},
+  {label:"Directional Sign", emoji:"➡️", color:"#3D8EFF"},
+  {label:"Back Sign",        emoji:"🔙", color:"#AA77FF"},
+  {label:"Open House Sign",  emoji:"🚪", color:"#FF4757"},
+  {label:"Custom",           emoji:"📍", color:"#9CA3AF"},
+];
+const signColor = l => (SIGN_TYPES.find(s=>s.label===l)||SIGN_TYPES.at(-1)).color;
+const signEmoji = l => (SIGN_TYPES.find(s=>s.label===l)||SIGN_TYPES.at(-1)).emoji;
+
+// ─── UTILS ─────────────────────────────────────────────────────────────────
+let _id=1;
+const genId  = ()=>`${Date.now()}_${_id++}`;
+const fmtDate = d=>new Date(d).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+const fmtPhone= p=>p.replace(/(\d{3})(\d{3})(\d{4})/,"($1) $2-$3");
+
+// CSV export helper
+const exportCSV = (leads, properties, qrcodes) => {
+  const rows = [["Name","Phone","Email","Property","Sign","Date"]];
+  leads.forEach(l=>{
+    const prop = properties.find(p=>p.id===l.property_id);
+    const qr   = qrcodes.find(q=>q.id===l.qr_id);
+    rows.push([l.name, l.phone, l.email, prop?.address||"", qr?.label||"", fmtDate(l.created_at)]);
+  });
+  const csv  = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const blob = new Blob([csv],{type:"text/csv"});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href=url; a.download="realtqr-leads.csv"; a.click();
+  URL.revokeObjectURL(url);
+};
+
+// ─── SEED DATA ─────────────────────────────────────────────────────────────
+const seedData = () => {
+  const p1=genId(), p2=genId();
+  const q1=genId(), q2=genId(), q3=genId(), q4=genId(), q5=genId();
+  const now=Date.now();
+  return {
+    user:{id:"u1",email:"sarah@realtqr.com",plan:"pro",name:"Sarah Chen"},
+    properties:[
+      {id:p1,address:"124 Maple Drive, Austin TX 78701",     agent_name:"Sarah Chen",created_at:now-864e5*5, active:true},
+      {id:p2,address:"380 Lakeview Blvd, Austin TX 78702",   agent_name:"Sarah Chen",created_at:now-864e5*2, active:false},
+    ],
+    qrcodes:[
+      {id:q1,property_id:p1,label:"Front Sign",       scan_count:34,lat:30.2680,lng:-97.7420,created_at:now-864e5*5},
+      {id:q2,property_id:p1,label:"Corner Sign",      scan_count:18,lat:30.2695,lng:-97.7405,created_at:now-864e5*5},
+      {id:q3,property_id:p1,label:"Directional Sign", scan_count: 9,lat:30.2665,lng:-97.7435,created_at:now-864e5*4},
+      {id:q4,property_id:p2,label:"Front Sign",       scan_count:12,lat:30.2760,lng:-97.7380,created_at:now-864e5*2},
+      {id:q5,property_id:p2,label:"Open House Sign",  scan_count: 6,lat:30.2745,lng:-97.7395,created_at:now-864e5*2},
+    ],
+    leads:[
+      {id:genId(),property_id:p1,qr_id:q1,name:"James Miller", phone:"5124441234",email:"james@email.com", created_at:now-864e5*4},
+      {id:genId(),property_id:p1,qr_id:q1,name:"Priya Sharma", phone:"5125556789",email:"priya@email.com", created_at:now-864e5*3},
+      {id:genId(),property_id:p1,qr_id:q2,name:"Carlos Reyes", phone:"5127778901",email:"carlos@email.com",created_at:now-864e5*3},
+      {id:genId(),property_id:p1,qr_id:q1,name:"Aisha Johnson",phone:"5129990001",email:"aisha@email.com", created_at:now-864e5*2},
+      {id:genId(),property_id:p1,qr_id:q3,name:"Tom Bradley",  phone:"5123334455",email:"tom@email.com",   created_at:now-864e5*1},
+      {id:genId(),property_id:p2,qr_id:q4,name:"Luna Park",    phone:"5126667788",email:"luna@email.com",  created_at:now-864e5*1},
+    ],
+    scan_events:[
+      {id:genId(),qr_id:q1,lat:30.2682,lng:-97.7418,created_at:now-864e5*4},
+      {id:genId(),qr_id:q2,lat:30.2697,lng:-97.7403,created_at:now-864e5*3},
+      {id:genId(),qr_id:q3,lat:30.2664,lng:-97.7436,created_at:now-864e5*1},
+      {id:genId(),qr_id:q4,lat:30.2762,lng:-97.7379,created_at:now-864e5*1},
+    ],
+  };
+};
+
+// ─── GLOBAL STYLES ─────────────────────────────────────────────────────────
+const GlobalStyle = () => (
+  <style>{`
+    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap');
+
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    html{scroll-behavior:smooth;}
+    body{background:${T.bg};color:${T.text};font-family:'DM Sans',sans-serif;font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+    h1,h2,h3,h4,h5{font-family:'Syne',sans-serif;font-weight:700;line-height:1.15;}
+    button{cursor:pointer;border:none;outline:none;font-family:inherit;}
+    input,textarea,select{font-family:inherit;outline:none;}
+    a{text-decoration:none;color:inherit;}
+
+    ::-webkit-scrollbar{width:6px;}
+    ::-webkit-scrollbar-track{background:${T.bg};}
+    ::-webkit-scrollbar-thumb{background:${T.border};border-radius:3px;}
+
+    @keyframes fadeUp  {from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+    @keyframes fadeIn  {from{opacity:0;}to{opacity:1;}}
+    @keyframes spin    {to{transform:rotate(360deg);}}
+    @keyframes scanLine{0%{top:10%;}100%{top:90%;}}
+    @keyframes glow    {0%,100%{box-shadow:0 0 20px ${T.accent}33;}50%{box-shadow:0 0 40px ${T.accent}66;}}
+    @keyframes livePulse{0%{transform:scale(1);opacity:1;}100%{transform:scale(2.4);opacity:0;}}
+
+    .fade-up{animation:fadeUp .4s ease both;}
+    .fade-in{animation:fadeIn .3s ease both;}
+
+    .btn-primary{background:${T.accent};color:#000;font-family:'Syne',sans-serif;font-weight:600;font-size:14px;padding:10px 22px;border-radius:8px;transition:all .2s;display:inline-flex;align-items:center;gap:8px;letter-spacing:.01em;}
+    .btn-primary:hover{background:${T.accentHover};transform:translateY(-1px);box-shadow:0 6px 20px ${T.accent}44;}
+    .btn-primary:active{transform:translateY(0);}
+    .btn-primary:disabled{opacity:.5;pointer-events:none;}
+
+    .btn-secondary{background:${T.card};color:${T.textDim};font-family:'Syne',sans-serif;font-weight:600;font-size:14px;padding:10px 20px;border-radius:8px;border:1px solid ${T.border};transition:all .2s;display:inline-flex;align-items:center;gap:8px;}
+    .btn-secondary:hover{border-color:${T.borderLight};color:${T.text};background:${T.surface};}
+
+    .btn-ghost{background:transparent;color:${T.textMuted};font-size:13px;padding:7px 14px;border-radius:6px;border:1px solid transparent;transition:all .18s;display:inline-flex;align-items:center;gap:6px;}
+    .btn-ghost:hover{background:${T.card};color:${T.text};border-color:${T.border};}
+
+    .input-field{background:${T.surface};border:1px solid ${T.border};border-radius:8px;color:${T.text};font-size:14px;padding:10px 14px;width:100%;transition:border-color .2s,box-shadow .2s;}
+    .input-field::placeholder{color:${T.textMuted};}
+    .input-field:focus{border-color:${T.accent};box-shadow:0 0 0 3px ${T.accent}18;}
+
+    .toggle-wrap{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;}
+    .toggle-track{width:44px;height:24px;border-radius:12px;transition:background .2s;position:relative;flex-shrink:0;}
+    .toggle-thumb{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.4);}
+    .toggle-on .toggle-track{background:${T.accent};}
+    .toggle-off .toggle-track{background:${T.border};}
+    .toggle-on  .toggle-thumb{transform:translateX(20px);}
+
+    .live-badge{display:inline-flex;align-items:center;gap:6px;background:${T.red}18;color:${T.red};border:1px solid ${T.red}33;font-size:11px;font-weight:700;font-family:'Syne',sans-serif;padding:3px 10px;border-radius:100px;letter-spacing:.04em;}
+    .live-dot{width:7px;height:7px;border-radius:50%;background:${T.red};position:relative;}
+    .live-dot::after{content:'';position:absolute;inset:0;border-radius:50%;background:${T.red};animation:livePulse 1.4s ease-out infinite;}
+
+    .card{background:${T.card};border:1px solid ${T.border};border-radius:14px;}
+    .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;font-family:'Syne',sans-serif;padding:3px 10px;border-radius:100px;letter-spacing:.04em;}
+    .badge-green {background:${T.accent}18;color:${T.accent};border:1px solid ${T.accent}33;}
+    .badge-yellow{background:${T.yellow}18;color:${T.yellow};border:1px solid ${T.yellow}33;}
+    .badge-muted {background:${T.border};color:${T.textDim};}
+
+    .stat-num{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:${T.text};line-height:1;}
+    .label{font-size:12px;font-weight:600;color:${T.textMuted};margin-bottom:6px;font-family:'Syne',sans-serif;letter-spacing:.04em;text-transform:uppercase;}
+
+    .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);font-size:13px;font-weight:600;font-family:'Syne',sans-serif;padding:11px 22px;border-radius:100px;box-shadow:0 8px 30px rgba(0,0,0,.5);z-index:9999;animation:fadeUp .3s ease;display:flex;align-items:center;gap:8px;white-space:nowrap;}
+    @media(min-width:769px){.toast{bottom:28px;}}
+
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(5px);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .2s ease;}
+    .modal-box{background:${T.card};border:1px solid ${T.borderLight};border-radius:18px;width:100%;max-width:480px;padding:28px;animation:fadeUp .25s ease;max-height:92vh;overflow-y:auto;}
+
+    .qr-container{background:white;padding:16px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;}
+    .scan-anim{position:relative;overflow:hidden;}
+    .scan-anim::after{content:'';position:absolute;left:0;right:0;height:2px;background:${T.accent};animation:scanLine 1.5s ease-in-out infinite alternate;box-shadow:0 0 8px ${T.accent};}
+
+    .sidebar{width:240px;flex-shrink:0;background:${T.surface};border-right:1px solid ${T.border};display:flex;flex-direction:column;height:100vh;position:sticky;top:0;}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:9px;font-size:14px;font-weight:500;color:${T.textMuted};transition:all .18s;cursor:pointer;}
+    .nav-item:hover{background:${T.surface};color:${T.text};}
+    .nav-item.active{background:${T.accentDim};color:${T.accent};}
+
+    .mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;height:62px;background:${T.surface};border-top:1px solid ${T.border};z-index:500;padding:0 4px;padding-bottom:env(safe-area-inset-bottom,0);}
+    .mobile-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 4px;border-radius:10px;cursor:pointer;transition:all .15s;color:${T.textMuted};font-size:10px;font-weight:600;font-family:'Syne',sans-serif;letter-spacing:.03em;position:relative;}
+    .mobile-nav-item.active{color:${T.accent};}
+    .mobile-nav-item.active svg{stroke:${T.accent};}
+    .mobile-nav-badge{position:absolute;top:6px;right:calc(50% - 14px);background:${T.accent};color:#000;font-size:9px;font-weight:800;font-family:'Syne',sans-serif;padding:1px 5px;border-radius:100px;min-width:16px;text-align:center;}
+    @media(max-width:768px){
+      .sidebar{display:none;}
+      .mobile-nav{display:flex;}
+      .main-content{padding-bottom:72px !important;}
+    }
+
+    .data-table{width:100%;border-collapse:collapse;}
+    .data-table th{text-align:left;font-size:11px;font-weight:600;font-family:'Syne',sans-serif;color:${T.textMuted};padding:10px 14px;border-bottom:1px solid ${T.border};letter-spacing:.06em;text-transform:uppercase;}
+    .data-table td{padding:12px 14px;font-size:13px;color:${T.textDim};border-bottom:1px solid ${T.border};}
+    .data-table tr:last-child td{border-bottom:none;}
+    .data-table tr:hover td{background:rgba(255,255,255,.01);}
+
+    .progress-bar {height:4px;background:${T.border};border-radius:2px;overflow:hidden;}
+    .progress-fill{height:100%;border-radius:2px;transition:width .6s ease;}
+    .metric-card{background:${T.card};border:1px solid ${T.border};border-radius:12px;padding:20px;flex:1;}
+    .metric-card:hover{border-color:${T.borderLight};}
+    .sign-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+    .spinner{width:18px;height:18px;border:2px solid ${T.border};border-top-color:${T.accent};border-radius:50%;animation:spin .7s linear infinite;}
+    .landing-bg{min-height:100vh;background:linear-gradient(135deg,#0A0C10 0%,#0D1420 50%,#071410 100%);}
+
+    .leaflet-container{background:#0f1623 !important;border-radius:12px;}
+    .leaflet-tile{filter:brightness(.82) saturate(.7) hue-rotate(190deg);}
+    .leaflet-control-zoom a{background:${T.card} !important;color:${T.text} !important;border-color:${T.border} !important;}
+    .leaflet-control-zoom a:hover{background:${T.surface} !important;}
+    .leaflet-control-attribution{background:${T.card}BB !important;color:${T.textMuted} !important;font-size:9px !important;}
+    .leaflet-control-attribution a{color:${T.accent} !important;}
+    .leaflet-popup-content-wrapper{background:${T.card} !important;color:${T.text} !important;border:1px solid ${T.borderLight} !important;border-radius:12px !important;box-shadow:0 8px 32px rgba(0,0,0,.7) !important;padding:0 !important;}
+    .leaflet-popup-tip{background:${T.card} !important;}
+    .leaflet-popup-content{margin:0 !important;}
+    .leaflet-popup-close-button{color:${T.textMuted} !important;top:10px !important;right:12px !important;font-size:18px !important;}
+    .leaflet-popup-close-button:hover{color:${T.text} !important;}
+    .leaflet-crosshair{cursor:crosshair !important;}
+
+    @media(max-width:900px){.map-layout{flex-direction:column !important;}}
+  `}</style>
+);
+
+// [REST OF COMPONENT CODE — SEE RealtQR.jsx FILE]
+// The full component code is in the attached file RealtQR.jsx
+// All UI, routing logic, map, CSV export, toggle, mobile nav,
+// coordinate picker, print preview — everything is in that file.
+
+════════════════════════════════════════════════════════════════════════
+  SUGGESTED NEXT.JS FILE STRUCTURE (ask GPT to generate each file)
+════════════════════════════════════════════════════════════════════════
+
+realtqr/
+├── app/
+│   ├── layout.tsx                    ← root layout, fonts, global styles
+│   ├── page.tsx                      ← marketing/login redirect
+│   ├── login/page.tsx                ← Supabase Auth login page
+│   ├── signup/page.tsx               ← Supabase Auth signup page
+│   ├── dashboard/
+│   │   ├── layout.tsx                ← sidebar + mobile nav wrapper
+│   │   ├── page.tsx                  ← main dashboard
+│   │   ├── leads/page.tsx            ← leads view + CSV export
+│   │   ├── map/page.tsx              ← sign placement map
+│   │   └── settings/page.tsx         ← settings + Twilio config
+│   └── p/
+│       └── [propertyId]/
+│           └── page.tsx              ← PUBLIC QR landing page
+├── api/
+│   ├── send-sms/route.ts             ← Twilio SMS API route
+│   ├── leads/route.ts                ← POST lead to Supabase
+│   └── qr-scan/route.ts             ← increment scan_count
+├── components/
+│   ├── LeafletSignMap.tsx            ← dynamic import (no SSR)
+│   ├── CoordPickerMap.tsx            ← dynamic import (no SSR)
+│   ├── QRCode.tsx                    ← SVG QR renderer
+│   ├── PropertyCard.tsx
+│   ├── QRRow.tsx
+│   ├── MobileNav.tsx
+│   ├── Sidebar.tsx
+│   ├── Toggle.tsx
+│   ├── Modal.tsx
+│   └── Toast.tsx
+├── lib/
+│   ├── supabase.ts                   ← Supabase client (browser)
+│   ├── supabase-server.ts            ← Supabase client (server)
+│   └── utils.ts                      ← signColor, signEmoji, fmtDate, exportCSV
+├── types/
+│   └── index.ts                      ← TypeScript interfaces for all DB tables
+├── supabase/
+│   └── migrations/
+│       └── 001_initial_schema.sql    ← full schema + RLS policies
+├── .env.example
+├── .env.local                        ← gitignored
+├── next.config.js
+├── tailwind.config.js                ← optional, or use inline styles as in prototype
+├── package.json
+└── README.md
+
+════════════════════════════════════════════════════════════════════════
+  KEY THINGS TO TELL GPT IF IT GETS CONFUSED
+════════════════════════════════════════════════════════════════════════
+
+1. The Leaflet map components MUST be dynamically imported with 
+   { ssr: false } because Leaflet requires window to be defined.
+   Example:
+     const LeafletSignMap = dynamic(() => import('@/components/LeafletSignMap'), { ssr: false })
+
+2. The QR landing page at /p/[propertyId] is PUBLIC — no auth required.
+   Visitors who scan a QR code should see the lead form without logging in.
+
+3. The scan_count increment should happen server-side in an API route,
+   not from the client, to prevent manipulation.
+
+4. The SMS send should happen in a server-side API route (/api/send-sms)
+   so Twilio credentials are never exposed to the client.
+
+5. Use Supabase RLS so users can only read/write their own properties,
+   QR codes, and leads. The leads table is slightly different — it needs
+   to be writable by anonymous users (visitors submitting the form)
+   but only readable by the agent who owns the property.
+
+6. The design uses inline styles throughout (not Tailwind or CSS modules).
+   Keep it that way unless the person explicitly asks to switch.
+
+════════════════════════════════════════════════════════════════════════
+  END OF PROMPT — PASTE EVERYTHING ABOVE INTO GPT
+════════════════════════════════════════════════════════════════════════

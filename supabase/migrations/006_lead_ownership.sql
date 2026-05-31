@@ -1,0 +1,2 @@
+-- Migration tracking only (already run manually in Supabase SQL Editor)
+-- ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS agent_id uuid REFERENCES auth.users(id);

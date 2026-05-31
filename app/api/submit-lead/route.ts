@@ -52,7 +52,7 @@ export async function POST(request: Request) {
   // agent_phone comes from the DB only; the client never supplies it.
   const { data: property, error: propError } = await supabase
     .from('properties')
-    .select('id, address, agent_phone, active')
+    .select('id, address, agent_phone, active, user_id')
     .eq('id', propertyId)
     .single()
 
@@ -68,6 +68,7 @@ export async function POST(request: Request) {
     phone:       phone.trim(),
     email:       email?.trim() || '',
     motivation,
+    agent_id:    property.user_id || null,
   })
 
   if (insertError) {

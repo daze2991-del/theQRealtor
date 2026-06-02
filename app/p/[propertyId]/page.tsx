@@ -138,12 +138,15 @@ export default function PropertyPage() {
     return <div style={{ minHeight: '100vh', padding: 40, color: C.text, background: C.bg, fontFamily: 'sans-serif' }}>Property not found</div>
   }
 
-  const previewPhotos = photos.slice(0, Math.min(3, photos.length))
-  const lockedPhotos = photos.slice(previewPhotos.length, previewPhotos.length + 3)
+  // First 4 photos are always free; the rest are gated
+  const freePhotos = photos.slice(0, 4)
+  const gatedPhotos = photos.slice(4)
+  const peekPhoto = gatedPhotos[0] ?? null
   const price = formatPrice(property.price)
   const beds = statLabel(property.beds, 'bed', 'beds')
   const baths = statLabel(property.baths, 'bath', 'baths')
   const location = [property.city, property.state].filter(Boolean).join(', ')
+  const agentLabel = property.agent_name || 'the listing agent'
 
   return (
     <main style={{ minHeight: '100vh', background: C.bg, color: C.text, fontFamily: 'sans-serif' }}>
@@ -164,24 +167,27 @@ export default function PropertyPage() {
       `}</style>
 
       <div className="buyer-shell">
-        <section className="hero-grid" aria-label="Property preview photos">
-          {previewPhotos.length > 0 ? (
+        {/* Hero: first 4 photos, always free */}
+        <section className="hero-grid" aria-label="Property photos">
+          {freePhotos.length > 0 ? (
             <>
               <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 8, background: '#18181B', minHeight: 320 }}>
                 <img
-                  src={previewPhotos[0].url}
+                  src={freePhotos[0].url}
                   alt={property.address}
                   style={{ width: '100%', height: '100%', minHeight: 320, objectFit: 'cover', display: 'block' }}
                 />
                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(15,15,19,0.05) 35%, rgba(15,15,19,0.76))' }} />
               </div>
-              <div className="hero-stack">
-                {(previewPhotos.length > 1 ? previewPhotos.slice(1) : previewPhotos).map((photo, index) => (
-                  <div key={photo.id || photo.url || index} style={{ overflow: 'hidden', borderRadius: 8, background: '#18181B', minHeight: 155 }}>
-                    <img src={photo.url} alt="" style={{ width: '100%', height: '100%', minHeight: 155, objectFit: 'cover', display: 'block' }} />
-                  </div>
-                ))}
-              </div>
+              {freePhotos.length > 1 && (
+                <div className="hero-stack">
+                  {freePhotos.slice(1).map((photo, index) => (
+                    <div key={photo.id || photo.url || index} style={{ overflow: 'hidden', borderRadius: 8, background: '#18181B', minHeight: 130 }}>
+                      <img src={photo.url} alt="" style={{ width: '100%', height: '100%', minHeight: 130, objectFit: 'cover', display: 'block' }} />
+                    </div>
+                  ))}
+                </div>
+              )}
             </>
           ) : (
             <div style={{ gridColumn: '1 / -1', minHeight: 320, borderRadius: 8, border: `1px solid ${C.border}`, background: C.panel, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.muted }}>
@@ -192,20 +198,14 @@ export default function PropertyPage() {
 
         <section className="details-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 390px', gap: 28, alignItems: 'start', paddingTop: 30 }}>
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap', marginBottom: 18 }}>
-              <div>
-                {price && <div style={{ color: C.purple2, fontSize: 30, fontWeight: 900, marginBottom: 8 }}>{price}</div>}
-                <h1 style={{ fontSize: 34, lineHeight: 1.08, fontWeight: 900, margin: 0, maxWidth: 720 }}>{property.address}</h1>
-                {location && <p style={{ color: C.muted, fontSize: 15, margin: '9px 0 0' }}>{location}</p>}
-              </div>
-              {property.agent_name && (
-                <div style={{ border: `1px solid ${C.border}`, background: C.panel, borderRadius: 8, padding: '13px 15px', alignSelf: 'flex-start' }}>
-                  <div style={{ color: C.muted, fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 5 }}>Listing Agent</div>
-                  <div style={{ color: C.text, fontSize: 16, fontWeight: 800 }}>{property.agent_name}</div>
-                </div>
-              )}
+            {/* Price / address / location — always free */}
+            <div style={{ marginBottom: 18 }}>
+              {price && <div style={{ color: C.purple2, fontSize: 30, fontWeight: 900, marginBottom: 8 }}>{price}</div>}
+              <h1 style={{ fontSize: 34, lineHeight: 1.08, fontWeight: 900, margin: 0, maxWidth: 720 }}>{property.address}</h1>
+              {location && <p style={{ color: C.muted, fontSize: 15, margin: '9px 0 0' }}>{location}</p>}
             </div>
 
+            {/* Beds / baths — always free */}
             {(beds || baths) && (
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 26 }}>
                 {[beds, baths].filter(Boolean).map(stat => (
@@ -216,39 +216,57 @@ export default function PropertyPage() {
               </div>
             )}
 
+            {/* Description — always free */}
+            {property.description && (
+              <p style={{ color: '#D4D4D8', fontSize: 16, lineHeight: 1.75, margin: '0 0 28px' }}>{property.description}</p>
+            )}
+
+            {/* Gate: blurred remaining photos + CTA to fill form */}
             {!submitted && (
-              <section style={{ position: 'relative', overflow: 'hidden', border: `1px solid ${C.border}`, borderRadius: 8, background: C.panel, minHeight: 230 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, padding: 12, filter: 'blur(7px)', transform: 'scale(1.02)', opacity: 0.72 }}>
-                  {(lockedPhotos.length ? lockedPhotos : previewPhotos).slice(0, 3).map((photo, index) => (
-                    <img key={photo.id || photo.url || index} src={photo.url} alt="" style={{ width: '100%', height: 190, objectFit: 'cover', borderRadius: 6 }} />
-                  ))}
-                </div>
-                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(15,15,19,0.35), rgba(15,15,19,0.92))', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 24 }}>
-                  <div>
-                    <div style={{ color: C.text, fontSize: 22, fontWeight: 900, marginBottom: 8 }}>More photos and full details are locked</div>
-                    <p style={{ color: C.muted, fontSize: 15, lineHeight: 1.55, margin: 0 }}>Unlock the full gallery, description, and agent follow-up for this listing.</p>
+              <section style={{ position: 'relative', overflow: 'hidden', border: `1px solid ${C.border}`, borderRadius: 12, background: C.panel, minHeight: peekPhoto ? 240 : 150 }}>
+                {peekPhoto && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, padding: 12, filter: 'blur(8px)', transform: 'scale(1.04)', opacity: 0.6 }}>
+                    {gatedPhotos.slice(0, 3).map((photo, index) => (
+                      <img key={photo.id || photo.url || index} src={photo.url} alt="" style={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 6 }} />
+                    ))}
                   </div>
+                )}
+                <div style={{ position: 'absolute', inset: 0, background: peekPhoto ? 'linear-gradient(180deg, rgba(15,15,19,0.15) 0%, rgba(15,15,19,0.88) 55%)' : undefined, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '28px 24px', gap: 10 }}>
+                  <div style={{ fontSize: 26, lineHeight: 1 }}>📸</div>
+                  <div style={{ color: C.text, fontSize: 20, fontWeight: 900, lineHeight: 1.3 }}>
+                    {gatedPhotos.length > 0
+                      ? `See all ${photos.length} photos + connect with ${agentLabel}`
+                      : `Connect with ${agentLabel}`}
+                  </div>
+                  <p style={{ color: C.muted, fontSize: 14, lineHeight: 1.55, margin: 0, maxWidth: 360 }}>
+                    {gatedPhotos.length > 0
+                      ? `${gatedPhotos.length} more photo${gatedPhotos.length !== 1 ? 's' : ''} available — plus get direct access to the listing agent for showings and pricing.`
+                      : 'Get direct access to the listing agent for showings, pricing, and more.'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => document.getElementById('lead-form')?.scrollIntoView({ behavior: 'smooth' })}
+                    style={{ marginTop: 4, background: C.purple, color: '#fff', border: 'none', borderRadius: 8, padding: '11px 22px', fontSize: 14, fontWeight: 800, cursor: 'pointer', fontFamily: 'sans-serif' }}
+                  >
+                    {gatedPhotos.length > 0 ? `See All ${photos.length} Photos →` : 'Contact the Agent →'}
+                  </button>
                 </div>
               </section>
             )}
 
+            {/* Post-submit: thank you + full gallery */}
             {submitted && (
               <section>
                 <div style={{ border: `1px solid rgba(124, 58, 237, 0.45)`, background: 'rgba(124, 58, 237, 0.16)', borderRadius: 8, padding: 18, marginBottom: 24 }}>
-                  <h2 style={{ fontSize: 22, margin: '0 0 6px', fontWeight: 900 }}>Thanks, {name.trim()}.</h2>
-                  <p style={{ color: C.soft, margin: 0, lineHeight: 1.55 }}>You're all set! 🎉 Details about this property will be sent to you shortly.</p>
+                  <h2 style={{ fontSize: 22, margin: '0 0 6px', fontWeight: 900 }}>Thanks, {name.trim()}!</h2>
+                  <p style={{ color: C.soft, margin: 0, lineHeight: 1.55 }}>
+                    {property.agent_name ? `${property.agent_name} will` : 'The listing agent will'} be in touch with you shortly. 🎉
+                  </p>
                 </div>
 
-                {property.description && (
-                  <div style={{ marginBottom: 26 }}>
-                    <h2 style={{ fontSize: 22, fontWeight: 900, margin: '0 0 10px' }}>Description</h2>
-                    <p style={{ color: '#D4D4D8', fontSize: 16, lineHeight: 1.75, margin: 0 }}>{property.description}</p>
-                  </div>
-                )}
-
-                {photos.length > 0 && (
+                {gatedPhotos.length > 0 && (
                   <div>
-                    <h2 style={{ fontSize: 22, fontWeight: 900, margin: '0 0 14px' }}>Full Gallery</h2>
+                    <h2 style={{ fontSize: 22, fontWeight: 900, margin: '0 0 14px' }}>All Photos</h2>
                     <div className="gallery-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
                       {photos.map((photo, index) => (
                         <img
@@ -265,11 +283,13 @@ export default function PropertyPage() {
             )}
           </div>
 
-          {!submitted && (
-            <form onSubmit={handleSubmit} style={{ position: 'sticky', top: 18, background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: 24, boxShadow: '0 24px 80px rgba(0,0,0,0.34)' }}>
-              <h2 style={{ fontSize: 24, fontWeight: 900, margin: '0 0 8px' }}>Get Instant Access to This Home</h2>
-              <p style={{ color: C.muted, fontSize: 14, lineHeight: 1.55, margin: '0 0 14px' }}>🔒 Your information goes directly to the listing agent. No spam. No obligation.</p>
-              <p style={{ color: C.muted, fontSize: 13, lineHeight: 1.5, margin: '0 0 22px', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`, borderRadius: 6 }}>Already working with a buyer's agent? Please have your agent contact the listing agent directly.</p>
+          {/* Right column: form before submit, agent card after */}
+          {!submitted ? (
+            <form id="lead-form" onSubmit={handleSubmit} style={{ position: 'sticky', top: 18, background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: 24, boxShadow: '0 24px 80px rgba(0,0,0,0.34)' }}>
+              <h2 style={{ fontSize: 24, fontWeight: 900, margin: '0 0 6px' }}>
+                {gatedPhotos.length > 0 ? `See All ${photos.length} Photos & Contact the Agent` : 'Contact the Listing Agent'}
+              </h2>
+              <p style={{ color: C.muted, fontSize: 14, lineHeight: 1.55, margin: '0 0 20px' }}>Your info goes directly to the listing agent — no spam, no obligation.</p>
 
               <div style={{ display: 'grid', gap: 15 }}>
                 <label style={{ display: 'grid', gap: 7, color: C.muted, fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
@@ -316,8 +336,6 @@ export default function PropertyPage() {
 
                 {error && <p style={{ color: '#FCA5A5', fontSize: 14, margin: 0 }}>{error}</p>}
 
-                <p style={{ color: C.soft, fontSize: 13, lineHeight: 1.5, margin: 0 }}>📅 Want a private showing? Submit your info and the listing agent will contact you directly.</p>
-
                 <button
                   type="submit"
                   disabled={submitting}
@@ -334,16 +352,26 @@ export default function PropertyPage() {
                     fontFamily: 'sans-serif',
                   }}
                 >
-                  {submitting ? 'Loading...' : 'View Price & Photos →'}
+                  {submitting ? 'Loading...' : gatedPhotos.length > 0 ? 'See All Photos & Contact Agent →' : 'Contact the Agent →'}
                 </button>
 
-                <p style={{ color: C.muted, fontSize: 11, lineHeight: 1.55, margin: '14px 0 0', textAlign: 'center' }}>
-                  By submitting your information you consent to be contacted by the listing agent regarding this property. If you are currently represented by a buyer's agent, please inform your agent of your interest in this property. Message and data rates may apply.{' '}
-                  <a href="/privacy" style={{ color: C.muted, textDecoration: 'underline' }}>View our Privacy Policy</a>.
+                <p style={{ color: C.muted, fontSize: 11, lineHeight: 1.55, margin: '10px 0 0', textAlign: 'center' }}>
+                  Already working with a buyer's agent? Have your agent contact the listing agent directly. By submitting you consent to be contacted regarding this property. Message and data rates may apply.{' '}
+                  <a href="/privacy" style={{ color: C.muted, textDecoration: 'underline' }}>Privacy Policy</a>.
                 </p>
               </div>
             </form>
-          )}
+          ) : property.agent_name ? (
+            <div style={{ position: 'sticky', top: 18 }}>
+              <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: 24 }}>
+                <div style={{ color: C.muted, fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>Listing Agent</div>
+                <div style={{ color: C.text, fontSize: 20, fontWeight: 900, marginBottom: 16 }}>{property.agent_name}</div>
+                <div style={{ background: 'rgba(124,58,237,0.12)', border: `1px solid rgba(124,58,237,0.3)`, borderRadius: 8, padding: '12px 14px', fontSize: 13, color: C.soft, lineHeight: 1.55 }}>
+                  📅 Your request has been sent. {property.agent_name} will reach out to schedule a showing.
+                </div>
+              </div>
+            </div>
+          ) : null}
         </section>
       </div>
     </main>

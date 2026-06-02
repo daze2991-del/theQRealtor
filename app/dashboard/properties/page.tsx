@@ -476,12 +476,16 @@ export default function PropertiesPage() {
       if (qrFetchErr) return
       const qrIds = (qrData || []).map((q: any) => q.id)
 
-      // 1. scan_events — must be before unlinking qrcodes so qr_id lookup still works
+      // 1a. scan_events by qr_id (must be before unlinking qrcodes)
       if (qrIds.length > 0) {
         const { error: seErr } = await supabase.from('scan_events').delete().in('qr_id', qrIds)
-        console.log('[deleteProperty] scan_events:', seErr ?? 'OK')
+        console.log('[deleteProperty] scan_events by qr_id:', seErr ?? 'OK')
         if (seErr) return
       }
+      // 1b. scan_events by property_id (direct FK added in migration 009 — belt and suspenders)
+      const { error: seDirectErr } = await supabase.from('scan_events').delete().eq('property_id', prop.id)
+      console.log('[deleteProperty] scan_events by property_id:', seDirectErr ?? 'OK')
+      if (seDirectErr) return
 
       // 2. property_photos
       const { error: phErr } = await supabase.from('property_photos').delete().eq('property_id', prop.id)

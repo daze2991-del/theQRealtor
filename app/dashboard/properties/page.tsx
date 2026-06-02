@@ -75,7 +75,9 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
   const loadPhotos = useCallback(async () => {
     setLoadingPhotos(true)
     const supabase = createBrowserSupabase()
-    const { data } = await supabase.from('property_photos').select('*').eq('property_id', prop.id).order('order', { ascending: true })
+    const { data, error } = await supabase.from('property_photos').select('*').eq('property_id', prop.id).order('order', { ascending: true })
+    if (error) console.error('[photos] load error:', error)
+    else console.log('[photos] loaded order:', data?.map(p => ({ id: p.id.slice(-6), order: p.order })))
     setPhotos(data || [])
     setLoadingPhotos(false)
   }, [prop.id])
@@ -120,8 +122,34 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
     reordered.splice(toIdx, 0, moved)
     setPhotos(reordered)
     setHasReordered(true)
+
     const supabase = createBrowserSupabase()
-    await Promise.all(reordered.map((p, i) => supabase.from('property_photos').update({ order: i }).eq('id', p.id)))
+
+    // Verify session is active before writing
+    const { data: { session } } = await supabase.auth.getSession()
+    console.log('[reorder] session uid:', session?.user?.id ?? 'NO SESSION')
+    console.log('[reorder] sending updates:', reordered.map((p, i) => ({ id: p.id.slice(-6), order: i, oldOrder: p.order })))
+
+    const results = await Promise.all(
+      reordered.map((p, i) =>
+        supabase.from('property_photos').update({ order: i }).eq('id', p.id)
+      )
+    )
+
+    const errs = results.filter(r => r.error)
+    if (errs.length > 0) {
+      console.error('[reorder] FAILED — errors:', errs.map(r => r.error))
+    } else {
+      console.log('[reorder] all', results.length, 'updates OK — reloading to verify')
+      // Re-fetch immediately to confirm DB reflects new order
+      const { data, error } = await supabase
+        .from('property_photos')
+        .select('id, order')
+        .eq('property_id', prop.id)
+        .order('order', { ascending: true })
+      if (error) console.error('[reorder] verify fetch error:', error)
+      else console.log('[reorder] DB order after update:', data?.map(p => ({ id: p.id.slice(-6), order: p.order })))
+    }
   }
 
   const handleGridTouchMove = (e: React.TouchEvent) => {

@@ -66,6 +66,36 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: num
   return currentY
 }
 
+async function drawCircularPhoto(
+  ctx: CanvasRenderingContext2D,
+  src: string,
+  cx: number,
+  cy: number,
+  r: number,
+  ringColor = '#FFFFFF',
+) {
+  try {
+    const img = await loadImage(src)
+    // center-crop source to square
+    const sq = Math.min(img.width, img.height)
+    const sx = (img.width - sq) / 2
+    const sy = (img.height - sq) / 2
+    ctx.save()
+    ctx.beginPath()
+    ctx.arc(cx, cy, r, 0, Math.PI * 2)
+    ctx.clip()
+    ctx.drawImage(img, sx, sy, sq, sq, cx - r, cy - r, r * 2, r * 2)
+    ctx.restore()
+    // border ring
+    const ring = Math.max(4, Math.round(r * 0.08))
+    ctx.strokeStyle = ringColor
+    ctx.lineWidth = ring
+    ctx.beginPath()
+    ctx.arc(cx, cy, r + ring / 2, 0, Math.PI * 2)
+    ctx.stroke()
+  } catch { /* photo load failed, skip */ }
+}
+
 // ── download functions ────────────────────────────────────────────────────────
 
 async function downloadCorner(
@@ -86,9 +116,10 @@ async function downloadCorner(
   const bx = W - boxSize - pad
   const by = H - boxSize - pad
 
-  // white rounded card behind QR
+  // white rounded card behind QR — taller when agent photo is present
+  const cardExtra = branding.agentPhotoUrl ? 96 : 0
   ctx.fillStyle = 'rgba(255,255,255,0.97)'
-  roundRect(ctx, bx - 20, by - 20, boxSize + 40, boxSize + 80, 18)
+  roundRect(ctx, bx - 20, by - 20, boxSize + 40, boxSize + 80 + cardExtra, 18)
   ctx.fill()
 
   // QR code
@@ -101,11 +132,17 @@ async function downloadCorner(
   ctx.textAlign = 'center'
   ctx.fillText('Scan Me', bx + boxSize / 2, by + boxSize + 44)
 
+  // agent photo: circular, centered between "Scan Me" and agent name
+  if (branding.agentPhotoUrl) {
+    await drawCircularPhoto(ctx, branding.agentPhotoUrl, bx + boxSize / 2, by + boxSize + 96, 32, '#D1D5DB')
+  }
+
   // agent name
   if (branding.agentName) {
+    const nameY = branding.agentPhotoUrl ? by + boxSize + 146 : by + boxSize + 68
     ctx.fillStyle = '#6B7280'
     ctx.font = '20px sans-serif'
-    ctx.fillText(branding.agentName, bx + boxSize / 2, by + boxSize + 68)
+    ctx.fillText(branding.agentName, bx + boxSize / 2, nameY)
   }
 
   const a = document.createElement('a')
@@ -172,7 +209,14 @@ async function downloadRider(
   ctx.stroke()
 
   // agent info section
-  const infoY = belowQR + 140
+  let infoY = belowQR + 140
+
+  // agent photo: circular, centered above agent name
+  if (branding.agentPhotoUrl) {
+    await drawCircularPhoto(ctx, branding.agentPhotoUrl, W / 2, infoY, 100)
+    infoY += 220  // photo diameter + gap
+  }
+
   ctx.fillStyle = '#FFFFFF'
   ctx.font = 'bold 56px sans-serif'
   ctx.textAlign = 'center'
@@ -258,16 +302,25 @@ async function downloadTraffic(
     ctx.fillText('NO APP NEEDED', textX, H * 0.26 + H * 0.56)
 
     let agentY = H * 0.26 + H * 0.66
+
+    // agent photo: inline to the left of name (landscape has no vertical room)
+    const photoR = Math.floor(H * 0.045)
+    const hasPhoto = !!branding.agentPhotoUrl
+    if (hasPhoto) {
+      await drawCircularPhoto(ctx, branding.agentPhotoUrl, textX + photoR, agentY - photoR * 0.4, photoR)
+    }
+    const nameX = hasPhoto ? textX + photoR * 2 + 24 : textX
     if (branding.agentName) {
       ctx.fillStyle = '#FFFFFF'
       ctx.font = `bold ${Math.floor(H * 0.065)}px sans-serif`
-      ctx.fillText(branding.agentName, textX, agentY)
+      ctx.textAlign = 'left'
+      ctx.fillText(branding.agentName, nameX, agentY)
       agentY += H * 0.08
     }
     if (branding.agentPhone) {
       ctx.fillStyle = C.purpleL
       ctx.font = `bold ${Math.floor(H * 0.054)}px sans-serif`
-      ctx.fillText(branding.agentPhone, textX, agentY)
+      ctx.fillText(branding.agentPhone, nameX, agentY)
     }
 
     // watermark bottom-left
@@ -303,6 +356,14 @@ async function downloadTraffic(
 
     // agent info — bold, prominent
     let bottomY = noAppY + Math.floor(W * 0.08)
+
+    // agent photo: circular, centered above agent name
+    if (branding.agentPhotoUrl) {
+      const photoR = Math.floor(W * 0.05)
+      await drawCircularPhoto(ctx, branding.agentPhotoUrl, W / 2, bottomY + photoR, photoR)
+      bottomY += photoR * 2 + Math.floor(W * 0.04)
+    }
+
     if (branding.agentName) {
       ctx.fillStyle = '#FFFFFF'
       ctx.font = `bold ${Math.floor(W * 0.065)}px sans-serif`

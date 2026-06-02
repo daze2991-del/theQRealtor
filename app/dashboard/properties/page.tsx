@@ -463,12 +463,33 @@ export default function PropertiesPage() {
   }
 
   const deleteProperty = async (prop: any) => {
-    if (!confirm(`Delete "${prop.address}"?\n\nThis will permanently remove the property, all its QR codes, leads, and photos. This cannot be undone.`)) return
+    if (!confirm(`Delete "${prop.address}"?\n\nThis permanently removes the property, all QR codes, leads, and photos. This cannot be undone.`)) return
     setDeletingId(prop.id)
     try {
       const supabase = createBrowserSupabase()
-      const { error } = await supabase.from('properties').delete().eq('id', prop.id)
-      if (!error) setProperties(prev => prev.filter(p => p.id !== prop.id))
+
+      // Fetch QR IDs for this property — needed to target scan_events
+      const { data: qrData } = await supabase.from('qrcodes').select('id').eq('property_id', prop.id)
+      const qrIds = (qrData || []).map((q: any) => q.id)
+
+      // Delete in FK-safe order: deepest dependents first
+      if (qrIds.length > 0) {
+        const { error: seErr } = await supabase.from('scan_events').delete().in('qr_id', qrIds)
+        if (seErr) { console.error('[deleteProperty] scan_events:', seErr); return }
+      }
+      const { error: lErr } = await supabase.from('leads').delete().eq('property_id', prop.id)
+      if (lErr) { console.error('[deleteProperty] leads:', lErr); return }
+
+      const { error: qrErr } = await supabase.from('qrcodes').delete().eq('property_id', prop.id)
+      if (qrErr) { console.error('[deleteProperty] qrcodes:', qrErr); return }
+
+      const { error: phErr } = await supabase.from('property_photos').delete().eq('property_id', prop.id)
+      if (phErr) { console.error('[deleteProperty] property_photos:', phErr); return }
+
+      const { error: propErr } = await supabase.from('properties').delete().eq('id', prop.id)
+      if (propErr) { console.error('[deleteProperty] property:', propErr); return }
+
+      setProperties(prev => prev.filter(p => p.id !== prop.id))
     } finally {
       setDeletingId(null)
     }

@@ -51,11 +51,17 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
   const [loadingPhotos, setLoadingPhotos] = useState(false)
   const [uploading, setUploading]       = useState(false)
   const [uploadError, setUploadError]   = useState('')
-  const [isDragging, setIsDragging]     = useState(false)
-  const [menuOpen, setMenuOpen]         = useState(false)
-  const [copied, setCopied]             = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const menuRef      = useRef<HTMLDivElement>(null)
+  const [isDragging, setIsDragging]       = useState(false)
+  const [dragIndex, setDragIndex]         = useState<number | null>(null)
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+  const [hasReordered, setHasReordered]   = useState(false)
+  const [menuOpen, setMenuOpen]           = useState(false)
+  const [copied, setCopied]               = useState(false)
+  const fileInputRef  = useRef<HTMLInputElement>(null)
+  const menuRef       = useRef<HTMLDivElement>(null)
+  const photoGridRef  = useRef<HTMLDivElement>(null)
+  const touchDragFrom = useRef<number | null>(null)
+  const touchDragOver = useRef<number | null>(null)
 
   useEffect(() => {
     if (!menuOpen) return
@@ -107,6 +113,49 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); setIsDragging(false); uploadFiles(e.dataTransfer.files)
   }, [uploadFiles])
+
+  const reorderPhotos = async (fromIdx: number, toIdx: number) => {
+    const reordered = [...photos]
+    const [moved] = reordered.splice(fromIdx, 1)
+    reordered.splice(toIdx, 0, moved)
+    setPhotos(reordered)
+    setHasReordered(true)
+    const supabase = createBrowserSupabase()
+    await Promise.all(reordered.map((p, i) => supabase.from('property_photos').update({ order: i }).eq('id', p.id)))
+  }
+
+  const handleGridTouchMove = (e: React.TouchEvent) => {
+    if (touchDragFrom.current === null) return
+    const touch = e.touches[0]
+    const el = document.elementFromPoint(touch.clientX, touch.clientY)
+    const tile = el?.closest('[data-photo-index]') as HTMLElement | null
+    if (tile) {
+      const idx = parseInt(tile.dataset.photoIndex ?? '-1')
+      if (idx >= 0 && idx !== touchDragFrom.current) {
+        touchDragOver.current = idx
+        setDragOverIndex(idx)
+      }
+    }
+  }
+
+  const handleGridTouchEnd = () => {
+    const from = touchDragFrom.current
+    const to = touchDragOver.current
+    if (from !== null && to !== null && from !== to) reorderPhotos(from, to)
+    touchDragFrom.current = null
+    touchDragOver.current = null
+    setDragIndex(null)
+    setDragOverIndex(null)
+  }
+
+  // Non-passive listener so we can preventDefault during touch-drag (blocks page scroll)
+  useEffect(() => {
+    const el = photoGridRef.current
+    if (!el) return
+    const prevent = (e: TouchEvent) => { if (touchDragFrom.current !== null) e.preventDefault() }
+    el.addEventListener('touchmove', prevent, { passive: false })
+    return () => el.removeEventListener('touchmove', prevent)
+  })
 
   const copyBuyerLink = async () => {
     try {
@@ -171,20 +220,54 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
           ) : (
             <>
               {photos.length > 0 && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 8, marginBottom: 12 }}>
-                  {photos.map((photo, i) => (
-                    <div key={photo.id} style={{ position: 'relative', aspectRatio: '1', borderRadius: 8, overflow: 'hidden', border: `1px solid ${C.border}` }}>
-                      {i === 0 && (
-                        <div style={{ position: 'absolute', top: 3, left: 3, zIndex: 2, background: C.purple, color: '#fff', fontSize: 8, fontWeight: 800, padding: '2px 5px', borderRadius: 3 }}>HERO</div>
-                      )}
-                      <img src={photo.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      <button
-                        onClick={() => deletePhoto(photo)}
-                        style={{ position: 'absolute', top: 3, right: 3, zIndex: 2, background: 'rgba(0,0,0,0.75)', color: '#fff', border: 'none', borderRadius: '50%', width: 20, height: 20, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      >✕</button>
+                <>
+                  {photos.length > 1 && !hasReordered && (
+                    <div style={{ fontSize: 11, color: C.muted, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginBottom: 8 }}>
+                      <span style={{ letterSpacing: '0.15em', opacity: 0.5 }}>⋮⋮</span> Drag to reorder
                     </div>
-                  ))}
-                </div>
+                  )}
+                  <div
+                    ref={photoGridRef}
+                    style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 8, marginBottom: 12 }}
+                    onTouchMove={handleGridTouchMove}
+                    onTouchEnd={handleGridTouchEnd}
+                  >
+                    {photos.map((photo, i) => (
+                      <div
+                        key={photo.id}
+                        data-photo-index={i}
+                        draggable
+                        onDragStart={() => setDragIndex(i)}
+                        onDragOver={e => { e.preventDefault(); if (dragOverIndex !== i) setDragOverIndex(i) }}
+                        onDragEnd={() => {
+                          if (dragIndex !== null && dragOverIndex !== null && dragIndex !== dragOverIndex) {
+                            reorderPhotos(dragIndex, dragOverIndex)
+                          }
+                          setDragIndex(null); setDragOverIndex(null)
+                        }}
+                        onDrop={e => e.preventDefault()}
+                        onTouchStart={() => { touchDragFrom.current = i; setDragIndex(i) }}
+                        style={{
+                          position: 'relative', aspectRatio: '1', borderRadius: 8, overflow: 'hidden',
+                          border: `1px solid ${dragOverIndex === i && dragIndex !== i ? C.purple : C.border}`,
+                          opacity: dragIndex === i ? 0.4 : 1,
+                          cursor: 'grab',
+                          transition: 'opacity 0.15s, border-color 0.1s',
+                        }}
+                      >
+                        {i === 0 && (
+                          <div style={{ position: 'absolute', top: 3, left: 3, zIndex: 2, background: C.purple, color: '#fff', fontSize: 8, fontWeight: 800, padding: '2px 5px', borderRadius: 3 }}>HERO</div>
+                        )}
+                        <div style={{ position: 'absolute', bottom: 4, left: '50%', transform: 'translateX(-50%)', zIndex: 2, background: 'rgba(0,0,0,0.55)', color: 'rgba(255,255,255,0.65)', fontSize: 11, padding: '2px 6px', borderRadius: 4, letterSpacing: '0.15em', pointerEvents: 'none', userSelect: 'none' }}>⋮⋮</div>
+                        <img src={photo.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none', userSelect: 'none' }} />
+                        <button
+                          onClick={() => deletePhoto(photo)}
+                          style={{ position: 'absolute', top: 3, right: 3, zIndex: 2, background: 'rgba(0,0,0,0.75)', color: '#fff', border: 'none', borderRadius: '50%', width: 20, height: 20, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >✕</button>
+                      </div>
+                    ))}
+                  </div>
+                </>
               )}
               {photos.length < 10 && (
                 <div

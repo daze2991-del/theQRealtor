@@ -42,7 +42,7 @@ export async function POST(request: Request) {
 
   const { propertyId, qrId, name, phone, email, motivation } = body as Record<string, string | null | undefined>
 
-  if (!propertyId || !name?.trim() || !phone?.trim() || !motivation) {
+  if (!propertyId || !name?.trim() || !phone?.trim() || !email?.trim() || !motivation) {
     return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 })
   }
 

@@ -1,0 +1,2 @@
+-- Migration tracking only (already run manually in Supabase SQL Editor)
+-- ALTER TABLE public.scan_events ADD COLUMN IF NOT EXISTS property_id uuid REFERENCES public.properties(id) ON DELETE CASCADE;

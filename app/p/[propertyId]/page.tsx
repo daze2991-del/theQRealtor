@@ -48,7 +48,6 @@ export default function PropertyPage() {
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [motivationLevel, setMotivationLevel] = useState('')
-  const [showEmail, setShowEmail] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
@@ -72,15 +71,19 @@ export default function PropertyPage() {
     const trackScan = async () => {
       if (!qrId) return
       const supabase = createBrowserSupabase()
-      await supabase.from('scan_events').insert([{ qr_id: qrId }])
+      await supabase.from('scan_events').insert([{ qr_id: qrId, property_id: propertyId }])
     }
     if (propertyId) trackScan()
   }, [propertyId, qrId])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!name.trim() || !phone.trim() || !motivationLevel) {
-      setError('Please add your name, phone number, and buying timeline.')
+    if (!name.trim() || !phone.trim() || !email.trim() || !motivationLevel) {
+      setError('Please fill in your name, phone number, email, and buying timeline.')
+      return
+    }
+    if (!email.includes('@') || !email.includes('.')) {
+      setError('Please enter a valid email address.')
       return
     }
     setSubmitting(true)
@@ -279,17 +282,10 @@ export default function PropertyPage() {
                   <input className="field" type="tel" required placeholder="Your phone number" value={phone} onChange={e => setPhone(e.target.value)} style={inputStyle} />
                 </label>
 
-                {!showEmail && (
-                  <button type="button" onClick={() => setShowEmail(true)} style={{ background: 'none', border: 'none', color: C.purple2, fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'left', padding: 0, fontFamily: 'sans-serif' }}>
-                    + Add email (optional)
-                  </button>
-                )}
-                {showEmail && (
-                  <label style={{ display: 'grid', gap: 7, color: C.muted, fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                    Email
-                    <input className="field" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} />
-                  </label>
-                )}
+                <label style={{ display: 'grid', gap: 7, color: C.muted, fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                  Email
+                  <input className="field" type="email" required placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} />
+                </label>
 
                 <div>
                   <div style={{ color: C.muted, fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10 }}>When are you looking to buy?</div>

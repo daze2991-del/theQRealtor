@@ -476,7 +476,7 @@ export default function PropertiesPage() {
       if (qrFetchErr) { console.error('[deleteProperty] BAIL: qr fetch', qrFetchErr); return }
       const qrIds = (qrData || []).map((q: any) => q.id)
 
-      // 1. scan_events (must be before unlinking qrcodes so qr_id → property chain still valid)
+      // 1. scan_events — delete before property so qr_id → property chain is still valid
       if (qrIds.length > 0) {
         const { error } = await supabase.from('scan_events').delete().in('qr_id', qrIds)
         console.log('[deleteProperty] 1. scan_events:', error ?? 'OK')
@@ -490,24 +490,20 @@ export default function PropertiesPage() {
       console.log('[deleteProperty] 2. leads:', lErr ?? 'OK')
       if (lErr) { console.error('[deleteProperty] BAIL: leads', lErr); return }
 
-      // 3. unlink qr codes (set property_id = null — do NOT delete, physical signs are reusable)
-      if (qrIds.length > 0) {
-        const { error } = await supabase.from('qrcodes').update({ property_id: null }).eq('property_id', prop.id)
-        console.log('[deleteProperty] 3. qr unlink:', error ?? 'OK')
-        if (error) { console.error('[deleteProperty] BAIL: qr unlink', error); return }
-      } else {
-        console.log('[deleteProperty] 3. qr unlink: skipped (no qr codes)')
-      }
-
-      // 4. property_photos
+      // 3. property_photos
       const { error: phErr } = await supabase.from('property_photos').delete().eq('property_id', prop.id)
-      console.log('[deleteProperty] 4. photos:', phErr ?? 'OK')
+      console.log('[deleteProperty] 3. photos:', phErr ?? 'OK')
       if (phErr) { console.error('[deleteProperty] BAIL: photos', phErr); return }
 
-      // 5. property (FK cascade on scan_events.property_id handles any stragglers)
+      // 4. delete property — ON DELETE SET NULL fires automatically on qrcodes.property_id
+      //    (no manual unlink needed; Postgres handles it within the same transaction)
       const { error: propErr } = await supabase.from('properties').delete().eq('id', prop.id)
-      console.log('[deleteProperty] 5. property:', propErr ?? 'OK')
+      console.log('[deleteProperty] 4. property:', propErr ?? 'OK')
       if (propErr) { console.error('[deleteProperty] BAIL: property', propErr); return }
+
+      // Verify qrcodes were unlinked (property_id should now be NULL)
+      const { data: remaining } = await supabase.from('qrcodes').select('id').eq('property_id', prop.id)
+      console.log('[deleteProperty] qr verify: remaining with old property_id =', remaining?.length ?? 0)
 
       setProperties(prev => prev.filter(p => p.id !== prop.id))
       console.log('[deleteProperty] done ✓')

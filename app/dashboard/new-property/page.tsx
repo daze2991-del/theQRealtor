@@ -167,7 +167,7 @@ export default function NewPropertyPage() {
           property_id: savedPropertyId,
           url: publicUrl,
           storage_path: storagePath,
-          order: uploadedPhotos.length,
+          sort_order: uploadedPhotos.length,
         })
         .select('id')
         .single();

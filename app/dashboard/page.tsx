@@ -182,7 +182,7 @@ export default function Dashboard() {
         supabase.from('leads').select('*', { count: 'exact', head: true })
           .in('property_id', ids).gte('created_at', monthISO),
         supabase.from('property_photos').select('property_id, url')
-          .in('property_id', ids).order('order', { ascending: true }),
+          .in('property_id', ids).order('sort_order', { ascending: true }),
       ])
 
       const scanMap: Record<string, number> = {}

@@ -75,9 +75,8 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
   const loadPhotos = useCallback(async () => {
     setLoadingPhotos(true)
     const supabase = createBrowserSupabase()
-    const { data, error } = await supabase.from('property_photos').select('*').eq('property_id', prop.id).order('order', { ascending: true })
+    const { data, error } = await supabase.from('property_photos').select('*').eq('property_id', prop.id).order('sort_order', { ascending: true })
     if (error) console.error('[photos] load error:', error)
-    else console.log('[photos] loaded order:', data?.map(p => ({ id: p.id.slice(-6), order: p.order })))
     setPhotos(data || [])
     setLoadingPhotos(false)
   }, [prop.id])
@@ -97,7 +96,7 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
       const { error: uploadErr } = await supabase.storage.from('property-photos').upload(storagePath, file, { cacheControl: '3600', upsert: false })
       if (uploadErr) { setUploadError(`Upload failed: ${uploadErr.message}`); continue }
       const { data: { publicUrl } } = supabase.storage.from('property-photos').getPublicUrl(storagePath)
-      await supabase.from('property_photos').insert({ property_id: prop.id, url: publicUrl, storage_path: storagePath, order: photos.length })
+      await supabase.from('property_photos').insert({ property_id: prop.id, url: publicUrl, storage_path: storagePath, sort_order: photos.length })
     }
     await loadPhotos()
     setUploading(false)
@@ -124,32 +123,13 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
     setHasReordered(true)
 
     const supabase = createBrowserSupabase()
-
-    // Verify session is active before writing
-    const { data: { session } } = await supabase.auth.getSession()
-    console.log('[reorder] session uid:', session?.user?.id ?? 'NO SESSION')
-    console.log('[reorder] sending updates:', reordered.map((p, i) => ({ id: p.id.slice(-6), order: i, oldOrder: p.order })))
-
     const results = await Promise.all(
       reordered.map((p, i) =>
-        supabase.from('property_photos').update({ order: i }).eq('id', p.id)
+        supabase.from('property_photos').update({ sort_order: i }).eq('id', p.id)
       )
     )
-
     const errs = results.filter(r => r.error)
-    if (errs.length > 0) {
-      console.error('[reorder] FAILED — errors:', errs.map(r => r.error))
-    } else {
-      console.log('[reorder] all', results.length, 'updates OK — reloading to verify')
-      // Re-fetch immediately to confirm DB reflects new order
-      const { data, error } = await supabase
-        .from('property_photos')
-        .select('id, order')
-        .eq('property_id', prop.id)
-        .order('order', { ascending: true })
-      if (error) console.error('[reorder] verify fetch error:', error)
-      else console.log('[reorder] DB order after update:', data?.map(p => ({ id: p.id.slice(-6), order: p.order })))
-    }
+    if (errs.length > 0) console.error('[reorder] update errors:', errs.map(r => r.error))
   }
 
   const handleGridTouchMove = (e: React.TouchEvent) => {

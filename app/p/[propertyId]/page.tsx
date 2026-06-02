@@ -65,7 +65,7 @@ export default function PropertyPage() {
       const supabase = createBrowserSupabase()
       const [{ data, error }, { data: photoData }] = await Promise.all([
         supabase.from('properties').select('*').eq('id', propertyId).single(),
-        supabase.from('property_photos').select('*').eq('property_id', propertyId).order('order', { ascending: true }),
+        supabase.from('property_photos').select('*').eq('property_id', propertyId).order('sort_order', { ascending: true }),
       ])
       if (error) console.error(error)
       setProperty(data)

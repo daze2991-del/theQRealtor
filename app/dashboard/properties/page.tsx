@@ -96,7 +96,8 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
       const { error: uploadErr } = await supabase.storage.from('property-photos').upload(storagePath, file, { cacheControl: '3600', upsert: false })
       if (uploadErr) { setUploadError(`Upload failed: ${uploadErr.message}`); continue }
       const { data: { publicUrl } } = supabase.storage.from('property-photos').getPublicUrl(storagePath)
-      await supabase.from('property_photos').insert({ property_id: prop.id, url: publicUrl, storage_path: storagePath, sort_order: photos.length })
+      const { error: dbErr } = await supabase.from('property_photos').insert({ property_id: prop.id, url: publicUrl, storage_path: storagePath, sort_order: photos.length })
+      if (dbErr) { setUploadError(`Failed to save photo: ${dbErr.message}`); continue }
     }
     await loadPhotos()
     setUploading(false)

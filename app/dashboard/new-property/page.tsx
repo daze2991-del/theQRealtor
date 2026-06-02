@@ -172,7 +172,11 @@ export default function NewPropertyPage() {
         .select('id')
         .single();
 
-      if (!dbErr && photoRow) {
+      if (dbErr) {
+        setUploadError(`Failed to save photo: ${dbErr.message}`);
+        continue;
+      }
+      if (photoRow) {
         const preview = URL.createObjectURL(file);
         setUploadedPhotos(prev => [...prev, {
           id: photoRow.id,

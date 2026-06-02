@@ -31,6 +31,18 @@ const TD_STYLE: React.CSSProperties = {
   fontSize: 13.5, color: C.sub, verticalAlign: 'middle',
 }
 
+function placementIcon(p?: string): string {
+  switch (p) {
+    case 'Yard Sign':        return '🪧'
+    case 'Directional Sign': return '➡️'
+    case 'Open House Table': return '🏡'
+    case 'Window Sign':      return '🪟'
+    case 'Flyer / Mailer':   return '📄'
+    case 'Other':            return '📍'
+    default:                 return ''
+  }
+}
+
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
   const m = Math.floor(diff / 60000)
@@ -334,7 +346,9 @@ export default function QRCodesPage() {
                         <div key={q.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${C.border}`, fontFamily: 'sans-serif' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                             <span style={{ fontSize: 13, width: 20, flexShrink: 0 }}>{i === 0 ? '🏆' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}</span>
-                            <span style={{ fontSize: 12, color: C.sub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{q.label}</span>
+                            <span style={{ fontSize: 12, color: C.sub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {q.placement ? `${placementIcon(q.placement)} ` : ''}{q.label}{q.placement ? ` · ${q.placement}` : ''}
+                            </span>
                           </div>
                           <span style={{ fontSize: 12, fontWeight: 700, color: '#FFD700', flexShrink: 0, marginLeft: 8 }}>{q.leads} leads</span>
                         </div>
@@ -354,7 +368,9 @@ export default function QRCodesPage() {
                         <div key={q.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${C.border}`, fontFamily: 'sans-serif' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                             <span style={{ fontSize: 13, width: 20, flexShrink: 0 }}>{i === 0 ? '🏆' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}</span>
-                            <span style={{ fontSize: 12, color: C.sub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{q.label}</span>
+                            <span style={{ fontSize: 12, color: C.sub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {q.placement ? `${placementIcon(q.placement)} ` : ''}{q.label}{q.placement ? ` · ${q.placement}` : ''}
+                            </span>
                           </div>
                           <span style={{ fontSize: 12, fontWeight: 700, color: C.purpleL, flexShrink: 0, marginLeft: 8 }}>{q.scan_count || 0} scans</span>
                         </div>
@@ -381,7 +397,9 @@ export default function QRCodesPage() {
                         <div key={q.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${C.border}`, fontFamily: 'sans-serif' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                             <span style={{ fontSize: 13, width: 20, flexShrink: 0 }}>{i === 0 ? '🏆' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}</span>
-                            <span style={{ fontSize: 12, color: C.sub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{q.label}</span>
+                            <span style={{ fontSize: 12, color: C.sub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {q.placement ? `${placementIcon(q.placement)} ` : ''}{q.label}{q.placement ? ` · ${q.placement}` : ''}
+                            </span>
                           </div>
                           <span style={{ fontSize: 12, fontWeight: 700, color: '#34D399', flexShrink: 0, marginLeft: 8 }}>{q.rate}%</span>
                         </div>

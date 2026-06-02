@@ -4,11 +4,21 @@ import { useState, useEffect, useCallback } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { createBrowserSupabase } from '../lib/supabase-browser'
 
+const PLACEMENT_OPTIONS = [
+  'Yard Sign',
+  'Directional Sign',
+  'Open House Table',
+  'Window Sign',
+  'Flyer / Mailer',
+  'Other',
+]
+
 interface QRCode {
   id: string
   property_id: string
   label: string
   scan_count: number
+  placement?: string
   created_at: string
 }
 
@@ -27,6 +37,7 @@ export default function QRCodeManager({ propertyId, allProperties }: QRCodeManag
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [newLabel, setNewLabel] = useState('')
+  const [newPlacement, setNewPlacement] = useState('')
   const [creating, setCreating] = useState(false)
   const [reassignTarget, setReassignTarget] = useState<QRCode | null>(null)
   const [reassigningTo, setReassigningTo] = useState('')
@@ -58,9 +69,14 @@ export default function QRCodeManager({ propertyId, allProperties }: QRCodeManag
     const supabase = createBrowserSupabase()
     const { error } = await supabase
       .from('qrcodes')
-      .insert([{ property_id: propertyId, label: newLabel.trim() }])
+      .insert([{
+        property_id: propertyId,
+        label: newLabel.trim(),
+        ...(newPlacement ? { placement: newPlacement } : {}),
+      }])
     if (!error) {
       setNewLabel('')
+      setNewPlacement('')
       setShowForm(false)
       await fetchQRCodes()
     }
@@ -143,44 +159,67 @@ export default function QRCodeManager({ propertyId, allProperties }: QRCodeManag
           padding: 16,
           marginBottom: 16,
           display: 'flex',
+          flexDirection: 'column',
           gap: 10,
-          alignItems: 'center',
         }}>
           <input
             type="text"
-            placeholder='e.g. "Front Yard Sign" or "Open House Sign"'
+            placeholder='Label — e.g. "Front Yard Sign" or "Open House"'
             value={newLabel}
             onChange={e => setNewLabel(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && createQRCode()}
             autoFocus
             style={{
-              flex: 1,
               background: '#161A22',
               border: '1px solid #1E2330',
               borderRadius: 8,
               color: '#F0F2F5',
               fontSize: 14,
               padding: '9px 12px',
+              outline: 'none',
             }}
           />
-          <button
-            onClick={createQRCode}
-            disabled={creating || !newLabel.trim()}
-            style={{
-              background: '#00D4AA',
-              color: '#000',
-              border: 'none',
-              borderRadius: 8,
-              padding: '9px 18px',
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: (creating || !newLabel.trim()) ? 'not-allowed' : 'pointer',
-              opacity: (creating || !newLabel.trim()) ? 0.6 : 1,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {creating ? 'Creating…' : 'Create'}
-          </button>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <select
+              value={newPlacement}
+              onChange={e => setNewPlacement(e.target.value)}
+              style={{
+                flex: 1,
+                background: '#161A22',
+                border: '1px solid #1E2330',
+                borderRadius: 8,
+                color: newPlacement ? '#F0F2F5' : '#6B7280',
+                fontSize: 13,
+                padding: '9px 12px',
+                cursor: 'pointer',
+                outline: 'none',
+              }}
+            >
+              <option value="">Placement (optional)</option>
+              {PLACEMENT_OPTIONS.map(p => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+            <button
+              onClick={createQRCode}
+              disabled={creating || !newLabel.trim()}
+              style={{
+                background: '#00D4AA',
+                color: '#000',
+                border: 'none',
+                borderRadius: 8,
+                padding: '9px 18px',
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: (creating || !newLabel.trim()) ? 'not-allowed' : 'pointer',
+                opacity: (creating || !newLabel.trim()) ? 0.6 : 1,
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+              }}
+            >
+              {creating ? 'Creating…' : 'Create'}
+            </button>
+          </div>
         </div>
       )}
 

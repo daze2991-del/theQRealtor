@@ -469,49 +469,48 @@ export default function PropertiesPage() {
       const supabase = createBrowserSupabase()
       console.log('[deleteProperty] start', prop.id)
 
-      // Fetch QR IDs first — needed for scan_events and unlink steps
+      // Fetch QR IDs before any deletes — needed for step 1
       const { data: qrData, error: qrFetchErr } = await supabase
         .from('qrcodes').select('id').eq('property_id', prop.id)
-      console.log('[deleteProperty] qr fetch:', qrData?.length ?? 0, 'qrs', qrFetchErr ?? '')
-      if (qrFetchErr) return
+      console.log('[deleteProperty] qr fetch:', qrData?.length ?? 0, 'ids', qrFetchErr ?? '')
+      if (qrFetchErr) { console.error('[deleteProperty] BAIL: qr fetch', qrFetchErr); return }
       const qrIds = (qrData || []).map((q: any) => q.id)
 
-      // 1a. scan_events by qr_id (must be before unlinking qrcodes)
+      // 1. scan_events (must be before unlinking qrcodes so qr_id → property chain still valid)
       if (qrIds.length > 0) {
-        const { error: seErr } = await supabase.from('scan_events').delete().in('qr_id', qrIds)
-        console.log('[deleteProperty] scan_events by qr_id:', seErr ?? 'OK')
-        if (seErr) return
+        const { error } = await supabase.from('scan_events').delete().in('qr_id', qrIds)
+        console.log('[deleteProperty] 1. scan_events:', error ?? 'OK')
+        if (error) { console.error('[deleteProperty] BAIL: scan_events', error); return }
+      } else {
+        console.log('[deleteProperty] 1. scan_events: skipped (no qr codes)')
       }
-      // 1b. scan_events by property_id (direct FK added in migration 009 — belt and suspenders)
-      const { error: seDirectErr } = await supabase.from('scan_events').delete().eq('property_id', prop.id)
-      console.log('[deleteProperty] scan_events by property_id:', seDirectErr ?? 'OK')
-      if (seDirectErr) return
 
-      // 2. property_photos
-      const { error: phErr } = await supabase.from('property_photos').delete().eq('property_id', prop.id)
-      console.log('[deleteProperty] photos:', phErr ?? 'OK')
-      if (phErr) return
-
-      // 3. leads
+      // 2. leads
       const { error: lErr } = await supabase.from('leads').delete().eq('property_id', prop.id)
-      console.log('[deleteProperty] leads:', lErr ?? 'OK')
-      if (lErr) return
+      console.log('[deleteProperty] 2. leads:', lErr ?? 'OK')
+      if (lErr) { console.error('[deleteProperty] BAIL: leads', lErr); return }
 
-      // 4. Unlink QR codes (set property_id = null — do NOT delete, they are reusable signs)
+      // 3. unlink qr codes (set property_id = null — do NOT delete, physical signs are reusable)
       if (qrIds.length > 0) {
-        const { error: qrErr } = await supabase
-          .from('qrcodes').update({ property_id: null }).eq('property_id', prop.id)
-        console.log('[deleteProperty] qr unlink:', qrErr ?? 'OK')
-        if (qrErr) return
+        const { error } = await supabase.from('qrcodes').update({ property_id: null }).eq('property_id', prop.id)
+        console.log('[deleteProperty] 3. qr unlink:', error ?? 'OK')
+        if (error) { console.error('[deleteProperty] BAIL: qr unlink', error); return }
+      } else {
+        console.log('[deleteProperty] 3. qr unlink: skipped (no qr codes)')
       }
 
-      // 5. Delete the property
+      // 4. property_photos
+      const { error: phErr } = await supabase.from('property_photos').delete().eq('property_id', prop.id)
+      console.log('[deleteProperty] 4. photos:', phErr ?? 'OK')
+      if (phErr) { console.error('[deleteProperty] BAIL: photos', phErr); return }
+
+      // 5. property (FK cascade on scan_events.property_id handles any stragglers)
       const { error: propErr } = await supabase.from('properties').delete().eq('id', prop.id)
-      console.log('[deleteProperty] property:', propErr ?? 'OK')
-      if (propErr) return
+      console.log('[deleteProperty] 5. property:', propErr ?? 'OK')
+      if (propErr) { console.error('[deleteProperty] BAIL: property', propErr); return }
 
       setProperties(prev => prev.filter(p => p.id !== prop.id))
-      console.log('[deleteProperty] done')
+      console.log('[deleteProperty] done ✓')
     } finally {
       setDeletingId(null)
     }

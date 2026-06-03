@@ -530,9 +530,9 @@ export default function Dashboard() {
                           {/* Top row: thumb + address + stats + view link */}
                           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                             {thumb ? (
-                              <img src={thumb} alt="" style={{ width: 40, height: 40, borderRadius: 7, objectFit: 'cover', flexShrink: 0, border: `1px solid ${C.border}` }} />
+                              <img src={thumb} alt="" style={{ width: 64, height: 64, borderRadius: 9, objectFit: 'cover', flexShrink: 0, border: `1px solid ${C.border}` }} />
                             ) : (
-                              <div style={{ width: 40, height: 40, borderRadius: 7, flexShrink: 0, background: `${C.purple}18`, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>🏠</div>
+                              <div style={{ width: 64, height: 64, borderRadius: 9, flexShrink: 0, background: `${C.purple}18`, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>🏠</div>
                             )}
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ fontSize: 13, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.address}</div>
@@ -557,22 +557,24 @@ export default function Dashboard() {
                             const shown = qrs.slice(0, 5)
                             const extra = qrs.length - shown.length
                             return (
-                              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 8, paddingLeft: 52 }}>
+                              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 8, paddingLeft: 76 }}>
                                 {shown.map(qr => (
                                   <button
                                     key={qr.id}
                                     onClick={() => setExpandedQr({ id: qr.id, label: qr.label, property: p.address })}
                                     style={{
                                       background: '#15151E', border: `1px solid ${C.border}`,
-                                      borderRadius: 6, padding: '3px 9px', fontSize: 11,
+                                      borderRadius: 7, padding: '4px 8px 4px 4px', fontSize: 11,
                                       color: C.sub, cursor: 'pointer', fontFamily: 'sans-serif',
-                                      display: 'flex', alignItems: 'center', gap: 4,
+                                      display: 'flex', alignItems: 'center', gap: 6,
                                       transition: 'border-color 0.1s',
                                     }}
                                     onMouseEnter={e => (e.currentTarget.style.borderColor = C.purple)}
                                     onMouseLeave={e => (e.currentTarget.style.borderColor = C.border)}
                                   >
-                                    <span style={{ fontSize: 10 }}>◫</span>
+                                    <div style={{ background: '#fff', borderRadius: 4, padding: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                      <QRCodeSVG value={`${typeof window !== 'undefined' ? window.location.origin : ''}/q/${qr.id}`} size={28} />
+                                    </div>
                                     {qr.label}
                                   </button>
                                 ))}

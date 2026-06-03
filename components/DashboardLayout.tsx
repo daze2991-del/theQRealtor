@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createBrowserSupabase } from '../lib/supabase-browser'
 
@@ -148,8 +148,43 @@ function Sidebar({ email, plan, propertyCount, onClose }: {
             </div>
           </div>
         </div>
+        <SignOutButton />
       </div>
     </aside>
+  )
+}
+
+function SignOutButton() {
+  const router = useRouter()
+  const [loading, setLoading] = useState(false)
+  const handleSignOut = async () => {
+    setLoading(true)
+    const supabase = createBrowserSupabase()
+    await supabase.auth.signOut()
+    router.push('/')
+  }
+  return (
+    <button
+      onClick={handleSignOut}
+      disabled={loading}
+      style={{
+        width: '100%', background: 'none', border: 'none',
+        textAlign: 'left', padding: '6px 2px',
+        fontSize: 12, color: C.muted, cursor: loading ? 'not-allowed' : 'pointer',
+        opacity: loading ? 0.5 : 1, fontFamily: 'sans-serif',
+        display: 'flex', alignItems: 'center', gap: 6,
+        transition: 'color 0.15s',
+      }}
+      onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLButtonElement).style.color = '#F87171' }}
+      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = C.muted }}
+    >
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+        <polyline points="16 17 21 12 16 7"/>
+        <line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+      {loading ? 'Signing out…' : 'Sign out'}
+    </button>
   )
 }
 

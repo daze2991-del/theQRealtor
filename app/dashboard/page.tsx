@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createBrowserSupabase } from '../../lib/supabase-browser'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { QRCodeSVG } from 'qrcode.react'
 import DashboardLayout from '../../components/DashboardLayout'
 
 const C = {
@@ -94,6 +95,8 @@ export default function Dashboard() {
   const [propScanCounts, setPropScanCounts]  = useState<Record<string, number>>({})
   const [propLeadCounts, setPropLeadCounts]  = useState<Record<string, number>>({})
   const [propThumbs,     setPropThumbs]      = useState<Record<string, string>>({})
+  const [propQrCodes,    setPropQrCodes]     = useState<Record<string, Array<{ id: string; label: string }>>>({})
+  const [expandedQr,     setExpandedQr]      = useState<{ id: string; label: string; property: string } | null>(null)
   const [plan,           setPlan]            = useState<'free' | 'pro'>('free')
   const [profileName,    setProfileName]     = useState('')
   const [loading,        setLoading]         = useState(true)
@@ -132,7 +135,7 @@ export default function Dashboard() {
         { data: leadsPerProp },
         { data: thumbData },
       ] = await Promise.all([
-        supabase.from('qrcodes').select('property_id, scan_count').in('property_id', ids),
+        supabase.from('qrcodes').select('id, label, property_id, scan_count').in('property_id', ids),
         supabase.from('leads').select('*').in('property_id', ids)
           .order('created_at', { ascending: false }).limit(5),
         supabase.from('scan_events').select('*', { count: 'exact', head: true })
@@ -149,7 +152,12 @@ export default function Dashboard() {
       ])
 
       const scanMap: Record<string, number> = {}
-      ;(qrData || []).forEach((q: any) => { scanMap[q.property_id] = (scanMap[q.property_id] || 0) + (q.scan_count || 0) })
+      const qrByProp: Record<string, Array<{ id: string; label: string }>> = {}
+      ;(qrData || []).forEach((q: any) => {
+        scanMap[q.property_id] = (scanMap[q.property_id] || 0) + (q.scan_count || 0)
+        if (!qrByProp[q.property_id]) qrByProp[q.property_id] = []
+        qrByProp[q.property_id].push({ id: q.id, label: q.label || 'Unlabeled' })
+      })
       const leadMap: Record<string, number> = {}
       ;(leadsPerProp || []).forEach((l: any) => { leadMap[l.property_id] = (leadMap[l.property_id] || 0) + 1 })
       const thumbMap: Record<string, string> = {}
@@ -164,6 +172,7 @@ export default function Dashboard() {
       setPropScanCounts(scanMap)
       setPropLeadCounts(leadMap)
       setPropThumbs(thumbMap)
+      setPropQrCodes(qrByProp)
       setLoading(false)
     }
     load()
@@ -515,30 +524,64 @@ export default function Dashboard() {
                       const location = [p.city, p.state].filter(Boolean).join(', ')
                       return (
                         <div key={p.id} style={{
-                          display: 'flex', alignItems: 'center', gap: 12,
                           padding: '10px 16px',
                           borderBottom: isLast ? 'none' : `1px solid ${C.border}`,
                         }}>
-                          {thumb ? (
-                            <img src={thumb} alt="" style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover', flexShrink: 0, border: `1px solid ${C.border}` }} />
-                          ) : (
-                            <div style={{ width: 48, height: 48, borderRadius: 8, flexShrink: 0, background: `${C.purple}18`, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🏠</div>
-                          )}
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.address}</div>
-                            {location && <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{location}</div>}
+                          {/* Top row: thumb + address + stats + view link */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            {thumb ? (
+                              <img src={thumb} alt="" style={{ width: 40, height: 40, borderRadius: 7, objectFit: 'cover', flexShrink: 0, border: `1px solid ${C.border}` }} />
+                            ) : (
+                              <div style={{ width: 40, height: 40, borderRadius: 7, flexShrink: 0, background: `${C.purple}18`, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>🏠</div>
+                            )}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.address}</div>
+                              {location && <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>{location}</div>}
+                            </div>
+                            <div style={{ display: 'flex', gap: 5, flexShrink: 0, alignItems: 'center' }}>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: C.purpleL, background: `${C.purple}18`, border: `1px solid ${C.purple}35`, borderRadius: 6, padding: '2px 7px' }}>
+                                {propScanCounts[p.id] || 0} scans
+                              </span>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: '#FCD34D', background: '#1A170D', border: '1px solid #3A3520', borderRadius: 6, padding: '2px 7px' }}>
+                                {propLeadCounts[p.id] || 0} leads
+                              </span>
+                              <Link href={`/p/${p.id}`} target="_blank" style={{ fontSize: 12, color: C.purpleL, fontWeight: 700, textDecoration: 'none' }}>
+                                View →
+                              </Link>
+                            </div>
                           </div>
-                          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: C.purpleL, background: `${C.purple}18`, border: `1px solid ${C.purple}35`, borderRadius: 6, padding: '2px 8px' }}>
-                              {propScanCounts[p.id] || 0} scans
-                            </span>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: '#FCD34D', background: '#1A170D', border: '1px solid #3A3520', borderRadius: 6, padding: '2px 8px' }}>
-                              {propLeadCounts[p.id] || 0} leads
-                            </span>
-                          </div>
-                          <Link href={`/p/${p.id}`} target="_blank" style={{ fontSize: 12, color: C.purpleL, fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}>
-                            View →
-                          </Link>
+                          {/* QR code chips */}
+                          {(() => {
+                            const qrs = propQrCodes[p.id] || []
+                            if (qrs.length === 0) return null
+                            const shown = qrs.slice(0, 5)
+                            const extra = qrs.length - shown.length
+                            return (
+                              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 8, paddingLeft: 52 }}>
+                                {shown.map(qr => (
+                                  <button
+                                    key={qr.id}
+                                    onClick={() => setExpandedQr({ id: qr.id, label: qr.label, property: p.address })}
+                                    style={{
+                                      background: '#15151E', border: `1px solid ${C.border}`,
+                                      borderRadius: 6, padding: '3px 9px', fontSize: 11,
+                                      color: C.sub, cursor: 'pointer', fontFamily: 'sans-serif',
+                                      display: 'flex', alignItems: 'center', gap: 4,
+                                      transition: 'border-color 0.1s',
+                                    }}
+                                    onMouseEnter={e => (e.currentTarget.style.borderColor = C.purple)}
+                                    onMouseLeave={e => (e.currentTarget.style.borderColor = C.border)}
+                                  >
+                                    <span style={{ fontSize: 10 }}>◫</span>
+                                    {qr.label}
+                                  </button>
+                                ))}
+                                {extra > 0 && (
+                                  <span style={{ fontSize: 11, color: C.muted, padding: '3px 6px', alignSelf: 'center' }}>+{extra} more</span>
+                                )}
+                              </div>
+                            )
+                          })()}
                         </div>
                       )
                     })}
@@ -556,6 +599,45 @@ export default function Dashboard() {
 
           </div>
         </>
+      )}
+      {/* QR expand modal */}
+      {expandedQr && (
+        <div
+          onClick={() => setExpandedQr(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: '#fff', borderRadius: 20, padding: '32px 32px 28px',
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+              gap: 18, position: 'relative', maxWidth: 420, width: '100%',
+              boxShadow: '0 32px 80px rgba(0,0,0,0.5)',
+            }}
+          >
+            <button
+              onClick={() => setExpandedQr(null)}
+              aria-label="Close"
+              style={{
+                position: 'absolute', top: 14, right: 14,
+                width: 32, height: 32, borderRadius: '50%',
+                background: '#F3F4F6', border: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 16, color: '#374151', fontFamily: 'sans-serif',
+              }}
+            >✕</button>
+            <QRCodeSVG value={`${typeof window !== 'undefined' ? window.location.origin : ''}/q/${expandedQr.id}`} size={300} />
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#111827', marginBottom: 4 }}>{expandedQr.label}</div>
+              {expandedQr.property && <div style={{ fontSize: 13, color: '#6B7280' }}>{expandedQr.property}</div>}
+              <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 10 }}>Point your camera here to test the scan</div>
+            </div>
+          </div>
+        </div>
       )}
     </DashboardLayout>
   )

@@ -68,6 +68,7 @@ export default function QRCodesPage() {
   const [loading, setLoading]         = useState(true)
   const [origin, setOrigin]           = useState('')
   const [copiedId, setCopiedId]       = useState<string | null>(null)
+  const [expandedQr, setExpandedQr]   = useState<{ id: string; label: string; property: string } | null>(null)
 
   useEffect(() => { setOrigin(window.location.origin) }, [])
 
@@ -246,7 +247,11 @@ export default function QRCodesPage() {
                           <td style={TD_STYLE}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                               {origin && (
-                                <div style={{ flexShrink: 0, background: '#fff', borderRadius: 6, padding: 3, width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <div
+                                  onClick={e => { e.stopPropagation(); setExpandedQr({ id: qr.id, label: qr.label, property: propMap[qr.property_id] || '' }) }}
+                                  title="Click to expand"
+                                  style={{ flexShrink: 0, background: '#fff', borderRadius: 6, padding: 3, width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-in' }}
+                                >
                                   <QRCodeSVG value={`${origin}/q/${qr.id}`} size={36} />
                                 </div>
                               )}
@@ -424,6 +429,56 @@ export default function QRCodesPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* QR expand modal */}
+      {expandedQr && origin && (
+        <div
+          onClick={() => setExpandedQr(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 24,
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: '#fff', borderRadius: 20, padding: '32px 32px 28px',
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+              gap: 18, position: 'relative', maxWidth: 420, width: '100%',
+              boxShadow: '0 32px 80px rgba(0,0,0,0.5)',
+            }}
+          >
+            {/* X button */}
+            <button
+              onClick={() => setExpandedQr(null)}
+              aria-label="Close"
+              style={{
+                position: 'absolute', top: 14, right: 14,
+                width: 32, height: 32, borderRadius: '50%',
+                background: '#F3F4F6', border: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 16, color: '#374151', fontFamily: 'sans-serif',
+              }}
+            >✕</button>
+
+            <QRCodeSVG value={`${origin}/q/${expandedQr.id}`} size={300} />
+
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#111827', marginBottom: 4 }}>
+                {expandedQr.label}
+              </div>
+              {expandedQr.property && (
+                <div style={{ fontSize: 13, color: '#6B7280' }}>{expandedQr.property}</div>
+              )}
+              <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 10 }}>
+                Point your camera at the QR code to test the scan
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </DashboardLayout>
   )

@@ -91,6 +91,9 @@ export default function Dashboard() {
   const [scansToday,     setScansToday]      = useState(0)
   const [totalLeads,     setTotalLeads]      = useState(0)
   const [totalScansAll,  setTotalScansAll]   = useState(0)
+  const [propScanCounts, setPropScanCounts]  = useState<Record<string, number>>({})
+  const [propLeadCounts, setPropLeadCounts]  = useState<Record<string, number>>({})
+  const [propThumbs,     setPropThumbs]      = useState<Record<string, string>>({})
   const [plan,           setPlan]            = useState<'free' | 'pro'>('free')
   const [profileName,    setProfileName]     = useState('')
   const [loading,        setLoading]         = useState(true)
@@ -108,7 +111,7 @@ export default function Dashboard() {
       setProfileName(profile?.name || '')
 
       const { data: props } = await supabase
-        .from('properties').select('id, address, active').eq('user_id', session.user.id)
+        .from('properties').select('id, address, city, state, active').eq('user_id', session.user.id)
         .order('created_at', { ascending: false })
       if (!props || props.length === 0) { router.push('/dashboard/onboarding'); return }
       setProperties(props)
@@ -126,8 +129,10 @@ export default function Dashboard() {
         { count: leadsTodayCount },
         { count: leadsMonthCount },
         { count: totalLeadsCount },
+        { data: leadsPerProp },
+        { data: thumbData },
       ] = await Promise.all([
-        supabase.from('qrcodes').select('scan_count').in('property_id', ids),
+        supabase.from('qrcodes').select('property_id, scan_count').in('property_id', ids),
         supabase.from('leads').select('*').in('property_id', ids)
           .order('created_at', { ascending: false }).limit(5),
         supabase.from('scan_events').select('*', { count: 'exact', head: true })
@@ -138,7 +143,17 @@ export default function Dashboard() {
           .in('property_id', ids).gte('created_at', monthISO),
         supabase.from('leads').select('*', { count: 'exact', head: true })
           .in('property_id', ids),
+        supabase.from('leads').select('property_id').in('property_id', ids),
+        supabase.from('property_photos').select('property_id, url')
+          .in('property_id', ids).order('sort_order', { ascending: true }),
       ])
+
+      const scanMap: Record<string, number> = {}
+      ;(qrData || []).forEach((q: any) => { scanMap[q.property_id] = (scanMap[q.property_id] || 0) + (q.scan_count || 0) })
+      const leadMap: Record<string, number> = {}
+      ;(leadsPerProp || []).forEach((l: any) => { leadMap[l.property_id] = (leadMap[l.property_id] || 0) + 1 })
+      const thumbMap: Record<string, string> = {}
+      ;(thumbData || []).forEach((t: any) => { if (!thumbMap[t.property_id]) thumbMap[t.property_id] = t.url })
 
       setTotalScansAll((qrData || []).reduce((sum: number, q: any) => sum + (q.scan_count || 0), 0))
       setRecentLeads(recentLeadsData || [])
@@ -146,6 +161,9 @@ export default function Dashboard() {
       setLeadsToday(leadsTodayCount || 0)
       setLeadsThisMonth(leadsMonthCount || 0)
       setTotalLeads(totalLeadsCount || 0)
+      setPropScanCounts(scanMap)
+      setPropLeadCounts(leadMap)
+      setPropThumbs(thumbMap)
       setLoading(false)
     }
     load()
@@ -467,6 +485,75 @@ export default function Dashboard() {
               </div>
 
             </div>
+
+            {/* Live Properties strip */}
+            {(() => {
+              const liveProps = properties.filter((p: any) => p.active)
+              if (liveProps.length === 0) return null
+              const shown = liveProps.slice(0, 5)
+              return (
+                <div style={{ marginTop: 20 }}>
+                  <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden' }}>
+                    <div style={{
+                      padding: '13px 20px', borderBottom: `1px solid ${C.border}`,
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      background: '#15151E',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                        <span style={{ fontWeight: 700, fontSize: 14, color: C.text }}>Live Properties</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#4ade80', background: '#06200F', border: '1px solid #166534', borderRadius: 20, padding: '2px 8px' }}>
+                          {liveProps.length}
+                        </span>
+                      </div>
+                      <Link href="/dashboard/properties" style={{ fontSize: 12, color: C.muted, fontWeight: 600, textDecoration: 'none' }}>
+                        View all →
+                      </Link>
+                    </div>
+                    {shown.map((p: any, i: number) => {
+                      const isLast = i === shown.length - 1
+                      const thumb = propThumbs[p.id]
+                      const location = [p.city, p.state].filter(Boolean).join(', ')
+                      return (
+                        <div key={p.id} style={{
+                          display: 'flex', alignItems: 'center', gap: 12,
+                          padding: '10px 16px',
+                          borderBottom: isLast ? 'none' : `1px solid ${C.border}`,
+                        }}>
+                          {thumb ? (
+                            <img src={thumb} alt="" style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover', flexShrink: 0, border: `1px solid ${C.border}` }} />
+                          ) : (
+                            <div style={{ width: 48, height: 48, borderRadius: 8, flexShrink: 0, background: `${C.purple}18`, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🏠</div>
+                          )}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.address}</div>
+                            {location && <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{location}</div>}
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: C.purpleL, background: `${C.purple}18`, border: `1px solid ${C.purple}35`, borderRadius: 6, padding: '2px 8px' }}>
+                              {propScanCounts[p.id] || 0} scans
+                            </span>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: '#FCD34D', background: '#1A170D', border: '1px solid #3A3520', borderRadius: 6, padding: '2px 8px' }}>
+                              {propLeadCounts[p.id] || 0} leads
+                            </span>
+                          </div>
+                          <Link href={`/p/${p.id}`} target="_blank" style={{ fontSize: 12, color: C.purpleL, fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}>
+                            View →
+                          </Link>
+                        </div>
+                      )
+                    })}
+                    {liveProps.length > 5 && (
+                      <div style={{ padding: '8px 16px', borderTop: `1px solid ${C.border}`, textAlign: 'center' }}>
+                        <Link href="/dashboard/properties" style={{ fontSize: 12, color: C.muted, fontWeight: 600, textDecoration: 'none' }}>
+                          +{liveProps.length - 5} more — view all properties
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })()}
+
           </div>
         </>
       )}

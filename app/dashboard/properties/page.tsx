@@ -39,11 +39,11 @@ function StatusBadge({ active, toggling, onToggle }: { active: boolean; toggling
   )
 }
 
-function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle, onDelete, onArchive, deleting, userId, origin }: {
+function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle, onDelete, onArchive, deleting, userId, origin, thumbnail }: {
   prop: any; scanCount: number; leadCount: number; qrCount: number;
   toggling: boolean; onToggle: () => void;
   onDelete: () => void; onArchive: () => void;
-  deleting: boolean; userId: string; origin: string;
+  deleting: boolean; userId: string; origin: string; thumbnail?: string;
 }) {
   const location = [prop.city, prop.state].filter(Boolean).join(', ')
   const [showPhotos, setShowPhotos]     = useState(false)
@@ -178,15 +178,22 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
     <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 22, display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {prop.address}
-          </div>
-          {location ? (
-            <div style={{ fontSize: 12.5, color: C.muted }}>{location}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
+          {thumbnail ? (
+            <img src={thumbnail} alt="" style={{ width: 80, height: 80, borderRadius: 10, objectFit: 'cover', flexShrink: 0, border: `1px solid ${C.border}` }} />
           ) : (
-            <div style={{ fontSize: 12, color: '#FB923C', fontWeight: 600 }}>⚠️ Missing Location</div>
+            <div style={{ width: 80, height: 80, borderRadius: 10, flexShrink: 0, background: '#252533', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>🏠</div>
           )}
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {prop.address}
+            </div>
+            {location ? (
+              <div style={{ fontSize: 12.5, color: C.muted }}>{location}</div>
+            ) : (
+              <div style={{ fontSize: 12, color: '#FB923C', fontWeight: 600 }}>⚠️ Missing Location</div>
+            )}
+          </div>
         </div>
         <StatusBadge active={!!prop.active} toggling={toggling} onToggle={onToggle} />
       </div>
@@ -382,6 +389,7 @@ export default function PropertiesPage() {
   const [qrCounts, setQrCounts]         = useState<Record<string, number>>({})
   const [scanCounts, setScanCounts]     = useState<Record<string, number>>({})
   const [leadCounts, setLeadCounts]     = useState<Record<string, number>>({})
+  const [propThumbs, setPropThumbs]     = useState<Record<string, string>>({})
   const [plan, setPlan]                 = useState<'free' | 'pro'>('free')
   const [loading, setLoading]           = useState(true)
   const [togglingId, setTogglingId]     = useState<string | null>(null)
@@ -411,9 +419,11 @@ export default function PropertiesPage() {
 
         if (props && props.length > 0) {
           const ids = props.map((p: any) => p.id)
-          const [{ data: qrcodes }, { data: leads }] = await Promise.all([
+          const [{ data: qrcodes }, { data: leads }, { data: thumbData }] = await Promise.all([
             supabase.from('qrcodes').select('property_id, scan_count').in('property_id', ids),
             supabase.from('leads').select('property_id').in('property_id', ids),
+            supabase.from('property_photos').select('property_id, url')
+              .in('property_id', ids).order('sort_order', { ascending: true }),
           ])
           if (cancelled) return
 
@@ -425,10 +435,13 @@ export default function PropertiesPage() {
           })
           const leadMap: Record<string, number> = {}
           ;(leads || []).forEach((l: any) => { leadMap[l.property_id] = (leadMap[l.property_id] || 0) + 1 })
+          const thumbMap: Record<string, string> = {}
+          ;(thumbData || []).forEach((t: any) => { if (!thumbMap[t.property_id]) thumbMap[t.property_id] = t.url })
 
           setQrCounts(qrMap)
           setScanCounts(scanMap)
           setLeadCounts(leadMap)
+          setPropThumbs(thumbMap)
         }
       } catch (err) {
         console.error('[PropertiesPage] load error:', err)
@@ -577,6 +590,7 @@ export default function PropertiesPage() {
                     deleting={deletingId === prop.id}
                     userId={userId}
                     origin={origin}
+                    thumbnail={propThumbs[prop.id]}
                   />
                 ))}
               </div>

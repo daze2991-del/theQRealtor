@@ -23,9 +23,6 @@ const MOTIVATION_OPTIONS = [
   { label: 'Ready now', value: 'hot' },
 ]
 
-// Photos 0–(FREE_LIMIT-1) are always visible; photo FREE_LIMIT+ require lead submission
-const FREE_LIMIT = 4
-
 function formatPrice(price: unknown) {
   if (!price) return null
   const value = Number(price)
@@ -55,9 +52,8 @@ export default function PropertyPage() {
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
 
-  // Carousel state
+  // Carousel — all photos free, no gate
   const [slideIndex, setSlideIndex] = useState(0)
-  const [showGate, setShowGate] = useState(false)
   const touchStartX = useRef<number | null>(null)
 
   useEffect(() => {
@@ -84,44 +80,16 @@ export default function PropertyPage() {
     if (propertyId) trackScan()
   }, [propertyId, qrId])
 
-  // After form submit, dismiss gate and advance to first gated photo
-  useEffect(() => {
-    if (submitted && showGate) {
-      setShowGate(false)
-      setSlideIndex(FREE_LIMIT)
-    }
-  }, [submitted])
-
-  const goNext = () => {
-    const next = slideIndex + 1
-    if (next >= photos.length) return
-    if (next >= FREE_LIMIT && !submitted) {
-      setShowGate(true)
-      return
-    }
-    setSlideIndex(next)
-    setShowGate(false)
-  }
-
-  const goPrev = () => {
-    if (showGate) {
-      setShowGate(false)
-      return
-    }
-    if (slideIndex > 0) setSlideIndex(slideIndex - 1)
-  }
+  const goNext = () => { if (slideIndex < photos.length - 1) setSlideIndex(slideIndex + 1) }
+  const goPrev = () => { if (slideIndex > 0) setSlideIndex(slideIndex - 1) }
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX
   }
-
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (touchStartX.current === null) return
     const delta = touchStartX.current - e.changedTouches[0].clientX
-    if (Math.abs(delta) > 40) {
-      if (delta > 0) goNext()
-      else goPrev()
-    }
+    if (Math.abs(delta) > 40) { if (delta > 0) goNext(); else goPrev() }
     touchStartX.current = null
   }
 
@@ -157,7 +125,6 @@ export default function PropertyPage() {
         setSubmitting(false)
         return
       }
-
       if (!res.ok) {
         const { error: msg } = await res.json().catch(() => ({}))
         setError(msg || 'Something went wrong. Please try again.')
@@ -187,15 +154,13 @@ export default function PropertyPage() {
     return <div style={{ minHeight: '100vh', padding: 40, color: C.text, background: C.bg, fontFamily: 'sans-serif' }}>Property not found</div>
   }
 
-  const gatedPhotos = photos.slice(FREE_LIMIT)
-  // When gate is showing, display the first gated photo (blurred) as background
-  const displayIndex = showGate ? FREE_LIMIT : slideIndex
-  const currentPhoto = photos[displayIndex] ?? null
+  const currentPhoto = photos[slideIndex] ?? null
   const price = formatPrice(property.price)
   const beds = statLabel(property.beds, 'bed', 'beds')
   const baths = statLabel(property.baths, 'bath', 'baths')
   const location = [property.city, property.state].filter(Boolean).join(', ')
-  const agentLabel = property.agent_name || 'the listing agent'
+  const agentName = property.agent_name || 'the listing agent'
+  const agentPhone = property.agent_phone || null
   const showDots = photos.length > 1 && photos.length <= 14
 
   return (
@@ -203,6 +168,7 @@ export default function PropertyPage() {
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes carouselFade { from { opacity: 0; transform: scale(1.015); } to { opacity: 1; transform: scale(1); } }
+        @keyframes unlockPop { 0% { transform: scale(0.95); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
         .carousel-img { animation: carouselFade 0.22s ease; }
         .buyer-shell { max-width: 1120px; margin: 0 auto; padding: 24px; }
         .photo-carousel { height: 480px; }
@@ -211,7 +177,6 @@ export default function PropertyPage() {
           .buyer-shell { padding: 14px; }
           .photo-carousel { height: 260px; }
           .details-grid { grid-template-columns: 1fr !important; }
-          .gallery-grid { grid-template-columns: 1fr !important; }
           .motivation-grid { grid-template-columns: 1fr !important; }
           .carousel-arrow { display: none !important; }
         }
@@ -219,7 +184,7 @@ export default function PropertyPage() {
 
       <div className="buyer-shell">
 
-        {/* ── Carousel ── */}
+        {/* ── Carousel — all photos free ── */}
         {photos.length > 0 ? (
           <section
             className="photo-carousel"
@@ -227,101 +192,45 @@ export default function PropertyPage() {
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           >
-            {/* Photo */}
             {currentPhoto && (
               <img
-                key={displayIndex}
+                key={slideIndex}
                 className="carousel-img"
                 src={currentPhoto.url}
-                alt={`${property.address} — photo ${displayIndex + 1}`}
-                style={{
-                  width: '100%', height: '100%', objectFit: 'cover', display: 'block',
-                  ...(showGate ? { filter: 'blur(14px)', transform: 'scale(1.06)', transition: 'filter 0.2s' } : {}),
-                }}
+                alt={`${property.address} — photo ${slideIndex + 1}`}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
               />
             )}
 
-            {/* Gate overlay */}
-            {showGate && !submitted && (
-              <div style={{ position: 'absolute', inset: 0, background: 'rgba(8,5,14,0.72)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px 20px', gap: 12 }}>
-                {/* Back button */}
-                <button
-                  onClick={() => setShowGate(false)}
-                  style={{ position: 'absolute', top: 14, left: 14, background: 'rgba(0,0,0,0.45)', color: 'rgba(255,255,255,0.75)', border: 'none', borderRadius: 20, padding: '6px 13px', fontSize: 13, fontWeight: 600, cursor: 'pointer', backdropFilter: 'blur(4px)', fontFamily: 'sans-serif' }}
-                >
-                  ← Back
-                </button>
-                <div style={{ fontSize: 34, lineHeight: 1 }}>🔓</div>
-                <div style={{ color: C.text, fontSize: 21, fontWeight: 900, lineHeight: 1.3, maxWidth: 300 }}>
-                  Unlock all {photos.length} photos + connect with {agentLabel}
-                </div>
-                <p style={{ color: C.muted, fontSize: 14, lineHeight: 1.55, margin: 0, maxWidth: 270 }}>
-                  Fill in your info below to see every photo and get direct access to the listing agent.
-                </p>
-                <button
-                  onClick={() => document.getElementById('lead-form')?.scrollIntoView({ behavior: 'smooth' })}
-                  style={{ background: C.purple, color: '#fff', border: 'none', borderRadius: 8, padding: '12px 26px', fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: 'sans-serif', marginTop: 4 }}
-                >
-                  See All {photos.length} Photos →
-                </button>
-              </div>
-            )}
-
-            {/* Counter "2 / 7" */}
+            {/* Counter */}
             {photos.length > 1 && (
               <div style={{ position: 'absolute', top: 12, right: 14, background: 'rgba(0,0,0,0.52)', color: '#fff', fontSize: 12, fontWeight: 700, borderRadius: 20, padding: '4px 10px', backdropFilter: 'blur(4px)', letterSpacing: '0.03em' }}>
-                {displayIndex + 1} / {photos.length}
+                {slideIndex + 1} / {photos.length}
               </div>
             )}
 
             {/* Left arrow */}
-            {!showGate && slideIndex > 0 && (
-              <button
-                className="carousel-arrow"
-                onClick={goPrev}
-                aria-label="Previous photo"
-                style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.48)', color: '#fff', border: 'none', borderRadius: '50%', width: 40, height: 40, fontSize: 22, lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}
-              >
+            {slideIndex > 0 && (
+              <button className="carousel-arrow" onClick={goPrev} aria-label="Previous photo"
+                style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.48)', color: '#fff', border: 'none', borderRadius: '50%', width: 40, height: 40, fontSize: 22, lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
                 ‹
               </button>
             )}
 
             {/* Right arrow */}
-            {!showGate && displayIndex < photos.length - 1 && (
-              <button
-                className="carousel-arrow"
-                onClick={goNext}
-                aria-label="Next photo"
-                style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.48)', color: '#fff', border: 'none', borderRadius: '50%', width: 40, height: 40, fontSize: 22, lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}
-              >
+            {slideIndex < photos.length - 1 && (
+              <button className="carousel-arrow" onClick={goNext} aria-label="Next photo"
+                style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.48)', color: '#fff', border: 'none', borderRadius: '50%', width: 40, height: 40, fontSize: 22, lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
                 ›
               </button>
             )}
 
-            {/* Dot indicators */}
+            {/* Dots */}
             {showDots && (
               <div style={{ position: 'absolute', bottom: 14, left: 0, right: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 5, pointerEvents: 'none' }}>
-                {photos.map((_, i) => {
-                  const isActive = i === displayIndex
-                  const isGated = i >= FREE_LIMIT && !submitted
-                  return (
-                    <div
-                      key={i}
-                      style={{
-                        width: isActive ? 20 : 7,
-                        height: 7,
-                        borderRadius: 4,
-                        background: isActive
-                          ? '#fff'
-                          : isGated
-                            ? 'rgba(255,255,255,0.2)'
-                            : 'rgba(255,255,255,0.5)',
-                        transition: 'all 0.2s',
-                        flexShrink: 0,
-                      }}
-                    />
-                  )
-                })}
+                {photos.map((_, i) => (
+                  <div key={i} style={{ width: i === slideIndex ? 20 : 7, height: 7, borderRadius: 4, background: i === slideIndex ? '#fff' : 'rgba(255,255,255,0.45)', transition: 'all 0.2s', flexShrink: 0 }} />
+                ))}
               </div>
             )}
           </section>
@@ -352,80 +261,119 @@ export default function PropertyPage() {
               </div>
             )}
 
-            {/* Description — always free */}
+            {/* Description */}
             {property.description && (
               <p style={{ color: '#D4D4D8', fontSize: 16, lineHeight: 1.75, margin: '0 0 28px' }}>{property.description}</p>
             )}
 
-            {/* Gate CTA — remaining photos + agent access */}
-            {!submitted && (
-              <section style={{ position: 'relative', overflow: 'hidden', border: `1px solid ${C.border}`, borderRadius: 12, background: C.panel, minHeight: gatedPhotos.length > 0 ? 240 : 150 }}>
-                {gatedPhotos.length > 0 && (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, padding: 12, filter: 'blur(8px)', transform: 'scale(1.04)', opacity: 0.6 }}>
-                    {gatedPhotos.slice(0, 3).map((photo, index) => (
-                      <img key={photo.id || photo.url || index} src={photo.url} alt="" style={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 6 }} />
-                    ))}
+            {/* ── Agent contact card ── */}
+            {!submitted ? (
+              /* Locked — shows agent name, blurred phone, CTA */
+              <div style={{ border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden', background: C.panel }}>
+                {/* Card header */}
+                <div style={{ padding: '13px 18px', borderBottom: `1px solid ${C.border}`, background: 'rgba(124,58,237,0.08)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: C.purple2, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Listing Agent</span>
+                </div>
+
+                <div style={{ padding: '18px 18px 20px' }}>
+                  {/* Agent identity */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
+                    <div style={{ width: 52, height: 52, borderRadius: '50%', background: `${C.purple}28`, border: `2px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
+                      👤
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 17, fontWeight: 800, color: C.text }}>{agentName !== 'the listing agent' ? agentName : 'Listing Agent'}</div>
+                      <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Licensed Real Estate Agent</div>
+                    </div>
                   </div>
-                )}
-                <div style={{ position: 'absolute', inset: 0, background: gatedPhotos.length > 0 ? 'linear-gradient(180deg, rgba(15,15,19,0.15) 0%, rgba(15,15,19,0.88) 55%)' : undefined, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '28px 24px', gap: 10 }}>
-                  <div style={{ fontSize: 26, lineHeight: 1 }}>📸</div>
-                  <div style={{ color: C.text, fontSize: 20, fontWeight: 900, lineHeight: 1.3 }}>
-                    {gatedPhotos.length > 0
-                      ? `See all ${photos.length} photos + connect with ${agentLabel}`
-                      : `Connect with ${agentLabel}`}
+
+                  {/* Masked phone */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`, borderRadius: 9, marginBottom: 16 }}>
+                    <span style={{ fontSize: 16 }}>📞</span>
+                    <span style={{ fontSize: 16, fontWeight: 700, color: C.muted, letterSpacing: '0.2em', filter: 'blur(5px)', userSelect: 'none', flex: 1 }}>
+                      ●●● ●●● ●●●●
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: `${C.purple}22`, border: `1px solid ${C.purple}40`, borderRadius: 6, padding: '3px 8px', flexShrink: 0 }}>
+                      <span style={{ fontSize: 11 }}>🔒</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: C.purple2 }}>Locked</span>
+                    </div>
                   </div>
-                  <p style={{ color: C.muted, fontSize: 14, lineHeight: 1.55, margin: 0, maxWidth: 360 }}>
-                    {gatedPhotos.length > 0
-                      ? `${gatedPhotos.length} more photo${gatedPhotos.length !== 1 ? 's' : ''} available — plus get direct access to the listing agent for showings and pricing.`
-                      : 'Get direct access to the listing agent for showings, pricing, and more.'}
+
+                  {/* Request showing — disabled */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: 'rgba(255,255,255,0.02)', border: `1px dashed ${C.border}`, borderRadius: 9, marginBottom: 18, opacity: 0.55 }}>
+                    <span style={{ fontSize: 16 }}>📅</span>
+                    <span style={{ fontSize: 13, color: C.muted }}>Request a Showing</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 11 }}>🔒</span>
+                  </div>
+
+                  <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.55, margin: '0 0 16px' }}>
+                    Get {agentName !== 'the listing agent' ? `${agentName}'s` : "the agent's"} direct number. No Zillow middleman — you connect straight to the listing agent.
                   </p>
+
                   <button
                     type="button"
                     onClick={() => document.getElementById('lead-form')?.scrollIntoView({ behavior: 'smooth' })}
-                    style={{ marginTop: 4, background: C.purple, color: '#fff', border: 'none', borderRadius: 8, padding: '11px 22px', fontSize: 14, fontWeight: 800, cursor: 'pointer', fontFamily: 'sans-serif' }}
+                    style={{ width: '100%', background: C.purple, color: '#fff', border: 'none', borderRadius: 9, padding: '13px 18px', fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: 'sans-serif' }}
                   >
-                    {gatedPhotos.length > 0 ? `See All ${photos.length} Photos →` : 'Contact the Agent →'}
+                    Get Direct Number 📞
                   </button>
                 </div>
-              </section>
-            )}
-
-            {/* Post-submit: thank you + full gallery */}
-            {submitted && (
-              <section>
-                <div style={{ border: `1px solid rgba(124, 58, 237, 0.45)`, background: 'rgba(124, 58, 237, 0.16)', borderRadius: 8, padding: 18, marginBottom: 24 }}>
-                  <h2 style={{ fontSize: 22, margin: '0 0 6px', fontWeight: 900 }}>Thanks, {name.trim()}!</h2>
-                  <p style={{ color: C.soft, margin: 0, lineHeight: 1.55 }}>
-                    {property.agent_name ? `${property.agent_name} will` : 'The listing agent will'} be in touch with you shortly. 🎉
-                  </p>
+              </div>
+            ) : (
+              /* Unlocked — phone revealed, Request Showing active */
+              <div style={{ border: `1px solid rgba(124,58,237,0.5)`, borderRadius: 14, overflow: 'hidden', background: C.panel, animation: 'unlockPop 0.3s ease' }}>
+                <div style={{ padding: '13px 18px', borderBottom: `1px solid rgba(124,58,237,0.2)`, background: 'rgba(124,58,237,0.12)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 14 }}>✅</span>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: C.purple2, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Direct Access Unlocked</span>
                 </div>
 
-                {gatedPhotos.length > 0 && (
-                  <div>
-                    <h2 style={{ fontSize: 22, fontWeight: 900, margin: '0 0 14px' }}>All Photos</h2>
-                    <div className="gallery-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
-                      {photos.map((photo, index) => (
-                        <img
-                          key={photo.id || photo.url || index}
-                          src={photo.url}
-                          alt={`${property.address} photo ${index + 1}`}
-                          style={{ width: '100%', aspectRatio: '4 / 3', objectFit: 'cover', borderRadius: 8, border: `1px solid ${C.border}` }}
-                        />
-                      ))}
+                <div style={{ padding: '18px 18px 20px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
+                    <div style={{ width: 52, height: 52, borderRadius: '50%', background: `${C.purple}28`, border: `2px solid ${C.purple}60`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
+                      👤
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 17, fontWeight: 800, color: C.text }}>{agentName !== 'the listing agent' ? agentName : 'Listing Agent'}</div>
+                      <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Licensed Real Estate Agent</div>
                     </div>
                   </div>
-                )}
-              </section>
+
+                  {agentPhone && (
+                    <a href={`tel:${agentPhone}`} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 9, marginBottom: 10, textDecoration: 'none' }}>
+                      <span style={{ fontSize: 18 }}>📞</span>
+                      <span style={{ fontSize: 16, fontWeight: 800, color: '#4ade80', flex: 1 }}>{agentPhone}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#4ade80', background: 'rgba(74,222,128,0.15)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 6, padding: '3px 9px', flexShrink: 0 }}>Call</span>
+                    </a>
+                  )}
+
+                  {agentPhone && (
+                    <a href={`sms:${agentPhone}`} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: `${C.purple}12`, border: `1px solid ${C.purple}35`, borderRadius: 9, marginBottom: 18, textDecoration: 'none' }}>
+                      <span style={{ fontSize: 18 }}>💬</span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: C.purple2, flex: 1 }}>Send a text</span>
+                    </a>
+                  )}
+
+                  {/* Request a Showing — active */}
+                  <a
+                    href={agentPhone ? `tel:${agentPhone}` : '#'}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', boxSizing: 'border-box', background: C.purple, color: '#fff', border: 'none', borderRadius: 9, padding: '14px 18px', fontSize: 15, fontWeight: 900, textDecoration: 'none', textAlign: 'center' }}
+                  >
+                    📅 Request a Showing
+                  </a>
+                </div>
+              </div>
             )}
           </div>
 
-          {/* Right column */}
+          {/* ── Right column: form or success ── */}
           {!submitted ? (
             <form id="lead-form" onSubmit={handleSubmit} style={{ position: 'sticky', top: 18, background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: 24, boxShadow: '0 24px 80px rgba(0,0,0,0.34)' }}>
-              <h2 style={{ fontSize: 24, fontWeight: 900, margin: '0 0 6px' }}>
-                {gatedPhotos.length > 0 ? `See All ${photos.length} Photos & Contact the Agent` : 'Contact the Listing Agent'}
+              <h2 style={{ fontSize: 22, fontWeight: 900, margin: '0 0 6px', lineHeight: 1.25 }}>
+                Get the Agent's Direct Number
               </h2>
-              <p style={{ color: C.muted, fontSize: 14, lineHeight: 1.55, margin: '0 0 20px' }}>Your info goes directly to the listing agent — no spam, no obligation.</p>
+              <p style={{ color: C.muted, fontSize: 14, lineHeight: 1.55, margin: '0 0 20px' }}>
+                No middleman. No Zillow. Your info goes straight to the listing agent.
+              </p>
 
               <div style={{ display: 'grid', gap: 15 }}>
                 <label style={{ display: 'grid', gap: 7, color: C.muted, fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
@@ -447,23 +395,7 @@ export default function PropertyPage() {
                   <div style={{ color: C.muted, fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10 }}>When are you looking to buy?</div>
                   <div className="motivation-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                     {MOTIVATION_OPTIONS.map(opt => (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => setMotivationLevel(opt.value)}
-                        style={{
-                          background: motivationLevel === opt.value ? C.purple : C.panel2,
-                          color: motivationLevel === opt.value ? '#fff' : C.text,
-                          border: `1px solid ${motivationLevel === opt.value ? C.purple : C.border}`,
-                          borderRadius: 8,
-                          padding: '11px 10px',
-                          minHeight: 46,
-                          fontSize: 13,
-                          fontWeight: 800,
-                          cursor: 'pointer',
-                          fontFamily: 'sans-serif',
-                        }}
-                      >
+                      <button key={opt.value} type="button" onClick={() => setMotivationLevel(opt.value)} style={{ background: motivationLevel === opt.value ? C.purple : C.panel2, color: motivationLevel === opt.value ? '#fff' : C.text, border: `1px solid ${motivationLevel === opt.value ? C.purple : C.border}`, borderRadius: 8, padding: '11px 10px', minHeight: 46, fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: 'sans-serif' }}>
                         {opt.label}
                       </button>
                     ))}
@@ -472,42 +404,43 @@ export default function PropertyPage() {
 
                 {error && <p style={{ color: '#FCA5A5', fontSize: 14, margin: 0 }}>{error}</p>}
 
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  style={{
-                    background: C.purple,
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: 8,
-                    padding: '14px 18px',
-                    fontSize: 16,
-                    fontWeight: 900,
-                    cursor: submitting ? 'not-allowed' : 'pointer',
-                    opacity: submitting ? 0.7 : 1,
-                    fontFamily: 'sans-serif',
-                  }}
-                >
-                  {submitting ? 'Loading...' : gatedPhotos.length > 0 ? 'See All Photos & Contact Agent →' : 'Contact the Agent →'}
+                <button type="submit" disabled={submitting} style={{ background: C.purple, color: '#fff', border: 'none', borderRadius: 8, padding: '14px 18px', fontSize: 16, fontWeight: 900, cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1, fontFamily: 'sans-serif' }}>
+                  {submitting ? 'Loading...' : 'Get Agent\'s Direct Number 📞'}
                 </button>
 
                 <p style={{ color: C.muted, fontSize: 11, lineHeight: 1.55, margin: '10px 0 0', textAlign: 'center' }}>
-                  Already working with a buyer's agent? Have your agent contact the listing agent directly. By submitting you consent to be contacted regarding this property. Message and data rates may apply.{' '}
+                  Already working with a buyer's agent? Have your agent contact the listing agent directly. By submitting you consent to be contacted regarding this property.{' '}
                   <a href="/privacy" style={{ color: C.muted, textDecoration: 'underline' }}>Privacy Policy</a>.
                 </p>
               </div>
             </form>
-          ) : property.agent_name ? (
+          ) : (
             <div style={{ position: 'sticky', top: 18 }}>
-              <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: 24 }}>
-                <div style={{ color: C.muted, fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>Listing Agent</div>
-                <div style={{ color: C.text, fontSize: 20, fontWeight: 900, marginBottom: 16 }}>{property.agent_name}</div>
-                <div style={{ background: 'rgba(124,58,237,0.12)', border: `1px solid rgba(124,58,237,0.3)`, borderRadius: 8, padding: '12px 14px', fontSize: 13, color: C.soft, lineHeight: 1.55 }}>
-                  📅 Your request has been sent. {property.agent_name} will reach out to schedule a showing.
-                </div>
+              <div style={{ background: 'rgba(124,58,237,0.14)', border: `1px solid rgba(124,58,237,0.4)`, borderRadius: 8, padding: '18px 20px', marginBottom: 16 }}>
+                <div style={{ fontSize: 20, fontWeight: 900, color: C.text, marginBottom: 6 }}>You're in, {name.trim()}! 🎉</div>
+                <p style={{ color: C.soft, fontSize: 14, margin: 0, lineHeight: 1.55 }}>
+                  {agentName !== 'the listing agent' ? agentName : 'The listing agent'} will reach out to you shortly at {phone.trim()}.
+                </p>
               </div>
+
+              {agentPhone && (
+                <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: 20 }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 14 }}>
+                    Direct Contact
+                  </div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 16 }}>
+                    {agentName !== 'the listing agent' ? agentName : 'Listing Agent'}
+                  </div>
+                  <a href={`tel:${agentPhone}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: '#062014', border: '1px solid #166534', borderRadius: 9, padding: '12px 16px', color: '#4ade80', fontSize: 14, fontWeight: 800, textDecoration: 'none', marginBottom: 8 }}>
+                    📞 Call {agentPhone}
+                  </a>
+                  <a href={`sms:${agentPhone}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: `${C.purple}18`, border: `1px solid ${C.purple}40`, borderRadius: 9, padding: '12px 16px', color: C.purple2, fontSize: 14, fontWeight: 800, textDecoration: 'none' }}>
+                    💬 Send a Text
+                  </a>
+                </div>
+              )}
             </div>
-          ) : null}
+          )}
         </section>
       </div>
     </main>

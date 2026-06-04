@@ -42,7 +42,12 @@ export async function POST(request: Request) {
 
   const { propertyId, qrId, name, phone, email, motivation } = body as Record<string, string | null | undefined>
 
-  if (!propertyId || !name?.trim() || !phone?.trim() || !email?.trim() || !motivation) {
+  // 'cold' (Save Property) only requires email — name/phone are optional
+  const isSaveOnly = motivation === 'cold'
+  if (!propertyId || !email?.trim() || !motivation) {
+    return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 })
+  }
+  if (!isSaveOnly && (!name?.trim() || !phone?.trim())) {
     return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 })
   }
 
@@ -64,8 +69,8 @@ export async function POST(request: Request) {
   const { error: insertError } = await supabase.from('leads').insert({
     property_id: propertyId,
     qr_id:       qrId || null,
-    name:        name.trim(),
-    phone:       phone.trim(),
+    name:        name?.trim() || 'Not provided',
+    phone:       phone?.trim() || '',
     email:       email?.trim() || '',
     motivation,
     agent_id:    property.user_id || null,

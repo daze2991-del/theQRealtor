@@ -5,34 +5,68 @@ import { useParams, useSearchParams } from 'next/navigation'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 
 const C = {
-  bg: '#0F0F13',
-  panel: '#17131F',
-  panel2: '#21182F',
-  border: '#332641',
+  bg:     '#0F0F13',
+  card:   '#17131F',
+  card2:  '#1E1630',
+  border: '#2A1F3D',
   purple: '#7C3AED',
-  purple2: '#A78BFA',
-  text: '#F8FAFC',
-  muted: '#A1A1AA',
-  soft: '#D8B4FE',
+  purpleL:'#A78BFA',
+  text:   '#F8FAFC',
+  muted:  '#9CA3AF',
+  soft:   '#D8B4FE',
 }
 
-const MOTIVATION_OPTIONS = [
-  { label: 'Just browsing', value: 'cold' },
-  { label: 'Looking in 6–12 months', value: 'warm' },
-  { label: 'Looking in 1–6 months', value: 'motivated' },
-  { label: 'Ready now', value: 'hot' },
-]
+// ── CTA config ────────────────────────────────────────────────────────────────
+const CTAS = [
+  {
+    id: 'showing',     icon: '📅',
+    label: 'Request a Showing',  sub: 'Schedule a private tour',
+    motivation: 'hot',       btnLabel: 'Request Showing',
+    needsName: true,  needsPhone: true,  emailOnly: false,
+    color: '#EF4444', colorBg: '#3B0D0D',
+  },
+  {
+    id: 'question',    icon: '💬',
+    label: 'Ask a Question',     sub: 'Message the listing agent',
+    motivation: 'warm',      btnLabel: 'Send Question',
+    needsName: true,  needsPhone: false, emailOnly: false,
+    color: '#60A5FA', colorBg: '#0F2238',
+  },
+  {
+    id: 'disclosures', icon: '📋',
+    label: 'Get Disclosures',    sub: 'Review property documents',
+    motivation: 'motivated', btnLabel: 'Get Disclosures',
+    needsName: true,  needsPhone: true,  emailOnly: false,
+    color: '#F97316', colorBg: '#3B1F0D',
+  },
+  {
+    id: 'save',        icon: '❤️',
+    label: 'Save Property',      sub: 'Get price drop alerts',
+    motivation: 'cold',      btnLabel: 'Save Property',
+    needsName: false, needsPhone: false, emailOnly: true,
+    color: '#EC4899', colorBg: '#3B0F24',
+  },
+] as const
+
+type CtaId = typeof CTAS[number]['id']
 
 function formatPrice(price: unknown) {
   if (!price) return null
-  const value = Number(price)
-  if (Number.isNaN(value)) return null
-  return `$${value.toLocaleString()}`
+  const v = Number(price)
+  return Number.isNaN(v) ? null : `$${v.toLocaleString()}`
 }
 
-function statLabel(value: unknown, singular: string, plural: string) {
+function statLabel(value: unknown, s: string, p: string) {
   if (!value) return null
-  return `${value} ${Number(value) === 1 ? singular : plural}`
+  return `${value} ${Number(value) === 1 ? s : p}`
+}
+
+// ── Input style ───────────────────────────────────────────────────────────────
+const inp: React.CSSProperties = {
+  width: '100%', boxSizing: 'border-box',
+  background: '#0F0A1A', border: `1px solid ${C.border}`,
+  borderRadius: 10, color: C.text, fontSize: 16,
+  padding: '13px 14px', outline: 'none', fontFamily: 'sans-serif',
 }
 
 export default function PropertyPage() {
@@ -41,68 +75,80 @@ export default function PropertyPage() {
   const propertyId = params.propertyId as string
   const qrId = searchParams.get('qr')
 
-  const [property, setProperty] = useState<any>(null)
-  const [photos, setPhotos] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [name, setName] = useState('')
-  const [phone, setPhone] = useState('')
-  const [email, setEmail] = useState('')
-  const [motivationLevel, setMotivationLevel] = useState('')
-  const [submitting, setSubmitting] = useState(false)
+  const [property,  setProperty]  = useState<any>(null)
+  const [photos,    setPhotos]    = useState<any[]>([])
+  const [loading,   setLoading]   = useState(true)
+
+  // Carousel
+  const [slide,     setSlide]     = useState(0)
+  const touchX      = useRef<number | null>(null)
+  const visitedMax  = useRef(0)    // highest slide index reached
+  const pageStart   = useRef(Date.now())
+
+  // Form
+  const [intent,    setIntent]    = useState<CtaId | null>(null)
+  const [name,      setName]      = useState('')
+  const [phone,     setPhone]     = useState('')
+  const [email,     setEmail]     = useState('')
+  const [submitting,setSubmitting]= useState(false)
   const [submitted, setSubmitted] = useState(false)
-  const [error, setError] = useState('')
+  const [error,     setError]     = useState('')
 
-  // Carousel — all photos free, no gate
-  const [slideIndex, setSlideIndex] = useState(0)
-  const touchStartX = useRef<number | null>(null)
-
+  // Load property
   useEffect(() => {
-    const loadProperty = async () => {
-      const supabase = createBrowserSupabase()
-      const [{ data, error }, { data: photoData }] = await Promise.all([
-        supabase.from('properties').select('*').eq('id', propertyId).single(),
-        supabase.from('property_photos').select('*').eq('property_id', propertyId).order('sort_order', { ascending: true }),
+    if (!propertyId) return
+    const load = async () => {
+      const sb = createBrowserSupabase()
+      const [{ data: prop }, { data: pics }] = await Promise.all([
+        sb.from('properties').select('*').eq('id', propertyId).single(),
+        sb.from('property_photos').select('*').eq('property_id', propertyId).order('sort_order', { ascending: true }),
       ])
-      if (error) console.error(error)
-      setProperty(data)
-      setPhotos(photoData || [])
+      setProperty(prop)
+      setPhotos(pics || [])
       setLoading(false)
     }
-    if (propertyId) loadProperty()
+    load()
   }, [propertyId])
 
+  // Track scan (only when a QR code triggered the visit)
   useEffect(() => {
-    const trackScan = async () => {
-      if (!qrId) return
-      const supabase = createBrowserSupabase()
-      await supabase.from('scan_events').insert([{ qr_id: qrId, property_id: propertyId }])
-    }
-    if (propertyId) trackScan()
+    if (!propertyId || !qrId) return
+    createBrowserSupabase()
+      .from('scan_events')
+      .insert([{ qr_id: qrId, property_id: propertyId }])
   }, [propertyId, qrId])
 
-  const goNext = () => { if (slideIndex < photos.length - 1) setSlideIndex(slideIndex + 1) }
-  const goPrev = () => { if (slideIndex > 0) setSlideIndex(slideIndex - 1) }
+  // Track furthest photo seen
+  useEffect(() => {
+    visitedMax.current = Math.max(visitedMax.current, slide)
+  }, [slide])
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX
-  }
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX.current === null) return
-    const delta = touchStartX.current - e.changedTouches[0].clientX
-    if (Math.abs(delta) > 40) { if (delta > 0) goNext(); else goPrev() }
-    touchStartX.current = null
+  // Carousel nav
+  const goNext = () => setSlide(s => Math.min(s + 1, photos.length - 1))
+  const goPrev = () => setSlide(s => Math.max(s - 1, 0))
+
+  const onTouchStart = (e: React.TouchEvent) => { touchX.current = e.touches[0].clientX }
+  const onTouchEnd   = (e: React.TouchEvent) => {
+    if (touchX.current === null) return
+    const d = touchX.current - e.changedTouches[0].clientX
+    if (Math.abs(d) > 40) { if (d > 0) goNext(); else goPrev() }
+    touchX.current = null
   }
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!name.trim() || !phone.trim() || !email.trim() || !motivationLevel) {
-      setError('Please fill in your name, phone number, email, and buying timeline.')
-      return
-    }
-    if (!email.includes('@') || !email.includes('.')) {
+  // Submit
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    const cta = CTAS.find(c => c.id === intent)!
+
+    if (!email.trim() || !email.includes('@')) {
       setError('Please enter a valid email address.')
       return
     }
+    if (!cta.emailOnly) {
+      if (!name.trim()) { setError('Please enter your name.'); return }
+      if (cta.needsPhone && !phone.trim()) { setError('Please enter your phone number.'); return }
+    }
+
     setSubmitting(true)
     setError('')
 
@@ -113,18 +159,16 @@ export default function PropertyPage() {
         body: JSON.stringify({
           propertyId,
           qrId: qrId || null,
-          name: name.trim(),
-          phone: phone.trim(),
+          name:  name.trim() || undefined,
+          phone: phone.trim() || undefined,
           email: email.trim(),
-          motivation: motivationLevel,
+          motivation: cta.motivation,
+          // engagement metadata (not stored yet, useful for debugging)
+          _photosViewed: visitedMax.current + 1,
+          _timeOnPageSec: Math.round((Date.now() - pageStart.current) / 1000),
         }),
       })
-
-      if (res.status === 429) {
-        setError('Too many submissions. Please wait a minute and try again.')
-        setSubmitting(false)
-        return
-      }
+      if (res.status === 429) { setError('Too many submissions. Please wait a minute.'); setSubmitting(false); return }
       if (!res.ok) {
         const { error: msg } = await res.json().catch(() => ({}))
         setError(msg || 'Something went wrong. Please try again.')
@@ -132,7 +176,7 @@ export default function PropertyPage() {
         return
       }
     } catch {
-      setError('Network error. Please check your connection and try again.')
+      setError('Network error. Please check your connection.')
       setSubmitting(false)
       return
     }
@@ -141,321 +185,283 @@ export default function PropertyPage() {
     setSubmitting(false)
   }
 
-  if (loading) {
-    return (
-      <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ width: 32, height: 32, border: `2px solid ${C.purple}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    )
-  }
+  const closeSheet = () => { setIntent(null); setSubmitted(false); setError(''); setName(''); setPhone(''); setEmail('') }
 
-  if (!property) {
-    return <div style={{ minHeight: '100vh', padding: 40, color: C.text, background: C.bg, fontFamily: 'sans-serif' }}>Property not found</div>
-  }
+  // ── Loading ──────────────────────────────────────────────────────────────────
+  if (loading) return (
+    <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: 32, height: 32, border: `2px solid ${C.purple}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  )
 
-  const currentPhoto = photos[slideIndex] ?? null
-  const price = formatPrice(property.price)
-  const beds = statLabel(property.beds, 'bed', 'beds')
-  const baths = statLabel(property.baths, 'bath', 'baths')
+  if (!property) return (
+    <div style={{ minHeight: '100vh', background: C.bg, color: C.text, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
+      Property not found
+    </div>
+  )
+
+  const price    = formatPrice(property.price)
+  const beds     = statLabel(property.beds, 'bed', 'beds')
+  const baths    = statLabel(property.baths, 'bath', 'baths')
   const location = [property.city, property.state].filter(Boolean).join(', ')
-  const agentName = property.agent_name || 'the listing agent'
+  const mapUrl   = `https://maps.google.com/?q=${encodeURIComponent([property.address, property.city, property.state].filter(Boolean).join(', '))}`
+  const agentName  = property.agent_name || null
   const agentPhone = property.agent_phone || null
-  const showDots = photos.length > 1 && photos.length <= 14
+  const showDots   = photos.length > 1 && photos.length <= 14
+  const activeCta  = CTAS.find(c => c.id === intent)
 
   return (
     <main style={{ minHeight: '100vh', background: C.bg, color: C.text, fontFamily: 'sans-serif' }}>
       <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes carouselFade { from { opacity: 0; transform: scale(1.015); } to { opacity: 1; transform: scale(1); } }
-        @keyframes unlockPop { 0% { transform: scale(0.95); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-        .carousel-img { animation: carouselFade 0.22s ease; }
-        .buyer-shell { max-width: 1120px; margin: 0 auto; padding: 24px; }
-        .photo-carousel { height: 480px; }
-        .field:focus { border-color: ${C.purple}; box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2); }
-        @media (max-width: 780px) {
-          .buyer-shell { padding: 14px; }
-          .photo-carousel { height: 260px; }
-          .details-grid { grid-template-columns: 1fr !important; }
-          .motivation-grid { grid-template-columns: 1fr !important; }
-          .carousel-arrow { display: none !important; }
+        @keyframes spin     { to { transform: rotate(360deg); } }
+        @keyframes fadeIn   { from { opacity: 0; transform: scale(1.01); } to { opacity: 1; transform: scale(1); } }
+        @keyframes slideUp  { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes popIn    { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+        .photo-img { animation: fadeIn 0.22s ease; }
+        .sheet     { animation: slideUp 0.3s cubic-bezier(0.32,0.72,0,1); }
+        .field:focus { border-color: ${C.purple} !important; box-shadow: 0 0 0 3px rgba(124,58,237,0.2); }
+        .cta-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(0,0,0,0.35); }
+        .cta-btn { transition: transform 0.12s, box-shadow 0.12s; }
+        @media (min-width: 640px) {
+          .buyer-wrap { max-width: 600px; margin: 0 auto; }
+          .carousel   { height: 420px !important; }
+          .form-sheet-wrap { align-items: center !important; }
+          .form-sheet { border-radius: 20px !important; max-width: 480px; }
         }
       `}</style>
 
-      <div className="buyer-shell">
+      <div className="buyer-wrap">
 
-        {/* ── Carousel — all photos free ── */}
+        {/* ── PHASE 1: Carousel — all photos free ── */}
         {photos.length > 0 ? (
-          <section
-            className="photo-carousel"
-            style={{ position: 'relative', borderRadius: 8, overflow: 'hidden', background: '#18181B', userSelect: 'none', cursor: 'grab' }}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
+          <div
+            className="carousel"
+            style={{ position: 'relative', height: 300, background: '#18181B', userSelect: 'none' }}
+            onTouchStart={onTouchStart}
+            onTouchEnd={onTouchEnd}
           >
-            {currentPhoto && (
-              <img
-                key={slideIndex}
-                className="carousel-img"
-                src={currentPhoto.url}
-                alt={`${property.address} — photo ${slideIndex + 1}`}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-              />
-            )}
+            <img
+              key={slide}
+              className="photo-img"
+              src={photos[slide].url}
+              alt={`${property.address} — photo ${slide + 1}`}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
 
             {/* Counter */}
             {photos.length > 1 && (
-              <div style={{ position: 'absolute', top: 12, right: 14, background: 'rgba(0,0,0,0.52)', color: '#fff', fontSize: 12, fontWeight: 700, borderRadius: 20, padding: '4px 10px', backdropFilter: 'blur(4px)', letterSpacing: '0.03em' }}>
-                {slideIndex + 1} / {photos.length}
+              <div style={{ position: 'absolute', top: 12, right: 14, background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 12, fontWeight: 700, borderRadius: 20, padding: '4px 10px', backdropFilter: 'blur(4px)' }}>
+                {slide + 1} / {photos.length}
               </div>
             )}
 
-            {/* Left arrow */}
-            {slideIndex > 0 && (
-              <button className="carousel-arrow" onClick={goPrev} aria-label="Previous photo"
-                style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.48)', color: '#fff', border: 'none', borderRadius: '50%', width: 40, height: 40, fontSize: 22, lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
-                ‹
-              </button>
+            {/* Arrows */}
+            {slide > 0 && (
+              <button onClick={goPrev} aria-label="Previous" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', borderRadius: '50%', width: 38, height: 38, fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>‹</button>
             )}
-
-            {/* Right arrow */}
-            {slideIndex < photos.length - 1 && (
-              <button className="carousel-arrow" onClick={goNext} aria-label="Next photo"
-                style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.48)', color: '#fff', border: 'none', borderRadius: '50%', width: 40, height: 40, fontSize: 22, lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
-                ›
-              </button>
+            {slide < photos.length - 1 && (
+              <button onClick={goNext} aria-label="Next" style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', borderRadius: '50%', width: 38, height: 38, fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>›</button>
             )}
 
             {/* Dots */}
             {showDots && (
-              <div style={{ position: 'absolute', bottom: 14, left: 0, right: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 5, pointerEvents: 'none' }}>
+              <div style={{ position: 'absolute', bottom: 12, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 5, pointerEvents: 'none' }}>
                 {photos.map((_, i) => (
-                  <div key={i} style={{ width: i === slideIndex ? 20 : 7, height: 7, borderRadius: 4, background: i === slideIndex ? '#fff' : 'rgba(255,255,255,0.45)', transition: 'all 0.2s', flexShrink: 0 }} />
+                  <div key={i} style={{ width: i === slide ? 20 : 6, height: 6, borderRadius: 3, background: i === slide ? '#fff' : 'rgba(255,255,255,0.4)', transition: 'all 0.2s', flexShrink: 0 }} />
                 ))}
               </div>
             )}
-          </section>
+          </div>
         ) : (
-          <div style={{ height: 280, borderRadius: 8, border: `1px solid ${C.border}`, background: C.panel, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.muted }}>
+          <div style={{ height: 240, background: C.card, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.muted, fontSize: 14 }}>
             Photos coming soon
           </div>
         )}
 
-        {/* ── Details + form ── */}
-        <section className="details-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 390px', gap: 28, alignItems: 'start', paddingTop: 30 }}>
-          <div>
-            {/* Price / address / location */}
-            <div style={{ marginBottom: 18 }}>
-              {price && <div style={{ color: C.purple2, fontSize: 30, fontWeight: 900, marginBottom: 8 }}>{price}</div>}
-              <h1 style={{ fontSize: 34, lineHeight: 1.08, fontWeight: 900, margin: 0, maxWidth: 720 }}>{property.address}</h1>
-              {location && <p style={{ color: C.muted, fontSize: 15, margin: '9px 0 0' }}>{location}</p>}
+        {/* ── Property info ── */}
+        <div style={{ padding: '22px 18px 0' }}>
+          {price && <div style={{ color: C.purpleL, fontSize: 28, fontWeight: 900, marginBottom: 6, letterSpacing: '-0.02em' }}>{price}</div>}
+          <h1 style={{ fontSize: 24, fontWeight: 900, margin: '0 0 4px', lineHeight: 1.15, color: C.text }}>{property.address}</h1>
+          {location && <p style={{ color: C.muted, fontSize: 14, margin: '0 0 14px' }}>{location}</p>}
+
+          {(beds || baths) && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
+              {[beds, baths].filter(Boolean).map(stat => (
+                <span key={stat} style={{ background: C.card2, border: `1px solid ${C.border}`, color: C.soft, borderRadius: 8, padding: '8px 13px', fontSize: 13, fontWeight: 700 }}>
+                  {stat}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {property.description && (
+            <p style={{ color: '#D4D4D8', fontSize: 15, lineHeight: 1.75, margin: '0 0 18px' }}>{property.description}</p>
+          )}
+
+          {/* Map link */}
+          <a href={mapUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: C.purpleL, fontSize: 14, fontWeight: 600, textDecoration: 'none', marginBottom: 28 }}>
+            📍 View on Map →
+          </a>
+        </div>
+
+        {/* ── PHASE 2: CTA buttons ── */}
+        <div style={{ padding: '0 18px 32px' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
+            Connect with the Agent
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {CTAS.map(cta => (
+              <button
+                key={cta.id}
+                className="cta-btn"
+                onClick={() => { setIntent(cta.id); setSubmitted(false); setError(''); setName(''); setPhone(''); setEmail('') }}
+                style={{
+                  background: cta.colorBg, border: `1px solid ${cta.color}40`,
+                  borderRadius: 14, padding: '16px 14px',
+                  cursor: 'pointer', textAlign: 'left', fontFamily: 'sans-serif',
+                  display: 'flex', flexDirection: 'column', gap: 6,
+                }}
+              >
+                <span style={{ fontSize: 24, lineHeight: 1 }}>{cta.icon}</span>
+                <span style={{ fontSize: 14, fontWeight: 800, color: C.text, lineHeight: 1.2 }}>{cta.label}</span>
+                <span style={{ fontSize: 11, color: C.muted, lineHeight: 1.3 }}>{cta.sub}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+      </div>
+
+      {/* ── PHASE 3 & 4: Form / Success bottom sheet ── */}
+      {intent !== null && (
+        <div
+          className="form-sheet-wrap"
+          onClick={closeSheet}
+          style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+        >
+          <div
+            className="form-sheet sheet"
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '100%', background: '#17131F', borderRadius: '20px 20px 0 0',
+              padding: '0 0 env(safe-area-inset-bottom)', maxHeight: '92vh', overflowY: 'auto',
+            }}
+          >
+            {/* Handle */}
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px' }}>
+              <div style={{ width: 40, height: 4, borderRadius: 2, background: C.border }} />
             </div>
 
-            {/* Beds / baths */}
-            {(beds || baths) && (
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 26 }}>
-                {[beds, baths].filter(Boolean).map(stat => (
-                  <span key={stat} style={{ border: `1px solid ${C.border}`, background: '#15111C', color: C.soft, borderRadius: 8, padding: '10px 14px', fontSize: 14, fontWeight: 800 }}>
-                    {stat}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {/* Description */}
-            {property.description && (
-              <p style={{ color: '#D4D4D8', fontSize: 16, lineHeight: 1.75, margin: '0 0 28px' }}>{property.description}</p>
-            )}
-
-            {/* ── Agent contact card ── */}
             {!submitted ? (
-              /* Locked — shows agent name, blurred phone, CTA */
-              <div style={{ border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden', background: C.panel }}>
-                {/* Card header */}
-                <div style={{ padding: '13px 18px', borderBottom: `1px solid ${C.border}`, background: 'rgba(124,58,237,0.08)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: C.purple2, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Listing Agent</span>
+              /* ── Form ── */
+              <form onSubmit={handleSubmit} style={{ padding: '4px 20px 28px' }}>
+                {/* Header */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+                  <div>
+                    <div style={{ fontSize: 20, fontWeight: 900, color: C.text, lineHeight: 1.2 }}>
+                      {activeCta?.icon} {activeCta?.label}
+                    </div>
+                    {agentName && (
+                      <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>
+                        with {agentName}
+                      </div>
+                    )}
+                  </div>
+                  <button type="button" onClick={closeSheet} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: C.muted, borderRadius: '50%', width: 34, height: 34, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>✕</button>
                 </div>
 
-                <div style={{ padding: '18px 18px 20px' }}>
-                  {/* Agent identity */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
-                    <div style={{ width: 52, height: 52, borderRadius: '50%', background: `${C.purple}28`, border: `2px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
-                      👤
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 17, fontWeight: 800, color: C.text }}>{agentName !== 'the listing agent' ? agentName : 'Listing Agent'}</div>
-                      <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Licensed Real Estate Agent</div>
-                    </div>
-                  </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {!activeCta?.emailOnly && (
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Your Name</span>
+                      <input className="field" type="text" required placeholder="Full name" value={name} onChange={e => setName(e.target.value)} style={inp} />
+                    </label>
+                  )}
 
-                  {/* Masked phone */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`, borderRadius: 9, marginBottom: 16 }}>
-                    <span style={{ fontSize: 16 }}>📞</span>
-                    <span style={{ fontSize: 16, fontWeight: 700, color: C.muted, letterSpacing: '0.2em', filter: 'blur(5px)', userSelect: 'none', flex: 1 }}>
-                      ●●● ●●● ●●●●
-                    </span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: `${C.purple}22`, border: `1px solid ${C.purple}40`, borderRadius: 6, padding: '3px 8px', flexShrink: 0 }}>
-                      <span style={{ fontSize: 11 }}>🔒</span>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: C.purple2 }}>Locked</span>
-                    </div>
-                  </div>
+                  {!activeCta?.emailOnly && activeCta?.needsPhone && (
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Phone</span>
+                      <input className="field" type="tel" required placeholder="Your phone number" value={phone} onChange={e => setPhone(e.target.value)} style={inp} />
+                    </label>
+                  )}
 
-                  {/* Request showing — disabled */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: 'rgba(255,255,255,0.02)', border: `1px dashed ${C.border}`, borderRadius: 9, marginBottom: 18, opacity: 0.55 }}>
-                    <span style={{ fontSize: 16 }}>📅</span>
-                    <span style={{ fontSize: 13, color: C.muted }}>Request a Showing</span>
-                    <span style={{ marginLeft: 'auto', fontSize: 11 }}>🔒</span>
-                  </div>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Email</span>
+                    <input className="field" type="email" required placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} style={inp} />
+                  </label>
 
-                  <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.55, margin: '0 0 16px' }}>
-                    Get {agentName !== 'the listing agent' ? `${agentName}'s` : "the agent's"} direct number. No Zillow middleman — you connect straight to the listing agent.
-                  </p>
+                  {error && <p style={{ color: '#FCA5A5', fontSize: 13, margin: 0 }}>{error}</p>}
 
                   <button
-                    type="button"
-                    onClick={() => document.getElementById('lead-form')?.scrollIntoView({ behavior: 'smooth' })}
-                    style={{ width: '100%', background: C.purple, color: '#fff', border: 'none', borderRadius: 9, padding: '13px 18px', fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: 'sans-serif' }}
+                    type="submit"
+                    disabled={submitting}
+                    style={{
+                      background: activeCta?.color ?? C.purple, color: '#fff', border: 'none',
+                      borderRadius: 12, padding: '15px 18px', fontSize: 16, fontWeight: 900,
+                      cursor: submitting ? 'not-allowed' : 'pointer',
+                      opacity: submitting ? 0.7 : 1, fontFamily: 'sans-serif', marginTop: 4,
+                    }}
                   >
-                    Get Direct Number 📞
+                    {submitting ? 'Sending…' : `${activeCta?.btnLabel} →`}
                   </button>
+
+                  {/* Trust line */}
+                  <p style={{ fontSize: 11, color: C.muted, textAlign: 'center', margin: 0, lineHeight: 1.55 }}>
+                    Your info goes only to the listing agent for this property — not shared with other agents.
+                  </p>
                 </div>
-              </div>
+              </form>
             ) : (
-              /* Unlocked — phone revealed, Request Showing active */
-              <div style={{ border: `1px solid rgba(124,58,237,0.5)`, borderRadius: 14, overflow: 'hidden', background: C.panel, animation: 'unlockPop 0.3s ease' }}>
-                <div style={{ padding: '13px 18px', borderBottom: `1px solid rgba(124,58,237,0.2)`, background: 'rgba(124,58,237,0.12)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 14 }}>✅</span>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: C.purple2, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Direct Access Unlocked</span>
+              /* ── PHASE 4: Success ── */
+              <div style={{ padding: '4px 20px 32px', animation: 'popIn 0.25s ease' }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+                  <button onClick={closeSheet} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: C.muted, borderRadius: '50%', width: 34, height: 34, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
                 </div>
 
-                <div style={{ padding: '18px 18px 20px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
-                    <div style={{ width: 52, height: 52, borderRadius: '50%', background: `${C.purple}28`, border: `2px solid ${C.purple}60`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
-                      👤
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 17, fontWeight: 800, color: C.text }}>{agentName !== 'the listing agent' ? agentName : 'Listing Agent'}</div>
-                      <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Licensed Real Estate Agent</div>
-                    </div>
+                {/* Confirmation */}
+                <div style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.35)', borderRadius: 14, padding: '18px 18px 16px', marginBottom: 20 }}>
+                  <div style={{ fontSize: 24, marginBottom: 8 }}>✅</div>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: C.text, marginBottom: 6 }}>
+                    {activeCta?.id === 'save' ? 'Property Saved!' :
+                     activeCta?.id === 'question' ? 'Question Sent!' :
+                     activeCta?.id === 'disclosures' ? 'Request Received!' :
+                     'Showing Requested!'}
                   </div>
+                  <p style={{ fontSize: 14, color: C.soft, margin: 0, lineHeight: 1.55 }}>
+                    {agentName ? `${agentName} will` : 'The listing agent will'} be in touch with you shortly.
+                  </p>
+                </div>
 
-                  {agentPhone && (
-                    <a href={`tel:${agentPhone}`} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 9, marginBottom: 10, textDecoration: 'none' }}>
-                      <span style={{ fontSize: 18 }}>📞</span>
-                      <span style={{ fontSize: 16, fontWeight: 800, color: '#4ade80', flex: 1 }}>{agentPhone}</span>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: '#4ade80', background: 'rgba(74,222,128,0.15)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 6, padding: '3px 9px', flexShrink: 0 }}>Call</span>
+                {/* Agent direct contact — revealed */}
+                {agentPhone && (
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
+                      Agent's Direct Number
+                    </div>
+                    <a href={`tel:${agentPhone}`} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(74,222,128,0.09)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 12, padding: '13px 16px', textDecoration: 'none', marginBottom: 8 }}>
+                      <span style={{ fontSize: 20 }}>📞</span>
+                      <span style={{ fontSize: 17, fontWeight: 800, color: '#4ade80', flex: 1 }}>{agentPhone}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#4ade80', background: 'rgba(74,222,128,0.15)', borderRadius: 6, padding: '3px 9px' }}>Call</span>
                     </a>
-                  )}
-
-                  {agentPhone && (
-                    <a href={`sms:${agentPhone}`} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: `${C.purple}12`, border: `1px solid ${C.purple}35`, borderRadius: 9, marginBottom: 18, textDecoration: 'none' }}>
-                      <span style={{ fontSize: 18 }}>💬</span>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: C.purple2, flex: 1 }}>Send a text</span>
+                    <a href={`sms:${agentPhone}`} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 12, padding: '13px 16px', textDecoration: 'none' }}>
+                      <span style={{ fontSize: 20 }}>💬</span>
+                      <span style={{ fontSize: 15, fontWeight: 700, color: C.purpleL, flex: 1 }}>Send a Text Message</span>
                     </a>
-                  )}
+                  </div>
+                )}
 
-                  {/* Request a Showing — active */}
-                  <a
-                    href={agentPhone ? `tel:${agentPhone}` : '#'}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', boxSizing: 'border-box', background: C.purple, color: '#fff', border: 'none', borderRadius: 9, padding: '14px 18px', fontSize: 15, fontWeight: 900, textDecoration: 'none', textAlign: 'center' }}
-                  >
+                {/* Request Showing CTA (if not already chosen) */}
+                {activeCta?.id !== 'showing' && agentPhone && (
+                  <a href={`tel:${agentPhone}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: C.purple, color: '#fff', borderRadius: 12, padding: '14px 18px', textDecoration: 'none', fontSize: 15, fontWeight: 900 }}>
                     📅 Request a Showing
                   </a>
-                </div>
+                )}
               </div>
             )}
           </div>
-
-          {/* ── Right column: form or success ── */}
-          {!submitted ? (
-            <form id="lead-form" onSubmit={handleSubmit} style={{ position: 'sticky', top: 18, background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: 24, boxShadow: '0 24px 80px rgba(0,0,0,0.34)' }}>
-              <h2 style={{ fontSize: 22, fontWeight: 900, margin: '0 0 6px', lineHeight: 1.25 }}>
-                Get the Agent's Direct Number
-              </h2>
-              <p style={{ color: C.muted, fontSize: 14, lineHeight: 1.55, margin: '0 0 20px' }}>
-                No middleman. No Zillow. Your info goes straight to the listing agent.
-              </p>
-
-              <div style={{ display: 'grid', gap: 15 }}>
-                <label style={{ display: 'grid', gap: 7, color: C.muted, fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                  Name
-                  <input className="field" type="text" required placeholder="Your full name" value={name} onChange={e => setName(e.target.value)} style={inputStyle} />
-                </label>
-
-                <label style={{ display: 'grid', gap: 7, color: C.muted, fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                  Phone
-                  <input className="field" type="tel" required placeholder="Your phone number" value={phone} onChange={e => setPhone(e.target.value)} style={inputStyle} />
-                </label>
-
-                <label style={{ display: 'grid', gap: 7, color: C.muted, fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                  Email
-                  <input className="field" type="email" required placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} />
-                </label>
-
-                <div>
-                  <div style={{ color: C.muted, fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10 }}>When are you looking to buy?</div>
-                  <div className="motivation-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                    {MOTIVATION_OPTIONS.map(opt => (
-                      <button key={opt.value} type="button" onClick={() => setMotivationLevel(opt.value)} style={{ background: motivationLevel === opt.value ? C.purple : C.panel2, color: motivationLevel === opt.value ? '#fff' : C.text, border: `1px solid ${motivationLevel === opt.value ? C.purple : C.border}`, borderRadius: 8, padding: '11px 10px', minHeight: 46, fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: 'sans-serif' }}>
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {error && <p style={{ color: '#FCA5A5', fontSize: 14, margin: 0 }}>{error}</p>}
-
-                <button type="submit" disabled={submitting} style={{ background: C.purple, color: '#fff', border: 'none', borderRadius: 8, padding: '14px 18px', fontSize: 16, fontWeight: 900, cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1, fontFamily: 'sans-serif' }}>
-                  {submitting ? 'Loading...' : 'Get Agent\'s Direct Number 📞'}
-                </button>
-
-                <p style={{ color: C.muted, fontSize: 11, lineHeight: 1.55, margin: '10px 0 0', textAlign: 'center' }}>
-                  Already working with a buyer's agent? Have your agent contact the listing agent directly. By submitting you consent to be contacted regarding this property.{' '}
-                  <a href="/privacy" style={{ color: C.muted, textDecoration: 'underline' }}>Privacy Policy</a>.
-                </p>
-              </div>
-            </form>
-          ) : (
-            <div style={{ position: 'sticky', top: 18 }}>
-              <div style={{ background: 'rgba(124,58,237,0.14)', border: `1px solid rgba(124,58,237,0.4)`, borderRadius: 8, padding: '18px 20px', marginBottom: 16 }}>
-                <div style={{ fontSize: 20, fontWeight: 900, color: C.text, marginBottom: 6 }}>You're in, {name.trim()}! 🎉</div>
-                <p style={{ color: C.soft, fontSize: 14, margin: 0, lineHeight: 1.55 }}>
-                  {agentName !== 'the listing agent' ? agentName : 'The listing agent'} will reach out to you shortly at {phone.trim()}.
-                </p>
-              </div>
-
-              {agentPhone && (
-                <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: 20 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 14 }}>
-                    Direct Contact
-                  </div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 16 }}>
-                    {agentName !== 'the listing agent' ? agentName : 'Listing Agent'}
-                  </div>
-                  <a href={`tel:${agentPhone}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: '#062014', border: '1px solid #166534', borderRadius: 9, padding: '12px 16px', color: '#4ade80', fontSize: 14, fontWeight: 800, textDecoration: 'none', marginBottom: 8 }}>
-                    📞 Call {agentPhone}
-                  </a>
-                  <a href={`sms:${agentPhone}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: `${C.purple}18`, border: `1px solid ${C.purple}40`, borderRadius: 9, padding: '12px 16px', color: C.purple2, fontSize: 14, fontWeight: 800, textDecoration: 'none' }}>
-                    💬 Send a Text
-                  </a>
-                </div>
-              )}
-            </div>
-          )}
-        </section>
-      </div>
+        </div>
+      )}
     </main>
   )
-}
-
-const inputStyle = {
-  width: '100%',
-  background: '#100D16',
-  border: `1px solid ${C.border}`,
-  borderRadius: 8,
-  color: C.text,
-  fontSize: 15,
-  padding: '12px 13px',
-  boxSizing: 'border-box' as const,
-  outline: 'none',
-  fontFamily: 'sans-serif',
 }

@@ -99,7 +99,7 @@ export async function POST(request: Request) {
         const msg = await twilio(accountSid, authToken).messages.create({
           to:   property.agent_phone,
           from,
-          body: `New lead from ${name.trim()} for ${property.address}. Phone: ${phone.trim()}. Intent: ${MOTIVATION_LABELS[motivation] ?? motivation}. Log in to RealtQR to view.`,
+          body: `New lead from ${(name || 'Unknown').trim()} for ${property.address}. Phone: ${phone?.trim() || 'not provided'}. Intent: ${MOTIVATION_LABELS[motivation] ?? motivation}. Log in to RealtQR to view.`,
         })
         console.log('[submit-lead] SMS sent OK — sid:', msg.sid, '| status:', msg.status)
       } catch (smsErr: any) {

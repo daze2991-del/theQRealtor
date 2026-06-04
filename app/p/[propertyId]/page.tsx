@@ -22,29 +22,22 @@ const CTAS = [
     id: 'showing',     icon: '📅',
     label: 'Request a Showing',  sub: 'Schedule a private tour',
     motivation: 'hot',       btnLabel: 'Request Showing',
-    needsName: true,  needsPhone: true,  emailOnly: false,
+    needsPhone: true,
     color: '#EF4444', colorBg: '#3B0D0D',
   },
   {
     id: 'question',    icon: '💬',
     label: 'Ask a Question',     sub: 'Message the listing agent',
     motivation: 'warm',      btnLabel: 'Send Question',
-    needsName: true,  needsPhone: false, emailOnly: false,
+    needsPhone: false,
     color: '#60A5FA', colorBg: '#0F2238',
   },
   {
     id: 'disclosures', icon: '📋',
     label: 'Get Disclosures',    sub: 'Review property documents',
     motivation: 'motivated', btnLabel: 'Get Disclosures',
-    needsName: true,  needsPhone: true,  emailOnly: false,
+    needsPhone: true,
     color: '#F97316', colorBg: '#3B1F0D',
-  },
-  {
-    id: 'save',        icon: '❤️',
-    label: 'Save Property',      sub: 'Get price drop alerts',
-    motivation: 'cold',      btnLabel: 'Save Property',
-    needsName: false, needsPhone: false, emailOnly: true,
-    color: '#EC4899', colorBg: '#3B0F24',
   },
 ] as const
 
@@ -140,13 +133,11 @@ export default function PropertyPage() {
     e.preventDefault()
     const cta = CTAS.find(c => c.id === intent)!
 
+    if (!name.trim()) { setError('Please enter your name.'); return }
+    if (cta.needsPhone && !phone.trim()) { setError('Please enter your phone number.'); return }
     if (!email.trim() || !email.includes('@')) {
       setError('Please enter a valid email address.')
       return
-    }
-    if (!cta.emailOnly) {
-      if (!name.trim()) { setError('Please enter your name.'); return }
-      if (cta.needsPhone && !phone.trim()) { setError('Please enter your phone number.'); return }
     }
 
     setSubmitting(true)
@@ -321,6 +312,7 @@ export default function PropertyPage() {
                   borderRadius: 14, padding: '16px 14px',
                   cursor: 'pointer', textAlign: 'left', fontFamily: 'sans-serif',
                   display: 'flex', flexDirection: 'column', gap: 6,
+                  gridColumn: cta.id === 'disclosures' ? '1 / -1' : undefined,
                 }}
               >
                 <span style={{ fontSize: 24, lineHeight: 1 }}>{cta.icon}</span>
@@ -372,14 +364,12 @@ export default function PropertyPage() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {!activeCta?.emailOnly && (
-                    <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Your Name</span>
-                      <input className="field" type="text" required placeholder="Full name" value={name} onChange={e => setName(e.target.value)} style={inp} />
-                    </label>
-                  )}
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Your Name</span>
+                    <input className="field" type="text" required placeholder="Full name" value={name} onChange={e => setName(e.target.value)} style={inp} />
+                  </label>
 
-                  {!activeCta?.emailOnly && activeCta?.needsPhone && (
+                  {activeCta?.needsPhone && (
                     <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Phone</span>
                       <input className="field" type="tel" required placeholder="Your phone number" value={phone} onChange={e => setPhone(e.target.value)} style={inp} />
@@ -423,8 +413,7 @@ export default function PropertyPage() {
                 <div style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.35)', borderRadius: 14, padding: '18px 18px 16px', marginBottom: 20 }}>
                   <div style={{ fontSize: 24, marginBottom: 8 }}>✅</div>
                   <div style={{ fontSize: 18, fontWeight: 900, color: C.text, marginBottom: 6 }}>
-                    {activeCta?.id === 'save' ? 'Property Saved!' :
-                     activeCta?.id === 'question' ? 'Question Sent!' :
+                    {activeCta?.id === 'question' ? 'Question Sent!' :
                      activeCta?.id === 'disclosures' ? 'Request Received!' :
                      'Showing Requested!'}
                   </div>

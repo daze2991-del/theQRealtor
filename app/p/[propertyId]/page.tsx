@@ -75,8 +75,14 @@ export default function PropertyPage() {
   // Carousel
   const [slide,     setSlide]     = useState(0)
   const touchX      = useRef<number | null>(null)
-  const visitedMax  = useRef(0)    // highest slide index reached
+  const visitedMax  = useRef(0)
   const pageStart   = useRef(Date.now())
+
+  // Engagement tracking
+  const scanEventId    = useRef<string | null>(null)
+  const returnVisit    = useRef(false)
+  const daysSinceFirst = useRef(0)
+  const ctaClickedRef  = useRef<string | null>(null)
 
   // Form
   const [intent,    setIntent]    = useState<CtaId | null>(null)
@@ -103,13 +109,51 @@ export default function PropertyPage() {
     load()
   }, [propertyId])
 
-  // Track scan (only when a QR code triggered the visit)
+  // Return-visit detection + scan_event creation
   useEffect(() => {
-    if (!propertyId || !qrId) return
+    if (!propertyId) return
+
+    // Detect return visit via localStorage
+    const key    = `rv_${propertyId}`
+    const stored = localStorage.getItem(key)
+    if (stored) {
+      returnVisit.current    = true
+      daysSinceFirst.current = Math.floor((Date.now() - Number(stored)) / 86_400_000)
+    } else {
+      localStorage.setItem(key, String(Date.now()))
+    }
+
+    // Only create scan_event for QR-originated visits
+    if (!qrId) return
     createBrowserSupabase()
       .from('scan_events')
-      .insert([{ qr_id: qrId, property_id: propertyId }])
+      .insert([{
+        qr_id:                  qrId,
+        property_id:            propertyId,
+        return_visit:           returnVisit.current,
+        days_since_first_visit: daysSinceFirst.current,
+      }])
+      .select('id')
+      .single()
+      .then(({ data }) => { if (data?.id) scanEventId.current = data.id })
   }, [propertyId, qrId])
+
+  // Flush engagement data on page-unload (non-converting visits)
+  useEffect(() => {
+    const onUnload = () => {
+      if (!scanEventId.current) return
+      const payload = JSON.stringify({
+        scanEventId:  scanEventId.current,
+        timeOnPageSec: Math.round((Date.now() - pageStart.current) / 1000),
+        photosViewed:  visitedMax.current + 1,
+        ctaClicked:    ctaClickedRef.current,
+        converted:     false,
+      })
+      navigator.sendBeacon('/api/update-engagement', new Blob([payload], { type: 'application/json' }))
+    }
+    window.addEventListener('beforeunload', onUnload)
+    return () => window.removeEventListener('beforeunload', onUnload)
+  }, [])
 
   // Track furthest photo seen
   useEffect(() => {
@@ -149,14 +193,19 @@ export default function PropertyPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           propertyId,
-          qrId: qrId || null,
-          name:  name.trim() || undefined,
-          phone: phone.trim() || undefined,
-          email: email.trim(),
+          qrId:       qrId || null,
+          name:       name.trim(),
+          phone:      phone.trim() || undefined,
+          email:      email.trim(),
           motivation: cta.motivation,
-          // engagement metadata (not stored yet, useful for debugging)
-          _photosViewed: visitedMax.current + 1,
-          _timeOnPageSec: Math.round((Date.now() - pageStart.current) / 1000),
+          scanEventId: scanEventId.current,
+          engagement: {
+            timeOnPageSec:       Math.round((Date.now() - pageStart.current) / 1000),
+            photosViewed:        visitedMax.current + 1,
+            ctaClicked:          cta.id,
+            returnVisit:         returnVisit.current,
+            daysSinceFirstVisit: daysSinceFirst.current,
+          },
         }),
       })
       if (res.status === 429) { setError('Too many submissions. Please wait a minute.'); setSubmitting(false); return }
@@ -306,7 +355,7 @@ export default function PropertyPage() {
               <button
                 key={cta.id}
                 className="cta-btn"
-                onClick={() => { setIntent(cta.id); setSubmitted(false); setError(''); setName(''); setPhone(''); setEmail('') }}
+                onClick={() => { ctaClickedRef.current = cta.id; setIntent(cta.id); setSubmitted(false); setError(''); setName(''); setPhone(''); setEmail('') }}
                 style={{
                   background: cta.colorBg, border: `1px solid ${cta.color}40`,
                   borderRadius: 14, padding: '16px 14px',

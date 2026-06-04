@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import twilio from 'twilio'
 import { createAdminSupabase } from '../../../lib/supabase-admin'
+import { computeIntent, type EngagementData } from '../../../lib/leadScoring'
 
 // ─── rate limiter ─────────────────────────────────────────────────────────────
 // Best-effort in-memory window per IP. Works for single-instance deployments;
@@ -40,16 +41,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
   }
 
-  const { propertyId, qrId, name, phone, email, motivation } = body as Record<string, string | null | undefined>
+  const { propertyId, qrId, name, phone, email, motivation, scanEventId, engagement } =
+    body as Record<string, unknown>
 
-  // 'cold' (Save Property) only requires email — name/phone are optional
-  const isSaveOnly = motivation === 'cold'
-  if (!propertyId || !email?.trim() || !motivation) {
+  const ctaMotivation = motivation as string | undefined
+
+  if (!propertyId || !(name as string)?.trim() || !(email as string)?.trim() || !ctaMotivation) {
     return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 })
   }
-  if (!isSaveOnly && (!name?.trim() || !phone?.trim())) {
+  // phone required for showing (hot) and disclosures (motivated); not for question (warm)
+  if (ctaMotivation !== 'warm' && !(phone as string)?.trim()) {
     return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 })
   }
+
+  // Compute intent score from engagement data sent by the buyer page
+  const eng = engagement as EngagementData | undefined
+  const computedMotivation = eng
+    ? computeIntent({
+        returnVisit:   !!eng.returnVisit,
+        photosViewed:  typeof eng.photosViewed  === 'number' ? eng.photosViewed  : 0,
+        ctaClicked:    eng.ctaClicked ?? null,
+        timeOnPageSec: typeof eng.timeOnPageSec === 'number' ? eng.timeOnPageSec : 0,
+      })
+    : ctaMotivation
 
   const supabase = createAdminSupabase()
 
@@ -68,17 +82,29 @@ export async function POST(request: Request) {
   // ── insert lead ─────────────────────────────────────────────────────────────
   const { error: insertError } = await supabase.from('leads').insert({
     property_id: propertyId,
-    qr_id:       qrId || null,
-    name:        name?.trim() || 'Not provided',
-    phone:       phone?.trim() || '',
-    email:       email?.trim() || '',
-    motivation,
+    qr_id:       (qrId as string) || null,
+    name:        (name as string).trim(),
+    phone:       (phone as string)?.trim() || '',
+    email:       (email as string).trim(),
+    motivation:  computedMotivation,
     agent_id:    property.user_id || null,
   })
 
   if (insertError) {
     console.error('[submit-lead] insert error:', insertError)
     return NextResponse.json({ error: 'Failed to save your info. Please try again.' }, { status: 500 })
+  }
+
+  // ── mark scan_event as converted ────────────────────────────────────────────
+  if (scanEventId) {
+    await supabase.from('scan_events').update({
+      cta_clicked:      eng?.ctaClicked    ?? null,
+      time_on_page_sec: eng?.timeOnPageSec ?? null,
+      photos_viewed:    eng?.photosViewed  ?? null,
+      return_visit:     !!eng?.returnVisit,
+      days_since_first_visit: (eng as any)?.daysSinceFirstVisit ?? null,
+      converted:        true,
+    }).eq('id', scanEventId)
   }
 
   // ── SMS alert — uses server-fetched agent_phone, never client input ─────────
@@ -99,7 +125,7 @@ export async function POST(request: Request) {
         const msg = await twilio(accountSid, authToken).messages.create({
           to:   property.agent_phone,
           from,
-          body: `New lead from ${(name || 'Unknown').trim()} for ${property.address}. Phone: ${phone?.trim() || 'not provided'}. Intent: ${MOTIVATION_LABELS[motivation] ?? motivation}. Log in to RealtQR to view.`,
+          body: `New lead from ${(name as string).trim()} for ${property.address}. Phone: ${(phone as string)?.trim() || 'not provided'}. Score: ${MOTIVATION_LABELS[computedMotivation] ?? computedMotivation} (${ctaMotivation}). Log in to RealtQR to view.`,
         })
         console.log('[submit-lead] SMS sent OK — sid:', msg.sid, '| status:', msg.status)
       } catch (smsErr: any) {

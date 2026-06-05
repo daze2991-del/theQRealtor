@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
   }
 
-  const { propertyId, qrId, name, phone, email, motivation, scanEventId, engagement } =
+  const { propertyId, qrId, name, phone, email, motivation, questionText, contactPreference, scanEventId, engagement } =
     body as Record<string, unknown>
 
   const ctaMotivation = motivation as string | undefined
@@ -82,13 +82,15 @@ export async function POST(request: Request) {
 
   // ── insert lead ─────────────────────────────────────────────────────────────
   const { error: insertError } = await supabase.from('leads').insert({
-    property_id: propertyId,
-    qr_id:       (qrId as string) || null,
-    name:        (name as string).trim(),
-    phone:       (phone as string)?.trim() || '',
-    email:       (email as string).trim(),
-    motivation:  computedMotivation,
-    agent_id:    property.user_id || null,
+    property_id:        propertyId,
+    qr_id:              (qrId as string) || null,
+    name:               (name as string).trim(),
+    phone:              (phone as string)?.trim() || '',
+    email:              (email as string).trim(),
+    motivation:         computedMotivation,
+    notes:              (questionText as string)?.trim() || null,
+    contact_preference: (contactPreference as string)?.trim() || null,
+    agent_id:           property.user_id || null,
   })
 
   if (insertError) {
@@ -126,7 +128,9 @@ export async function POST(request: Request) {
         const msg = await twilio(accountSid, authToken).messages.create({
           to:   property.agent_phone,
           from,
-          body: `New lead from ${(name as string).trim()} for ${property.address}. Phone: ${(phone as string)?.trim() || 'not provided'}. Score: ${MOTIVATION_LABELS[computedMotivation] ?? computedMotivation} (${ctaMotivation}). Log in to RealtQR to view.`,
+          body: ctaMotivation === 'warm' && (questionText as string)?.trim()
+            ? `Question from buyer about ${property.address}: "${(questionText as string).trim()}" — ${(name as string).trim()}, Phone: ${(phone as string)?.trim() || 'not provided'}. Log in to RealtQR to view.`
+            : `New lead from ${(name as string).trim()} for ${property.address}. Phone: ${(phone as string)?.trim() || 'not provided'}. Score: ${MOTIVATION_LABELS[computedMotivation] ?? computedMotivation} (${ctaMotivation}). Log in to RealtQR to view.`,
         })
         console.log('[submit-lead] SMS sent OK — sid:', msg.sid, '| status:', msg.status)
       } catch (smsErr: any) {

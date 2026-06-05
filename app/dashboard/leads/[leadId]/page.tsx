@@ -222,11 +222,34 @@ export default function LeadDetailPage() {
           {/* Left column */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
+            {/* Buyer's question — shown when present (set at lead submission for 'question' CTA) */}
+            {lead.notes && (
+              <div style={{ background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.3)', borderRadius: 14, padding: '16px 18px' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#60A5FA', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
+                  💬 Buyer's Message
+                </div>
+                <p style={{ fontSize: 15, color: C.text, lineHeight: 1.65, margin: 0, fontStyle: 'italic' }}>"{lead.notes}"</p>
+              </div>
+            )}
+
             {/* Contact */}
             <Section title="Contact Info">
               {lead.phone && <InfoRow icon="📞" label="Phone" value={lead.phone} href={`tel:${lead.phone}`} />}
               {lead.email && <InfoRow icon="✉️" label="Email" value={lead.email} href={`mailto:${lead.email}`} />}
               {!lead.phone && !lead.email && <div style={{ fontSize: 13, color: C.muted }}>No contact info provided.</div>}
+              {/* Contact preference */}
+              {lead.contact_preference && (
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>Contact Preference</div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {(lead.contact_preference as string).split(',').map((p: string) => p.trim()).filter(Boolean).map((pref: string) => (
+                      <span key={pref} style={{ fontSize: 12, fontWeight: 700, background: 'rgba(255,255,255,0.06)', border: `1px solid ${C.border}`, color: C.sub, borderRadius: 6, padding: '5px 11px' }}>
+                        {pref === 'Phone Call' ? '📞' : pref === 'Text' ? '💬' : '✉️'} {pref}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
               {/* Action buttons */}
               {(lead.phone || lead.email) && (
                 <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>

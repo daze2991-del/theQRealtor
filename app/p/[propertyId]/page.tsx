@@ -85,13 +85,15 @@ export default function PropertyPage() {
   const ctaClickedRef  = useRef<string | null>(null)
 
   // Form
-  const [intent,    setIntent]    = useState<CtaId | null>(null)
-  const [name,      setName]      = useState('')
-  const [phone,     setPhone]     = useState('')
-  const [email,     setEmail]     = useState('')
-  const [submitting,setSubmitting]= useState(false)
-  const [submitted, setSubmitted] = useState(false)
-  const [error,     setError]     = useState('')
+  const [intent,      setIntent]      = useState<CtaId | null>(null)
+  const [name,        setName]        = useState('')
+  const [phone,       setPhone]       = useState('')
+  const [email,       setEmail]       = useState('')
+  const [question,    setQuestion]    = useState('')
+  const [contactPref, setContactPref] = useState<string[]>(['Text', 'Email'])
+  const [submitting,  setSubmitting]  = useState(false)
+  const [submitted,   setSubmitted]   = useState(false)
+  const [error,       setError]       = useState('')
 
   // Load property
   useEffect(() => {
@@ -187,6 +189,7 @@ export default function PropertyPage() {
     e.preventDefault()
     const cta = CTAS.find(c => c.id === intent)!
 
+    if (intent === 'question' && !question.trim()) { setError('Please enter your question.'); return }
     if (!name.trim()) { setError('Please enter your name.'); return }
     if (cta.needsPhone && !phone.trim()) { setError('Please enter your phone number.'); return }
     if (!email.trim() || !email.includes('@')) {
@@ -204,10 +207,12 @@ export default function PropertyPage() {
         body: JSON.stringify({
           propertyId,
           qrId:       qrId || null,
-          name:       name.trim(),
-          phone:      phone.trim() || undefined,
-          email:      email.trim(),
-          motivation: cta.motivation,
+          name:              name.trim(),
+          phone:             phone.trim() || undefined,
+          email:             email.trim(),
+          motivation:        cta.motivation,
+          questionText:      intent === 'question' ? question.trim() : undefined,
+          contactPreference: contactPref.length > 0 ? contactPref.join(', ') : undefined,
           scanEventId: scanEventId.current,
           engagement: {
             timeOnPageSec:       Math.round((Date.now() - pageStart.current) / 1000),
@@ -235,7 +240,7 @@ export default function PropertyPage() {
     setSubmitting(false)
   }
 
-  const closeSheet = () => { setIntent(null); setSubmitted(false); setError(''); setName(''); setPhone(''); setEmail('') }
+  const closeSheet = () => { setIntent(null); setSubmitted(false); setError(''); setName(''); setPhone(''); setEmail(''); setQuestion(''); setContactPref(['Text', 'Email']) }
 
   // ── Loading ──────────────────────────────────────────────────────────────────
   if (loading) return (
@@ -365,7 +370,7 @@ export default function PropertyPage() {
               <button
                 key={cta.id}
                 className="cta-btn"
-                onClick={() => { ctaClickedRef.current = cta.id; setIntent(cta.id); setSubmitted(false); setError(''); setName(''); setPhone(''); setEmail('') }}
+                onClick={() => { ctaClickedRef.current = cta.id; setIntent(cta.id); setSubmitted(false); setError(''); setName(''); setPhone(''); setEmail(''); setQuestion(''); setContactPref(['Text', 'Email']) }}
                 style={{
                   background: cta.colorBg, border: `1px solid ${cta.color}40`,
                   borderRadius: 14, padding: '16px 14px',
@@ -423,6 +428,22 @@ export default function PropertyPage() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {/* Question textarea — Ask a Question CTA only */}
+                  {intent === 'question' && (
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Your Question</span>
+                      <textarea
+                        className="field"
+                        required
+                        placeholder="e.g. Is there an HOA? Can I see it this Saturday?"
+                        value={question}
+                        onChange={e => setQuestion(e.target.value)}
+                        rows={3}
+                        style={{ ...inp, resize: 'none', lineHeight: 1.55 }}
+                      />
+                    </label>
+                  )}
+
                   <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Your Name</span>
                     <input className="field" type="text" required placeholder="Full name" value={name} onChange={e => setName(e.target.value)} style={inp} />
@@ -439,6 +460,38 @@ export default function PropertyPage() {
                     <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Email</span>
                     <input className="field" type="email" required placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} style={inp} />
                   </label>
+
+                  {/* Contact preference checkboxes */}
+                  <div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 8 }}>
+                      How would you like to be contacted?
+                    </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                      {[
+                        { value: 'Phone Call', icon: '📞' },
+                        { value: 'Text',       icon: '💬' },
+                        { value: 'Email',      icon: '✉️' },
+                      ].map(({ value, icon }) => {
+                        const checked = contactPref.includes(value)
+                        return (
+                          <label
+                            key={value}
+                            style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 13px', borderRadius: 10, background: checked ? 'rgba(124,58,237,0.12)' : 'rgba(255,255,255,0.03)', border: `1px solid ${checked ? C.purple + '70' : C.border}` }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={ev => setContactPref(prev =>
+                                ev.target.checked ? [...prev, value] : prev.filter(p => p !== value)
+                              )}
+                              style={{ width: 16, height: 16, accentColor: C.purple, cursor: 'pointer', flexShrink: 0 }}
+                            />
+                            <span style={{ fontSize: 14, color: C.text }}>{icon} {value}</span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
 
                   {error && <p style={{ color: '#FCA5A5', fontSize: 13, margin: 0 }}>{error}</p>}
 

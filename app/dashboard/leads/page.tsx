@@ -369,6 +369,15 @@ export default function LeadsPage() {
                           <div style={{ fontSize: 13, color: C.sub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {[lead.phone, lead.email].filter(Boolean).join('  ·  ') || <span style={{ color: C.muted }}>No contact info</span>}
                           </div>
+                          {lead.contact_preference && (
+                            <div style={{ display: 'flex', gap: 4, marginTop: 5, flexWrap: 'wrap' }}>
+                              {(lead.contact_preference as string).split(',').map((p: string) => p.trim()).filter(Boolean).map((pref: string) => (
+                                <span key={pref} style={{ fontSize: 10, fontWeight: 700, background: 'rgba(255,255,255,0.05)', border: `1px solid ${C.border}`, color: C.muted, borderRadius: 5, padding: '2px 7px', whiteSpace: 'nowrap' }}>
+                                  {pref === 'Phone Call' ? '📞' : pref === 'Text' ? '💬' : '✉️'} {pref}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
 

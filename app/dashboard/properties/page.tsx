@@ -39,12 +39,13 @@ function StatusBadge({ active, toggling, onToggle }: { active: boolean; toggling
   )
 }
 
-function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle, onDelete, onArchive, onEdit, deleting, userId, origin, thumbnail }: {
+function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle, onDelete, onEdit, deleting, userId, origin, thumbnail }: {
   prop: any; scanCount: number; leadCount: number; qrCount: number;
   toggling: boolean; onToggle: () => void;
-  onDelete: () => void; onArchive: () => void; onEdit: (updated: any) => void;
+  onDelete: () => void; onEdit: (updated: any) => void;
   deleting: boolean; userId: string; origin: string; thumbnail?: string;
 }) {
+  const router   = useRouter()
   const location = [prop.city, prop.state].filter(Boolean).join(', ')
   const [showPhotos, setShowPhotos]     = useState(false)
   const [photos, setPhotos]             = useState<any[]>([])
@@ -365,110 +366,95 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
       )}
 
       {/* Actions */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 4, borderTop: `1px solid ${C.border}` }}>
-        {/* Row 1: page links + menu */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <Link href={`/p/${prop.id}`} target="_blank" style={{ fontSize: 13, color: C.purpleL, fontWeight: 600, textDecoration: 'none' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 4, borderTop: `1px solid ${C.border}` }}>
+        {/* Row 1: View Buyer Page + ⋮ menu */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Link
+            href={`/p/${prop.id}`}
+            target="_blank"
+            style={{
+              flex: 1, fontSize: 13, fontWeight: 700, color: C.text,
+              background: `${C.purple}18`, border: `1px solid ${C.purple}35`,
+              borderRadius: 9, padding: '9px 14px', textDecoration: 'none',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
             View Buyer Page →
           </Link>
-          {origin && (
-            <button
-              onClick={copyBuyerLink}
-              style={{
-                fontSize: 12, background: 'transparent',
-                color: copied ? '#4ade80' : C.muted,
-                border: `1px solid ${copied ? '#166534' : C.border}`,
-                borderRadius: 6, padding: '4px 10px', cursor: 'pointer',
-                transition: 'all 0.15s',
-              }}
-            >
-              {copied ? '✓ Copied' : '⎘ Copy Buyer Link'}
-            </button>
-          )}
-        </div>
 
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <Link href="/dashboard/qr-codes" style={{ fontSize: 12, color: C.muted, textDecoration: 'none', border: `1px solid ${C.border}`, borderRadius: 6, padding: '4px 10px' }}>
-            QR Codes
-          </Link>
-
-          {/* ⋮ menu */}
           <div ref={menuRef} style={{ position: 'relative' }}>
             <button
               onClick={() => setMenuOpen(v => !v)}
               style={{
-                fontSize: 16, color: C.muted, background: 'transparent',
-                border: `1px solid ${C.border}`, borderRadius: 6, padding: '3px 10px',
-                cursor: 'pointer', lineHeight: 1,
+                fontSize: 18, color: C.muted, background: 'transparent',
+                border: `1px solid ${C.border}`, borderRadius: 9,
+                padding: '8px 13px', cursor: 'pointer', lineHeight: 1,
               }}
             >⋮</button>
             {menuOpen && (
               <div style={{
-                position: 'absolute', right: 0, bottom: 'calc(100% + 6px)', zIndex: 50,
+                position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 50,
                 background: C.card, border: `1px solid ${C.border}`,
-                borderRadius: 10, padding: '6px 0', minWidth: 140,
-                boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                borderRadius: 10, padding: '6px 0', minWidth: 190,
+                boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
               }}>
-                <button
-                  onClick={() => { setMenuOpen(false); openEdit() }}
-                  style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '8px 16px', cursor: 'pointer' }}
-                >
+                <button onClick={() => { setMenuOpen(false); copyBuyerLink() }}
+                  style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: copied ? '#4ade80' : C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
+                  {copied ? '✓ Copied!' : '📋 Copy Buyer Link'}
+                </button>
+                <button onClick={() => { setMenuOpen(false); router.push('/dashboard/qr-codes') }}
+                  style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
+                  📱 QR Codes
+                </button>
+                <button onClick={() => { setMenuOpen(false); openEdit() }}
+                  style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
                   ✏️ Edit Property
                 </button>
-                <button
-                  onClick={() => { setMenuOpen(false); onArchive() }}
-                  style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '8px 16px', cursor: 'pointer' }}
-                >
-                  📦 Archive
+                <button onClick={() => { setMenuOpen(false); onToggle() }}
+                  style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
+                  {prop.active ? '🔴 Take Offline' : '🟢 Go Live'}
                 </button>
                 <div style={{ borderTop: `1px solid ${C.border}`, margin: '4px 0' }} />
-                <button
-                  onClick={() => { setMenuOpen(false); onDelete() }}
+                <button onClick={() => { setMenuOpen(false); onDelete() }}
                   disabled={deleting}
-                  style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: '#EF4444', fontSize: 13, padding: '8px 16px', cursor: deleting ? 'not-allowed' : 'pointer', opacity: deleting ? 0.5 : 1 }}
-                >
-                  {deleting ? '…' : '🗑 Delete'}
+                  style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: '#EF4444', fontSize: 13, padding: '9px 16px', cursor: deleting ? 'not-allowed' : 'pointer', opacity: deleting ? 0.5 : 1 }}>
+                  {deleting ? '…' : '🗑️ Delete Property'}
                 </button>
               </div>
             )}
           </div>
         </div>
-        </div>
 
-        {/* Row 2: seller report buttons */}
-        {origin && (
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              onClick={copyReportLink}
-              style={{
-                flex: 1, fontSize: 12, fontWeight: 600,
-                background: copiedReport ? '#052e16' : `${C.purple}14`,
-                color: copiedReport ? '#4ade80' : C.purpleL,
-                border: `1px solid ${copiedReport ? '#166534' : C.purple + '40'}`,
-                borderRadius: 7, padding: '6px 10px', cursor: 'pointer',
-                transition: 'all 0.15s', textAlign: 'center',
-              }}
-            >
-              {copiedReport ? '✓ Report Link Copied' : '📊 Share Seller Report'}
-            </button>
-            <a
-              href={`/report/${prop.id}?print=true`}
-              target="_blank"
-              rel="noreferrer"
-              style={{
-                fontSize: 12, fontWeight: 600,
-                background: 'transparent', color: C.purpleL,
-                border: `1px solid ${C.purple + '40'}`,
-                borderRadius: 7, padding: '6px 12px',
-                cursor: 'pointer', textDecoration: 'none',
-                display: 'inline-flex', alignItems: 'center',
-              }}
-            >
-              ⬇ PDF
-            </a>
-          </div>
-        )}
+        {/* Row 2: Share Report + PDF */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={copyReportLink}
+            style={{
+              flex: 1, fontSize: 12, fontWeight: 600,
+              background: copiedReport ? '#052e16' : `${C.purple}14`,
+              color: copiedReport ? '#4ade80' : C.purpleL,
+              border: `1px solid ${copiedReport ? '#166534' : C.purple + '40'}`,
+              borderRadius: 9, padding: '8px 10px', cursor: 'pointer',
+              transition: 'all 0.15s', textAlign: 'center',
+            }}
+          >
+            {copiedReport ? '✓ Report Link Copied' : '📊 Share Seller Report'}
+          </button>
+          <a
+            href={`/report/${prop.id}?print=true`}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              fontSize: 12, fontWeight: 600,
+              background: 'transparent', color: C.purpleL,
+              border: `1px solid ${C.purple + '40'}`,
+              borderRadius: 9, padding: '8px 12px',
+              textDecoration: 'none', display: 'inline-flex', alignItems: 'center',
+            }}
+          >
+            ⬇ PDF
+          </a>
+        </div>
       </div>
 
       {/* ── Edit Modal ── */}
@@ -666,17 +652,6 @@ export default function PropertiesPage() {
     }
   }
 
-  const archiveProperty = async (prop: any) => {
-    setTogglingId(prop.id)
-    try {
-      const supabase = createBrowserSupabase()
-      const { error } = await supabase.from('properties').update({ active: false }).eq('id', prop.id)
-      if (!error) setProperties(prev => prev.map(p => p.id === prop.id ? { ...p, active: false } : p))
-    } finally {
-      setTogglingId(null)
-    }
-  }
-
   const deleteProperty = async (prop: any) => {
     if (!confirm(`Delete "${prop.address}"?\n\nThis will permanently remove the property, its photos, and leads. QR codes will be unlinked and available to reassign to a new listing.`)) return
     setDeletingId(prop.id)
@@ -788,7 +763,6 @@ export default function PropertiesPage() {
                     toggling={togglingId === prop.id}
                     onToggle={() => toggleActive(prop)}
                     onDelete={() => deleteProperty(prop)}
-                    onArchive={() => archiveProperty(prop)}
                     onEdit={updated => setProperties(prev => prev.map(p => p.id === updated.id ? updated : p))}
                     deleting={deletingId === prop.id}
                     userId={userId}

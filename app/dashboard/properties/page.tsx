@@ -57,6 +57,7 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
   const [hasReordered, setHasReordered]   = useState(false)
   const [menuOpen, setMenuOpen]           = useState(false)
   const [copied, setCopied]               = useState(false)
+  const [copiedReport, setCopiedReport]   = useState(false)
   const fileInputRef  = useRef<HTMLInputElement>(null)
   const menuRef       = useRef<HTMLDivElement>(null)
   const photoGridRef  = useRef<HTMLDivElement>(null)
@@ -171,6 +172,14 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
       await navigator.clipboard.writeText(`${origin}/p/${prop.id}`)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
+    } catch { /* clipboard unavailable */ }
+  }
+
+  const copyReportLink = async () => {
+    try {
+      await navigator.clipboard.writeText(`${origin}/report/${prop.id}`)
+      setCopiedReport(true)
+      setTimeout(() => setCopiedReport(false), 2000)
     } catch { /* clipboard unavailable */ }
   }
 
@@ -308,7 +317,9 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
       )}
 
       {/* Actions */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 4, borderTop: `1px solid ${C.border}` }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 4, borderTop: `1px solid ${C.border}` }}>
+        {/* Row 1: page links + menu */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <Link href={`/p/${prop.id}`} target="_blank" style={{ fontSize: 13, color: C.purpleL, fontWeight: 600, textDecoration: 'none' }}>
             View Buyer Page →
@@ -375,6 +386,39 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
             )}
           </div>
         </div>
+        </div>
+
+        {/* Row 2: seller report buttons */}
+        {origin && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={copyReportLink}
+              style={{
+                flex: 1, fontSize: 12, fontWeight: 600,
+                background: copiedReport ? '#052e16' : `${C.purple}14`,
+                color: copiedReport ? '#4ade80' : C.purpleL,
+                border: `1px solid ${copiedReport ? '#166534' : C.purple + '40'}`,
+                borderRadius: 7, padding: '6px 10px', cursor: 'pointer',
+                transition: 'all 0.15s', textAlign: 'center',
+              }}
+            >
+              {copiedReport ? '✓ Report Link Copied' : '📊 Share Seller Report'}
+            </button>
+            <button
+              disabled
+              title="PDF download coming soon"
+              style={{
+                fontSize: 12, fontWeight: 600,
+                background: 'transparent', color: C.muted,
+                border: `1px solid ${C.border}`,
+                borderRadius: 7, padding: '6px 12px',
+                cursor: 'not-allowed', opacity: 0.5,
+              }}
+            >
+              ⬇ PDF
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

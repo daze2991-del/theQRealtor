@@ -49,8 +49,8 @@ export async function POST(request: Request) {
   if (!propertyId || !(name as string)?.trim() || !(email as string)?.trim() || !ctaMotivation) {
     return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 })
   }
-  // phone required for showing (hot) and disclosures (motivated); not for question (warm)
-  if (ctaMotivation !== 'warm' && !(phone as string)?.trim()) {
+  // phone required for both CTAs (showing + contact-the-agent)
+  if (!(phone as string)?.trim()) {
     return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 })
   }
 
@@ -129,8 +129,8 @@ export async function POST(request: Request) {
           to:   property.agent_phone,
           from,
           body: ctaMotivation === 'warm' && (questionText as string)?.trim()
-            ? `Question from buyer about ${property.address}: "${(questionText as string).trim()}" — ${(name as string).trim()}, Phone: ${(phone as string)?.trim() || 'not provided'}. Log in to RealtQR to view.`
-            : `New lead from ${(name as string).trim()} for ${property.address}. Phone: ${(phone as string)?.trim() || 'not provided'}. Score: ${MOTIVATION_LABELS[computedMotivation] ?? computedMotivation} (${ctaMotivation}). Log in to RealtQR to view.`,
+            ? `Message from buyer about ${property.address}: "${(questionText as string).trim()}" — ${(name as string).trim()}, Phone: ${(phone as string)?.trim()}. Log in to RealtQR to view.`
+            : `New lead from ${(name as string).trim()} for ${property.address}. Phone: ${(phone as string)?.trim()}. Score: ${MOTIVATION_LABELS[computedMotivation] ?? computedMotivation} (${ctaMotivation}). Log in to RealtQR to view.`,
         })
         console.log('[submit-lead] SMS sent OK — sid:', msg.sid, '| status:', msg.status)
       } catch (smsErr: any) {

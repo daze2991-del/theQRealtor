@@ -19,25 +19,18 @@ const C = {
 // ── CTA config ────────────────────────────────────────────────────────────────
 const CTAS = [
   {
-    id: 'showing',     icon: '📅',
-    label: 'Request a Showing',  sub: 'Schedule a private tour',
-    motivation: 'hot',       btnLabel: 'Request Showing',
+    id: 'showing',  icon: '📅',
+    label: 'Request a Showing', sub: 'Schedule a private tour',
+    motivation: 'hot',  btnLabel: 'Request Showing',
     needsPhone: true,
     color: '#EF4444', colorBg: '#3B0D0D',
   },
   {
-    id: 'question',    icon: '💬',
-    label: 'Ask a Question',     sub: 'Message the listing agent',
-    motivation: 'warm',      btnLabel: 'Send Question',
-    needsPhone: false,
-    color: '#60A5FA', colorBg: '#0F2238',
-  },
-  {
-    id: 'disclosures', icon: '📋',
-    label: 'Get Disclosures',    sub: 'Review property documents',
-    motivation: 'motivated', btnLabel: 'Get Disclosures',
+    id: 'question', icon: '💬',
+    label: 'Contact the Agent', sub: 'Ask a question or request info',
+    motivation: 'warm', btnLabel: 'Send Message',
     needsPhone: true,
-    color: '#F97316', colorBg: '#3B1F0D',
+    color: '#60A5FA', colorBg: '#0F2238',
   },
 ] as const
 
@@ -189,7 +182,7 @@ export default function PropertyPage() {
     e.preventDefault()
     const cta = CTAS.find(c => c.id === intent)!
 
-    if (intent === 'question' && !question.trim()) { setError('Please enter your question.'); return }
+    if (intent === 'question' && !question.trim()) { setError('Please enter your message.'); return }
     if (!name.trim()) { setError('Please enter your name.'); return }
     if (cta.needsPhone && !phone.trim()) { setError('Please enter your phone number.'); return }
     if (!email.trim() || !email.includes('@')) {
@@ -266,13 +259,6 @@ export default function PropertyPage() {
   const showDots   = photos.length > 1 && photos.length <= 14
   const activeCta  = CTAS.find(c => c.id === intent)
 
-  const desc = ((property.description || '') + ' ' + (property.type || '')).toLowerCase()
-  const questionPlaceholder =
-    /condo|hoa|townhouse|townhome|association/.test(desc)
-      ? 'e.g. What are the HOA fees? Is there assigned parking? When is the next open house?'
-      : /\bhouse\b|single.?family|\bhome\b|sfr/.test(desc)
-      ? 'e.g. When is the next open house? Is the price negotiable? How old is the roof?'
-      : 'e.g. When is the next open house? What are the parking options? Is the price negotiable?'
 
   return (
     <main style={{ minHeight: '100vh', background: C.bg, color: C.text, fontFamily: 'sans-serif' }}>
@@ -384,7 +370,6 @@ export default function PropertyPage() {
                   borderRadius: 14, padding: '16px 14px',
                   cursor: 'pointer', textAlign: 'left', fontFamily: 'sans-serif',
                   display: 'flex', flexDirection: 'column', gap: 6,
-                  gridColumn: cta.id === 'disclosures' ? '1 / -1' : undefined,
                 }}
               >
                 <span style={{ fontSize: 24, lineHeight: 1 }}>{cta.icon}</span>
@@ -439,11 +424,11 @@ export default function PropertyPage() {
                   {/* Question textarea — Ask a Question CTA only */}
                   {intent === 'question' && (
                     <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Your Question</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Your Message</span>
                       <textarea
                         className="field"
                         required
-                        placeholder={questionPlaceholder}
+                        placeholder="e.g. When is the next open house? What are the parking options? Is the price negotiable?"
                         value={question}
                         onChange={e => setQuestion(e.target.value)}
                         rows={3}
@@ -533,9 +518,7 @@ export default function PropertyPage() {
                 <div style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.35)', borderRadius: 14, padding: '18px 18px 16px', marginBottom: 20 }}>
                   <div style={{ fontSize: 24, marginBottom: 8 }}>✅</div>
                   <div style={{ fontSize: 18, fontWeight: 900, color: C.text, marginBottom: 6 }}>
-                    {activeCta?.id === 'question' ? 'Question Sent!' :
-                     activeCta?.id === 'disclosures' ? 'Request Received!' :
-                     'Showing Requested!'}
+                    {activeCta?.id === 'question' ? 'Message Sent!' : 'Showing Requested!'}
                   </div>
                   <p style={{ fontSize: 14, color: C.soft, margin: 0, lineHeight: 1.55 }}>
                     {agentName ? `${agentName} will` : 'The listing agent will'} be in touch with you shortly.

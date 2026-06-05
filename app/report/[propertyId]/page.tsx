@@ -55,7 +55,7 @@ export default async function SellerReportPage({
       supabase.from('properties').select('*').eq('id', propertyId).single(),
       supabase.from('property_photos').select('url').eq('property_id', propertyId).order('sort_order', { ascending: true }).limit(1),
       supabase.from('qrcodes').select('id, label, scan_count, placement').eq('property_id', propertyId).order('scan_count', { ascending: false }),
-      supabase.from('leads').select('motivation, created_at').eq('property_id', propertyId),
+      supabase.from('leads').select('motivation, created_at').eq('property_id', propertyId).order('created_at', { ascending: false }),
     ])
 
   if (!property) notFound()
@@ -63,7 +63,7 @@ export default async function SellerReportPage({
   const qrIds = (qrcodes || []).map((q: any) => q.id)
   const { data: rawScans } = qrIds.length > 0
     ? await supabase.from('scan_events')
-        .select('created_at, cta_clicked, converted, return_visit')
+        .select('created_at, cta_clicked, converted, return_visit, photos_viewed')
         .in('qr_id', qrIds)
         .order('created_at', { ascending: false })
         .limit(300)
@@ -98,10 +98,40 @@ export default async function SellerReportPage({
   })
   const maxBar = Math.max(...chartDays.map(d => d.count), 1)
 
-  // ── Top signs & recent scans ──────────────────────────────────────────────
+  // ── Top signs ─────────────────────────────────────────────────────────────
   const topSigns    = sq.filter((q: any) => (q.scan_count || 0) > 0).slice(0, 6)
   const maxSignScan = Math.max(...topSigns.map((q: any) => q.scan_count || 0), 1)
-  const recentScans = ss.slice(0, 10)
+
+  // ── Recent activity feed (leads + scan events merged) ─────────────────────
+  type ActivityKind = 'lead_showing' | 'lead_question' | 'return_visit' | 'photos_viewed' | 'new_scan'
+  type ActivityEvent = { created_at: string; kind: ActivityKind }
+
+  const activityEvents: ActivityEvent[] = [
+    ...(sl as any[]).map((l: any) => ({
+      created_at: l.created_at,
+      kind: (l.motivation === 'hot' || l.motivation === 'motivated')
+        ? 'lead_showing' as const
+        : 'lead_question' as const,
+    })),
+    ...(ss as any[]).map((e: any) => {
+      const kind: ActivityKind = e.return_visit
+        ? 'return_visit'
+        : (e.photos_viewed || 0) >= 5
+          ? 'photos_viewed'
+          : 'new_scan'
+      return { created_at: e.created_at, kind }
+    }),
+  ]
+  activityEvents.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+  const recentActivity = activityEvents.slice(0, 10)
+
+  const activityConfig: Record<ActivityKind, { label: string; dot: string }> = {
+    lead_showing:  { label: '🔥 Buyer requested a showing',            dot: R.hot },
+    lead_question: { label: '💬 Buyer sent a question',                 dot: R.warm },
+    return_visit:  { label: '↩️ Buyer returned to view this listing',  dot: R.purple },
+    photos_viewed: { label: '📸 Buyer viewed all photos',              dot: R.motiv },
+    new_scan:      { label: '📱 New buyer discovered this listing',    dot: R.muted },
+  }
 
   // ── Property display ──────────────────────────────────────────────────────
   const heroPhoto   = (photos || [])[0]?.url ?? null
@@ -327,24 +357,17 @@ export default async function SellerReportPage({
         {sectionCard(
           <>
             {sectionHead('Recent Activity', 'Last 10 buyer interactions')}
-            {recentScans.length === 0
+            {recentActivity.length === 0
               ? <div style={{ textAlign: 'center', padding: '20px 0', color: R.muted, fontSize: 13 }}>No scan activity yet — place your QR signs to start capturing data.</div>
               : (
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  {recentScans.map((ev: any, i: number) => {
-                    const isLast   = i === recentScans.length - 1
-                    const dotColor = ev.converted ? R.green : ev.cta_clicked ? R.purple : R.muted
-                    const label    = ev.converted
-                      ? '✅ Buyer submitted contact form'
-                      : ev.cta_clicked === 'showing'
-                      ? '📅 Requested a showing'
-                      : ev.cta_clicked === 'question'
-                      ? '💬 Sent a message to agent'
-                      : '📱 Buyer scanned QR code'
+                  {recentActivity.map((ev, i) => {
+                    const isLast = i === recentActivity.length - 1
+                    const { label, dot } = activityConfig[ev.kind]
                     return (
                       <div key={i} style={{ display: 'flex', gap: 14 }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-                          <div style={{ width: 10, height: 10, borderRadius: '50%', background: dotColor, marginTop: 4, flexShrink: 0, boxShadow: `0 0 0 2px ${dotColor}30` }} />
+                          <div style={{ width: 10, height: 10, borderRadius: '50%', background: dot, marginTop: 4, flexShrink: 0, boxShadow: `0 0 0 2px ${dot}30` }} />
                           {!isLast && <div style={{ width: 1, flex: 1, background: R.border, marginTop: 3, marginBottom: 3 }} />}
                         </div>
                         <div style={{ paddingBottom: isLast ? 0 : 14, flex: 1 }}>

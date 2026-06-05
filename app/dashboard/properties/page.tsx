@@ -39,10 +39,10 @@ function StatusBadge({ active, toggling, onToggle }: { active: boolean; toggling
   )
 }
 
-function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle, onDelete, onArchive, deleting, userId, origin, thumbnail }: {
+function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle, onDelete, onArchive, onEdit, deleting, userId, origin, thumbnail }: {
   prop: any; scanCount: number; leadCount: number; qrCount: number;
   toggling: boolean; onToggle: () => void;
-  onDelete: () => void; onArchive: () => void;
+  onDelete: () => void; onArchive: () => void; onEdit: (updated: any) => void;
   deleting: boolean; userId: string; origin: string; thumbnail?: string;
 }) {
   const location = [prop.city, prop.state].filter(Boolean).join(', ')
@@ -58,6 +58,10 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
   const [menuOpen, setMenuOpen]           = useState(false)
   const [copied, setCopied]               = useState(false)
   const [copiedReport, setCopiedReport]   = useState(false)
+  const [editOpen, setEditOpen]           = useState(false)
+  const [editForm, setEditForm]           = useState<any>({})
+  const [editSaving, setEditSaving]       = useState(false)
+  const [editError, setEditError]         = useState('')
   const fileInputRef  = useRef<HTMLInputElement>(null)
   const menuRef       = useRef<HTMLDivElement>(null)
   const photoGridRef  = useRef<HTMLDivElement>(null)
@@ -166,6 +170,50 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
     el.addEventListener('touchmove', prevent, { passive: false })
     return () => el.removeEventListener('touchmove', prevent)
   })
+
+  const openEdit = () => {
+    setEditForm({
+      address:     prop.address || '',
+      city:        prop.city || '',
+      state:       prop.state || '',
+      price:       prop.price ?? '',
+      beds:        prop.beds ?? '',
+      baths:       prop.baths ?? '',
+      description: prop.description || '',
+      agent_name:  prop.agent_name || '',
+      agent_phone: prop.agent_phone || '',
+      active:      !!prop.active,
+    })
+    setEditError('')
+    setEditOpen(true)
+  }
+
+  const saveEdit = async () => {
+    if (!editForm.address.trim()) return
+    setEditSaving(true)
+    setEditError('')
+    const supabase = createBrowserSupabase()
+    const updates = {
+      address:     editForm.address.trim(),
+      city:        editForm.city.trim() || null,
+      state:       editForm.state.trim().toUpperCase() || null,
+      price:       editForm.price !== '' ? Number(editForm.price) : null,
+      beds:        editForm.beds !== '' ? Number(editForm.beds) : null,
+      baths:       editForm.baths !== '' ? Number(editForm.baths) : null,
+      description: editForm.description.trim() || null,
+      agent_name:  editForm.agent_name.trim() || null,
+      agent_phone: editForm.agent_phone.trim() || null,
+      active:      editForm.active,
+    }
+    const { error } = await supabase.from('properties').update(updates).eq('id', prop.id)
+    if (error) {
+      setEditError('Failed to save. Please try again.')
+    } else {
+      onEdit({ ...prop, ...updates })
+      setEditOpen(false)
+    }
+    setEditSaving(false)
+  }
 
   const copyBuyerLink = async () => {
     try {
@@ -363,10 +411,10 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
                 boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
               }}>
                 <button
-                  onClick={() => { setMenuOpen(false); /* edit not implemented */ }}
+                  onClick={() => { setMenuOpen(false); openEdit() }}
                   style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '8px 16px', cursor: 'pointer' }}
                 >
-                  ✏️ Edit
+                  ✏️ Edit Property
                 </button>
                 <button
                   onClick={() => { setMenuOpen(false); onArchive() }}
@@ -422,6 +470,114 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
           </div>
         )}
       </div>
+
+      {/* ── Edit Modal ── */}
+      {editOpen && (
+        <div
+          onClick={e => { if (e.target === e.currentTarget) setEditOpen(false) }}
+          style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+        >
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 28, width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
+              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.text }}>Edit Property</h2>
+              <button onClick={() => setEditOpen(false)} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 18, cursor: 'pointer', padding: 4, lineHeight: 1 }}>✕</button>
+            </div>
+
+            {/* Address */}
+            <label style={{ display: 'block', marginBottom: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>Address *</div>
+              <input value={editForm.address} onChange={e => setEditForm((f: any) => ({ ...f, address: e.target.value }))}
+                style={{ width: '100%', background: '#0F0F13', border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 12px', color: C.text, fontSize: 13, boxSizing: 'border-box' }} />
+            </label>
+
+            {/* City / State */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px', gap: 10, marginBottom: 14 }}>
+              <label>
+                <div style={{ fontSize: 11, fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>City</div>
+                <input value={editForm.city} onChange={e => setEditForm((f: any) => ({ ...f, city: e.target.value }))}
+                  style={{ width: '100%', background: '#0F0F13', border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 12px', color: C.text, fontSize: 13, boxSizing: 'border-box' }} />
+              </label>
+              <label>
+                <div style={{ fontSize: 11, fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>State</div>
+                <input value={editForm.state} onChange={e => setEditForm((f: any) => ({ ...f, state: e.target.value }))}
+                  maxLength={2} placeholder="CA"
+                  style={{ width: '100%', background: '#0F0F13', border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 12px', color: C.text, fontSize: 13, boxSizing: 'border-box', textTransform: 'uppercase' }} />
+              </label>
+            </div>
+
+            {/* Price */}
+            <label style={{ display: 'block', marginBottom: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>Price ($)</div>
+              <input type="number" value={editForm.price} onChange={e => setEditForm((f: any) => ({ ...f, price: e.target.value }))}
+                placeholder="500000"
+                style={{ width: '100%', background: '#0F0F13', border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 12px', color: C.text, fontSize: 13, boxSizing: 'border-box' }} />
+            </label>
+
+            {/* Beds / Baths */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+              <label>
+                <div style={{ fontSize: 11, fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>Beds</div>
+                <input type="number" value={editForm.beds} onChange={e => setEditForm((f: any) => ({ ...f, beds: e.target.value }))}
+                  min="0" step="1"
+                  style={{ width: '100%', background: '#0F0F13', border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 12px', color: C.text, fontSize: 13, boxSizing: 'border-box' }} />
+              </label>
+              <label>
+                <div style={{ fontSize: 11, fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>Baths</div>
+                <input type="number" value={editForm.baths} onChange={e => setEditForm((f: any) => ({ ...f, baths: e.target.value }))}
+                  min="0" step="0.5"
+                  style={{ width: '100%', background: '#0F0F13', border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 12px', color: C.text, fontSize: 13, boxSizing: 'border-box' }} />
+              </label>
+            </div>
+
+            {/* Description */}
+            <label style={{ display: 'block', marginBottom: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>Description</div>
+              <textarea value={editForm.description} onChange={e => setEditForm((f: any) => ({ ...f, description: e.target.value }))}
+                rows={3}
+                style={{ width: '100%', background: '#0F0F13', border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 12px', color: C.text, fontSize: 13, boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }} />
+            </label>
+
+            {/* Agent Name */}
+            <label style={{ display: 'block', marginBottom: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>Agent Name</div>
+              <input value={editForm.agent_name} onChange={e => setEditForm((f: any) => ({ ...f, agent_name: e.target.value }))}
+                style={{ width: '100%', background: '#0F0F13', border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 12px', color: C.text, fontSize: 13, boxSizing: 'border-box' }} />
+            </label>
+
+            {/* Agent Phone */}
+            <label style={{ display: 'block', marginBottom: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>Agent Phone (SMS alerts)</div>
+              <input type="tel" value={editForm.agent_phone} onChange={e => setEditForm((f: any) => ({ ...f, agent_phone: e.target.value }))}
+                placeholder="+15551234567"
+                style={{ width: '100%', background: '#0F0F13', border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 12px', color: C.text, fontSize: 13, boxSizing: 'border-box' }} />
+            </label>
+
+            {/* Active toggle */}
+            <div
+              onClick={() => setEditForm((f: any) => ({ ...f, active: !f.active }))}
+              style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 22, cursor: 'pointer', userSelect: 'none' }}
+            >
+              <div style={{ width: 40, height: 22, borderRadius: 11, background: editForm.active ? C.purple : C.border, position: 'relative', flexShrink: 0, transition: 'background 0.15s' }}>
+                <div style={{ position: 'absolute', top: 3, left: editForm.active ? 21 : 3, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 0.15s' }} />
+              </div>
+              <span style={{ fontSize: 13, color: C.sub }}>{editForm.active ? 'Listing is Live' : 'Listing is Offline'}</span>
+            </div>
+
+            {editError && <p style={{ color: '#F87171', fontSize: 12, marginBottom: 14, margin: '0 0 14px' }}>{editError}</p>}
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setEditOpen(false)}
+                style={{ flex: 1, background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 9, padding: 10, color: C.muted, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                Cancel
+              </button>
+              <button onClick={saveEdit} disabled={editSaving || !editForm.address?.trim()}
+                style={{ flex: 2, background: editSaving ? `${C.purple}80` : C.purple, border: 'none', borderRadius: 9, padding: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: editSaving ? 'not-allowed' : 'pointer' }}>
+                {editSaving ? 'Saving…' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -633,6 +789,7 @@ export default function PropertiesPage() {
                     onToggle={() => toggleActive(prop)}
                     onDelete={() => deleteProperty(prop)}
                     onArchive={() => archiveProperty(prop)}
+                    onEdit={updated => setProperties(prev => prev.map(p => p.id === updated.id ? updated : p))}
                     deleting={deletingId === prop.id}
                     userId={userId}
                     origin={origin}

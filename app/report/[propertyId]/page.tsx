@@ -55,7 +55,7 @@ export default async function SellerReportPage({
       supabase.from('properties').select('*').eq('id', propertyId).single(),
       supabase.from('property_photos').select('url').eq('property_id', propertyId).order('sort_order', { ascending: true }).limit(1),
       supabase.from('qrcodes').select('id, label, scan_count, placement').eq('property_id', propertyId).order('scan_count', { ascending: false }),
-      supabase.from('leads').select('motivation, created_at').eq('property_id', propertyId).order('created_at', { ascending: false }),
+      supabase.from('leads').select('id, motivation, created_at').eq('property_id', propertyId).order('created_at', { ascending: false }),
     ])
 
   if (!property) notFound()
@@ -63,7 +63,7 @@ export default async function SellerReportPage({
   const qrIds = (qrcodes || []).map((q: any) => q.id)
   const { data: rawScans } = qrIds.length > 0
     ? await supabase.from('scan_events')
-        .select('created_at, cta_clicked, converted, return_visit, photos_viewed')
+        .select('created_at, cta_clicked, converted, return_visit, photos_viewed, lead_id, time_on_page_sec')
         .in('qr_id', qrIds)
         .order('created_at', { ascending: false })
         .limit(300)
@@ -132,6 +132,41 @@ export default async function SellerReportPage({
     photos_viewed: { label: '📸 Buyer viewed all photos',              dot: R.motiv },
     new_scan:      { label: '📱 New buyer discovered this listing',    dot: R.muted },
   }
+
+  // ── Buyer leaderboard ─────────────────────────────────────────────────────
+  type LeaderEntry = {
+    id: string
+    motivation: string
+    score: number
+    scanCount: number
+    maxTimeOnPage: number
+    action: string
+  }
+
+  const leaderboard: LeaderEntry[] = (sl as any[]).map((lead: any) => {
+    const leadScans = (ss as any[]).filter((e: any) => e.lead_id === lead.id)
+    const returnVisits  = leadScans.filter((e: any) => e.return_visit).length
+    const hasPhotos     = leadScans.some((e: any) => (e.photos_viewed || 0) >= 5)
+    const maxTime       = leadScans.reduce((m: number, e: any) => Math.max(m, e.time_on_page_sec || 0), 0)
+
+    let score = 0
+    if (lead.motivation === 'hot')                                     score += 10
+    else if (lead.motivation === 'motivated' || lead.motivation === 'warm') score += 5
+    score += returnVisits * 3
+    if (hasPhotos)   score += 2
+    if (maxTime >= 300) score += 2
+    score += leadScans.length
+
+    const action = lead.motivation === 'hot' ? 'Requested Showing'
+      : lead.motivation === 'motivated' ? 'Sent Question'
+      : lead.motivation === 'warm'      ? 'Sent Question'
+      : 'Browsed'
+
+    return { id: lead.id, motivation: lead.motivation, score, scanCount: leadScans.length, maxTimeOnPage: maxTime, action }
+  })
+  leaderboard.sort((a, b) => b.score - a.score)
+  const topBuyers    = leaderboard.slice(0, 5)
+  const maxLeadScore = topBuyers[0]?.score || 1
 
   // ── Property display ──────────────────────────────────────────────────────
   const heroPhoto   = (photos || [])[0]?.url ?? null
@@ -350,6 +385,74 @@ export default async function SellerReportPage({
               <span style={{ fontSize: 10, color: R.muted }}>{periodStart}</span>
               <span style={{ fontSize: 10, fontWeight: 600, color: R.purple }}>Today</span>
             </div>
+          </>
+        )}
+
+        {/* ── Most Interested Buyers ── */}
+        {sectionCard(
+          <>
+            {sectionHead('Most Interested Buyers', 'Ranked by engagement — no personal info shown')}
+            {totalLeads === 0
+              ? <div style={{ textAlign: 'center', padding: '20px 0', color: R.muted, fontSize: 13 }}>No buyer leads yet — share your QR code to start capturing buyers.</div>
+              : topBuyers.map((buyer, i) => {
+                const badge = buyer.motivation === 'hot'
+                  ? { icon: '🔥', label: 'Hot',       color: R.hot,   bg: R.hotBg }
+                  : buyer.motivation === 'motivated'
+                  ? { icon: '⚡', label: 'Motivated', color: R.motiv, bg: R.motivBg }
+                  : buyer.motivation === 'warm'
+                  ? { icon: '👍', label: 'Warm',      color: R.warm,  bg: R.warmBg }
+                  : { icon: '❄️', label: 'Cold',      color: R.cold,  bg: R.coldBg }
+                const barColor = i === 0
+                  ? `linear-gradient(90deg, ${R.purple}, ${R.purpleL})`
+                  : R.purpleL
+                const timeLine = buyer.maxTimeOnPage > 0
+                  ? buyer.maxTimeOnPage < 60
+                    ? `${buyer.maxTimeOnPage}s on page`
+                    : `${Math.round(buyer.maxTimeOnPage / 60)}m on page`
+                  : null
+                return (
+                  <div key={buyer.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '13px 0',
+                    borderBottom: i < topBuyers.length - 1 ? `1px solid ${R.border}` : 'none',
+                  }}>
+                    {/* Rank */}
+                    <div style={{ width: 22, textAlign: 'center', fontSize: 13, fontWeight: 800, color: i === 0 ? R.purple : R.muted, flexShrink: 0 }}>
+                      #{i + 1}
+                    </div>
+                    {/* Badge */}
+                    <div style={{ fontSize: 11, fontWeight: 700, color: badge.color, background: badge.bg, borderRadius: 6, padding: '3px 8px', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                      {badge.icon} {badge.label}
+                    </div>
+                    {/* Name + bar */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: R.text }}>
+                          Buyer #{buyer.id.slice(-4).toUpperCase()}
+                        </span>
+                        <span style={{ fontSize: 11, color: R.muted, flexShrink: 0 }}>{buyer.action}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                        <div style={{ flex: 1, height: 5, background: R.border, borderRadius: 3, overflow: 'hidden' }}>
+                          <div style={{ width: `${(buyer.score / maxLeadScore) * 100}%`, height: '100%', background: barColor, borderRadius: 3 }} />
+                        </div>
+                        <span style={{ fontSize: 11, fontWeight: 800, color: i === 0 ? R.purple : R.muted, flexShrink: 0 }}>
+                          {buyer.score} pts
+                        </span>
+                      </div>
+                      {(buyer.scanCount > 0 || timeLine) && (
+                        <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                          {buyer.scanCount > 0 && (
+                            <span style={{ fontSize: 10, color: R.muted }}>{buyer.scanCount} scan{buyer.scanCount !== 1 ? 's' : ''}</span>
+                          )}
+                          {timeLine && <span style={{ fontSize: 10, color: R.muted }}>{timeLine}</span>}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })
+            }
           </>
         )}
 

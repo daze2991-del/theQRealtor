@@ -55,10 +55,11 @@ export async function POST(request: Request) {
   }
 
   // Compute intent score from engagement data sent by the buyer page
-  const eng = engagement as EngagementData | undefined
+  const eng = engagement as (EngagementData & { visitCount?: number; returnVisit?: boolean }) | undefined
   const computedMotivation = eng
     ? computeIntent({
-        returnVisit:   !!eng.returnVisit,
+        // visitCount preferred; fall back to old returnVisit boolean for deploys in flight
+        visitCount:    typeof eng.visitCount === 'number' ? eng.visitCount : (eng.returnVisit ? 2 : 1),
         photosViewed:  typeof eng.photosViewed  === 'number' ? eng.photosViewed  : 0,
         ctaClicked:    eng.ctaClicked ?? null,
         timeOnPageSec: typeof eng.timeOnPageSec === 'number' ? eng.timeOnPageSec : 0,
@@ -101,7 +102,7 @@ export async function POST(request: Request) {
       cta_clicked:      eng?.ctaClicked    ?? null,
       time_on_page_sec: eng?.timeOnPageSec ?? null,
       photos_viewed:    eng?.photosViewed  ?? null,
-      return_visit:     !!eng?.returnVisit,
+      return_visit:     (eng?.visitCount ?? 0) > 1 || !!eng?.returnVisit,
       days_since_first_visit: (eng as any)?.daysSinceFirstVisit ?? null,
       converted:        true,
     }).eq('id', scanEventId)

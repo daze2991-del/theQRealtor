@@ -80,7 +80,7 @@ export default function PropertyPage() {
 
   // Engagement tracking
   const scanEventId    = useRef<string | null>(null)
-  const returnVisit    = useRef(false)
+  const visitCount     = useRef(1)   // 1 = first visit, incremented each return
   const daysSinceFirst = useRef(0)
   const ctaClickedRef  = useRef<string | null>(null)
 
@@ -113,14 +113,24 @@ export default function PropertyPage() {
   useEffect(() => {
     if (!propertyId) return
 
-    // Detect return visit via localStorage
+    // Visit-count tracking via localStorage: { firstVisit: ms, count: N }
     const key    = `rv_${propertyId}`
     const stored = localStorage.getItem(key)
     if (stored) {
-      returnVisit.current    = true
-      daysSinceFirst.current = Math.floor((Date.now() - Number(stored)) / 86_400_000)
+      try {
+        const parsed = JSON.parse(stored) as { firstVisit: number; count: number }
+        daysSinceFirst.current = Math.floor((Date.now() - parsed.firstVisit) / 86_400_000)
+        visitCount.current     = parsed.count + 1
+        localStorage.setItem(key, JSON.stringify({ firstVisit: parsed.firstVisit, count: parsed.count + 1 }))
+      } catch {
+        // Legacy format was a bare timestamp string — migrate it
+        const firstVisit = Number(stored)
+        daysSinceFirst.current = Math.floor((Date.now() - firstVisit) / 86_400_000)
+        visitCount.current     = 2
+        localStorage.setItem(key, JSON.stringify({ firstVisit, count: 2 }))
+      }
     } else {
-      localStorage.setItem(key, String(Date.now()))
+      localStorage.setItem(key, JSON.stringify({ firstVisit: Date.now(), count: 1 }))
     }
 
     // Only create scan_event for QR-originated visits
@@ -130,7 +140,7 @@ export default function PropertyPage() {
       .insert([{
         qr_id:                  qrId,
         property_id:            propertyId,
-        return_visit:           returnVisit.current,
+        return_visit:           visitCount.current > 1,
         days_since_first_visit: daysSinceFirst.current,
       }])
       .select('id')
@@ -203,7 +213,7 @@ export default function PropertyPage() {
             timeOnPageSec:       Math.round((Date.now() - pageStart.current) / 1000),
             photosViewed:        visitedMax.current + 1,
             ctaClicked:          cta.id,
-            returnVisit:         returnVisit.current,
+            visitCount:          visitCount.current,
             daysSinceFirstVisit: daysSinceFirst.current,
           },
         }),

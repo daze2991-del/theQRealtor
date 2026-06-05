@@ -302,6 +302,16 @@ export default function SettingsPage() {
                 </div>
                 <Toggle checked={smsEnabled} onChange={setSmsEnabled} disabled={!phone.trim()} />
               </div>
+              {(smsEnabled || !!phone.trim()) && (
+                <p style={{ margin: '14px 0 0', fontSize: 11, color: C.muted, lineHeight: 1.65 }}>
+                  By enabling SMS alerts, you consent to receive automated lead notification text messages
+                  from theQRealtor at the number provided. Message frequency varies. Msg &amp; Data rates
+                  may apply. Reply STOP to unsubscribe at any time or HELP for help. View our{' '}
+                  <a href="https://theqrealtor.com/privacy" target="_blank" rel="noopener noreferrer" style={{ color: C.purpleL, textDecoration: 'none' }}>Privacy Policy</a>
+                  {' '}and{' '}
+                  <a href="https://theqrealtor.com/terms" target="_blank" rel="noopener noreferrer" style={{ color: C.purpleL, textDecoration: 'none' }}>Terms</a>.
+                </p>
+              )}
               {!phone.trim() && (
                 <div style={{ marginTop: 14, fontSize: 12, color: C.muted, background: `${C.purple}12`, border: `1px solid ${C.purple}28`, borderRadius: 8, padding: '8px 12px' }}>
                   Add a phone number above and save to enable SMS alerts.

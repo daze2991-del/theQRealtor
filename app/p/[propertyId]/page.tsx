@@ -266,6 +266,14 @@ export default function PropertyPage() {
   const showDots   = photos.length > 1 && photos.length <= 14
   const activeCta  = CTAS.find(c => c.id === intent)
 
+  const desc = ((property.description || '') + ' ' + (property.type || '')).toLowerCase()
+  const questionPlaceholder =
+    /condo|hoa|townhouse|townhome|association/.test(desc)
+      ? 'e.g. What are the HOA fees? Is there assigned parking? When is the next open house?'
+      : /\bhouse\b|single.?family|\bhome\b|sfr/.test(desc)
+      ? 'e.g. When is the next open house? Is the price negotiable? How old is the roof?'
+      : 'e.g. When is the next open house? What are the parking options? Is the price negotiable?'
+
   return (
     <main style={{ minHeight: '100vh', background: C.bg, color: C.text, fontFamily: 'sans-serif' }}>
       <style>{`
@@ -435,7 +443,7 @@ export default function PropertyPage() {
                       <textarea
                         className="field"
                         required
-                        placeholder="e.g. Is there an HOA? Can I see it this Saturday?"
+                        placeholder={questionPlaceholder}
                         value={question}
                         onChange={e => setQuestion(e.target.value)}
                         rows={3}

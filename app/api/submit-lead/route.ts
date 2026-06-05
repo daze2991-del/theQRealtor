@@ -124,13 +124,22 @@ export async function POST(request: Request) {
   if (property.agent_phone) {
     if (accountSid && authToken && from) {
       console.log('[submit-lead] calling Twilio messages.create to:', property.agent_phone)
+      const trimName  = (name as string).trim()
+      const trimPhone = (phone as string)?.trim()
+      const trimQ     = (questionText as string)?.trim()
+      const intentLabel = MOTIVATION_LABELS[computedMotivation] ?? computedMotivation
+
+      const smsBody = computedMotivation === 'hot'
+        ? `🔥 HOT BUYER ALERT — ${property.address}: ${trimName} requested a showing. Phone: ${trimPhone}. They scored hot based on their engagement. Call immediately. Reply STOP to opt out.`
+        : trimQ && (ctaMotivation === 'warm' || ctaMotivation === 'motivated')
+          ? `theQRealtor: New lead! ${trimName} sent a question about ${property.address}: "${trimQ}" Phone: ${trimPhone}. Intent: ${intentLabel}. Reply STOP to opt out.`
+          : `theQRealtor: New lead! ${trimName} contacted you about ${property.address}. Phone: ${trimPhone}. Intent: ${intentLabel}. Reply STOP to opt out.`
+
       try {
         const msg = await twilio(accountSid, authToken).messages.create({
           to:   property.agent_phone,
           from,
-          body: ctaMotivation === 'warm' && (questionText as string)?.trim()
-            ? `Message from buyer about ${property.address}: "${(questionText as string).trim()}" — ${(name as string).trim()}, Phone: ${(phone as string)?.trim()}. Log in to RealtQR to view.`
-            : `New lead from ${(name as string).trim()} for ${property.address}. Phone: ${(phone as string)?.trim()}. Score: ${MOTIVATION_LABELS[computedMotivation] ?? computedMotivation} (${ctaMotivation}). Log in to RealtQR to view.`,
+          body: smsBody,
         })
         console.log('[submit-lead] SMS sent OK — sid:', msg.sid, '| status:', msg.status)
       } catch (smsErr: any) {

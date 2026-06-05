@@ -404,19 +404,21 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
             >
               {copiedReport ? '✓ Report Link Copied' : '📊 Share Seller Report'}
             </button>
-            <button
-              disabled
-              title="PDF download coming soon"
+            <a
+              href={`/report/${prop.id}?print=true`}
+              target="_blank"
+              rel="noreferrer"
               style={{
                 fontSize: 12, fontWeight: 600,
-                background: 'transparent', color: C.muted,
-                border: `1px solid ${C.border}`,
+                background: 'transparent', color: C.purpleL,
+                border: `1px solid ${C.purple + '40'}`,
                 borderRadius: 7, padding: '6px 12px',
-                cursor: 'not-allowed', opacity: 0.5,
+                cursor: 'pointer', textDecoration: 'none',
+                display: 'inline-flex', alignItems: 'center',
               }}
             >
               ⬇ PDF
-            </button>
+            </a>
           </div>
         )}
       </div>

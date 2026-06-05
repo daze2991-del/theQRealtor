@@ -1,5 +1,6 @@
 import { createAdminSupabase } from '../../../lib/supabase-admin'
 import { notFound } from 'next/navigation'
+import PrintButton from './PrintButton'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function timeAgo(iso: string): string {
@@ -244,6 +245,17 @@ export default async function SellerReportPage({
           .rpt-nav    { padding: 12px 16px !important; }
           .rpt-nav-ctr { display: none !important; }
         }
+        @media print {
+          .no-print   { display: none !important; }
+          .rpt-nav    { position: static !important; }
+          .rpt-two    { grid-template-columns: 1fr 1fr !important; }
+          .rpt-stats  { grid-template-columns: repeat(4, 1fr) !important; }
+          .rpt-wrap   { padding: 16px 20px 32px !important; }
+          .rpt-hero   { height: 220px !important; }
+          *           { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          body, main  { background: #fff !important; }
+          .rpt-card-break { page-break-before: always; }
+        }
       `}</style>
 
       {/* ── Nav ── */}
@@ -260,9 +272,12 @@ export default async function SellerReportPage({
           <div style={{ fontSize: 13, fontWeight: 700, color: R.text }}>Seller Performance Report</div>
           <div style={{ fontSize: 11, color: R.muted }}>Generated {generated}</div>
         </div>
-        <div style={{ fontSize: 11, color: R.muted, textAlign: 'right', lineHeight: 1.5 }}>
-          <div>Confidential</div>
-          <div style={{ color: R.purple, fontWeight: 600 }}>For seller's eyes only</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <PrintButton />
+          <div style={{ fontSize: 11, color: R.muted, textAlign: 'right', lineHeight: 1.5 }}>
+            <div>Confidential</div>
+            <div style={{ color: R.purple, fontWeight: 600 }}>For seller's eyes only</div>
+          </div>
         </div>
       </nav>
 

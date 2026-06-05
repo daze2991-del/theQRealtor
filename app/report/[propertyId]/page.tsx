@@ -63,7 +63,7 @@ export default async function SellerReportPage({
   const qrIds = (qrcodes || []).map((q: any) => q.id)
   const { data: rawScans } = qrIds.length > 0
     ? await supabase.from('scan_events')
-        .select('created_at, cta_clicked, converted, return_visit, photos_viewed, lead_id, time_on_page_sec')
+        .select('created_at, cta_clicked, converted, return_visit, photos_viewed, lead_id, time_on_page_sec, qr_id')
         .in('qr_id', qrIds)
         .order('created_at', { ascending: false })
         .limit(300)
@@ -104,56 +104,93 @@ export default async function SellerReportPage({
 
   // ── Recent activity feed (leads + scan events merged) ─────────────────────
   type ActivityKind = 'lead_showing' | 'lead_question' | 'return_visit' | 'photos_viewed' | 'new_scan'
-  type ActivityEvent = { created_at: string; kind: ActivityKind }
-
-  const activityEvents: ActivityEvent[] = [
-    ...(sl as any[]).map((l: any) => ({
-      created_at: l.created_at,
-      kind: (l.motivation === 'hot' || l.motivation === 'motivated')
-        ? 'lead_showing' as const
-        : 'lead_question' as const,
-    })),
-    ...(ss as any[]).map((e: any) => {
-      const kind: ActivityKind = e.return_visit
-        ? 'return_visit'
-        : (e.photos_viewed || 0) >= 5
-          ? 'photos_viewed'
-          : 'new_scan'
-      return { created_at: e.created_at, kind }
-    }),
-  ]
-  activityEvents.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-  const recentActivity = activityEvents.slice(0, 10)
-
-  const activityConfig: Record<ActivityKind, { label: string; dot: string }> = {
-    lead_showing:  { label: '🔥 Buyer requested a showing',            dot: R.hot },
-    lead_question: { label: '💬 Buyer sent a question',                 dot: R.warm },
-    return_visit:  { label: '↩️ Buyer returned to view this listing',  dot: R.purple },
-    photos_viewed: { label: '📸 Buyer viewed all photos',              dot: R.motiv },
-    new_scan:      { label: '📱 New buyer discovered this listing',    dot: R.muted },
+  type RichActivityEvent = {
+    created_at: string
+    kind: ActivityKind
+    buyerId?: string
+    photosViewed?: number
+    timeOnPage?: number
+    visitCount?: number
+    qrLabel?: string
   }
+
+  const qrLabelMap: Record<string, string> = {}
+  for (const qr of sq as any[]) qrLabelMap[qr.id] = qr.label || 'QR sign'
+
+  const leadEventIds = new Set((sl as any[]).map((l: any) => l.id))
+
+  const leadActivities: RichActivityEvent[] = (sl as any[]).map((l: any) => {
+    const leadScans = (ss as any[]).filter((e: any) => e.lead_id === l.id)
+    const maxPhotos = leadScans.reduce((m: number, e: any) => Math.max(m, e.photos_viewed || 0), 0)
+    const maxTime   = leadScans.reduce((m: number, e: any) => Math.max(m, e.time_on_page_sec || 0), 0)
+    return {
+      created_at: l.created_at,
+      kind: (l.motivation === 'hot' || l.motivation === 'motivated') ? 'lead_showing' : 'lead_question',
+      buyerId: l.id.slice(-4).toUpperCase(),
+      photosViewed: maxPhotos > 0 ? maxPhotos : undefined,
+      timeOnPage: maxTime > 0 ? maxTime : undefined,
+    }
+  })
+
+  const scanGroupMap: Record<string, any[]> = {}
+  const anonScans: any[] = []
+  for (const e of ss as any[]) {
+    if (e.lead_id) {
+      if (leadEventIds.has(e.lead_id)) continue
+      scanGroupMap[e.lead_id] = scanGroupMap[e.lead_id] || []
+      scanGroupMap[e.lead_id].push(e)
+    } else {
+      anonScans.push(e)
+    }
+  }
+
+  const groupedScanActivities: RichActivityEvent[] = Object.entries(scanGroupMap).map(([leadId, scans]) => {
+    const maxPhotos = scans.reduce((m: number, e: any) => Math.max(m, e.photos_viewed || 0), 0)
+    const maxTime   = scans.reduce((m: number, e: any) => Math.max(m, e.time_on_page_sec || 0), 0)
+    const kind: ActivityKind = scans.some((e: any) => e.return_visit)
+      ? 'return_visit'
+      : maxPhotos >= 5 ? 'photos_viewed' : 'new_scan'
+    return {
+      created_at: scans[0].created_at,
+      kind,
+      buyerId: leadId.slice(-4).toUpperCase(),
+      photosViewed: maxPhotos > 0 ? maxPhotos : undefined,
+      timeOnPage: maxTime > 0 ? maxTime : undefined,
+      visitCount: scans.length > 1 ? scans.length : undefined,
+    }
+  })
+
+  const anonScanActivities: RichActivityEvent[] = anonScans.map((e: any) => {
+    const kind: ActivityKind = e.return_visit
+      ? 'return_visit'
+      : (e.photos_viewed || 0) >= 5 ? 'photos_viewed' : 'new_scan'
+    return {
+      created_at: e.created_at,
+      kind,
+      photosViewed: (e.photos_viewed || 0) > 0 ? e.photos_viewed : undefined,
+      timeOnPage: (e.time_on_page_sec || 0) > 0 ? e.time_on_page_sec : undefined,
+      qrLabel: e.qr_id ? qrLabelMap[e.qr_id] : undefined,
+    }
+  })
+
+  const allActivity = [...leadActivities, ...groupedScanActivities, ...anonScanActivities]
+  allActivity.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+  const recentActivity = allActivity.slice(0, 10)
 
   // ── Buyer leaderboard ─────────────────────────────────────────────────────
-  type LeaderEntry = {
-    id: string
-    motivation: string
-    score: number
-    scanCount: number
-    maxTimeOnPage: number
-    action: string
-  }
+  type LeaderEntry = { id: string; motivation: string; score: number; action: string }
 
   const leaderboard: LeaderEntry[] = (sl as any[]).map((lead: any) => {
-    const leadScans = (ss as any[]).filter((e: any) => e.lead_id === lead.id)
-    const returnVisits  = leadScans.filter((e: any) => e.return_visit).length
-    const hasPhotos     = leadScans.some((e: any) => (e.photos_viewed || 0) >= 5)
-    const maxTime       = leadScans.reduce((m: number, e: any) => Math.max(m, e.time_on_page_sec || 0), 0)
+    const leadScans    = (ss as any[]).filter((e: any) => e.lead_id === lead.id)
+    const returnVisits = leadScans.filter((e: any) => e.return_visit).length
+    const hasPhotos    = leadScans.some((e: any) => (e.photos_viewed || 0) >= 5)
+    const maxTime      = leadScans.reduce((m: number, e: any) => Math.max(m, e.time_on_page_sec || 0), 0)
 
     let score = 0
-    if (lead.motivation === 'hot')                                     score += 10
+    if (lead.motivation === 'hot') score += 10
     else if (lead.motivation === 'motivated' || lead.motivation === 'warm') score += 5
     score += returnVisits * 3
-    if (hasPhotos)   score += 2
+    if (hasPhotos) score += 2
     if (maxTime >= 300) score += 2
     score += leadScans.length
 
@@ -162,11 +199,10 @@ export default async function SellerReportPage({
       : lead.motivation === 'warm'      ? 'Sent Question'
       : 'Browsed'
 
-    return { id: lead.id, motivation: lead.motivation, score, scanCount: leadScans.length, maxTimeOnPage: maxTime, action }
+    return { id: lead.id, motivation: lead.motivation, score, action }
   })
   leaderboard.sort((a, b) => b.score - a.score)
-  const topBuyers    = leaderboard.slice(0, 5)
-  const maxLeadScore = topBuyers[0]?.score || 1
+  const topBuyers = leaderboard.slice(0, 5)
 
   // ── Property display ──────────────────────────────────────────────────────
   const heroPhoto   = (photos || [])[0]?.url ?? null
@@ -402,52 +438,23 @@ export default async function SellerReportPage({
                   : buyer.motivation === 'warm'
                   ? { icon: '👍', label: 'Warm',      color: R.warm,  bg: R.warmBg }
                   : { icon: '❄️', label: 'Cold',      color: R.cold,  bg: R.coldBg }
-                const barColor = i === 0
-                  ? `linear-gradient(90deg, ${R.purple}, ${R.purpleL})`
-                  : R.purpleL
-                const timeLine = buyer.maxTimeOnPage > 0
-                  ? buyer.maxTimeOnPage < 60
-                    ? `${buyer.maxTimeOnPage}s on page`
-                    : `${Math.round(buyer.maxTimeOnPage / 60)}m on page`
-                  : null
                 return (
                   <div key={buyer.id} style={{
                     display: 'flex', alignItems: 'center', gap: 12,
                     padding: '13px 0',
                     borderBottom: i < topBuyers.length - 1 ? `1px solid ${R.border}` : 'none',
                   }}>
-                    {/* Rank */}
                     <div style={{ width: 22, textAlign: 'center', fontSize: 13, fontWeight: 800, color: i === 0 ? R.purple : R.muted, flexShrink: 0 }}>
                       #{i + 1}
                     </div>
-                    {/* Badge */}
                     <div style={{ fontSize: 11, fontWeight: 700, color: badge.color, background: badge.bg, borderRadius: 6, padding: '3px 8px', flexShrink: 0, whiteSpace: 'nowrap' }}>
                       {badge.icon} {badge.label}
                     </div>
-                    {/* Name + bar */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: R.text }}>
-                          Buyer #{buyer.id.slice(-4).toUpperCase()}
-                        </span>
-                        <span style={{ fontSize: 11, color: R.muted, flexShrink: 0 }}>{buyer.action}</span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
-                        <div style={{ flex: 1, height: 5, background: R.border, borderRadius: 3, overflow: 'hidden' }}>
-                          <div style={{ width: `${(buyer.score / maxLeadScore) * 100}%`, height: '100%', background: barColor, borderRadius: 3 }} />
-                        </div>
-                        <span style={{ fontSize: 11, fontWeight: 800, color: i === 0 ? R.purple : R.muted, flexShrink: 0 }}>
-                          {buyer.score} pts
-                        </span>
-                      </div>
-                      {(buyer.scanCount > 0 || timeLine) && (
-                        <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-                          {buyer.scanCount > 0 && (
-                            <span style={{ fontSize: 10, color: R.muted }}>{buyer.scanCount} scan{buyer.scanCount !== 1 ? 's' : ''}</span>
-                          )}
-                          {timeLine && <span style={{ fontSize: 10, color: R.muted }}>{timeLine}</span>}
-                        </div>
-                      )}
+                    <div style={{ fontSize: 13, fontWeight: 700, color: R.text, flex: 1 }}>
+                      Buyer #{buyer.id.slice(-4).toUpperCase()}
+                    </div>
+                    <div style={{ fontSize: 12, color: R.muted, flexShrink: 0 }}>
+                      {buyer.action}
                     </div>
                   </div>
                 )
@@ -465,8 +472,36 @@ export default async function SellerReportPage({
               : (
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   {recentActivity.map((ev, i) => {
-                    const isLast = i === recentActivity.length - 1
-                    const { label, dot } = activityConfig[ev.kind]
+                    const isLast  = i === recentActivity.length - 1
+                    const buyer   = ev.buyerId ? `Buyer #${ev.buyerId}` : null
+                    const photoStr  = ev.photosViewed ? ` · viewed ${ev.photosViewed} photo${ev.photosViewed !== 1 ? 's' : ''}` : ''
+                    const timeStr   = ev.timeOnPage
+                      ? ` · ${ev.timeOnPage < 60 ? `${ev.timeOnPage}s` : `${Math.round(ev.timeOnPage / 60)}m`} on page`
+                      : ''
+                    const visitsStr = ev.visitCount ? ` · visited ${ev.visitCount} times` : ''
+
+                    let label: string
+                    let dot: string
+                    if (ev.kind === 'lead_showing') {
+                      label = `🔥 ${buyer} requested a showing${photoStr}${timeStr}`
+                      dot   = R.hot
+                    } else if (ev.kind === 'lead_question') {
+                      label = `💬 ${buyer} sent a question`
+                      dot   = R.warm
+                    } else if (ev.kind === 'return_visit') {
+                      label = `↩️ ${buyer ?? 'A buyer'} returned to view this listing again${visitsStr}${photoStr}${timeStr}`
+                      dot   = R.purple
+                    } else if (ev.kind === 'photos_viewed') {
+                      label = `📸 ${buyer ?? 'A buyer'} viewed all photos${timeStr}`
+                      dot   = R.motiv
+                    } else {
+                      const via = ev.qrLabel ? ` via ${ev.qrLabel}` : ''
+                      label = buyer
+                        ? `📱 ${buyer} browsed this listing${timeStr}`
+                        : `📱 New buyer discovered this listing${via}`
+                      dot = R.muted
+                    }
+
                     return (
                       <div key={i} style={{ display: 'flex', gap: 14 }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>

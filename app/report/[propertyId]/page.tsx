@@ -318,7 +318,7 @@ export default async function SellerReportPage({
             {/* Axis labels */}
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
               <span style={{ fontSize: 10, color: R.muted }}>{periodStart}</span>
-              <span style={{ fontSize: 10, color: R.muted, fontWeight: 600, color: R.purple }}>Today</span>
+              <span style={{ fontSize: 10, fontWeight: 600, color: R.purple }}>Today</span>
             </div>
           </>
         )}

@@ -50,29 +50,28 @@ export default async function SellerReportPage({
   const supabase = createAdminSupabase()
   const { propertyId } = params
 
-  const [{ data: property }, { data: photos }, { data: qrcodes }, { data: leads }] =
-    await Promise.all([
-      supabase.from('properties').select('*').eq('id', propertyId).single(),
-      supabase.from('property_photos').select('url').eq('property_id', propertyId).order('sort_order', { ascending: true }).limit(1),
-      supabase.from('qrcodes').select('id, label, scan_count, placement').eq('property_id', propertyId).order('scan_count', { ascending: false }),
-      supabase.from('leads').select('id, motivation, created_at').eq('property_id', propertyId).order('created_at', { ascending: false }),
-    ])
+  const [
+    { data: property },
+    { data: photos },
+    { data: qrcodes },
+    { data: leads },
+    rawScansResult,
+    scanCountResult,
+  ] = await Promise.all([
+    supabase.from('properties').select('*').eq('id', propertyId).single(),
+    supabase.from('property_photos').select('url').eq('property_id', propertyId).order('sort_order', { ascending: true }).limit(1),
+    supabase.from('qrcodes').select('id, label, scan_count, placement').eq('property_id', propertyId).order('scan_count', { ascending: false }),
+    supabase.from('leads').select('id, motivation, created_at').eq('property_id', propertyId).order('created_at', { ascending: false }),
+    supabase.from('scan_events')
+      .select('created_at, cta_clicked, converted, return_visit, photos_viewed, lead_id, time_on_page_sec, qr_id')
+      .eq('property_id', propertyId)
+      .order('created_at', { ascending: false })
+      .limit(300),
+    supabase.from('scan_events').select('*', { count: 'exact', head: true }).eq('property_id', propertyId),
+  ])
 
   if (!property) notFound()
 
-  const qrIds = (qrcodes || []).map((q: any) => q.id)
-  const [rawScansResult, scanCountResult] = await Promise.all([
-    qrIds.length > 0
-      ? supabase.from('scan_events')
-          .select('created_at, cta_clicked, converted, return_visit, photos_viewed, lead_id, time_on_page_sec, qr_id')
-          .in('qr_id', qrIds)
-          .order('created_at', { ascending: false })
-          .limit(300)
-      : Promise.resolve({ data: [] as any[], error: null }),
-    qrIds.length > 0
-      ? supabase.from('scan_events').select('*', { count: 'exact', head: true }).in('qr_id', qrIds)
-      : Promise.resolve({ count: 0, data: null, error: null }),
-  ])
   const rawScans   = rawScansResult.data
   const totalScans = scanCountResult.count ?? 0
 
@@ -83,7 +82,7 @@ export default async function SellerReportPage({
   // ── Derived stats ─────────────────────────────────────────────────────────
   const totalLeads  = sl.length
   const hotLeads    = sl.filter((l: any) => l.motivation === 'hot').length
-  const showingReqs = hotLeads + ss.filter((e: any) => e.cta_clicked === 'showing').length
+  const showingReqs = hotLeads
 
   const intent = {
     hot:       sl.filter((l: any) => l.motivation === 'hot').length,
@@ -105,15 +104,8 @@ export default async function SellerReportPage({
   const maxBar = Math.max(...chartDays.map(d => d.count), 1)
 
   // ── Top signs ─────────────────────────────────────────────────────────────
-  const scanCountByQr: Record<string, number> = {}
-  for (const e of ss as any[]) {
-    if (e.qr_id) scanCountByQr[e.qr_id] = (scanCountByQr[e.qr_id] || 0) + 1
-  }
-  const topSigns = (sq as any[])
-    .map((qr: any) => ({ ...qr, _count: scanCountByQr[qr.id] ?? (qr.scan_count || 0) }))
-    .sort((a: any, b: any) => b._count - a._count)
-    .slice(0, 6)
-  const maxSignScan = Math.max(...topSigns.map((q: any) => q._count), 1)
+  const topSigns    = (sq as any[]).slice(0, 6)
+  const maxSignScan = Math.max(...topSigns.map((q: any) => q.scan_count || 0), 1)
 
   // ── Recent activity feed (leads + scan events merged) ─────────────────────
   type ActivityKind = 'lead_showing' | 'lead_question' | 'return_visit' | 'photos_viewed' | 'new_scan'
@@ -379,10 +371,10 @@ export default async function SellerReportPage({
                         <span style={{ fontSize: 11, fontWeight: 800, color: i === 0 ? R.purple : R.muted, minWidth: 16 }}>#{i + 1}</span>
                         <span style={{ fontSize: 13, color: R.sub, fontWeight: 500 }}>{qr.label || 'Unlabeled sign'}</span>
                       </div>
-                      <span style={{ fontSize: 13, fontWeight: 800, color: R.purple }}>{qr._count}</span>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: R.purple }}>{qr.scan_count || 0}</span>
                     </div>
                     <div style={{ height: 6, background: R.border, borderRadius: 4, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${(qr._count / maxSignScan) * 100}%`, background: i === 0 ? `linear-gradient(90deg, ${R.purple}, ${R.purpleL})` : R.purpleL, borderRadius: 4, opacity: i === 0 ? 1 : 0.5 + (0.5 * (1 - i / topSigns.length)) }} />
+                      <div style={{ height: '100%', width: `${((qr.scan_count || 0) / maxSignScan) * 100}%`, background: i === 0 ? `linear-gradient(90deg, ${R.purple}, ${R.purpleL})` : R.purpleL, borderRadius: 4, opacity: i === 0 ? 1 : 0.5 + (0.5 * (1 - i / topSigns.length)) }} />
                     </div>
                   </div>
                 ))

@@ -61,23 +61,29 @@ export default async function SellerReportPage({
   if (!property) notFound()
 
   const qrIds = (qrcodes || []).map((q: any) => q.id)
-  const { data: rawScans } = qrIds.length > 0
-    ? await supabase.from('scan_events')
-        .select('created_at, cta_clicked, converted, return_visit, photos_viewed, lead_id, time_on_page_sec, qr_id')
-        .in('qr_id', qrIds)
-        .order('created_at', { ascending: false })
-        .limit(300)
-    : { data: [] }
+  const [rawScansResult, scanCountResult] = await Promise.all([
+    qrIds.length > 0
+      ? supabase.from('scan_events')
+          .select('created_at, cta_clicked, converted, return_visit, photos_viewed, lead_id, time_on_page_sec, qr_id')
+          .in('qr_id', qrIds)
+          .order('created_at', { ascending: false })
+          .limit(300)
+      : Promise.resolve({ data: [] as any[], error: null }),
+    qrIds.length > 0
+      ? supabase.from('scan_events').select('*', { count: 'exact', head: true }).in('qr_id', qrIds)
+      : Promise.resolve({ count: 0, data: null, error: null }),
+  ])
+  const rawScans   = rawScansResult.data
+  const totalScans = scanCountResult.count ?? 0
 
   const sl = leads    || []
   const ss = rawScans || []
   const sq = qrcodes  || []
 
   // ── Derived stats ─────────────────────────────────────────────────────────
-  const totalScans  = sq.reduce((n: number, q: any) => n + (q.scan_count || 0), 0)
   const totalLeads  = sl.length
   const hotLeads    = sl.filter((l: any) => l.motivation === 'hot').length
-  const showingReqs = ss.filter((e: any) => e.cta_clicked === 'showing').length
+  const showingReqs = hotLeads + ss.filter((e: any) => e.cta_clicked === 'showing').length
 
   const intent = {
     hot:       sl.filter((l: any) => l.motivation === 'hot').length,
@@ -99,8 +105,15 @@ export default async function SellerReportPage({
   const maxBar = Math.max(...chartDays.map(d => d.count), 1)
 
   // ── Top signs ─────────────────────────────────────────────────────────────
-  const topSigns    = sq.filter((q: any) => (q.scan_count || 0) > 0).slice(0, 6)
-  const maxSignScan = Math.max(...topSigns.map((q: any) => q.scan_count || 0), 1)
+  const scanCountByQr: Record<string, number> = {}
+  for (const e of ss as any[]) {
+    if (e.qr_id) scanCountByQr[e.qr_id] = (scanCountByQr[e.qr_id] || 0) + 1
+  }
+  const topSigns = (sq as any[])
+    .map((qr: any) => ({ ...qr, _count: scanCountByQr[qr.id] ?? (qr.scan_count || 0) }))
+    .sort((a: any, b: any) => b._count - a._count)
+    .slice(0, 6)
+  const maxSignScan = Math.max(...topSigns.map((q: any) => q._count), 1)
 
   // ── Recent activity feed (leads + scan events merged) ─────────────────────
   type ActivityKind = 'lead_showing' | 'lead_question' | 'return_visit' | 'photos_viewed' | 'new_scan'
@@ -366,10 +379,10 @@ export default async function SellerReportPage({
                         <span style={{ fontSize: 11, fontWeight: 800, color: i === 0 ? R.purple : R.muted, minWidth: 16 }}>#{i + 1}</span>
                         <span style={{ fontSize: 13, color: R.sub, fontWeight: 500 }}>{qr.label || 'Unlabeled sign'}</span>
                       </div>
-                      <span style={{ fontSize: 13, fontWeight: 800, color: R.purple }}>{qr.scan_count || 0}</span>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: R.purple }}>{qr._count}</span>
                     </div>
                     <div style={{ height: 6, background: R.border, borderRadius: 4, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${((qr.scan_count || 0) / maxSignScan) * 100}%`, background: i === 0 ? `linear-gradient(90deg, ${R.purple}, ${R.purpleL})` : R.purpleL, borderRadius: 4, opacity: i === 0 ? 1 : 0.5 + (0.5 * (1 - i / topSigns.length)) }} />
+                      <div style={{ height: '100%', width: `${(qr._count / maxSignScan) * 100}%`, background: i === 0 ? `linear-gradient(90deg, ${R.purple}, ${R.purpleL})` : R.purpleL, borderRadius: 4, opacity: i === 0 ? 1 : 0.5 + (0.5 * (1 - i / topSigns.length)) }} />
                     </div>
                   </div>
                 ))

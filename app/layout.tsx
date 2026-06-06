@@ -7,6 +7,10 @@ export const metadata: Metadata = {
   title: 'RealtQR',
   description: 'QR sign tracking and lead capture for real estate agents.',
   manifest: '/manifest.webmanifest',
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',

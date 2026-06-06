@@ -163,7 +163,7 @@ export default function LandingPage() {
         <Link href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', flexShrink: 0, background: 'transparent' }}>
           <div className="flex items-center text-2xl font-bold tracking-tight">
             <span className="text-white">the</span>
-            <span className="text-purple-500">QR</span>
+            <span style={{ color: '#60A5FA' }}>QR</span>
             <span className="text-white">ealtor</span>
           </div>
         </Link>

@@ -85,6 +85,13 @@ export default async function SellerReportPage({
   const hotLeads    = sl.filter((l: any) => l.motivation === 'hot').length
   const showingReqs = hotLeads
 
+  // ── Benchmark tier ────────────────────────────────────────────────────────
+  const benchmark = totalScans >= 10 && totalLeads >= 3 && hotLeads >= 1
+    ? { icon: '🟢', label: 'Above Average Buyer Interest', color: '#16A34A', bg: '#F0FDF4', border: '#86EFAC', detail: 'This listing is generating strong buyer engagement compared to typical listings.' }
+    : totalScans >= 5 && totalLeads >= 1
+    ? { icon: '🟡', label: 'Moderate Buyer Interest',      color: '#CA8A04', bg: '#FEFCE8', border: '#FDE047', detail: 'This listing is attracting buyers. Keep your QR signs visible to build momentum.' }
+    : { icon: '🔴', label: 'Early Stage — Keep promoting your QR sign', color: '#DC2626', bg: '#FEF2F2', border: '#FCA5A5', detail: 'More scans and leads will come as buyers discover your listing. Make sure your QR sign is placed prominently.' }
+
   const intent = {
     hot:       sl.filter((l: any) => l.motivation === 'hot').length,
     motivated: sl.filter((l: any) => l.motivation === 'motivated').length,
@@ -322,6 +329,19 @@ export default async function SellerReportPage({
               <div style={{ fontSize: 10, color: R.muted, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700 }}>{label}</div>
             </div>
           ))}
+        </div>
+
+        {/* ── Benchmark banner ── */}
+        <div style={{
+          background: benchmark.bg, border: `1px solid ${benchmark.border}`,
+          borderRadius: 14, padding: '16px 22px', marginBottom: 20,
+          display: 'flex', alignItems: 'center', gap: 14,
+        }}>
+          <span style={{ fontSize: 24, flexShrink: 0 }}>{benchmark.icon}</span>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: benchmark.color, marginBottom: 3 }}>{benchmark.label}</div>
+            <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.55 }}>{benchmark.detail}</div>
+          </div>
         </div>
 
         {/* ── Intent + Signs ── */}

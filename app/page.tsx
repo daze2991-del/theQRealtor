@@ -202,17 +202,17 @@ export default function LandingPage() {
               fontSize: 52, fontWeight: 900, color: C.text,
               margin: '0 0 22px', lineHeight: 1.1, letterSpacing: '-0.03em',
             }}>
-              See Every Buyer{' '}
+              Prove Your Marketing to Sellers.{' '}
               <span style={{
                 background: `linear-gradient(135deg, ${C.blueXL}, ${C.blue})`,
                 WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
               }}>
-                Interested in Your Listing
+                Capture Every Buyer Lead.
               </span>
             </h1>
 
             <p style={{ fontSize: 18, color: C.sub, lineHeight: 1.7, margin: '0 0 36px', maxWidth: 520 }}>
-              Replace paper sign-in sheets with smart QR signs that capture leads, track buyer interest, and generate seller reports automatically. Buyer gets property info. You get the lead.
+              theQRealtor gives listing agents real buyer data — scans, leads, hot buyers, showing requests — automatically. Walk into every listing appointment with proof.
             </p>
 
             <div className="hero-btns" style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -480,31 +480,45 @@ export default function LandingPage() {
           <div style={{
             background: C.navy2, border: `1px solid ${C.border}`,
             borderRadius: 20, padding: '28px 32px',
-            maxWidth: 620, margin: '0 auto 32px',
+            maxWidth: 620, margin: '0 auto 20px',
             boxShadow: `0 0 60px ${C.blue}15`,
           }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 20 }}>
-              123 Main St — Last 30 Days
+              123 Main St — This Month
             </div>
-            <div className="seller-stats" style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+            <div className="seller-stats" style={{ display: 'flex', gap: 12, justifyContent: 'center', marginBottom: 20 }}>
               {[
-                { v: '217',  label: 'Scans',           color: C.blueXL,  bg: `${C.blue}18` },
-                { v: '42',   label: 'Buyer Leads',      color: '#FCD34D', bg: '#2D200A' },
-                { v: '18',   label: 'Hot Buyers 🔥',    color: C.hot,     bg: '#300808' },
-                { v: '3',    label: 'Showing Requests', color: C.green,   bg: '#0A2010' },
+                { v: '217', label: 'Scans',            color: C.blueXL,  bg: `${C.blue}18` },
+                { v: '42',  label: 'Buyer Leads',       color: '#FCD34D', bg: '#2D200A' },
+                { v: '18',  label: 'Hot Buyers 🔥',     color: C.hot,     bg: '#300808' },
+                { v: '7',   label: 'Showing Requests',  color: C.green,   bg: '#0A2010' },
               ].map(({ v, label, color, bg }) => (
-                <div key={label} style={{ flex: 1, background: bg, borderRadius: 12, padding: '16px 10px', minWidth: 100 }}>
+                <div key={label} style={{ flex: 1, background: bg, borderRadius: 12, padding: '16px 10px', minWidth: 80 }}>
                   <div style={{ fontSize: 28, fontWeight: 900, color, lineHeight: 1, letterSpacing: '-0.02em' }}>{v}</div>
                   <div style={{ fontSize: 10, color: C.muted, marginTop: 6, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, lineHeight: 1.4 }}>{label}</div>
                 </div>
               ))}
             </div>
+            {/* Benchmark badge */}
+            <div style={{ background: '#052E16', border: '1px solid #166534', borderRadius: 10, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 16 }}>🟢</span>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#4ADE80' }}>Above Average Buyer Interest</div>
+                <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>This listing is generating strong engagement compared to typical listings.</div>
+              </div>
+            </div>
           </div>
 
-          <p style={{ fontSize: 18, fontWeight: 700, color: C.sub, margin: 0 }}>
-            Sellers love it.{' '}
-            <span style={{ color: C.text }}>Agents win listings.</span>
+          <p style={{ fontSize: 15, color: C.sub, margin: '0 0 28px', lineHeight: 1.65 }}>
+            Share this with your seller in one click. No extra work.
           </p>
+          <Link href="/auth" style={{
+            display: 'inline-block', background: C.blue, color: '#fff',
+            fontSize: 15, fontWeight: 700, padding: '12px 28px', borderRadius: 11,
+            textDecoration: 'none', boxShadow: `0 4px 20px ${C.blue}50`,
+          }}>
+            Start Free Trial →
+          </Link>
         </div>
       </section>
 

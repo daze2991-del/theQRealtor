@@ -58,9 +58,12 @@ export default function AnalyticsPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
 
-  const [scans, setScans]         = useState<any[]>([])
-  const [leads, setLeads]         = useState<any[]>([])
-  const [properties, setProperties] = useState<any[]>([])
+  const [scans, setScans]               = useState<any[]>([])
+  const [leads, setLeads]               = useState<any[]>([])
+  const [properties, setProperties]     = useState<any[]>([])
+  const [returnVisitCount, setReturnVisitCount]     = useState(0)
+  const [thisMonthLeadCount, setThisMonthLeadCount] = useState(0)
+  const [lastMonthLeadCount, setLastMonthLeadCount] = useState(0)
 
   useEffect(() => {
     const load = async () => {
@@ -82,21 +85,33 @@ export default function AnalyticsPage() {
       const cutoff = new Date()
       cutoff.setDate(cutoff.getDate() - 29)
       const cutoffStr = cutoff.toISOString()
+      const thisMonthStart = new Date(); thisMonthStart.setDate(1); thisMonthStart.setHours(0, 0, 0, 0)
+      const lastMonthStart = new Date(thisMonthStart); lastMonthStart.setMonth(lastMonthStart.getMonth() - 1)
 
-      const [{ data: scanData }, { data: leadData }] = await Promise.all([
-        supabase
-          .from('scan_events')
-          .select('qr_id, created_at')
-          .gte('created_at', cutoffStr),
-        supabase
-          .from('leads')
-          .select('property_id, motivation, created_at')
+      const [
+        { data: scanData },
+        { data: leadData },
+        { count: rvCount },
+        { count: thisMonthCount },
+        { count: lastMonthCount },
+      ] = await Promise.all([
+        supabase.from('scan_events').select('qr_id, created_at').gte('created_at', cutoffStr),
+        supabase.from('leads').select('property_id, motivation, created_at').in('property_id', propertyIds).gte('created_at', cutoffStr),
+        supabase.from('scan_events').select('*', { count: 'exact', head: true })
+          .in('property_id', propertyIds).eq('return_visit', true).gte('created_at', cutoffStr),
+        supabase.from('leads').select('*', { count: 'exact', head: true })
+          .in('property_id', propertyIds).gte('created_at', thisMonthStart.toISOString()),
+        supabase.from('leads').select('*', { count: 'exact', head: true })
           .in('property_id', propertyIds)
-          .gte('created_at', cutoffStr),
+          .gte('created_at', lastMonthStart.toISOString())
+          .lt('created_at', thisMonthStart.toISOString()),
       ])
 
       setScans(scanData || [])
       setLeads(leadData || [])
+      setReturnVisitCount(rvCount || 0)
+      setThisMonthLeadCount(thisMonthCount || 0)
+      setLastMonthLeadCount(lastMonthCount || 0)
       setLoading(false)
     }
     load()
@@ -150,6 +165,26 @@ export default function AnalyticsPage() {
   const totalScans = Object.values(qrScanTotals).reduce((a, b) => a + b, 0)
   const totalLeads = leads.length
   const convRate   = totalScans > 0 ? ((totalLeads / totalScans) * 100).toFixed(1) + '%' : 'Not enough data yet'
+
+  // ── Insights ──────────────────────────────────────────────────────────────
+  const hotLeadsCount = leads.filter((l: any) => l.motivation === 'hot').length
+  const monthGrowth   = lastMonthLeadCount > 0
+    ? Math.round(((thisMonthLeadCount - lastMonthLeadCount) / lastMonthLeadCount) * 100)
+    : null
+  const topPropByLeads = [...properties]
+    .map((p: any) => ({ ...p, count30d: leads.filter((l: any) => l.property_id === p.id).length }))
+    .sort((a: any, b: any) => b.count30d - a.count30d)[0]
+
+  const insightCards: Array<{ icon: string; accent: string; text: string; sub: string }> = []
+  if (totalLeads === 0 && totalScans === 0) {
+    insightCards.push({ icon: '📍', accent: C.muted, text: 'Place your first QR sign to start seeing insights', sub: "Once buyers scan, you'll see real activity and lead data here." })
+  } else {
+    if (hotLeadsCount > 0) insightCards.push({ icon: '🔥', accent: '#EF4444', text: `${hotLeadsCount} buyer${hotLeadsCount > 1 ? 's' : ''} ready to act — call them today`, sub: 'Hot buyers have shown strong purchase intent. Reach out now.' })
+    if (monthGrowth !== null && monthGrowth > 0) insightCards.push({ icon: '📈', accent: '#22C55E', text: `Lead volume up ${monthGrowth}% this month vs last month`, sub: 'Your QR signs are generating more leads than before.' })
+    if (monthGrowth !== null && monthGrowth < 0) insightCards.push({ icon: '📉', accent: '#F97316', text: `Lead volume down ${Math.abs(monthGrowth)}% this month vs last month`, sub: 'Consider adding more QR signs or promoting your listings.' })
+    if (topPropByLeads?.count30d > 0) insightCards.push({ icon: '🏆', accent: '#FCD34D', text: `${topPropByLeads.address} is your top listing this month`, sub: `${topPropByLeads.count30d} lead${topPropByLeads.count30d > 1 ? 's' : ''} captured in the last 30 days.` })
+    if (returnVisitCount > 0) insightCards.push({ icon: '↩️', accent: C.purpleL, text: `${returnVisitCount} buyer${returnVisitCount > 1 ? 's' : ''} returned to view listings multiple times`, sub: 'Return visitors show strong purchase intent.' })
+  }
 
   // ── shared card / table styles ────────────────────────────────────────────
 
@@ -211,6 +246,24 @@ export default function AnalyticsPage() {
 
           {/* Page body */}
           <div style={{ flex: 1, padding: '28px 28px 40px', overflowY: 'auto', fontFamily: 'sans-serif' }}>
+
+            {/* Insights */}
+            {insightCards.length > 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 14, marginBottom: 28 }}>
+                {insightCards.map((ins, i) => (
+                  <div key={i} style={{
+                    background: C.card, border: `1px solid ${C.border}`,
+                    borderRadius: 14, padding: '18px 20px',
+                    borderLeft: `3px solid ${ins.accent}`,
+                    display: 'flex', flexDirection: 'column', gap: 6,
+                  }}>
+                    <div style={{ fontSize: 22 }}>{ins.icon}</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: C.text, lineHeight: 1.35 }}>{ins.text}</div>
+                    <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.55 }}>{ins.sub}</div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* KPI row */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>

@@ -160,8 +160,8 @@ export default function LandingPage() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         maxWidth: '100%',
       }}>
-        <Link href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', flexShrink: 0 }}>
-          <Image src="/public_logo.png" alt="theQRealtor" width={180} height={48} priority style={{ display: 'block', height: 40, width: 'auto' }} />
+        <Link href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', flexShrink: 0, background: 'transparent' }}>
+          <Image src="/public_logo.png" alt="theQRealtor" width={180} height={48} priority style={{ display: 'block', height: 40, width: 'auto', background: 'transparent' }} />
         </Link>
 
         <div className="nav-links" style={{ display: 'flex', gap: 32, alignItems: 'center' }}>

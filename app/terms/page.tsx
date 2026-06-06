@@ -117,19 +117,29 @@ export default function TermsPage() {
           </p>
         </Section>
 
-        <Section title="4. SMS Messaging — Agent Alerts">
-          <p style={{ margin: '0 0 12px' }}>
-            By providing a phone number and enabling SMS alerts in Settings, you consent to receive text messages from theQRealtor notifying you of new buyer leads. Message frequency varies based on buyer activity and may be multiple messages per day during active listing periods.
+        <Section title="4. SMS Messaging — Agent Lead Alerts">
+          <p style={{ margin: '0 0 14px' }}>
+            <strong style={{ color: C.text }}>Program name:</strong> theQRealtor SMS Lead Alerts
           </p>
           <p style={{ margin: '0 0 12px' }}>
-            <strong style={{ color: C.text }}>Message and data rates may apply</strong> depending on your mobile carrier plan.
+            By providing a mobile phone number and enabling SMS Lead Alerts in your account Settings, you consent to receive automated text messages from theQRealtor notifying you of new buyer leads. These messages are sent when a buyer scans one of your property QR codes and submits their contact information.
           </p>
           <p style={{ margin: '0 0 12px' }}>
-            To stop receiving SMS notifications at any time, text <strong style={{ color: C.text }}>STOP</strong> to the number from which you received the message. You will receive a confirmation that you have been unsubscribed. To re-enable alerts, turn SMS notifications back on in your account Settings.
+            <strong style={{ color: C.text }}>Message frequency:</strong> Message frequency varies based on buyer activity. Agents typically receive 1–10 messages per day during active listing periods. No messages are sent when there is no buyer activity.
+          </p>
+          <p style={{ margin: '0 0 12px' }}>
+            <strong style={{ color: C.text }}>Msg &amp; data rates may apply</strong> depending on your mobile carrier plan.
+          </p>
+          <p style={{ margin: '0 0 12px' }}>
+            <strong style={{ color: C.text }}>To opt out:</strong> Reply <strong style={{ color: C.text }}>STOP</strong> to any message from theQRealtor to unsubscribe at any time. You will receive a confirmation that you have been unsubscribed. You may also disable SMS alerts in your account Settings at any time.
+          </p>
+          <p style={{ margin: '0 0 12px' }}>
+            <strong style={{ color: C.text }}>For help:</strong> Reply <strong style={{ color: C.text }}>HELP</strong> to any message, or contact us at{' '}
+            <a href="mailto:support@theqrealtor.com" style={{ color: C.purpleL, textDecoration: 'none' }}>support@theqrealtor.com</a>.
           </p>
           <p style={{ margin: 0 }}>
-            For help, text <strong style={{ color: C.text }}>HELP</strong> to the number from which you received the message, or contact us at{' '}
-            <a href="mailto:support@theqrealtor.com" style={{ color: C.purpleL, textDecoration: 'none' }}>support@theqrealtor.com</a>.
+            For full details on the opt-in process and compliance information, see our{' '}
+            <a href="/sms-consent" style={{ color: C.purpleL, textDecoration: 'none' }}>SMS Consent page</a>.
           </p>
         </Section>
 
@@ -209,6 +219,7 @@ export default function TermsPage() {
         <div style={{ marginTop: 56, paddingTop: 28, borderTop: `1px solid ${C.border}`, display: 'flex', gap: 24, flexWrap: 'wrap' }}>
           <Link href="/" style={{ fontSize: 13, color: C.muted, textDecoration: 'none' }}>← Back to home</Link>
           <Link href="/privacy" style={{ fontSize: 13, color: C.muted, textDecoration: 'none' }}>Privacy Policy</Link>
+          <Link href="/sms-consent" style={{ fontSize: 13, color: C.muted, textDecoration: 'none' }}>SMS Consent</Link>
           <Link href="/auth" style={{ fontSize: 13, color: C.muted, textDecoration: 'none' }}>Sign in</Link>
         </div>
       </div>

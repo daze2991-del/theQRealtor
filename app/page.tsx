@@ -161,7 +161,11 @@ export default function LandingPage() {
         maxWidth: '100%',
       }}>
         <Link href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', flexShrink: 0, background: 'transparent' }}>
-          <Image src="/public_logo.png" alt="theQRealtor" width={180} height={48} priority style={{ display: 'block', height: 40, width: 'auto', background: 'transparent' }} />
+          <div className="flex items-center text-2xl font-bold tracking-tight">
+            <span className="text-white">the</span>
+            <span className="text-purple-500">QR</span>
+            <span className="text-white">ealtor</span>
+          </div>
         </Link>
 
         <div className="nav-links" style={{ display: 'flex', gap: 32, alignItems: 'center' }}>

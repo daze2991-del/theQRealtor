@@ -97,6 +97,9 @@ export default function Dashboard() {
   const [propThumbs,     setPropThumbs]      = useState<Record<string, string>>({})
   const [propQrCodes,    setPropQrCodes]     = useState<Record<string, Array<{ id: string; label: string }>>>({})
   const [expandedQr,     setExpandedQr]      = useState<{ id: string; label: string; property: string } | null>(null)
+  const [pipelineCounts, setPipelineCounts]  = useState<Record<string, number>>({ hot: 0, motivated: 0, warm: 0, cold: 0 })
+  const [topPropId,      setTopPropId]       = useState<string | null>(null)
+  const [topPropLeads,   setTopPropLeads]    = useState(0)
   const [plan,           setPlan]            = useState<'free' | 'pro'>('free')
   const [profileName,    setProfileName]     = useState('')
   const [loading,        setLoading]         = useState(true)
@@ -146,7 +149,7 @@ export default function Dashboard() {
           .in('property_id', ids).gte('created_at', monthISO),
         supabase.from('leads').select('*', { count: 'exact', head: true })
           .in('property_id', ids),
-        supabase.from('leads').select('property_id').in('property_id', ids),
+        supabase.from('leads').select('property_id, motivation, created_at').in('property_id', ids),
         supabase.from('property_photos').select('property_id, url')
           .in('property_id', ids).order('sort_order', { ascending: true }),
       ])
@@ -159,7 +162,14 @@ export default function Dashboard() {
         qrByProp[q.property_id].push({ id: q.id, label: q.label || 'Unlabeled' })
       })
       const leadMap: Record<string, number> = {}
-      ;(leadsPerProp || []).forEach((l: any) => { leadMap[l.property_id] = (leadMap[l.property_id] || 0) + 1 })
+      const pipeline: Record<string, number> = { hot: 0, motivated: 0, warm: 0, cold: 0 }
+      const monthLeadsByProp: Record<string, number> = {}
+      ;(leadsPerProp || []).forEach((l: any) => {
+        leadMap[l.property_id] = (leadMap[l.property_id] || 0) + 1
+        if (l.motivation && pipeline[l.motivation] !== undefined) pipeline[l.motivation]++
+        if (l.created_at >= monthISO) monthLeadsByProp[l.property_id] = (monthLeadsByProp[l.property_id] || 0) + 1
+      })
+      const topEntry = Object.entries(monthLeadsByProp).sort((a, b) => b[1] - a[1])[0]
       const thumbMap: Record<string, string> = {}
       ;(thumbData || []).forEach((t: any) => { if (!thumbMap[t.property_id]) thumbMap[t.property_id] = t.url })
 
@@ -173,6 +183,9 @@ export default function Dashboard() {
       setPropLeadCounts(leadMap)
       setPropThumbs(thumbMap)
       setPropQrCodes(qrByProp)
+      setPipelineCounts(pipeline)
+      setTopPropId(topEntry?.[0] ?? null)
+      setTopPropLeads(topEntry?.[1] ?? 0)
       setLoading(false)
     }
     load()
@@ -228,8 +241,8 @@ export default function Dashboard() {
     setExportingCSV(false)
   }
 
-  const activeCount   = properties.filter((p: any) => p.active).length
-  const convRate      = totalScansAll > 0 ? ((totalLeads / totalScansAll) * 100).toFixed(1) + '%' : '—'
+  const activeCount    = properties.filter((p: any) => p.active).length
+  const leadCaptureRate = totalScansAll > 0 ? ((totalLeads / totalScansAll) * 100).toFixed(1) + '%' : 'No scans yet'
   const canAddProperty = plan === 'pro' || properties.length < 1
   const propNameMap: Record<string, string> = {}
   properties.forEach((p: any) => { propNameMap[p.id] = p.address })
@@ -327,15 +340,43 @@ export default function Dashboard() {
             {/* KPI cards */}
             <div className="db-kpi">
               {[
+                { label: 'Total Scans Today', value: scansToday,      icon: '📱', accent: A.blue,   sub: totalScansAll > 0 ? `${totalScansAll} all time` : 'No scans today' },
                 { label: 'Active Properties', value: activeCount,     icon: '🏠', accent: A.purple, sub: `${properties.length} total` },
                 { label: 'New Leads Today',   value: leadsToday,      icon: '👥', accent: A.green,  sub: leadsThisMonth > 0 ? `↗ ${leadsThisMonth} this month` : 'None yet today' },
-                { label: 'Total Scans Today', value: scansToday,      icon: '📱', accent: A.blue,   sub: totalScansAll > 0 ? `${totalScansAll} all time` : 'No scans today' },
                 { label: 'Leads This Month',  value: leadsThisMonth,  icon: '📅', accent: A.amber,  sub: totalLeads > 0 ? `${totalLeads} total` : 'Place signs to start' },
-                { label: 'Conversion Rate',   value: convRate,        icon: '📈', accent: A.indigo, sub: totalScansAll > 0 ? `${totalLeads} leads / ${totalScansAll} scans` : 'Not enough data yet' },
+                { label: 'Lead Capture Rate', value: leadCaptureRate, icon: '📈', accent: A.indigo, sub: totalScansAll > 0 ? `${totalLeads} leads / ${totalScansAll} scans` : undefined },
               ].map(kpi => (
                 <div key={kpi.label} className="kpi-card">
                   <KPICard {...kpi} />
                 </div>
+              ))}
+            </div>
+
+            {/* Lead Pipeline strip */}
+            <div style={{
+              background: C.card, border: `1px solid ${C.border}`,
+              borderRadius: 12, padding: '11px 18px',
+              display: 'flex', alignItems: 'center', gap: 8,
+              flexWrap: 'wrap', marginBottom: 20,
+            }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em', marginRight: 6 }}>
+                Lead Pipeline
+              </span>
+              {[
+                { key: 'hot',       icon: '🔥', label: 'Hot',       color: '#EF4444', bg: '#3B0D0D', border: '#EF444430' },
+                { key: 'motivated', icon: '⚡', label: 'Motivated', color: '#F97316', bg: '#3B1F0D', border: '#F9731630' },
+                { key: 'warm',      icon: '👍', label: 'Warm',      color: '#60A5FA', bg: '#0F2238', border: '#60A5FA30' },
+                { key: 'cold',      icon: '❄️', label: 'Cold',      color: '#6B7280', bg: '#1F2937', border: '#6B728030' },
+              ].map(({ key, icon, label, color, bg, border }) => (
+                <Link key={key} href={`/dashboard/leads?motivation=${key}`} style={{
+                  textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '5px 12px', background: bg, border: `1px solid ${border}`,
+                  borderRadius: 8, transition: 'opacity 0.15s',
+                }}>
+                  <span style={{ fontSize: 13 }}>{icon}</span>
+                  <span style={{ fontSize: 15, fontWeight: 800, color, lineHeight: 1 }}>{pipelineCounts[key] ?? 0}</span>
+                  <span style={{ fontSize: 11, color: C.muted }}>{label}</span>
+                </Link>
               ))}
             </div>
 
@@ -439,59 +480,108 @@ export default function Dashboard() {
                 )}
               </div>
 
-              {/* Quick Actions */}
-              <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', alignSelf: 'start' }}>
-                <div style={{ padding: '13px 16px', borderBottom: `1px solid ${C.border}`, background: '#15151E' }}>
-                  <span style={{ fontWeight: 700, fontSize: 14, color: C.text }}>Quick Actions</span>
+              {/* Right column: Quick Actions + Top Property */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, alignSelf: 'start' }}>
+
+                {/* Quick Actions */}
+                <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden' }}>
+                  <div style={{ padding: '13px 16px', borderBottom: `1px solid ${C.border}`, background: '#15151E' }}>
+                    <span style={{ fontWeight: 700, fontSize: 14, color: C.text }}>Quick Actions</span>
+                  </div>
+                  <div style={{ padding: '10px' }}>
+                    {canAddProperty ? (
+                      <Link href="/dashboard/new-property" style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '10px 12px', borderRadius: 9,
+                        background: C.bg, border: `1px solid ${C.border}`,
+                        color: C.sub, fontSize: 13, fontWeight: 500,
+                        textDecoration: 'none', marginBottom: 6,
+                      }}>
+                        <span style={{ width: 28, height: 28, borderRadius: 8, background: `${C.purple}20`, border: `1px solid ${C.purple}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>🏠</span>
+                        Add Property
+                      </Link>
+                    ) : (
+                      <Link href="/dashboard/properties" style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '10px 12px', borderRadius: 9,
+                        background: C.bg, border: `1px solid ${C.border}`,
+                        color: C.sub, fontSize: 13, fontWeight: 500,
+                        textDecoration: 'none', marginBottom: 6,
+                      }}>
+                        <span style={{ width: 28, height: 28, borderRadius: 8, background: `${C.purple}20`, border: `1px solid ${C.purple}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>🏠</span>
+                        Manage Properties
+                      </Link>
+                    )}
+                    <Link href="/dashboard/leads" style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '10px 12px', borderRadius: 9,
+                      background: C.bg, border: `1px solid ${C.border}`,
+                      color: C.sub, fontSize: 13, fontWeight: 500,
+                      textDecoration: 'none', marginBottom: 6,
+                    }}>
+                      <span style={{ width: 28, height: 28, borderRadius: 8, background: '#06200F', border: '1px solid #166534', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>👥</span>
+                      View Leads
+                    </Link>
+                    <button onClick={downloadCSV} disabled={exportingCSV} style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '10px 12px', borderRadius: 9,
+                      background: C.bg, border: `1px solid ${C.border}`,
+                      color: C.sub, fontSize: 13, fontWeight: 500,
+                      cursor: exportingCSV ? 'not-allowed' : 'pointer',
+                      opacity: exportingCSV ? 0.6 : 1,
+                      width: '100%', textAlign: 'left', fontFamily: 'sans-serif',
+                    }}>
+                      <span style={{ width: 28, height: 28, borderRadius: 8, background: '#2D1A06', border: '1px solid #92400E', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>⬇</span>
+                      {exportingCSV ? 'Exporting…' : 'Download CSV'}
+                    </button>
+                  </div>
                 </div>
-                <div style={{ padding: '10px' }}>
-                  {canAddProperty ? (
-                    <Link href="/dashboard/new-property" style={{
-                      display: 'flex', alignItems: 'center', gap: 10,
-                      padding: '10px 12px', borderRadius: 9,
-                      background: C.bg, border: `1px solid ${C.border}`,
-                      color: C.sub, fontSize: 13, fontWeight: 500,
-                      textDecoration: 'none', marginBottom: 6,
-                    }}>
-                      <span style={{ width: 28, height: 28, borderRadius: 8, background: `${C.purple}20`, border: `1px solid ${C.purple}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>🏠</span>
-                      Add Property
-                    </Link>
-                  ) : (
-                    <Link href="/dashboard/properties" style={{
-                      display: 'flex', alignItems: 'center', gap: 10,
-                      padding: '10px 12px', borderRadius: 9,
-                      background: C.bg, border: `1px solid ${C.border}`,
-                      color: C.sub, fontSize: 13, fontWeight: 500,
-                      textDecoration: 'none', marginBottom: 6,
-                    }}>
-                      <span style={{ width: 28, height: 28, borderRadius: 8, background: `${C.purple}20`, border: `1px solid ${C.purple}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>🏠</span>
-                      Manage Properties
-                    </Link>
+
+                {/* Top Performing Listing */}
+                <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden' }}>
+                  <div style={{ padding: '13px 16px', borderBottom: `1px solid ${C.border}`, background: '#15151E' }}>
+                    <span style={{ fontWeight: 700, fontSize: 14, color: C.text }}>🏆 Top Performing Listing</span>
+                  </div>
+                  {topPropId ? (() => {
+                    const p = properties.find((pr: any) => pr.id === topPropId)
+                    if (!p) return null
+                    return (
+                      <div style={{ padding: '14px 16px' }}>
+                        {propThumbs[topPropId] ? (
+                          <img src={propThumbs[topPropId]} alt="" style={{ width: '100%', height: 90, objectFit: 'cover', borderRadius: 10, marginBottom: 12, border: `1px solid ${C.border}`, display: 'block' }} />
+                        ) : (
+                          <div style={{ width: '100%', height: 72, background: `${C.purple}18`, borderRadius: 10, marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, border: `1px solid ${C.border}` }}>🏠</div>
+                        )}
+                        <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.address}</div>
+                        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                          <div style={{ flex: 1, textAlign: 'center', background: `${C.purple}18`, border: `1px solid ${C.purple}30`, borderRadius: 8, padding: '7px 4px' }}>
+                            <div style={{ fontSize: 20, fontWeight: 900, color: C.purpleL, lineHeight: 1 }}>{propScanCounts[topPropId] || 0}</div>
+                            <div style={{ fontSize: 9, color: C.muted, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Scans</div>
+                          </div>
+                          <div style={{ flex: 1, textAlign: 'center', background: '#1A170D', border: '1px solid #3A3520', borderRadius: 8, padding: '7px 4px' }}>
+                            <div style={{ fontSize: 20, fontWeight: 900, color: '#FCD34D', lineHeight: 1 }}>{topPropLeads}</div>
+                            <div style={{ fontSize: 9, color: C.muted, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Leads/mo</div>
+                          </div>
+                        </div>
+                        <Link href={`/report/${topPropId}`} style={{
+                          display: 'block', textAlign: 'center',
+                          background: `${C.purple}20`, border: `1px solid ${C.purple}35`,
+                          borderRadius: 9, padding: '8px',
+                          fontSize: 12, fontWeight: 700, color: C.purpleL, textDecoration: 'none',
+                        }}>
+                          View Seller Report →
+                        </Link>
+                      </div>
+                    )
+                  })() : (
+                    <div style={{ padding: '24px 16px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 24, marginBottom: 8 }}>🏠</div>
+                      <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>No listing data yet. Capture leads to see your top performer.</div>
+                    </div>
                   )}
-                  <Link href="/dashboard/leads" style={{
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '10px 12px', borderRadius: 9,
-                    background: C.bg, border: `1px solid ${C.border}`,
-                    color: C.sub, fontSize: 13, fontWeight: 500,
-                    textDecoration: 'none', marginBottom: 6,
-                  }}>
-                    <span style={{ width: 28, height: 28, borderRadius: 8, background: '#06200F', border: '1px solid #166534', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>👥</span>
-                    View Leads
-                  </Link>
-                  <button onClick={downloadCSV} disabled={exportingCSV} style={{
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '10px 12px', borderRadius: 9,
-                    background: C.bg, border: `1px solid ${C.border}`,
-                    color: C.sub, fontSize: 13, fontWeight: 500,
-                    cursor: exportingCSV ? 'not-allowed' : 'pointer',
-                    opacity: exportingCSV ? 0.6 : 1,
-                    width: '100%', textAlign: 'left', fontFamily: 'sans-serif',
-                  }}>
-                    <span style={{ width: 28, height: 28, borderRadius: 8, background: '#2D1A06', border: '1px solid #92400E', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>⬇</span>
-                    {exportingCSV ? 'Exporting…' : 'Download CSV'}
-                  </button>
                 </div>
-              </div>
+
+              </div>{/* end right column */}
 
             </div>
 

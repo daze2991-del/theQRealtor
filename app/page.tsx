@@ -139,6 +139,9 @@ export default function LandingPage() {
           .hero-btns    { flex-direction: column !important; }
           .faq-item     { padding: 18px 20px !important; }
           .price-card   { padding: 32px 24px !important; }
+          .buyer-grid   { grid-template-columns: repeat(2, 1fr) !important; }
+          .cmp-grid     { flex-direction: column !important; }
+          .seller-stats { flex-wrap: wrap !important; }
         }
         details summary { cursor: pointer; list-style: none; }
         details summary::-webkit-details-marker { display: none; }
@@ -199,17 +202,17 @@ export default function LandingPage() {
               fontSize: 52, fontWeight: 900, color: C.text,
               margin: '0 0 22px', lineHeight: 1.1, letterSpacing: '-0.03em',
             }}>
-              Every Buyer Who Stops At Your Listing —{' '}
+              See Every Buyer{' '}
               <span style={{
                 background: `linear-gradient(135deg, ${C.blueXL}, ${C.blue})`,
                 WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
               }}>
-                Captured.
+                Interested in Your Listing
               </span>
             </h1>
 
             <p style={{ fontSize: 18, color: C.sub, lineHeight: 1.7, margin: '0 0 36px', maxWidth: 520 }}>
-              theQRealtor turns yard sign scans into instant lead alerts, buyer intent scores, and seller reports. No app for buyers. No paper sign-in sheets. Just results.
+              Replace paper sign-in sheets with smart QR signs that capture leads, track buyer interest, and generate seller reports automatically. Buyer gets property info. You get the lead.
             </p>
 
             <div className="hero-btns" style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -269,6 +272,50 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── WHY BUYERS SCAN ── */}
+      <section style={{ maxWidth: 1140, margin: '0 auto', padding: '96px 32px' }}>
+        <div style={{ textAlign: 'center', marginBottom: 52 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.blueXL, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>
+            The Scan Experience
+          </div>
+          <h2 style={{ fontSize: 38, fontWeight: 900, color: C.text, margin: '0 0 16px', letterSpacing: '-0.025em', lineHeight: 1.15 }}>
+            Give Buyers a Reason to Scan
+          </h2>
+          <p style={{ fontSize: 16, color: C.sub, maxWidth: 460, margin: '0 auto', lineHeight: 1.65 }}>
+            Buyers scan because they get instant value — no app required.
+          </p>
+        </div>
+
+        <div className="buyer-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 40 }}>
+          {[
+            { icon: '📸', title: 'Instant property photos',         body: 'Full photo gallery loads immediately in their browser.' },
+            { icon: '💰', title: 'Price and listing details',       body: 'Beds, baths, price, and key features — all on one page.' },
+            { icon: '📅', title: 'Open house times',                body: 'Upcoming open house dates and times shown clearly.' },
+            { icon: '🏠', title: 'Property features & description', body: 'The full story of the home, written to sell.' },
+            { icon: '📋', title: 'Request a private showing',       body: 'One tap to schedule a showing directly with the agent.' },
+            { icon: '💬', title: 'Ask the agent a question',        body: 'Direct line to the listing agent — no middleman.' },
+          ].map(({ icon, title, body }) => (
+            <div key={title} style={{
+              background: C.navy2, border: `1px solid ${C.border}`,
+              borderRadius: 16, padding: '22px 20px',
+              display: 'flex', flexDirection: 'column', gap: 10,
+            }}>
+              <div style={{ fontSize: 28 }}>{icon}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: C.text, letterSpacing: '-0.01em', lineHeight: 1.3 }}>{title}</div>
+              <div style={{ fontSize: 13.5, color: C.sub, lineHeight: 1.65 }}>{body}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ textAlign: 'center', padding: '20px 24px', background: `${C.blue}15`, border: `1px solid ${C.blue}30`, borderRadius: 14 }}>
+          <span style={{ fontSize: 16, fontWeight: 700, color: C.text }}>
+            Buyer gets information.{' '}
+            <span style={{ color: C.blueXL }}>You get the lead.</span>
+            {' '}Every time.
+          </span>
+        </div>
+      </section>
+
       {/* ── HOW IT WORKS ── */}
       <section id="how-it-works" style={{ maxWidth: 1140, margin: '0 auto', padding: '96px 32px' }}>
         <div style={{ textAlign: 'center', marginBottom: 56 }}>
@@ -287,33 +334,31 @@ export default function LandingPage() {
           {[
             {
               emoji: '📱', step: '01',
-              title: 'Place Your QR Sign',
-              body: 'Print once, reuse forever. Assign to any listing in seconds from your dashboard. No new signs, no reprinting.',
+              title: 'Buyer Scans Your Sign',
+              body: 'Buyer sees instant property info — photos, price, details, open house times — right in their browser. No app needed.',
             },
             {
-              emoji: '🔔', step: '02',
-              title: 'Buyer Scans → You Get Alerted',
-              body: 'Instant text the moment a buyer submits their info. Name, phone, email — straight to you. No delays, no middlemen.',
+              emoji: '📋', step: '02',
+              title: 'Buyer Requests Showing or Asks a Question',
+              body: 'To connect with the agent, the buyer submits their contact info voluntarily. Name, phone, email — all captured.',
             },
             {
-              emoji: '🔥', step: '03',
-              title: 'Know Who\'s Ready to Buy',
-              body: 'Behavior-based scoring tells you exactly which buyer to call first. Not just a list — intelligence.',
+              emoji: '🔔', step: '03',
+              title: 'You Get Alerted Instantly',
+              body: 'The moment a buyer submits, you get a text with their name, phone, email, and buyer intent score. No delays.',
             },
-          ].map(({ emoji, step, title, body }, i) => (
-            <div key={step} style={{ flex: 1, position: 'relative' }}>
-              {i < 2 && (
-                <div style={{
-                  position: 'absolute', top: 24, left: 'calc(100% + 10px)',
-                  width: 0, fontSize: 20, color: C.border, zIndex: 1,
-                  display: 'none',
-                }} />
-              )}
+            {
+              emoji: '🔥', step: '04',
+              title: 'Know Who to Call First',
+              body: 'Your Lead Inbox ranks every buyer by engagement. Hot buyers at the top. Call the right person at the right time.',
+            },
+          ].map(({ emoji, step, title, body }) => (
+            <div key={step} style={{ flex: 1 }}>
               <div style={{
                 background: C.navy2, border: `1px solid ${C.border}`,
-                borderRadius: 20, padding: '32px 28px', height: '100%',
+                borderRadius: 20, padding: '28px 24px', height: '100%',
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
                   <div style={{
                     width: 44, height: 44, borderRadius: 12, flexShrink: 0,
                     background: `${C.blue}25`, border: `1px solid ${C.blue}40`,
@@ -321,8 +366,8 @@ export default function LandingPage() {
                   }}>{emoji}</div>
                   <span style={{ fontSize: 12, fontWeight: 800, color: C.blue, letterSpacing: '0.06em' }}>STEP {step}</span>
                 </div>
-                <div style={{ fontSize: 19, fontWeight: 800, color: C.text, margin: '0 0 12px', letterSpacing: '-0.01em', lineHeight: 1.25 }}>{title}</div>
-                <div style={{ fontSize: 14.5, color: C.sub, lineHeight: 1.7 }}>{body}</div>
+                <div style={{ fontSize: 17, fontWeight: 800, color: C.text, margin: '0 0 10px', letterSpacing: '-0.01em', lineHeight: 1.25 }}>{title}</div>
+                <div style={{ fontSize: 14, color: C.sub, lineHeight: 1.7 }}>{body}</div>
               </div>
             </div>
           ))}
@@ -358,6 +403,108 @@ export default function LandingPage() {
               body="Know which signs generate the most buyers. Place smarter. Stop guessing. Win more listings with data your competitors don't have."
             />
           </div>
+        </div>
+      </section>
+
+      {/* ── COMPARISON TABLE ── */}
+      <section style={{ maxWidth: 1140, margin: '0 auto', padding: '96px 32px' }}>
+        <div style={{ textAlign: 'center', marginBottom: 52 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.blueXL, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>
+            The Difference
+          </div>
+          <h2 style={{ fontSize: 38, fontWeight: 900, color: C.text, margin: '0 0 16px', letterSpacing: '-0.025em', lineHeight: 1.15 }}>
+            Why Not Just Use a Free QR Code?
+          </h2>
+        </div>
+
+        <div className="cmp-grid" style={{ display: 'flex', gap: 16, maxWidth: 820, margin: '0 auto' }}>
+          {/* Free QR */}
+          <div style={{ flex: 1, background: C.navy2, border: `1px solid ${C.border}`, borderRadius: 20, padding: '28px 28px', opacity: 0.7 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: C.muted, marginBottom: 24, paddingBottom: 16, borderBottom: `1px solid ${C.border}` }}>
+              Free QR Code
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {[
+                'Sends to a website',
+                'No buyer info captured',
+                'No alerts',
+                'No analytics',
+                'No follow-up possible',
+              ].map(item => (
+                <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 16, color: '#EF4444', flexShrink: 0, fontWeight: 700 }}>✗</span>
+                  <span style={{ fontSize: 15, color: C.muted }}>{item}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* theQRealtor */}
+          <div style={{ flex: 1, background: `${C.blue}10`, border: `2px solid ${C.blue}60`, borderRadius: 20, padding: '28px 28px', position: 'relative' }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: C.blueXL, marginBottom: 24, paddingBottom: 16, borderBottom: `1px solid ${C.blue}30`, display: 'flex', alignItems: 'center', gap: 8 }}>
+              theQRealtor
+              <span style={{ fontSize: 11, fontWeight: 700, background: C.blue, color: '#fff', borderRadius: 6, padding: '2px 8px' }}>✓</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {[
+                'Captures name, phone, email',
+                'Instant SMS alert to agent',
+                'Buyer intent scoring',
+                'Seller reports included',
+                'Lead inbox with action prompts',
+              ].map(item => (
+                <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 16, color: C.blueXL, flexShrink: 0, fontWeight: 700 }}>✓</span>
+                  <span style={{ fontSize: 15, color: C.sub }}>{item}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── SELLER REPORTS HIGHLIGHT ── */}
+      <section style={{ background: C.navy3, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ maxWidth: 900, margin: '0 auto', padding: '96px 32px', textAlign: 'center' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.blueXL, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>
+            Seller Reports
+          </div>
+          <h2 style={{ fontSize: 38, fontWeight: 900, color: C.text, margin: '0 0 14px', letterSpacing: '-0.025em', lineHeight: 1.15 }}>
+            Win More Listings With Real Data
+          </h2>
+          <p style={{ fontSize: 16, color: C.sub, margin: '0 0 48px', lineHeight: 1.65 }}>
+            Walk into every listing appointment with proof of buyer demand.
+          </p>
+
+          {/* Mock report card */}
+          <div style={{
+            background: C.navy2, border: `1px solid ${C.border}`,
+            borderRadius: 20, padding: '28px 32px',
+            maxWidth: 620, margin: '0 auto 32px',
+            boxShadow: `0 0 60px ${C.blue}15`,
+          }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 20 }}>
+              123 Main St — Last 30 Days
+            </div>
+            <div className="seller-stats" style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+              {[
+                { v: '217',  label: 'Scans',           color: C.blueXL,  bg: `${C.blue}18` },
+                { v: '42',   label: 'Buyer Leads',      color: '#FCD34D', bg: '#2D200A' },
+                { v: '18',   label: 'Hot Buyers 🔥',    color: C.hot,     bg: '#300808' },
+                { v: '3',    label: 'Showing Requests', color: C.green,   bg: '#0A2010' },
+              ].map(({ v, label, color, bg }) => (
+                <div key={label} style={{ flex: 1, background: bg, borderRadius: 12, padding: '16px 10px', minWidth: 100 }}>
+                  <div style={{ fontSize: 28, fontWeight: 900, color, lineHeight: 1, letterSpacing: '-0.02em' }}>{v}</div>
+                  <div style={{ fontSize: 10, color: C.muted, marginTop: 6, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, lineHeight: 1.4 }}>{label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <p style={{ fontSize: 18, fontWeight: 700, color: C.sub, margin: 0 }}>
+            Sellers love it.{' '}
+            <span style={{ color: C.text }}>Agents win listings.</span>
+          </p>
         </div>
       </section>
 

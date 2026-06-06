@@ -161,7 +161,7 @@ export default function LandingPage() {
         maxWidth: '100%',
       }}>
         <Link href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', flexShrink: 0 }}>
-          <Image src="/logo-icon.png" alt="theQRealtor" width={140} height={48} style={{ display: 'block' }} />
+          <Image src="/public_logo.png" alt="theQRealtor" width={180} height={48} priority style={{ display: 'block', height: 40, width: 'auto' }} />
         </Link>
 
         <div className="nav-links" style={{ display: 'flex', gap: 32, alignItems: 'center' }}>

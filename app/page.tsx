@@ -160,7 +160,7 @@ export default function LandingPage() {
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', flexShrink: 0 }}>
           <Image src="/logo-icon.png" alt="theQRealtor logo" width={42} height={42} style={{ borderRadius: 9 }} />
           <span style={{ fontSize: 18, fontWeight: 800, color: C.text, letterSpacing: '-0.02em' }}>
-            the<span style={{ color: C.blueXL }}>QR</span>ealtor
+            the<span style={{ color: C.blueL }}>QR</span>ealtor.
           </span>
         </Link>
 
@@ -535,7 +535,7 @@ export default function LandingPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10 }}>
                 <Image src="/logo-icon.png" alt="theQRealtor" width={28} height={28} style={{ borderRadius: 6 }} />
                 <span style={{ fontSize: 15, fontWeight: 800, color: C.text, letterSpacing: '-0.02em' }}>
-                  the<span style={{ color: C.blueXL }}>QR</span>ealtor
+                  the<span style={{ color: C.blueL }}>QR</span>ealtor.
                 </span>
               </div>
               <p style={{ fontSize: 13, color: C.muted, margin: 0, maxWidth: 220, lineHeight: 1.6 }}>

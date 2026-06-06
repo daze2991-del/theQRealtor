@@ -100,6 +100,7 @@ export default function Dashboard() {
   const [pipelineCounts, setPipelineCounts]  = useState<Record<string, number>>({ hot: 0, motivated: 0, warm: 0, cold: 0 })
   const [topPropId,      setTopPropId]       = useState<string | null>(null)
   const [topPropLeads,   setTopPropLeads]    = useState(0)
+  const [activityFeed,   setActivityFeed]    = useState<Array<{ icon: string; label: string; created_at: string }>>([])
   const [plan,           setPlan]            = useState<'free' | 'pro'>('free')
   const [profileName,    setProfileName]     = useState('')
   const [loading,        setLoading]         = useState(true)
@@ -137,10 +138,11 @@ export default function Dashboard() {
         { count: totalLeadsCount },
         { data: leadsPerProp },
         { data: thumbData },
+        { data: recentScansData },
       ] = await Promise.all([
         supabase.from('qrcodes').select('id, label, property_id, scan_count').in('property_id', ids),
         supabase.from('leads').select('*').in('property_id', ids)
-          .order('created_at', { ascending: false }).limit(5),
+          .order('created_at', { ascending: false }).limit(20),
         supabase.from('scan_events').select('*', { count: 'exact', head: true })
           .gte('created_at', todayISO),
         supabase.from('leads').select('*', { count: 'exact', head: true })
@@ -152,6 +154,8 @@ export default function Dashboard() {
         supabase.from('leads').select('property_id, motivation, created_at').in('property_id', ids),
         supabase.from('property_photos').select('property_id, url')
           .in('property_id', ids).order('sort_order', { ascending: true }),
+        supabase.from('scan_events').select('property_id, created_at, return_visit')
+          .in('property_id', ids).order('created_at', { ascending: false }).limit(20),
       ])
 
       const scanMap: Record<string, number> = {}
@@ -174,7 +178,30 @@ export default function Dashboard() {
       ;(thumbData || []).forEach((t: any) => { if (!thumbMap[t.property_id]) thumbMap[t.property_id] = t.url })
 
       setTotalScansAll((qrData || []).reduce((sum: number, q: any) => sum + (q.scan_count || 0), 0))
-      setRecentLeads(recentLeadsData || [])
+      setRecentLeads((recentLeadsData || []).slice(0, 5))
+
+      // Build activity feed: merge leads + scan_events, sort, take 10
+      const propAddr: Record<string, string> = {}
+      props.forEach((p: any) => { propAddr[p.id] = p.address })
+      const motivIcon: Record<string, string> = { hot: '🔥', motivated: '⚡', warm: '👍', cold: '❄️' }
+      const motivText: Record<string, string> = {
+        hot: 'Hot lead submitted at', motivated: 'Motivated buyer at',
+        warm: 'New warm lead at', cold: 'New lead at',
+      }
+      const feedItems: Array<{ icon: string; label: string; created_at: string }> = [
+        ...(recentLeadsData || []).map((l: any) => ({
+          icon: motivIcon[l.motivation] ?? '👤',
+          label: `${motivText[l.motivation] ?? 'New lead at'} ${propAddr[l.property_id] ?? '—'}`,
+          created_at: l.created_at,
+        })),
+        ...(recentScansData || []).map((e: any) => ({
+          icon: e.return_visit ? '↩️' : '📱',
+          label: `${e.return_visit ? 'Buyer returned to' : 'Buyer scanned'} ${propAddr[e.property_id] ?? '—'}`,
+          created_at: e.created_at,
+        })),
+      ]
+      feedItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      setActivityFeed(feedItems.slice(0, 10))
       setScansToday(scansCount || 0)
       setLeadsToday(leadsTodayCount || 0)
       setLeadsThisMonth(leadsMonthCount || 0)
@@ -380,6 +407,39 @@ export default function Dashboard() {
               ))}
             </div>
 
+            {/* Live Activity feed */}
+            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', marginBottom: 20 }}>
+              <div style={{
+                padding: '11px 20px', borderBottom: `1px solid ${C.border}`,
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                background: '#15151E',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontWeight: 700, fontSize: 14, color: C.text }}>Live Activity</span>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#4ade80', display: 'inline-block', boxShadow: '0 0 6px #4ade80' }} />
+                </div>
+              </div>
+              {activityFeed.length === 0 ? (
+                <div style={{ padding: '28px 20px', textAlign: 'center', color: C.muted, fontSize: 13 }}>
+                  No activity yet — place your QR signs to start capturing buyers.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {activityFeed.map((ev, i) => (
+                    <div key={i} style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '9px 20px',
+                      borderBottom: i < activityFeed.length - 1 ? `1px solid ${C.border}` : 'none',
+                    }}>
+                      <span style={{ fontSize: 15, flexShrink: 0, lineHeight: 1 }}>{ev.icon}</span>
+                      <span style={{ fontSize: 13, color: C.sub, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.label}</span>
+                      <span style={{ fontSize: 11, color: C.muted, flexShrink: 0 }}>{timeAgo(ev.created_at)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* 2-col grid: leads + quick actions */}
             <div className="db-grid">
 
@@ -522,18 +582,16 @@ export default function Dashboard() {
                       <span style={{ width: 28, height: 28, borderRadius: 8, background: '#06200F', border: '1px solid #166534', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>👥</span>
                       View Leads
                     </Link>
-                    <button onClick={downloadCSV} disabled={exportingCSV} style={{
+                    <Link href="/dashboard/properties" style={{
                       display: 'flex', alignItems: 'center', gap: 10,
                       padding: '10px 12px', borderRadius: 9,
                       background: C.bg, border: `1px solid ${C.border}`,
                       color: C.sub, fontSize: 13, fontWeight: 500,
-                      cursor: exportingCSV ? 'not-allowed' : 'pointer',
-                      opacity: exportingCSV ? 0.6 : 1,
-                      width: '100%', textAlign: 'left', fontFamily: 'sans-serif',
+                      textDecoration: 'none', marginBottom: 6,
                     }}>
-                      <span style={{ width: 28, height: 28, borderRadius: 8, background: '#2D1A06', border: '1px solid #92400E', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>⬇</span>
-                      {exportingCSV ? 'Exporting…' : 'Download CSV'}
-                    </button>
+                      <span style={{ width: 28, height: 28, borderRadius: 8, background: '#0B1E3A', border: '1px solid #1E4D8C', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>📊</span>
+                      Seller Reports
+                    </Link>
                   </div>
                 </div>
 
@@ -565,11 +623,12 @@ export default function Dashboard() {
                         </div>
                         <Link href={`/report/${topPropId}`} style={{
                           display: 'block', textAlign: 'center',
-                          background: `${C.purple}20`, border: `1px solid ${C.purple}35`,
-                          borderRadius: 9, padding: '8px',
-                          fontSize: 12, fontWeight: 700, color: C.purpleL, textDecoration: 'none',
+                          background: '#2563EB', border: 'none',
+                          borderRadius: 10, padding: '11px',
+                          fontSize: 13, fontWeight: 700, color: '#fff', textDecoration: 'none',
+                          boxShadow: '0 2px 12px #2563EB40',
                         }}>
-                          View Seller Report →
+                          📊 View Seller Report →
                         </Link>
                       </div>
                     )

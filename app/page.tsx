@@ -158,8 +158,8 @@ export default function LandingPage() {
         maxWidth: '100%',
       }}>
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', flexShrink: 0 }}>
-          <Image src="/logo-icon.png" alt="theQRealtor logo" width={32} height={32} style={{ borderRadius: 7 }} />
-          <span style={{ fontSize: 16, fontWeight: 800, color: C.text, letterSpacing: '-0.02em' }}>
+          <Image src="/logo-icon.png" alt="theQRealtor logo" width={42} height={42} style={{ borderRadius: 9 }} />
+          <span style={{ fontSize: 18, fontWeight: 800, color: C.text, letterSpacing: '-0.02em' }}>
             the<span style={{ color: C.blueXL }}>QR</span>ealtor
           </span>
         </Link>
@@ -235,13 +235,12 @@ export default function LandingPage() {
               </a>
             </div>
 
-            <div style={{ marginTop: 28, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ display: 'flex' }}>
-                {['🧑', '👩', '🧔', '👩‍💼', '🧑‍💼'].map((e, i) => (
-                  <div key={i} style={{ width: 28, height: 28, borderRadius: '50%', background: C.navy2, border: `2px solid ${C.navy}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, marginLeft: i ? -8 : 0, zIndex: 5 - i }}>{e}</div>
-                ))}
-              </div>
-              <span style={{ fontSize: 13, color: C.muted }}>Trusted by agents across the US</span>
+            <div style={{ marginTop: 24, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              {['✓ No credit card required', '✓ Setup in minutes', '✓ Cancel anytime'].map((item, i) => (
+                <span key={i} style={{ fontSize: 13, color: C.muted }}>
+                  <span style={{ color: C.blueXL, fontWeight: 700 }}>{item.slice(0, 1)}</span>{item.slice(1)}{i < 2 ? <span style={{ color: C.border, margin: '0 6px' }}>·</span> : null}
+                </span>
+              ))}
             </div>
           </div>
 
@@ -256,11 +255,11 @@ export default function LandingPage() {
       <section style={{ borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, background: C.navy2 }}>
         <div style={{ maxWidth: 1140, margin: '0 auto', padding: '24px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20 }}>
           <span style={{ fontSize: 13, color: C.muted, fontWeight: 500 }}>
-            Trusted by agents across California, Texas, Florida and more
+            Built for solo agents who own their leads
           </span>
           <div className="proof-grid" style={{ display: 'flex', gap: 40 }}>
             {[
-              { stat: '2 min', label: 'Setup time' },
+              { stat: 'Minutes', label: 'Quick setup' },
               { stat: 'Instant', label: 'SMS alerts' },
               { stat: '100%', label: 'Your leads' },
             ].map(({ stat, label }) => (
@@ -400,7 +399,7 @@ export default function LandingPage() {
             </span>
           </div>
           <p style={{ fontSize: 18, color: C.sub, lineHeight: 1.65, maxWidth: 500, margin: '0 auto' }}>
-            Every lead belongs to <strong style={{ color: C.text }}>you</strong> — not your broker, not Zillow. Yours.
+            Every lead belongs to <strong style={{ color: C.text }}>you</strong> — not your broker, not a third-party portal. Yours.
           </p>
         </div>
       </section>

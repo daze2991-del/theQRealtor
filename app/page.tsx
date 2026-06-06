@@ -157,11 +157,8 @@ export default function LandingPage() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         maxWidth: '100%',
       }}>
-        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', flexShrink: 0 }}>
-          <Image src="/logo-icon.png" alt="theQRealtor logo" width={42} height={42} style={{ borderRadius: 9 }} />
-          <span style={{ fontSize: 18, fontWeight: 800, color: C.text, letterSpacing: '-0.02em' }}>
-            the<span style={{ color: C.blueL }}>QR</span>ealtor.
-          </span>
+        <Link href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', flexShrink: 0 }}>
+          <Image src="/logo-icon.png" alt="theQRealtor" width={140} height={48} style={{ display: 'block' }} />
         </Link>
 
         <div className="nav-links" style={{ display: 'flex', gap: 32, alignItems: 'center' }}>

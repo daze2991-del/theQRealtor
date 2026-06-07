@@ -339,7 +339,7 @@ export default function OnboardingPage() {
                 <button onClick={downloadQR} style={primaryBtn}>
                   ↓ Download QR as PNG
                 </button>
-                <button onClick={() => router.push('/dashboard')} style={secondaryBtn}>
+                <button onClick={() => { localStorage.setItem('onboarding_complete', 'true'); router.push('/dashboard') }} style={secondaryBtn}>
                   Go to Dashboard →
                 </button>
               </div>

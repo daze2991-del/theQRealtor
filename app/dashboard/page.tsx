@@ -188,7 +188,7 @@ export default function Dashboard() {
       const { data: props } = await supabase.from('properties').select('id, address, city, state, active, packet_enabled')
         .eq('user_id', session.user.id).order('created_at', { ascending: false })
       if (!props) return // query failed — stay on dashboard, don't redirect
-      if (props.length === 0) { router.push('/dashboard/onboarding'); return }
+      if (props.length === 0 && !localStorage.getItem('onboarding_complete')) { router.push('/dashboard/onboarding'); return }
       setProperties(props)
 
       const ids = props.map((p: any) => p.id)

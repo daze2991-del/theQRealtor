@@ -2,8 +2,8 @@ import { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'RealtQR',
-    short_name: 'RealtQR',
+    name: 'theQRealtor',
+    short_name: 'theQRealtor',
     description: 'QR sign tracking and lead capture for real estate agents.',
     start_url: '/dashboard',
     display: 'standalone',

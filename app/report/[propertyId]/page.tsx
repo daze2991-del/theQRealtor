@@ -1,12 +1,20 @@
-import { createAdminSupabase } from '../../../lib/supabase-admin'
-import { notFound } from 'next/navigation'
-import PrintButton from './PrintButton'
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import { useParams, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+
+const C = {
+  bg: '#0F0F13', card: '#1A1A24', cardAlt: '#15151E', border: '#252533',
+  purple: '#7C3AED', purpleL: '#8B5CF6',
+  text: '#FFFFFF', sub: '#C4C4D4', muted: '#6B7280',
+} as const
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function timeAgo(iso: string): string {
+function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime()
   const m = Math.floor(diff / 60000)
-  if (m < 1)  return 'just now'
+  if (m < 1) return 'just now'
   if (m < 60) return `${m}m ago`
   const h = Math.floor(m / 60)
   if (h < 24) return `${h}h ago`
@@ -15,567 +23,602 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-function fmt(n: number): string {
-  return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n)
+function fmtDate(iso: string, opts?: Intl.DateTimeFormatOptions) {
+  return new Date(iso).toLocaleDateString('en-US', opts ?? { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-// ── Palette (premium light theme) ────────────────────────────────────────────
-const R = {
-  bg:       '#F8FAFC',
-  card:     '#FFFFFF',
-  border:   '#E2E8F0',
-  text:     '#0F172A',
-  sub:      '#334155',
-  muted:    '#64748B',
-  purple:   '#7C3AED',
-  purpleL:  '#8B5CF6',
-  purpleBg: '#F5F3FF',
-  hot:      '#DC2626',
-  hotBg:    '#FEF2F2',
-  motiv:    '#EA580C',
-  motivBg:  '#FFF7ED',
-  warm:     '#2563EB',
-  warmBg:   '#EFF6FF',
-  cold:     '#94A3B8',
-  coldBg:   '#F8FAFC',
-  green:    '#16A34A',
-  greenBg:  '#F0FDF4',
+function fmtDateShort(iso: string) {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
-export default async function SellerReportPage({
-  params,
-}: {
-  params: { propertyId: string }
+function getDailyCount(items: any[], days = 14): number[] {
+  const counts = Array(days).fill(0)
+  const now = Date.now()
+  items.forEach(item => {
+    const daysAgo = Math.floor((now - new Date(item.created_at).getTime()) / 86400000)
+    if (daysAgo >= 0 && daysAgo < days) counts[days - 1 - daysAgo]++
+  })
+  return counts
+}
+
+function safePct(curr: number, prev: number) {
+  if (prev === 0) return curr > 0 ? 100 : 0
+  return Math.round(((curr - prev) / prev) * 100)
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+function Sparkline({ data, color }: { data: number[]; color: string }) {
+  const H = 28, W = 100
+  const max = Math.max(...data, 1)
+  const pts = data.map((v, i) => {
+    const x = data.length < 2 ? W / 2 : (i / (data.length - 1)) * W
+    const y = H - 2 - ((v / max) * (H - 4))
+    return `${x},${y}`
+  }).join(' ')
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" width="100%" height={H}>
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function KpiCard({ icon, label, value, change, sparkData, color }: {
+  icon: string; label: string; value: number; change: number; sparkData: number[]; color: string
 }) {
-  const supabase = createAdminSupabase()
-  const { propertyId } = params
-
-  const [
-    { data: property },
-    { data: photos },
-    { data: qrcodes },
-    { data: leads },
-    rawScansResult,
-    scanCountResult,
-    packetCountResult,
-  ] = await Promise.all([
-    supabase.from('properties').select('*').eq('id', propertyId).single(),
-    supabase.from('property_photos').select('url').eq('property_id', propertyId).order('sort_order', { ascending: true }).limit(1),
-    supabase.from('qrcodes').select('id, label, scan_count, placement').eq('property_id', propertyId).order('scan_count', { ascending: false }),
-    supabase.from('leads').select('id, motivation, created_at').eq('property_id', propertyId).order('created_at', { ascending: false }),
-    supabase.from('scan_events')
-      .select('created_at, cta_clicked, converted, return_visit, photos_viewed, lead_id, time_on_page_sec, qr_id')
-      .eq('property_id', propertyId)
-      .order('created_at', { ascending: false })
-      .limit(300),
-    supabase.from('scan_events').select('*', { count: 'exact', head: true }).eq('property_id', propertyId),
-    supabase.from('packet_requests').select('*', { count: 'exact', head: true }).eq('property_id', propertyId),
-  ])
-
-  if (!property) notFound()
-
-  const rawScans      = rawScansResult.data
-  const totalScans    = scanCountResult.count ?? 0
-  const packetCount   = packetCountResult.count ?? 0
-
-  const sl = leads    || []
-  const ss = rawScans || []
-  const sq = qrcodes  || []
-
-  // ── Derived stats ─────────────────────────────────────────────────────────
-  const totalLeads  = sl.length
-  const hotLeads    = sl.filter((l: any) => l.motivation === 'hot').length
-  const showingReqs = hotLeads
-
-  // ── Benchmark tier ────────────────────────────────────────────────────────
-  const benchmark = totalScans >= 10 && totalLeads >= 3 && hotLeads >= 1
-    ? { icon: '🟢', label: 'Above Average Buyer Interest', color: '#16A34A', bg: '#F0FDF4', border: '#86EFAC', detail: 'This listing is generating strong buyer engagement compared to typical listings.' }
-    : totalScans >= 5 && totalLeads >= 1
-    ? { icon: '🟡', label: 'Moderate Buyer Interest',      color: '#CA8A04', bg: '#FEFCE8', border: '#FDE047', detail: 'This listing is attracting buyers. Keep your QR signs visible to build momentum.' }
-    : { icon: '🔴', label: 'Early Stage — Keep promoting your QR sign', color: '#DC2626', bg: '#FEF2F2', border: '#FCA5A5', detail: 'More scans and leads will come as buyers discover your listing. Make sure your QR sign is placed prominently.' }
-
-  const intent = {
-    hot:       sl.filter((l: any) => l.motivation === 'hot').length,
-    motivated: sl.filter((l: any) => l.motivation === 'motivated').length,
-    warm:      sl.filter((l: any) => l.motivation === 'warm').length,
-    cold:      sl.filter((l: any) => l.motivation === 'cold').length,
-  }
-
-  // ── 30-day chart ──────────────────────────────────────────────────────────
-  const chartDays: { label: string; count: number }[] = []
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i)
-    chartDays.push({ label: d.toISOString().slice(0, 10), count: 0 })
-  }
-  ss.forEach((e: any) => {
-    const entry = chartDays.find(c => c.label === e.created_at.slice(0, 10))
-    if (entry) entry.count++
-  })
-  const maxBar = Math.max(...chartDays.map(d => d.count), 1)
-
-  // ── Top signs ─────────────────────────────────────────────────────────────
-  const topSigns    = (sq as any[]).slice(0, 6)
-  const maxSignScan = Math.max(...topSigns.map((q: any) => q.scan_count || 0), 1)
-
-  // ── Recent activity feed (leads + scan events merged) ─────────────────────
-  type ActivityKind = 'lead_showing' | 'lead_question' | 'return_visit' | 'photos_viewed' | 'new_scan'
-  type RichActivityEvent = {
-    created_at: string
-    kind: ActivityKind
-    buyerId?: string
-    photosViewed?: number
-    timeOnPage?: number
-    visitCount?: number
-    qrLabel?: string
-  }
-
-  const qrLabelMap: Record<string, string> = {}
-  for (const qr of sq as any[]) qrLabelMap[qr.id] = qr.label || 'QR sign'
-
-  const leadEventIds = new Set((sl as any[]).map((l: any) => l.id))
-
-  const leadActivities: RichActivityEvent[] = (sl as any[]).map((l: any) => {
-    const leadScans = (ss as any[]).filter((e: any) => e.lead_id === l.id)
-    const maxPhotos = leadScans.reduce((m: number, e: any) => Math.max(m, e.photos_viewed || 0), 0)
-    const maxTime   = leadScans.reduce((m: number, e: any) => Math.max(m, e.time_on_page_sec || 0), 0)
-    return {
-      created_at: l.created_at,
-      kind: (l.motivation === 'hot' || l.motivation === 'motivated') ? 'lead_showing' : 'lead_question',
-      buyerId: l.id.slice(-4).toUpperCase(),
-      photosViewed: maxPhotos > 0 ? maxPhotos : undefined,
-      timeOnPage: maxTime > 0 ? maxTime : undefined,
-    }
-  })
-
-  const scanGroupMap: Record<string, any[]> = {}
-  const anonScans: any[] = []
-  for (const e of ss as any[]) {
-    if (e.lead_id) {
-      if (leadEventIds.has(e.lead_id)) continue
-      scanGroupMap[e.lead_id] = scanGroupMap[e.lead_id] || []
-      scanGroupMap[e.lead_id].push(e)
-    } else {
-      anonScans.push(e)
-    }
-  }
-
-  const groupedScanActivities: RichActivityEvent[] = Object.entries(scanGroupMap).map(([leadId, scans]) => {
-    const maxPhotos = scans.reduce((m: number, e: any) => Math.max(m, e.photos_viewed || 0), 0)
-    const maxTime   = scans.reduce((m: number, e: any) => Math.max(m, e.time_on_page_sec || 0), 0)
-    const kind: ActivityKind = scans.some((e: any) => e.return_visit)
-      ? 'return_visit'
-      : maxPhotos >= 5 ? 'photos_viewed' : 'new_scan'
-    return {
-      created_at: scans[0].created_at,
-      kind,
-      buyerId: leadId.slice(-4).toUpperCase(),
-      photosViewed: maxPhotos > 0 ? maxPhotos : undefined,
-      timeOnPage: maxTime > 0 ? maxTime : undefined,
-      visitCount: scans.length > 1 ? scans.length : undefined,
-    }
-  })
-
-  const anonScanActivities: RichActivityEvent[] = anonScans.map((e: any) => {
-    const kind: ActivityKind = e.return_visit
-      ? 'return_visit'
-      : (e.photos_viewed || 0) >= 5 ? 'photos_viewed' : 'new_scan'
-    return {
-      created_at: e.created_at,
-      kind,
-      photosViewed: (e.photos_viewed || 0) > 0 ? e.photos_viewed : undefined,
-      timeOnPage: (e.time_on_page_sec || 0) > 0 ? e.time_on_page_sec : undefined,
-      qrLabel: e.qr_id ? qrLabelMap[e.qr_id] : undefined,
-    }
-  })
-
-  const allActivity = [...leadActivities, ...groupedScanActivities, ...anonScanActivities]
-  allActivity.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-  const recentActivity = allActivity.slice(0, 10)
-
-  // ── Buyer leaderboard ─────────────────────────────────────────────────────
-  type LeaderEntry = { id: string; motivation: string; score: number; action: string }
-
-  const leaderboard: LeaderEntry[] = (sl as any[]).map((lead: any) => {
-    const leadScans    = (ss as any[]).filter((e: any) => e.lead_id === lead.id)
-    const returnVisits = leadScans.filter((e: any) => e.return_visit).length
-    const hasPhotos    = leadScans.some((e: any) => (e.photos_viewed || 0) >= 5)
-    const maxTime      = leadScans.reduce((m: number, e: any) => Math.max(m, e.time_on_page_sec || 0), 0)
-
-    let score = 0
-    if (lead.motivation === 'hot') score += 10
-    else if (lead.motivation === 'motivated' || lead.motivation === 'warm') score += 5
-    score += returnVisits * 3
-    if (hasPhotos) score += 2
-    if (maxTime >= 300) score += 2
-    score += leadScans.length
-
-    const action = lead.motivation === 'hot' ? 'Requested Showing'
-      : lead.motivation === 'motivated' ? 'Sent Question'
-      : lead.motivation === 'warm'      ? 'Sent Question'
-      : 'Browsed'
-
-    return { id: lead.id, motivation: lead.motivation, score, action }
-  })
-  leaderboard.sort((a, b) => b.score - a.score)
-  const topBuyers = leaderboard.slice(0, 5)
-
-  // ── Property display ──────────────────────────────────────────────────────
-  const heroPhoto   = (photos || [])[0]?.url ?? null
-  const price       = property.price  ? `$${Number(property.price).toLocaleString()}` : null
-  const beds        = property.beds   ? `${property.beds} bd`   : null
-  const baths       = property.baths  ? `${property.baths} ba`  : null
-  const location    = [property.city, property.state].filter(Boolean).join(', ')
-  const generated   = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-  const periodStart = new Date(Date.now() - 29 * 86_400_000)
-    .toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-
-  // ── Card helper ───────────────────────────────────────────────────────────
-  const sectionCard = (children: React.ReactNode, mb = 20) => (
-    <div style={{ background: R.card, borderRadius: 16, border: `1px solid ${R.border}`, padding: '22px 24px', marginBottom: mb }}>
-      {children}
+  const pos = change >= 0
+  return (
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: '18px 16px 14px', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
+        <span style={{ fontSize: 18 }}>{icon}</span>
+        <span style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1.3 }}>{label}</span>
+      </div>
+      <div style={{ fontSize: 34, fontWeight: 900, color: C.text, lineHeight: 1, marginBottom: 5, letterSpacing: '-0.02em' }}>{value.toLocaleString()}</div>
+      <div style={{ fontSize: 11, fontWeight: 600, color: pos ? '#4ade80' : '#F87171', marginBottom: 10 }}>
+        {pos ? '↑' : '↓'} {Math.abs(change)}% vs last month
+      </div>
+      <div style={{ opacity: 0.6 }}><Sparkline data={sparkData} color={color} /></div>
     </div>
   )
+}
 
-  const sectionHead = (title: string, sub?: string) => (
-    <div style={{ marginBottom: 18 }}>
-      <div style={{ fontSize: 14, fontWeight: 700, color: R.text, letterSpacing: '-0.01em' }}>{title}</div>
-      {sub && <div style={{ fontSize: 11, color: R.muted, marginTop: 2 }}>{sub}</div>}
-    </div>
-  )
+// ── Main Page ─────────────────────────────────────────────────────────────────
+export default function SellerReportPage() {
+  const params      = useParams()
+  const searchParams = useSearchParams()
+  const propertyId  = params.propertyId as string
+
+  const [report,   setReport]   = useState<any>(null)
+  const [loading,  setLoading]  = useState(true)
+  const [missing,  setMissing]  = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [copied,   setCopied]   = useState(false)
+  const [toast,    setToast]    = useState('')
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    fetch(`/api/report/${propertyId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d?.property) { setMissing(true); setLoading(false); return }
+        setReport(d)
+        setLoading(false)
+      })
+      .catch(() => { setMissing(true); setLoading(false) })
+  }, [propertyId])
+
+  // Auto-print on ?print=true
+  useEffect(() => {
+    if (searchParams.get('print') === 'true') {
+      const t = setTimeout(() => window.print(), 800)
+      return () => clearTimeout(t)
+    }
+  }, [searchParams])
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [])
+
+  const copyURL = async () => {
+    try { await navigator.clipboard.writeText(window.location.href) } catch {}
+    setCopied(true); setTimeout(() => setCopied(false), 2500)
+  }
+
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500) }
+
+  if (loading) {
+    return (
+      <main style={{ background: C.bg, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 32, height: 32, border: `2px solid ${C.purple}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      </main>
+    )
+  }
+
+  if (missing) {
+    return (
+      <main style={{ background: C.bg, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
+        <div style={{ textAlign: 'center', color: C.muted }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🏠</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 8 }}>Report not found</div>
+          <Link href="/dashboard/properties" style={{ color: C.purpleL }}>← Back to Properties</Link>
+        </div>
+      </main>
+    )
+  }
+
+  const { property, photo, leads, scanEvents, qrCodes, packetCount, packets } = report
+
+  // ── Derived values ────────────────────────────────────────────────────────
+  const now            = new Date()
+  const msPerDay       = 86_400_000
+  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+
+  const totalScans       = qrCodes.reduce((s: number, q: any) => s + (q.scan_count ?? 0), 0)
+  const engagedBuyers    = scanEvents.filter((e: any) => (e.photos_viewed ?? 0) > 0 || (e.time_on_page_sec ?? 0) > 60).length
+  const showingRequests  = leads.filter((l: any) => l.motivation === 'hot').length
+  const buyerQuestions   = leads.filter((l: any) => l.notes && (l.notes as string).trim()).length
+  const returnVisitors   = scanEvents.filter((e: any) => e.return_visit).length
+  const photoViewers     = scanEvents.filter((e: any) => (e.photos_viewed ?? 0) >= 5).length
+
+  const thisMonthScans    = scanEvents.filter((e: any) => new Date(e.created_at) >= thisMonthStart).length
+  const lastMonthScans    = scanEvents.filter((e: any) => { const d = new Date(e.created_at); return d >= lastMonthStart && d < thisMonthStart }).length
+  const thisMonthEngaged  = scanEvents.filter((e: any) => new Date(e.created_at) >= thisMonthStart && ((e.photos_viewed ?? 0) > 0 || (e.time_on_page_sec ?? 0) > 60)).length
+  const lastMonthEngaged  = scanEvents.filter((e: any) => { const d = new Date(e.created_at); return d >= lastMonthStart && d < thisMonthStart && ((e.photos_viewed ?? 0) > 0 || (e.time_on_page_sec ?? 0) > 60) }).length
+  const thisMonthShowings = leads.filter((l: any) => l.motivation === 'hot' && new Date(l.created_at) >= thisMonthStart).length
+  const lastMonthShowings = leads.filter((l: any) => { const d = new Date(l.created_at); return l.motivation === 'hot' && d >= lastMonthStart && d < thisMonthStart }).length
+  const thisMonthQuestions = leads.filter((l: any) => l.notes && new Date(l.created_at) >= thisMonthStart).length
+  const lastMonthQuestions = leads.filter((l: any) => { const d = new Date(l.created_at); return l.notes && d >= lastMonthStart && d < thisMonthStart }).length
+  const thisMonthPackets  = (packets ?? []).filter((p: any) => new Date(p.created_at) >= thisMonthStart).length
+  const lastMonthPackets  = (packets ?? []).filter((p: any) => { const d = new Date(p.created_at); return d >= lastMonthStart && d < thisMonthStart }).length
+
+  // Sparklines
+  const scanSparkData     = getDailyCount(scanEvents, 14)
+  const engagedSparkData  = getDailyCount(scanEvents.filter((e: any) => (e.photos_viewed ?? 0) > 0 || (e.time_on_page_sec ?? 0) > 60), 14)
+  const showingSparkData  = getDailyCount(leads.filter((l: any) => l.motivation === 'hot'), 14)
+  const packetSparkData   = getDailyCount(packets ?? [], 14)
+  const questionSparkData = getDailyCount(leads.filter((l: any) => l.notes), 14)
+
+  // Health
+  const health = totalScans >= 10 && leads.length >= 3 && showingRequests >= 1
+    ? { label: '🟢 High Interest',     color: '#10B981', bg: 'rgba(16,185,129,0.12)', score: 'above average',
+        sentence: 'Your listing is performing above average compared to similar homes in your area.' }
+    : totalScans >= 5 && leads.length >= 1
+    ? { label: '🟡 Moderate Interest', color: '#F59E0B', bg: 'rgba(245,158,11,0.12)', score: 'steady',
+        sentence: 'Your listing is attracting steady buyer interest.' }
+    : { label: '🔴 Low Interest',      color: '#EF4444', bg: 'rgba(239,68,68,0.12)',  score: 'building',
+        sentence: 'Your listing needs more visibility. Consider repositioning your QR signs.' }
+
+  // Date range
+  const createdAt    = new Date(property.created_at)
+  const listingDays  = Math.max(1, Math.ceil((now.getTime() - createdAt.getTime()) / msPerDay))
+  const dateRangeStr = `${fmtDateShort(property.created_at)} – ${fmtDateShort(now.toISOString())}`
+  const location     = [property.city, property.state].filter(Boolean).join(', ')
+
+  // Agent message
+  const agentName = property.agent_name || 'Your Agent'
+  const hasDisclosures = packetCount > 0
+  const agentMessage = [
+    `Hi there,`,
+    ``,
+    `Your home at ${property.address} is generating ${health.score} buyer interest. In the last ${listingDays} day${listingDays !== 1 ? 's' : ''}, ${totalScans} buyer${totalScans !== 1 ? 's' : ''} scanned your QR sign${showingRequests > 0 ? `, ${showingRequests} requested a showing` : ''}${hasDisclosures ? `, and ${packetCount} downloaded your disclosures` : ''}. Buyer engagement is ${health.score} compared to similar listings in the area.`,
+    ``,
+    `Let me know if you have any questions.`,
+    ``,
+    `— ${agentName}`,
+  ].join('\n')
+
+  // Recent buyer activity (anonymized)
+  type AEvent = { icon: string; text: string; time: string; color: string; dot: string }
+  const activityEvents: AEvent[] = [
+    ...leads.filter((l: any) => l.motivation === 'hot').map((l: any): AEvent => ({
+      icon: '📅', text: 'Buyer requested a showing', time: l.created_at, color: '#EF4444', dot: '#EF4444',
+    })),
+    ...leads.filter((l: any) => l.notes && (l.notes as string).trim()).map((l: any): AEvent => ({
+      icon: '💬', text: 'Buyer asked a question about the property', time: l.created_at, color: '#10B981', dot: '#10B981',
+    })),
+    ...(packets ?? []).map((p: any): AEvent => ({
+      icon: '📄', text: 'Buyer downloaded property disclosures', time: p.created_at, color: '#7C3AED', dot: '#7C3AED',
+    })),
+    ...scanEvents.filter((e: any) => e.return_visit).map((e: any): AEvent => ({
+      icon: '↩️', text: 'Buyer returned to view this listing again', time: e.created_at, color: '#8B5CF6', dot: '#8B5CF6',
+    })),
+    ...scanEvents.filter((e: any) => !e.return_visit && (e.photos_viewed ?? 0) >= 5).map((e: any): AEvent => ({
+      icon: '📸', text: 'Buyer viewed all photos', time: e.created_at, color: '#14B8A6', dot: '#14B8A6',
+    })),
+    ...scanEvents.filter((e: any) => !e.return_visit && (e.photos_viewed ?? 0) < 5).map((e: any): AEvent => ({
+      icon: '📱', text: 'New buyer discovered this listing', time: e.created_at, color: '#F97316', dot: '#F97316',
+    })),
+  ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 8)
+
+  const dropdownStyle: React.CSSProperties = {
+    position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 50,
+    background: C.card, border: `1px solid ${C.border}`, borderRadius: 10,
+    overflow: 'hidden', minWidth: 200, boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+  }
+
+  const menuItemStyle: React.CSSProperties = {
+    display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none',
+    color: C.sub, fontSize: 13, padding: '10px 16px', cursor: 'pointer', fontFamily: 'sans-serif',
+    textDecoration: 'none', boxSizing: 'border-box',
+  }
+
+  const outlineBtn: React.CSSProperties = {
+    background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 10,
+    color: C.sub, fontSize: 13, fontWeight: 600, padding: '10px 18px',
+    cursor: 'pointer', fontFamily: 'sans-serif', textDecoration: 'none',
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flex: 1,
+  }
+
+  const initials = (agentName).split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
 
   return (
-    <main style={{ background: R.bg, minHeight: '100vh', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', color: R.text }}>
+    <main style={{ background: C.bg, minHeight: '100vh', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', color: C.text }}>
       <style>{`
-        @media (max-width: 640px) {
-          .rpt-stats  { grid-template-columns: 1fr 1fr !important; }
-          .rpt-two    { grid-template-columns: 1fr !important; }
-          .rpt-wrap   { padding: 16px 14px 48px !important; }
-          .rpt-hero   { height: 220px !important; }
-          .rpt-nav    { padding: 12px 16px !important; }
-          .rpt-nav-ctr { display: none !important; }
-        }
+        @keyframes spin { to { transform: rotate(360deg) } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px) } to { opacity: 1; transform: none } }
+        .rpt-mitem:hover { background: rgba(255,255,255,0.05) !important }
+        @media (max-width: 900px) { .rpt-2col { grid-template-columns: 1fr !important } .rpt-5col { grid-template-columns: 1fr 1fr !important } }
+        @media (max-width: 600px) { .rpt-5col { grid-template-columns: 1fr !important } .rpt-hero { flex-direction: column !important } .rpt-share { flex-direction: column !important } .rpt-nav-center { display: none !important } }
         @media print {
-          .no-print   { display: none !important; }
-          .rpt-nav    { position: static !important; }
-          .rpt-two    { grid-template-columns: 1fr 1fr !important; }
-          .rpt-stats  { grid-template-columns: repeat(5, 1fr) !important; }
-          .rpt-wrap   { padding: 16px 20px 32px !important; }
-          .rpt-hero   { height: 220px !important; }
-          *           { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          body, main  { background: #fff !important; }
-          .rpt-card-break { page-break-before: always; }
+          .no-print { display: none !important }
+          nav { position: static !important }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important }
         }
       `}</style>
 
-      {/* ── Nav ── */}
-      <nav className="rpt-nav" style={{
-        background: '#fff', borderBottom: `1px solid ${R.border}`,
-        padding: '14px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        position: 'sticky', top: 0, zIndex: 10,
+      {/* ── Toast ────────────────────────────────────────────────────────────── */}
+      {toast && (
+        <div style={{
+          position: 'fixed', top: 72, left: '50%', transform: 'translateX(-50%)', zIndex: 1000,
+          background: C.card, border: `1px solid ${C.border}`, borderRadius: 10,
+          padding: '10px 20px', fontSize: 13, color: C.text, fontWeight: 600,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.4)', animation: 'fadeIn 0.2s ease',
+        }}>
+          {toast}
+        </div>
+      )}
+
+      {/* ── Sticky Nav ───────────────────────────────────────────────────────── */}
+      <nav className="no-print" style={{
+        position: 'sticky', top: 0, zIndex: 20,
+        background: C.bg, borderBottom: `1px solid ${C.border}`,
+        padding: '12px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 20 }}>🏠</span>
-          <span style={{ fontSize: 15, fontWeight: 800, color: R.purple, letterSpacing: '-0.02em' }}>theQRealtor</span>
+        {/* Logo */}
+        <div style={{ flexShrink: 0 }}>
+          <span style={{ fontSize: 17, fontWeight: 900, color: C.text, letterSpacing: '-0.02em' }}>
+            the<span style={{ color: C.purpleL }}>QR</span>ealtor.
+          </span>
         </div>
-        <div className="rpt-nav-ctr" style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: R.text }}>Seller Performance Report</div>
-          <div style={{ fontSize: 11, color: R.muted }}>Generated {generated}</div>
+
+        {/* Breadcrumb */}
+        <div className="rpt-nav-center" style={{ fontSize: 12, color: C.muted, textAlign: 'center' }}>
+          <Link href="/dashboard/properties" style={{ color: C.muted, textDecoration: 'none' }}>Seller Reports</Link>
+          <span style={{ margin: '0 6px' }}>›</span>
+          <span style={{ color: C.sub, fontWeight: 600 }}>{property.address}</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <PrintButton />
-          <div style={{ fontSize: 11, color: R.muted, textAlign: 'right', lineHeight: 1.5 }}>
-            <div>Confidential</div>
-            <div style={{ color: R.purple, fontWeight: 600 }}>For seller's eyes only</div>
+
+        {/* Actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <a href={`/p/${propertyId}`} target="_blank" rel="noreferrer" style={{
+            fontSize: 12, fontWeight: 600, color: C.sub, textDecoration: 'none',
+            border: `1px solid ${C.border}`, borderRadius: 8, padding: '7px 13px',
+          }}>
+            👁 Preview as Seller
+          </a>
+          <button
+            onClick={copyURL}
+            style={{
+              fontSize: 12, fontWeight: 700,
+              background: copied ? '#052e16' : C.purple,
+              color: copied ? '#4ade80' : '#fff',
+              border: 'none', borderRadius: 8, padding: '8px 16px',
+              cursor: 'pointer', fontFamily: 'sans-serif',
+            }}
+          >
+            {copied ? '✓ Copied!' : '📊 Share Report'}
+          </button>
+
+          <div ref={menuRef} style={{ position: 'relative' }}>
+            <button
+              onClick={() => setMenuOpen(v => !v)}
+              style={{ background: '#1F1F2E', border: `1px solid ${C.border}`, borderRadius: 8, padding: '8px 12px', fontSize: 16, color: C.muted, cursor: 'pointer', lineHeight: 1 }}
+            >⋮</button>
+            {menuOpen && (
+              <div style={dropdownStyle}>
+                <a href={`/p/${propertyId}`} target="_blank" rel="noreferrer" className="rpt-mitem" style={menuItemStyle} onClick={() => setMenuOpen(false)}>🔗 View Property Page</a>
+                <a href={`/report/${propertyId}?print=true`} target="_blank" rel="noreferrer" className="rpt-mitem" style={menuItemStyle} onClick={() => setMenuOpen(false)}>⬇ Download PDF</a>
+                <button className="rpt-mitem" style={menuItemStyle} onClick={() => { setMenuOpen(false); window.print() }}>🖨 Print Report</button>
+              </div>
+            )}
           </div>
         </div>
       </nav>
 
-      {/* ── Hero ── */}
-      <div className="rpt-hero" style={{ position: 'relative', height: 280, overflow: 'hidden', flexShrink: 0 }}>
-        {heroPhoto
-          ? <img src={heroPhoto} alt={property.address} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-          : <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, #7C3AED 0%, #4338CA 100%)' }} />
-        }
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.15) 55%, transparent 100%)' }} />
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '22px 28px' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.6)', marginBottom: 6 }}>
-            Seller Performance Report · {generated}
-          </div>
-          {price && <div style={{ fontSize: 30, fontWeight: 900, color: '#fff', lineHeight: 1, marginBottom: 6, letterSpacing: '-0.02em' }}>{price}</div>}
-          <div style={{ fontSize: 20, fontWeight: 700, color: '#fff', marginBottom: 4, lineHeight: 1.2 }}>{property.address}</div>
-          {location && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', marginBottom: 4 }}>{location}</div>}
-          {(beds || baths) && (
-            <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
-              {[beds, baths].filter(Boolean).map(s => (
-                <span key={s} style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.85)', background: 'rgba(255,255,255,0.15)', borderRadius: 5, padding: '3px 9px', backdropFilter: 'blur(4px)' }}>{s}</span>
-              ))}
-            </div>
-          )}
+      {/* ── Below-nav header ─────────────────────────────────────────────────── */}
+      <div style={{ padding: '18px 28px 0', borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6, flexWrap: 'wrap' }}>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: C.text, letterSpacing: '-0.02em' }}>
+            Seller Report
+          </h1>
+          <span style={{
+            fontSize: 12, fontWeight: 700, color: health.color, background: health.bg,
+            border: `1px solid ${health.color}40`, borderRadius: 20, padding: '3px 12px',
+          }}>
+            {health.label}
+          </span>
+        </div>
+        <div style={{ fontSize: 12, color: C.muted, paddingBottom: 14 }}>
+          📅 {dateRangeStr} &nbsp;|&nbsp; {listingDays} day{listingDays !== 1 ? 's' : ''} on market
         </div>
       </div>
 
-      {/* ── Content ── */}
-      <div className="rpt-wrap" style={{ maxWidth: 900, margin: '0 auto', padding: '24px 20px 60px' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '22px 28px 60px' }}>
 
-        {/* ── 5 Stat Cards ── */}
-        <div className="rpt-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 20 }}>
-          {([
-            { icon: '📊', value: fmt(totalScans),  label: 'QR Scans',        bg: R.purpleBg, color: R.purple,  border: R.purpleL },
-            { icon: '🎯', value: fmt(totalLeads),  label: 'Buyer Leads',     bg: '#FFFBEB',  color: '#D97706', border: '#F59E0B' },
-            { icon: '🔥', value: fmt(hotLeads),    label: 'Hot Buyers',      bg: R.hotBg,    color: R.hot,     border: '#F87171' },
-            { icon: '📅', value: fmt(showingReqs), label: 'Showing Reqs',    bg: R.greenBg,  color: R.green,   border: '#4ADE80' },
-            { icon: '📄', value: fmt(packetCount), label: 'Packet Requests', bg: '#FFFBEB',  color: '#B45309', border: '#D97706' },
-          ] as const).map(({ icon, value, label, bg, color, border }) => (
-            <div key={label} style={{ background: bg, borderRadius: 16, padding: '20px 16px', textAlign: 'center', border: `1px solid ${border}30`, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-              <div style={{ fontSize: 22, marginBottom: 8 }}>{icon}</div>
-              <div style={{ fontSize: 36, fontWeight: 900, color, lineHeight: 1, marginBottom: 4, letterSpacing: '-0.02em' }}>{value}</div>
-              <div style={{ fontSize: 10, color: R.muted, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700 }}>{label}</div>
+        {/* ── Property Hero Card ───────────────────────────────────────────── */}
+        <div className="rpt-hero" style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', display: 'flex', marginBottom: 20, minHeight: 190 }}>
+          {/* Photo */}
+          <div style={{ width: 240, flexShrink: 0, position: 'relative' }}>
+            {photo ? (
+              <img src={photo} alt={property.address} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            ) : (
+              <div style={{ width: '100%', height: '100%', minHeight: 190, background: `linear-gradient(135deg, ${C.purple}, #5B21B6)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 48 }}>🏠</div>
+            )}
+          </div>
+
+          {/* Center info */}
+          <div style={{ flex: 1, padding: '22px 24px', borderRight: `1px solid ${C.border}` }}>
+            <div style={{ fontSize: 20, fontWeight: 900, color: C.text, marginBottom: 4, letterSpacing: '-0.02em' }}>{property.address}</div>
+            {location && (
+              <div style={{ fontSize: 13, color: C.muted, marginBottom: 8 }}>
+                {location} · {property.active ? 'Active Listing' : 'Offline'}
+              </div>
+            )}
+            <span style={{
+              display: 'inline-block', marginBottom: 12,
+              fontSize: 11, fontWeight: 700, color: health.color, background: health.bg,
+              border: `1px solid ${health.color}40`, borderRadius: 20, padding: '3px 12px',
+            }}>
+              {health.label}
+            </span>
+            <p style={{ fontSize: 13, color: C.sub, lineHeight: 1.65, margin: 0 }}>{health.sentence}</p>
+          </div>
+
+          {/* Right: report meta */}
+          <div style={{ width: 240, flexShrink: 0, padding: '22px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>Report for</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{agentName}</div>
             </div>
-          ))}
-        </div>
-
-        {/* ── Benchmark banner ── */}
-        <div style={{
-          background: benchmark.bg, border: `1px solid ${benchmark.border}`,
-          borderRadius: 14, padding: '16px 22px', marginBottom: 20,
-          display: 'flex', alignItems: 'center', gap: 14,
-        }}>
-          <span style={{ fontSize: 24, flexShrink: 0 }}>{benchmark.icon}</span>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: benchmark.color, marginBottom: 3 }}>{benchmark.label}</div>
-            <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.55 }}>{benchmark.detail}</div>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>Report created</div>
+              <div style={{ fontSize: 12, color: C.sub }}>{now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>Report link</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 11, color: C.purpleL, fontWeight: 600, wordBreak: 'break-all' }}>
+                  theqrealtor.com/report/{propertyId.slice(0, 8)}…
+                </span>
+                <button
+                  onClick={copyURL}
+                  title="Copy report link"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, flexShrink: 0, padding: 2 }}
+                >📋</button>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* ── Intent + Signs ── */}
-        <div className="rpt-two" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+        {/* ── 5 KPI Cards ─────────────────────────────────────────────────── */}
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 12 }}>Listing Performance Overview</div>
+        </div>
+        <div className="rpt-5col" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 20 }}>
+          <KpiCard icon="👁" label="Total Scans"          value={totalScans}      change={safePct(thisMonthScans, lastMonthScans)}       sparkData={scanSparkData}     color="#60A5FA" />
+          <KpiCard icon="👥" label="Engaged Buyers"       value={engagedBuyers}   change={safePct(thisMonthEngaged, lastMonthEngaged)}    sparkData={engagedSparkData}  color="#10B981" />
+          <KpiCard icon="💬" label="Showing Requests"     value={showingRequests} change={safePct(thisMonthShowings, lastMonthShowings)}  sparkData={showingSparkData}  color="#F59E0B" />
+          <KpiCard icon="📄" label="Disclosure Requests"  value={packetCount}     change={safePct(thisMonthPackets, lastMonthPackets)}    sparkData={packetSparkData}   color={C.purpleL} />
+          <KpiCard icon="❓" label="Buyer Questions"      value={buyerQuestions}  change={safePct(thisMonthQuestions, lastMonthQuestions)} sparkData={questionSparkData} color="#F97316" />
+        </div>
 
-          {/* Intent Breakdown */}
-          {sectionCard(
-            <>
-              {sectionHead('Buyer Intent Breakdown', `${totalLeads} total lead${totalLeads !== 1 ? 's' : ''} captured`)}
+        {/* ── Two Columns ──────────────────────────────────────────────────── */}
+        <div className="rpt-2col" style={{ display: 'grid', gridTemplateColumns: '55% 1fr', gap: 16, marginBottom: 20 }}>
 
-              {/* Segmented bar */}
-              <div style={{ display: 'flex', height: 12, borderRadius: 8, overflow: 'hidden', marginBottom: 20, background: R.border }}>
-                {totalLeads > 0 ? (
-                  <>
-                    <div style={{ width: `${(intent.hot / totalLeads) * 100}%`, background: R.hot }} />
-                    <div style={{ width: `${(intent.motivated / totalLeads) * 100}%`, background: R.motiv }} />
-                    <div style={{ width: `${(intent.warm / totalLeads) * 100}%`, background: R.warm }} />
-                    <div style={{ width: `${(intent.cold / totalLeads) * 100}%`, background: R.cold }} />
-                  </>
-                ) : (
-                  <div style={{ width: '100%', background: R.border }} />
+          {/* What Buyers Are Doing ⭐ */}
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
+            <div style={{ padding: '13px 18px', borderBottom: `1px solid ${C.border}`, background: C.cardAlt, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>What Buyers Are Doing</span>
+              <span style={{ fontSize: 14 }}>⭐</span>
+            </div>
+            <div style={{ padding: '20px 18px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 20 }}>
+                {[
+                  { show: showingRequests > 0,  icon: '📅', n: showingRequests,  text: `buyer${showingRequests !== 1 ? 's' : ''} requested a showing`,                  color: '#EF4444' },
+                  { show: packetCount > 0,       icon: '📄', n: packetCount,       text: `buyer${packetCount !== 1 ? 's' : ''} downloaded disclosures`,                   color: '#7C3AED' },
+                  { show: buyerQuestions > 0,    icon: '💬', n: buyerQuestions,    text: `buyer${buyerQuestions !== 1 ? 's' : ''} asked questions`,                      color: '#10B981' },
+                  { show: returnVisitors > 0,    icon: '↩️', n: returnVisitors,    text: `buyer${returnVisitors !== 1 ? 's' : ''} returned to view this listing multiple times`, color: '#8B5CF6' },
+                  { show: photoViewers > 0,      icon: '📸', n: photoViewers,      text: `buyer${photoViewers !== 1 ? 's' : ''} viewed all photos`,                      color: '#14B8A6' },
+                ].filter(item => item.show).map((item, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div style={{
+                      width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+                      background: item.color + '18', border: `1px solid ${item.color}40`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
+                    }}>
+                      {item.icon}
+                    </div>
+                    <div>
+                      <span style={{ fontSize: 22, fontWeight: 900, color: item.color, marginRight: 8, letterSpacing: '-0.02em' }}>{item.n}</span>
+                      <span style={{ fontSize: 14, color: C.sub }}>{item.text}</span>
+                    </div>
+                  </div>
+                ))}
+                {showingRequests === 0 && packetCount === 0 && buyerQuestions === 0 && returnVisitors === 0 && photoViewers === 0 && (
+                  <div style={{ fontSize: 13, color: C.muted, textAlign: 'center', padding: '12px 0' }}>No buyer activity recorded yet.</div>
                 )}
               </div>
-
-              {/* Legend */}
-              {([
-                { label: '🔥 Hot',        color: R.hot,   count: intent.hot },
-                { label: '⚡ Motivated',   color: R.motiv, count: intent.motivated },
-                { label: '👍 Warm',        color: R.warm,  count: intent.warm },
-                { label: '❄️ Cold',        color: R.cold,  count: intent.cold },
-              ] as const).map(({ label, color, count }) => (
-                <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 11 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                    <div style={{ width: 10, height: 10, borderRadius: 3, background: color, flexShrink: 0 }} />
-                    <span style={{ fontSize: 13, color: R.sub }}>{label}</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                    <span style={{ fontSize: 14, fontWeight: 800, color: R.text }}>{count}</span>
-                    <span style={{ fontSize: 11, color: R.muted }}>
-                      {totalLeads > 0 ? `${Math.round((count / totalLeads) * 100)}%` : '—'}
-                    </span>
-                  </div>
+              <div style={{ background: `${C.purple}12`, border: `1px solid ${C.purple}30`, borderRadius: 10, padding: '12px 14px' }}>
+                <div style={{ fontSize: 13, color: C.sub, lineHeight: 1.6 }}>
+                  {showingRequests > 0
+                    ? 'Buyers are actively engaging with this listing. Strong showing request activity indicates serious purchase intent.'
+                    : leads.length > 0
+                    ? 'Buyers are exploring this listing. Continued QR sign visibility will help convert interest into showings.'
+                    : 'Place your QR signs to start capturing buyer engagement data.'}
                 </div>
-              ))}
-
-              {totalLeads === 0 && (
-                <div style={{ textAlign: 'center', paddingTop: 8, color: R.muted, fontSize: 13 }}>No leads captured yet</div>
-              )}
-            </>
-          )}
-
-          {/* Top Performing Signs */}
-          {sectionCard(
-            <>
-              {sectionHead('Top Performing Signs', 'Ranked by total scans')}
-              {topSigns.length === 0
-                ? <div style={{ textAlign: 'center', paddingTop: 24, color: R.muted, fontSize: 13 }}>No QR codes placed yet</div>
-                : topSigns.map((qr: any, i: number) => (
-                  <div key={qr.id} style={{ marginBottom: 16 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 11, fontWeight: 800, color: i === 0 ? R.purple : R.muted, minWidth: 16 }}>#{i + 1}</span>
-                        <span style={{ fontSize: 13, color: R.sub, fontWeight: 500 }}>{qr.label || 'Unlabeled sign'}</span>
-                      </div>
-                      <span style={{ fontSize: 13, fontWeight: 800, color: R.purple }}>{qr.scan_count || 0}</span>
-                    </div>
-                    <div style={{ height: 6, background: R.border, borderRadius: 4, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${((qr.scan_count || 0) / maxSignScan) * 100}%`, background: i === 0 ? `linear-gradient(90deg, ${R.purple}, ${R.purpleL})` : R.purpleL, borderRadius: 4, opacity: i === 0 ? 1 : 0.5 + (0.5 * (1 - i / topSigns.length)) }} />
-                    </div>
-                  </div>
-                ))
-              }
-            </>
-          )}
-        </div>
-
-        {/* ── 30-Day Chart ── */}
-        {sectionCard(
-          <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
-              {sectionHead('30-Day Scan Activity', `${periodStart} – Today`)}
-              <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontSize: 28, fontWeight: 900, color: R.purple, lineHeight: 1, letterSpacing: '-0.02em' }}>
-                  {chartDays.reduce((n, d) => n + d.count, 0)}
-                </div>
-                <div style={{ fontSize: 10, color: R.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 3 }}>Total Scans</div>
               </div>
             </div>
+          </div>
 
-            {/* Bars */}
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 90 }}>
-              {chartDays.map(day => {
-                const pct = (day.count / maxBar) * 100
-                return (
-                  <div
-                    key={day.label}
-                    title={`${new Date(day.label + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}: ${day.count} scan${day.count !== 1 ? 's' : ''}`}
-                    style={{
-                      flex: 1,
-                      height: `${Math.max(pct, day.count > 0 ? 8 : 0)}%`,
-                      minHeight: day.count > 0 ? 5 : 2,
-                      background: day.count > 0
-                        ? `linear-gradient(180deg, ${R.purpleL} 0%, ${R.purple} 100%)`
-                        : R.border,
-                      borderRadius: '3px 3px 0 0',
-                    }}
-                  />
-                )
-              })}
+          {/* Recent Buyer Activity */}
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
+            <div style={{ padding: '13px 18px', borderBottom: `1px solid ${C.border}`, background: C.cardAlt }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Recent Buyer Activity</span>
             </div>
-
-            {/* Baseline */}
-            <div style={{ borderTop: `1px solid ${R.border}` }} />
-
-            {/* Axis labels */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-              <span style={{ fontSize: 10, color: R.muted }}>{periodStart}</span>
-              <span style={{ fontSize: 10, fontWeight: 600, color: R.purple }}>Today</span>
-            </div>
-          </>
-        )}
-
-        {/* ── Most Interested Buyers ── */}
-        {sectionCard(
-          <>
-            {sectionHead('Most Interested Buyers', 'Ranked by engagement — no personal info shown')}
-            {totalLeads === 0
-              ? <div style={{ textAlign: 'center', padding: '20px 0', color: R.muted, fontSize: 13 }}>No buyer leads yet — share your QR code to start capturing buyers.</div>
-              : topBuyers.map((buyer, i) => {
-                const badge = buyer.motivation === 'hot'
-                  ? { icon: '🔥', label: 'Hot',       color: R.hot,   bg: R.hotBg }
-                  : buyer.motivation === 'motivated'
-                  ? { icon: '⚡', label: 'Motivated', color: R.motiv, bg: R.motivBg }
-                  : buyer.motivation === 'warm'
-                  ? { icon: '👍', label: 'Warm',      color: R.warm,  bg: R.warmBg }
-                  : { icon: '❄️', label: 'Cold',      color: R.cold,  bg: R.coldBg }
-                return (
-                  <div key={buyer.id} style={{
-                    display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '13px 0',
-                    borderBottom: i < topBuyers.length - 1 ? `1px solid ${R.border}` : 'none',
-                  }}>
-                    <div style={{ width: 22, textAlign: 'center', fontSize: 13, fontWeight: 800, color: i === 0 ? R.purple : R.muted, flexShrink: 0 }}>
-                      #{i + 1}
-                    </div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: badge.color, background: badge.bg, borderRadius: 6, padding: '3px 8px', flexShrink: 0, whiteSpace: 'nowrap' }}>
-                      {badge.icon} {badge.label}
-                    </div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: R.text, flex: 1 }}>
-                      Buyer #{buyer.id.slice(-4).toUpperCase()}
-                    </div>
-                    <div style={{ fontSize: 12, color: R.muted, flexShrink: 0 }}>
-                      {buyer.action}
-                    </div>
-                  </div>
-                )
-              })
-            }
-          </>
-        )}
-
-        {/* ── Recent Activity ── */}
-        {sectionCard(
-          <>
-            {sectionHead('Recent Activity', 'Last 10 buyer interactions')}
-            {recentActivity.length === 0
-              ? <div style={{ textAlign: 'center', padding: '20px 0', color: R.muted, fontSize: 13 }}>No scan activity yet — place your QR signs to start capturing data.</div>
-              : (
+            <div style={{ padding: '16px 18px' }}>
+              {activityEvents.length === 0 ? (
+                <div style={{ fontSize: 13, color: C.muted, textAlign: 'center', padding: '16px 0' }}>No activity yet — place your QR signs to start capturing data.</div>
+              ) : (
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  {recentActivity.map((ev, i) => {
-                    const isLast  = i === recentActivity.length - 1
-                    const buyer   = ev.buyerId ? `Buyer #${ev.buyerId}` : null
-                    const photoStr  = ev.photosViewed ? ` · viewed ${ev.photosViewed} photo${ev.photosViewed !== 1 ? 's' : ''}` : ''
-                    const timeStr   = ev.timeOnPage
-                      ? ` · ${ev.timeOnPage < 60 ? `${ev.timeOnPage}s` : `${Math.round(ev.timeOnPage / 60)}m`} on page`
-                      : ''
-                    const visitsStr = ev.visitCount ? ` · visited ${ev.visitCount} times` : ''
-
-                    let label: string
-                    let dot: string
-                    if (ev.kind === 'lead_showing') {
-                      label = `🔥 ${buyer} requested a showing${photoStr}${timeStr}`
-                      dot   = R.hot
-                    } else if (ev.kind === 'lead_question') {
-                      label = `💬 ${buyer} sent a question`
-                      dot   = R.warm
-                    } else if (ev.kind === 'return_visit') {
-                      label = `↩️ ${buyer ?? 'A buyer'} returned to view this listing again${visitsStr}${photoStr}${timeStr}`
-                      dot   = R.purple
-                    } else if (ev.kind === 'photos_viewed') {
-                      label = `📸 ${buyer ?? 'A buyer'} viewed all photos${timeStr}`
-                      dot   = R.motiv
-                    } else {
-                      const via = ev.qrLabel ? ` via ${ev.qrLabel}` : ''
-                      label = buyer
-                        ? `📱 ${buyer} browsed this listing${timeStr}`
-                        : `📱 New buyer discovered this listing${via}`
-                      dot = R.muted
-                    }
-
-                    return (
-                      <div key={i} style={{ display: 'flex', gap: 14 }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-                          <div style={{ width: 10, height: 10, borderRadius: '50%', background: dot, marginTop: 4, flexShrink: 0, boxShadow: `0 0 0 2px ${dot}30` }} />
-                          {!isLast && <div style={{ width: 1, flex: 1, background: R.border, marginTop: 3, marginBottom: 3 }} />}
-                        </div>
-                        <div style={{ paddingBottom: isLast ? 0 : 14, flex: 1 }}>
-                          <div style={{ fontSize: 13, color: R.sub }}>{label}</div>
-                          <div style={{ fontSize: 11, color: R.muted, marginTop: 2 }}>{timeAgo(ev.created_at)}</div>
-                        </div>
+                  {activityEvents.map((ev, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 12, paddingBottom: i < activityEvents.length - 1 ? 14 : 0 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                        <div style={{ width: 10, height: 10, borderRadius: '50%', background: ev.dot, marginTop: 4, flexShrink: 0, boxShadow: `0 0 0 2px ${ev.dot}30` }} />
+                        {i < activityEvents.length - 1 && <div style={{ width: 1, flex: 1, background: C.border, margin: '4px 0' }} />}
                       </div>
-                    )
-                  })}
+                      <div style={{ paddingBottom: i < activityEvents.length - 1 ? 0 : 0, flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, color: C.sub, lineHeight: 1.45 }}>{ev.icon} {ev.text}</div>
+                        <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{timeAgo(ev.time)}</div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              )
-            }
-          </>,
-          0
-        )}
-
-        {/* ── Footer ── */}
-        <div style={{ textAlign: 'center', padding: '32px 0 8px', borderTop: `1px solid ${R.border}`, marginTop: 24 }}>
-          <div style={{ fontSize: 22, marginBottom: 10 }}>🏠</div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: R.purple, marginBottom: 6, letterSpacing: '-0.01em' }}>theQRealtor</div>
-          <div style={{ fontSize: 12, color: R.muted, maxWidth: 380, margin: '0 auto', lineHeight: 1.65 }}>
-            Real-time buyer analytics for real estate agents.<br />
-            This report was prepared exclusively for the listing at <strong style={{ color: R.sub }}>{property.address}</strong>.
+              )}
+              <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
+                <Link href={`/dashboard/leads`} style={{ fontSize: 12, color: C.purpleL, textDecoration: 'none', fontWeight: 600 }}>
+                  View Full Activity Timeline →
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
 
+        {/* ── Agent Message to Seller ──────────────────────────────────────── */}
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden', marginBottom: 20 }}>
+          <div style={{ padding: '13px 18px', borderBottom: `1px solid ${C.border}`, background: C.cardAlt, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Agent Message to Seller</span>
+            <button
+              onClick={() => showToast('✏️ Edit Message — coming soon!')}
+              style={{ fontSize: 12, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'sans-serif' }}
+            >
+              Edit Message
+            </button>
+          </div>
+          <div style={{ padding: '24px 28px' }}>
+            <div style={{ fontSize: 28, color: C.purpleL, lineHeight: 1, marginBottom: 14, opacity: 0.5 }}>"</div>
+            <div style={{ fontSize: 14, color: C.sub, lineHeight: 1.85, whiteSpace: 'pre-line', maxWidth: 700 }}>
+              {agentMessage}
+            </div>
+            <div style={{ marginTop: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: '50%',
+                background: `linear-gradient(135deg, ${C.purple}, #5B21B6)`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 14, fontWeight: 800, color: '#fff', flexShrink: 0,
+              }}>
+                {initials || '?'}
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{agentName}</div>
+                <div style={{ fontSize: 11, color: C.muted }}>Listing Agent · theQRealtor</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Share & Download ─────────────────────────────────────────────── */}
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
+          <div style={{ padding: '13px 18px', borderBottom: `1px solid ${C.border}`, background: C.cardAlt }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Share & Download Report</span>
+          </div>
+          <div style={{ padding: '20px 24px' }}>
+            <p style={{ fontSize: 13, color: C.muted, margin: '0 0 18px', lineHeight: 1.55 }}>
+              Keep your seller informed with beautiful, data-rich reports.
+            </p>
+            <div className="rpt-share" style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+
+              {/* Buttons */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+                  <button
+                    onClick={copyURL}
+                    style={{
+                      flex: 2, background: copied ? '#052e16' : C.purple, color: copied ? '#4ade80' : '#fff',
+                      border: 'none', borderRadius: 10, padding: '12px 16px', cursor: 'pointer',
+                      fontFamily: 'sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                    }}
+                  >
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>{copied ? '✓ Link Copied!' : '📊 Share Report Link'}</span>
+                    <span style={{ fontSize: 10, opacity: 0.75 }}>via email or text</span>
+                  </button>
+                  <a href={`/report/${propertyId}?print=true`} target="_blank" rel="noreferrer" style={{ ...outlineBtn, flex: 1 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>⬇ Download PDF</span>
+                    <span style={{ fontSize: 10, color: C.muted }}>Full report</span>
+                  </a>
+                  <button onClick={() => window.print()} style={{ ...outlineBtn, flex: 1 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>🖨 Print Report</span>
+                    <span style={{ fontSize: 10, color: C.muted }}>Print-ready PDF</span>
+                  </button>
+                </div>
+
+                {/* Checklist */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 24px' }}>
+                  {[
+                    'Performance overview', 'Graphs & insights',
+                    'Buyer activity timeline', 'Your agent message',
+                    'Lead details summary', 'Branded with your info',
+                  ].map(item => (
+                    <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: C.sub }}>
+                      <span style={{ color: '#4ade80', fontWeight: 700 }}>✓</span> {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Mini preview */}
+              <div style={{ width: 160, flexShrink: 0, position: 'relative', borderRadius: 10, overflow: 'hidden', border: `1px solid ${C.border}` }}>
+                {photo ? (
+                  <img src={photo} alt={property.address} style={{ width: '100%', height: 110, objectFit: 'cover', display: 'block' }} />
+                ) : (
+                  <div style={{ width: '100%', height: 110, background: `linear-gradient(135deg, ${C.purple}, #5B21B6)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>🏠</div>
+                )}
+                <div style={{ padding: '8px 10px', background: C.cardAlt }}>
+                  <div style={{ fontSize: 9, fontWeight: 800, color: C.purpleL, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Seller Report</div>
+                  <div style={{ fontSize: 10, color: C.sub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{property.address}</div>
+                  <div style={{ fontSize: 9, color: C.muted }}>{fmtDateShort(now.toISOString())}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Footer ───────────────────────────────────────────────────────── */}
+        <div style={{ textAlign: 'center', padding: '36px 0 8px', borderTop: `1px solid ${C.border}`, marginTop: 28 }}>
+          <div style={{ fontSize: 17, fontWeight: 900, color: C.text, marginBottom: 6, letterSpacing: '-0.02em' }}>
+            the<span style={{ color: C.purpleL }}>QR</span>ealtor.
+          </div>
+          <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.65 }}>
+            Powered by theQRealtor · Real-time buyer analytics for real estate agents.
+          </div>
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
+            © 2026 theQRealtor. All rights reserved.
+          </div>
+        </div>
       </div>
     </main>
   )

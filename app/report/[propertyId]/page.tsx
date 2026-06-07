@@ -58,6 +58,7 @@ export default async function SellerReportPage({
     { data: leads },
     rawScansResult,
     scanCountResult,
+    packetCountResult,
   ] = await Promise.all([
     supabase.from('properties').select('*').eq('id', propertyId).single(),
     supabase.from('property_photos').select('url').eq('property_id', propertyId).order('sort_order', { ascending: true }).limit(1),
@@ -69,12 +70,14 @@ export default async function SellerReportPage({
       .order('created_at', { ascending: false })
       .limit(300),
     supabase.from('scan_events').select('*', { count: 'exact', head: true }).eq('property_id', propertyId),
+    supabase.from('packet_requests').select('*', { count: 'exact', head: true }).eq('property_id', propertyId),
   ])
 
   if (!property) notFound()
 
-  const rawScans   = rawScansResult.data
-  const totalScans = scanCountResult.count ?? 0
+  const rawScans      = rawScansResult.data
+  const totalScans    = scanCountResult.count ?? 0
+  const packetCount   = packetCountResult.count ?? 0
 
   const sl = leads    || []
   const ss = rawScans || []
@@ -256,7 +259,7 @@ export default async function SellerReportPage({
           .no-print   { display: none !important; }
           .rpt-nav    { position: static !important; }
           .rpt-two    { grid-template-columns: 1fr 1fr !important; }
-          .rpt-stats  { grid-template-columns: repeat(4, 1fr) !important; }
+          .rpt-stats  { grid-template-columns: repeat(5, 1fr) !important; }
           .rpt-wrap   { padding: 16px 20px 32px !important; }
           .rpt-hero   { height: 220px !important; }
           *           { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -315,13 +318,14 @@ export default async function SellerReportPage({
       {/* ── Content ── */}
       <div className="rpt-wrap" style={{ maxWidth: 900, margin: '0 auto', padding: '24px 20px 60px' }}>
 
-        {/* ── 4 Stat Cards ── */}
-        <div className="rpt-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+        {/* ── 5 Stat Cards ── */}
+        <div className="rpt-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 20 }}>
           {([
-            { icon: '📊', value: fmt(totalScans),  label: 'QR Scans',      bg: R.purpleBg, color: R.purple,  border: R.purpleL },
-            { icon: '🎯', value: fmt(totalLeads),  label: 'Buyer Leads',   bg: '#FFFBEB',  color: '#D97706', border: '#F59E0B' },
-            { icon: '🔥', value: fmt(hotLeads),    label: 'Hot Buyers',    bg: R.hotBg,    color: R.hot,     border: '#F87171' },
-            { icon: '📅', value: fmt(showingReqs), label: 'Showing Reqs',  bg: R.greenBg,  color: R.green,   border: '#4ADE80' },
+            { icon: '📊', value: fmt(totalScans),  label: 'QR Scans',        bg: R.purpleBg, color: R.purple,  border: R.purpleL },
+            { icon: '🎯', value: fmt(totalLeads),  label: 'Buyer Leads',     bg: '#FFFBEB',  color: '#D97706', border: '#F59E0B' },
+            { icon: '🔥', value: fmt(hotLeads),    label: 'Hot Buyers',      bg: R.hotBg,    color: R.hot,     border: '#F87171' },
+            { icon: '📅', value: fmt(showingReqs), label: 'Showing Reqs',    bg: R.greenBg,  color: R.green,   border: '#4ADE80' },
+            { icon: '📄', value: fmt(packetCount), label: 'Packet Requests', bg: '#FFFBEB',  color: '#B45309', border: '#D97706' },
           ] as const).map(({ icon, value, label, bg, color, border }) => (
             <div key={label} style={{ background: bg, borderRadius: 16, padding: '20px 16px', textAlign: 'center', border: `1px solid ${border}30`, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
               <div style={{ fontSize: 22, marginBottom: 8 }}>{icon}</div>

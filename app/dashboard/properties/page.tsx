@@ -181,9 +181,10 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
       beds:        prop.beds ?? '',
       baths:       prop.baths ?? '',
       description: prop.description || '',
-      agent_name:  prop.agent_name || '',
-      agent_phone: prop.agent_phone || '',
-      active:      !!prop.active,
+      agent_name:     prop.agent_name || '',
+      agent_phone:    prop.agent_phone || '',
+      active:         !!prop.active,
+      packet_enabled: !!prop.packet_enabled,
     })
     setEditError('')
     setEditOpen(true)
@@ -202,9 +203,10 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
       beds:        editForm.beds !== '' ? Number(editForm.beds) : null,
       baths:       editForm.baths !== '' ? Number(editForm.baths) : null,
       description: editForm.description.trim() || null,
-      agent_name:  editForm.agent_name.trim() || null,
-      agent_phone: editForm.agent_phone.trim() || null,
-      active:      editForm.active,
+      agent_name:     editForm.agent_name.trim() || null,
+      agent_phone:    editForm.agent_phone.trim() || null,
+      active:         editForm.active,
+      packet_enabled: editForm.packet_enabled,
     }
     const { error } = await supabase.from('properties').update(updates).eq('id', prop.id)
     if (error) {
@@ -537,6 +539,20 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
                 placeholder="+15551234567"
                 style={{ width: '100%', background: '#0F0F13', border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 12px', color: C.text, fontSize: 13, boxSizing: 'border-box' }} />
             </label>
+
+            {/* Packet toggle */}
+            <div
+              onClick={() => setEditForm((f: any) => ({ ...f, packet_enabled: !f.packet_enabled }))}
+              style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, cursor: 'pointer', userSelect: 'none' }}
+            >
+              <div style={{ width: 40, height: 22, borderRadius: 11, background: editForm.packet_enabled ? C.purple : C.border, position: 'relative', flexShrink: 0, transition: 'background 0.15s' }}>
+                <div style={{ position: 'absolute', top: 3, left: editForm.packet_enabled ? 21 : 3, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 0.15s' }} />
+              </div>
+              <div>
+                <span style={{ fontSize: 13, color: C.sub, fontWeight: 600 }}>📄 Enable Property Packet</span>
+                <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Buyers see a "Get Property Packet" CTA on the listing page</div>
+              </div>
+            </div>
 
             {/* Active toggle */}
             <div

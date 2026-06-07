@@ -101,6 +101,7 @@ export default function Dashboard() {
   const [topPropId,      setTopPropId]       = useState<string | null>(null)
   const [topPropLeads,   setTopPropLeads]    = useState(0)
   const [activityFeed,   setActivityFeed]    = useState<Array<{ icon: string; label: string; created_at: string }>>([])
+  const [packetCount,    setPacketCount]     = useState(0)
   const [plan,           setPlan]            = useState<'free' | 'pro'>('free')
   const [profileName,    setProfileName]     = useState('')
   const [loading,        setLoading]         = useState(true)
@@ -139,6 +140,7 @@ export default function Dashboard() {
         { data: leadsPerProp },
         { data: thumbData },
         { data: recentScansData },
+        { data: recentPacketData },
       ] = await Promise.all([
         supabase.from('qrcodes').select('id, label, property_id, scan_count').in('property_id', ids),
         supabase.from('leads').select('*').in('property_id', ids)
@@ -155,6 +157,8 @@ export default function Dashboard() {
         supabase.from('property_photos').select('property_id, url')
           .in('property_id', ids).order('sort_order', { ascending: true }),
         supabase.from('scan_events').select('property_id, created_at, return_visit')
+          .in('property_id', ids).order('created_at', { ascending: false }).limit(20),
+        supabase.from('packet_requests').select('property_id, created_at')
           .in('property_id', ids).order('created_at', { ascending: false }).limit(20),
       ])
 
@@ -200,8 +204,15 @@ export default function Dashboard() {
           created_at: e.created_at,
         })),
       ]
+      const packetItems = (recentPacketData || []).map((r: any) => ({
+        icon: '📄',
+        label: `Buyer requested property packet at ${propAddr[r.property_id] ?? '—'}`,
+        created_at: r.created_at,
+      }))
+      feedItems.push(...packetItems)
       feedItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       setActivityFeed(feedItems.slice(0, 10))
+      setPacketCount((recentPacketData || []).length)
       setScansToday(scansCount || 0)
       setLeadsToday(leadsTodayCount || 0)
       setLeadsThisMonth(leadsMonthCount || 0)

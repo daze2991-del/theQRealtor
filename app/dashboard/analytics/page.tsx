@@ -64,6 +64,7 @@ export default function AnalyticsPage() {
   const [returnVisitCount, setReturnVisitCount]     = useState(0)
   const [thisMonthLeadCount, setThisMonthLeadCount] = useState(0)
   const [lastMonthLeadCount, setLastMonthLeadCount] = useState(0)
+  const [packetCount,      setPacketCount]          = useState(0)
 
   useEffect(() => {
     const load = async () => {
@@ -94,6 +95,7 @@ export default function AnalyticsPage() {
         { count: rvCount },
         { count: thisMonthCount },
         { count: lastMonthCount },
+        { count: pktCount },
       ] = await Promise.all([
         supabase.from('scan_events').select('qr_id, created_at').gte('created_at', cutoffStr),
         supabase.from('leads').select('property_id, motivation, created_at').in('property_id', propertyIds).gte('created_at', cutoffStr),
@@ -105,6 +107,8 @@ export default function AnalyticsPage() {
           .in('property_id', propertyIds)
           .gte('created_at', lastMonthStart.toISOString())
           .lt('created_at', thisMonthStart.toISOString()),
+        supabase.from('packet_requests').select('*', { count: 'exact', head: true })
+          .in('property_id', propertyIds).gte('created_at', cutoffStr),
       ])
 
       setScans(scanData || [])
@@ -112,6 +116,7 @@ export default function AnalyticsPage() {
       setReturnVisitCount(rvCount || 0)
       setThisMonthLeadCount(thisMonthCount || 0)
       setLastMonthLeadCount(lastMonthCount || 0)
+      setPacketCount(pktCount || 0)
       setLoading(false)
     }
     load()
@@ -184,6 +189,7 @@ export default function AnalyticsPage() {
     if (monthGrowth !== null && monthGrowth < 0) insightCards.push({ icon: '📉', accent: '#F97316', text: `Lead volume down ${Math.abs(monthGrowth)}% this month vs last month`, sub: 'Consider adding more QR signs or promoting your listings.' })
     if (topPropByLeads?.count30d > 0) insightCards.push({ icon: '🏆', accent: '#FCD34D', text: `${topPropByLeads.address} is your top listing this month`, sub: `${topPropByLeads.count30d} lead${topPropByLeads.count30d > 1 ? 's' : ''} captured in the last 30 days.` })
     if (returnVisitCount > 0) insightCards.push({ icon: '↩️', accent: C.purpleL, text: `${returnVisitCount} buyer${returnVisitCount > 1 ? 's' : ''} returned to view listings multiple times`, sub: 'Return visitors show strong purchase intent.' })
+    if (packetCount > 0) insightCards.push({ icon: '📄', accent: '#D97706', text: `${packetCount} buyer${packetCount > 1 ? 's' : ''} requested your property packet`, sub: 'Packet requests show high research intent — follow up promptly.' })
   }
 
   // ── shared card / table styles ────────────────────────────────────────────

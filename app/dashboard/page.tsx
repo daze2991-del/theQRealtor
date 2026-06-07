@@ -213,7 +213,7 @@ export default function Dashboard() {
         supabase.from('leads').select('property_id, motivation, created_at').in('property_id', ids),
         supabase.from('property_photos').select('property_id, url').in('property_id', ids).order('sort_order', { ascending: true }),
         supabase.from('scan_events').select('property_id, created_at, return_visit').in('property_id', ids).order('created_at', { ascending: false }).limit(50),
-        supabase.from('packet_requests').select('property_id, created_at').in('property_id', ids).order('created_at', { ascending: false }).limit(20).catch(() => ({ data: [] })) as any,
+        supabase.from('packet_requests').select('property_id, created_at').in('property_id', ids).order('created_at', { ascending: false }).limit(20),
         supabase.from('leads').select('*', { count: 'exact', head: true }).in('property_id', ids).gte('created_at', lastMonthISO).lt('created_at', monthISO),
         supabase.from('scan_events').select('*', { count: 'exact', head: true }).in('property_id', ids).gte('created_at', lastMonthISO).lt('created_at', monthISO),
       ])

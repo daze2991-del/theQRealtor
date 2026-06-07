@@ -369,6 +369,19 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
 
       {/* Actions */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 4, borderTop: `1px solid ${C.border}` }}>
+        {/* View Details — primary CTA */}
+        <Link
+          href={`/dashboard/properties/${prop.id}`}
+          style={{
+            display: 'block', textAlign: 'center',
+            background: C.purple, color: '#fff',
+            borderRadius: 9, padding: '10px 14px',
+            fontSize: 13, fontWeight: 700, textDecoration: 'none',
+          }}
+        >
+          View Details →
+        </Link>
+
         {/* Row 1: View Buyer Page + ⋮ menu */}
         <div style={{ display: 'flex', gap: 8 }}>
           <Link

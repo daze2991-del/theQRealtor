@@ -1,90 +1,96 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createBrowserSupabase } from '../../../../lib/supabase-browser'
 import DashboardLayout from '../../../../components/DashboardLayout'
 import Link from 'next/link'
+import { calcIntentScore } from '../../../../lib/leadScoring'
 
 const C = {
-  bg:      '#0F0F13',
-  card:    '#1A1A24',
-  border:  '#252533',
-  purple:  '#7C3AED',
-  purpleL: '#8B5CF6',
-  text:    '#FFFFFF',
-  sub:     '#C4C4D4',
-  muted:   '#6B7280',
+  bg: '#0F0F13', card: '#1A1A24', cardAlt: '#15151E', border: '#252533',
+  purple: '#7C3AED', purpleL: '#8B5CF6',
+  text: '#FFFFFF', sub: '#C4C4D4', muted: '#6B7280',
 } as const
 
-const MOTIVATION_CFG = {
-  hot: {
-    label: '🔥 Hot', color: '#EF4444', bg: '#3B0D0D', border: '#EF4444',
-    action: 'Call today — this buyer is ready to act now.',
-    actionLabel: 'Call Today', actionIcon: '📞',
-  },
-  motivated: {
-    label: '⚡ Motivated', color: '#F97316', bg: '#3B1F0D', border: '#F97316',
-    action: 'Text them this week — they\'re actively searching.',
-    actionLabel: 'Text Now', actionIcon: '💬',
-  },
-  warm: {
-    label: '👍 Warm', color: '#60A5FA', bg: '#0F2238', border: '#60A5FA',
-    action: 'Schedule a follow-up in the next 1–2 weeks.',
-    actionLabel: 'Follow Up This Week', actionIcon: '📅',
-  },
-  cold: {
-    label: '❄ Cold', color: '#6B7280', bg: '#1F2937', border: '#6B7280',
-    action: 'Add to your email drip campaign for long-term nurture.',
-    actionLabel: 'Add to Drip', actionIcon: '📧',
-  },
+const TIER = {
+  hot:       { label: '🔥 Hot Buyer',       color: '#EF4444', bg: '#3B0D0D', border: '#EF4444', intent: 'Very High Intent' },
+  motivated: { label: '⚡ Motivated Buyer', color: '#F97316', bg: '#3B1F0D', border: '#F97316', intent: 'High Intent' },
+  warm:      { label: '👍 Warm Buyer',      color: '#60A5FA', bg: '#0F2238', border: '#60A5FA', intent: 'Moderate Intent' },
+  cold:      { label: '❄️ Cold Buyer',      color: '#6B7280', bg: '#1F2937', border: '#6B7280', intent: 'Low Intent' },
 } as const
 
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-}
+const SCORE_GUIDE = [
+  { label: '🔥 Hot',       range: '20–25', color: '#EF4444' },
+  { label: '⚡ Motivated', range: '15–19', color: '#F97316' },
+  { label: '👍 Warm',      range: '8–14',  color: '#60A5FA' },
+  { label: '❄️ Cold',      range: '0–7',   color: '#6B7280' },
+]
 
-function fmtDateTime(iso: string) {
-  return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
-}
-
-function timeAgo(iso: string): string {
+function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime()
   const m = Math.floor(diff / 60000)
   if (m < 1) return 'just now'
   if (m < 60) return `${m}m ago`
   const h = Math.floor(m / 60)
   if (h < 24) return `${h}h ago`
-  const d = Math.floor(h / 24)
-  if (d < 7) return `${d}d ago`
-  return fmtDate(iso)
+  return `${Math.floor(h / 24)}d ago`
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function fmtTime(iso: string) {
+  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+}
+
+function fmtDateTime(iso: string) {
+  return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+}
+
+// SVG donut chart with colored arc segments
+function DonutChart({ segments, total }: { segments: Array<{ pts: number; color: string }>; total: number }) {
+  const cx = 60, cy = 60, r = 44
+  const circ = 2 * Math.PI * r
+  const MAX = 25
+  let deg = -90
   return (
-    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
-      <div style={{ padding: '12px 18px', borderBottom: `1px solid ${C.border}`, background: '#15151E' }}>
-        <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{title}</span>
-      </div>
-      <div style={{ padding: '16px 18px' }}>{children}</div>
-    </div>
+    <svg viewBox="0 0 120 120" width={140} height={140} style={{ flexShrink: 0 }}>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#252533" strokeWidth={13} />
+      {segments.filter(s => s.pts > 0).map((s, i) => {
+        const arc = Math.min((s.pts / MAX) * circ, circ)
+        const startDeg = deg
+        deg += (s.pts / MAX) * 360
+        return (
+          <circle key={i} cx={cx} cy={cy} r={r} fill="none"
+            stroke={s.color} strokeWidth={12}
+            strokeDasharray={`${arc} ${circ}`}
+            transform={`rotate(${startDeg} ${cx} ${cy})`}
+          />
+        )
+      })}
+      <text x={cx} y={cy - 3} textAnchor="middle" fill="white" fontSize="20" fontWeight="800" fontFamily="sans-serif">
+        {Math.min(total, 25)}
+      </text>
+      <text x={cx} y={cy + 13} textAnchor="middle" fill="#6B7280" fontSize="8" fontFamily="sans-serif">/ 25</text>
+    </svg>
   )
 }
 
-function InfoRow({ icon, label, value, href }: { icon: string; label: string; value: string; href?: string }) {
-  return (
-    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 14 }}>
-      <span style={{ fontSize: 16, width: 22, textAlign: 'center', flexShrink: 0, marginTop: 1 }}>{icon}</span>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>{label}</div>
-        {href ? (
-          <a href={href} style={{ fontSize: 14, color: C.purpleL, fontWeight: 600, textDecoration: 'none', wordBreak: 'break-all' }}>{value}</a>
-        ) : (
-          <div style={{ fontSize: 14, color: C.sub, wordBreak: 'break-all' }}>{value}</div>
-        )}
-      </div>
-    </div>
-  )
+function DropdownItem({
+  onClick, href, danger, children,
+}: {
+  onClick?: () => void; href?: string; danger?: boolean; children: React.ReactNode
+}) {
+  const style: React.CSSProperties = {
+    display: 'block', width: '100%', padding: '10px 16px', textAlign: 'left',
+    background: 'none', border: 'none', cursor: 'pointer',
+    fontSize: 13, color: danger ? '#EF4444' : C.sub, fontFamily: 'sans-serif',
+    textDecoration: 'none', boxSizing: 'border-box',
+  }
+  if (href) return <Link href={href} target="_blank" style={style}>{children}</Link>
+  return <button style={style} onClick={onClick}>{children}</button>
 }
 
 export default function LeadDetailPage() {
@@ -92,15 +98,29 @@ export default function LeadDetailPage() {
   const router = useRouter()
   const leadId = params.leadId as string
 
-  const [lead,       setLead]       = useState<any>(null)
-  const [property,   setProperty]   = useState<any>(null)
-  const [qrCode,     setQrCode]     = useState<any>(null)
-  const [lastScan,   setLastScan]   = useState<string | null>(null)
-  const [notes,      setNotes]      = useState('')
-  const [savingNotes, setSavingNotes] = useState(false)
-  const [notesSaved,  setNotesSaved]  = useState(false)
-  const [loading,    setLoading]    = useState(true)
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [lead,           setLead]           = useState<any>(null)
+  const [property,       setProperty]       = useState<any>(null)
+  const [qrCode,         setQrCode]         = useState<any>(null)
+  const [scanEvent,      setScanEvent]      = useState<any>(null)
+  const [propPhoto,      setPropPhoto]      = useState<string | null>(null)
+  const [propStats,      setPropStats]      = useState({ leads: 0, scans: 0, showings: 0, packets: 0 })
+  const [loading,        setLoading]        = useState(true)
+  const [notes,          setNotes]          = useState('')
+  const [buyerQuestion,  setBuyerQuestion]  = useState('')
+  const [savingNotes,    setSavingNotes]    = useState(false)
+  const [notesSaved,     setNotesSaved]     = useState(false)
+  const [actionsOpen,    setActionsOpen]    = useState(false)
+  const [moreOpen,       setMoreOpen]       = useState(false)
+  const [aiSummary,      setAiSummary]      = useState('')
+  const [aiAction,       setAiAction]       = useState('')
+  const [aiLoading,      setAiLoading]      = useState(false)
+  const [copied,         setCopied]         = useState('')
+  const [deleting,       setDeleting]       = useState(false)
+
+  const saveTimer   = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const actionsRef  = useRef<HTMLDivElement>(null)
+  const moreRef     = useRef<HTMLDivElement>(null)
+  const aiStarted   = useRef(false)
 
   useEffect(() => {
     const load = async () => {
@@ -111,29 +131,99 @@ export default function LeadDetailPage() {
       const { data: leadData } = await supabase.from('leads').select('*').eq('id', leadId).single()
       if (!leadData) { router.push('/dashboard/leads'); return }
       setLead(leadData)
-      setNotes(leadData.notes || '')
+      setNotes(leadData.notes ?? '')
+      setBuyerQuestion(leadData.notes ?? '')
 
-      const qrPromise = leadData.qr_id
-        ? supabase.from('qrcodes').select('id, label, scan_count, placement').eq('id', leadData.qr_id).single()
-        : Promise.resolve({ data: null })
-      const scanPromise = leadData.qr_id
-        ? supabase.from('scan_events').select('created_at').eq('qr_id', leadData.qr_id)
-            .order('created_at', { ascending: false }).limit(1)
-        : Promise.resolve({ data: [] })
-
-      const [{ data: propData }, { data: qrData }, { data: scanData }] = await Promise.all([
-        supabase.from('properties').select('id, address, city, state').eq('id', leadData.property_id).single(),
-        qrPromise,
-        scanPromise,
+      const [
+        propRes, photoRes, qrRes, scanRes,
+        leadCountRes, scanCountRes, showingCountRes, packetCountRes,
+      ] = await Promise.all([
+        supabase.from('properties').select('*').eq('id', leadData.property_id).single(),
+        supabase.from('property_photos').select('url').eq('property_id', leadData.property_id)
+          .order('sort_order', { ascending: true }).limit(1),
+        leadData.qr_id
+          ? supabase.from('qrcodes').select('*').eq('id', leadData.qr_id).single()
+          : Promise.resolve({ data: null }),
+        leadData.qr_id
+          ? supabase.from('scan_events')
+              .select('created_at, cta_clicked, photos_viewed, time_on_page_sec, return_visit')
+              .eq('qr_id', leadData.qr_id).eq('converted', true)
+              .order('created_at', { ascending: false }).limit(1).single()
+          : Promise.resolve({ data: null }),
+        supabase.from('leads').select('*', { count: 'exact', head: true }).eq('property_id', leadData.property_id),
+        supabase.from('scan_events').select('*', { count: 'exact', head: true }).eq('property_id', leadData.property_id),
+        supabase.from('leads').select('*', { count: 'exact', head: true })
+          .eq('property_id', leadData.property_id).eq('motivation', 'hot'),
+        supabase.from('packet_requests').select('*', { count: 'exact', head: true }).eq('property_id', leadData.property_id),
       ])
 
-      setProperty(propData)
-      setQrCode(qrData)
-      setLastScan((scanData as any[])?.[0]?.created_at ?? null)
+      setProperty(propRes.data)
+      setPropPhoto((photoRes.data as any[])?.[0]?.url ?? null)
+      setQrCode(qrRes.data)
+      setScanEvent(scanRes.data)
+      setPropStats({
+        leads:    leadCountRes.count ?? 0,
+        scans:    scanCountRes.count ?? 0,
+        showings: showingCountRes.count ?? 0,
+        packets:  packetCountRes.count ?? 0,
+      })
       setLoading(false)
     }
     load()
   }, [leadId])
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (actionsRef.current && !actionsRef.current.contains(e.target as Node)) setActionsOpen(false)
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) setMoreOpen(false)
+    }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [])
+
+  const generateAISummary = useCallback(async (l = lead, p = property, se = scanEvent) => {
+    if (!l || !p) return
+    setAiLoading(true)
+    setAiSummary('')
+    setAiAction('')
+    try {
+      const res = await fetch('/api/lead-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leadData: {
+            name: l.name,
+            phone: l.phone,
+            email: l.email,
+            motivation: l.motivation,
+            contact_preference: l.contact_preference,
+            notes: l.notes,
+            created_at: l.created_at,
+            propertyAddress: [p.address, p.city, p.state].filter(Boolean).join(', '),
+            returnVisit:    se?.return_visit      ?? false,
+            photosViewed:   se?.photos_viewed     ?? null,
+            timeOnPageSec:  se?.time_on_page_sec  ?? null,
+            ctaClicked:     se?.cta_clicked       ?? null,
+          },
+        }),
+      })
+      const data = await res.json()
+      if (data.summary)           setAiSummary(data.summary)
+      if (data.recommendedAction) setAiAction(data.recommendedAction)
+    } catch (err) {
+      console.error('[lead-summary]', err)
+    }
+    setAiLoading(false)
+  }, [lead, property, scanEvent])
+
+  // Auto-generate AI summary once after data loads
+  useEffect(() => {
+    if (!loading && lead && property && !aiStarted.current) {
+      aiStarted.current = true
+      generateAISummary(lead, property, scanEvent)
+    }
+  }, [loading, lead, property, scanEvent])
 
   const saveNotes = async () => {
     setSavingNotes(true)
@@ -146,261 +236,682 @@ export default function LeadDetailPage() {
     saveTimer.current = setTimeout(() => setNotesSaved(false), 3000)
   }
 
+  const copyToClipboard = async (text: string, label: string) => {
+    try { await navigator.clipboard.writeText(text) } catch {}
+    setCopied(label)
+    setTimeout(() => setCopied(''), 2000)
+    setMoreOpen(false)
+  }
+
+  const deleteLead = async () => {
+    if (!confirm(`Delete lead for ${lead?.name}? This cannot be undone.`)) return
+    setDeleting(true)
+    const supabase = createBrowserSupabase()
+    await supabase.from('leads').delete().eq('id', leadId)
+    router.push('/dashboard/leads')
+  }
+
   if (loading) {
     return (
       <DashboardLayout>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ width: 32, height: 32, border: `2px solid ${C.purple}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
         </div>
       </DashboardLayout>
     )
   }
-
   if (!lead) return null
 
-  const cfg = MOTIVATION_CFG[lead.motivation as keyof typeof MOTIVATION_CFG]
-  const initials = (lead.name || '??').slice(0, 2).toUpperCase()
-  const location = [property?.city, property?.state].filter(Boolean).join(', ')
+  // ── Derived values ────────────────────────────────────────────────────────────
+  const tier      = TIER[lead.motivation as keyof typeof TIER] ?? TIER.cold
+  const initials  = (lead.name ?? '??').slice(0, 2).toUpperCase()
+  const firstName = (lead.name ?? 'Lead').split(' ')[0]
+  const location  = [property?.city, property?.state].filter(Boolean).join(', ')
+  const fullAddr  = [property?.address, location].filter(Boolean).join(', ')
+
+  const eng = {
+    visitCount:    scanEvent?.return_visit ? 2 : 1,
+    photosViewed:  scanEvent?.photos_viewed    ?? 0,
+    ctaClicked:    scanEvent?.cta_clicked      ?? null,
+    timeOnPageSec: scanEvent?.time_on_page_sec ?? 0,
+  }
+  const score = calcIntentScore(eng)
+
+  // Scoring factors
+  const factors: Array<{ label: string; detail?: string; pts: number; color: string }> = [
+    { label: 'First Scan', pts: 1, color: '#F97316' },
+  ]
+  if (eng.visitCount > 1) {
+    const vPts = 3 + (eng.visitCount >= 3 ? 5 : 0)
+    factors.push({ label: 'Return Visit', detail: eng.visitCount >= 3 ? '3+ visits' : '2 visits', pts: vPts, color: '#7C3AED' })
+  }
+  if (eng.photosViewed >= 5) {
+    factors.push({ label: 'Photo Views', detail: `${eng.photosViewed} photos`, pts: 2, color: '#14B8A6' })
+  }
+  const timePts = (eng.timeOnPageSec >= 120 ? 1 : 0) + (eng.timeOnPageSec >= 300 ? 2 : 0)
+  if (timePts > 0) {
+    const m = Math.floor(eng.timeOnPageSec / 60), s = eng.timeOnPageSec % 60
+    factors.push({ label: 'Time on Page', detail: `${m}m ${s}s`, pts: timePts, color: '#60A5FA' })
+  }
+  if (eng.ctaClicked === 'showing') {
+    factors.push({ label: 'Showing Requested', pts: 10, color: '#EF4444' })
+  } else if (eng.ctaClicked === 'question') {
+    factors.push({ label: 'Question Asked', pts: 5, color: '#10B981' })
+  }
+
+  // Timeline events (most recent first)
+  const timeline: Array<{ icon: string; title: string; desc: string; time: string; color: string; bg: string }> = []
+  if (eng.ctaClicked === 'showing') {
+    timeline.push({ icon: '🏠', title: 'Requested Showing', desc: `${firstName} requested a showing for this property`, time: lead.created_at, color: '#EF4444', bg: '#3B0D0D' })
+  }
+  if (lead.notes) {
+    timeline.push({ icon: '💬', title: 'Asked a Question', desc: `"${lead.notes}"`, time: lead.created_at, color: '#10B981', bg: '#052e16' })
+  }
+  if (eng.visitCount > 1) {
+    timeline.push({ icon: '↩️', title: 'Returned to Property Page', desc: 'This is visit #2 to the property page', time: scanEvent?.created_at ?? lead.created_at, color: '#7C3AED', bg: '#1e1b4b' })
+  }
+  if (eng.photosViewed > 0) {
+    timeline.push({ icon: '📸', title: 'Viewed Photos', desc: `Viewed ${eng.photosViewed} photo${eng.photosViewed !== 1 ? 's' : ''}`, time: scanEvent?.created_at ?? lead.created_at, color: '#14B8A6', bg: '#022c22' })
+  }
+  timeline.push({ icon: '📱', title: 'Scanned QR Code', desc: 'First scan from yard sign', time: scanEvent?.created_at ?? lead.created_at, color: '#F97316', bg: '#431407' })
+
+  // Contact preferences
+  const prefs    = lead.contact_preference ? (lead.contact_preference as string).split(',').map((p: string) => p.trim()).filter(Boolean) : []
+  const allPrefs = ['Text', 'Email', 'Phone Call']
+  const prefIcon: Record<string, string> = { Text: '💬', Email: '✉️', 'Phone Call': '📞' }
+
+  // Listing health
+  const health = propStats.leads >= 5
+    ? { label: '🟢 High Interest',     color: '#10B981', bg: 'rgba(16,185,129,0.1)' }
+    : propStats.leads >= 2
+    ? { label: '🟡 Moderate Interest', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)' }
+    : { label: '🔴 Low Interest',      color: '#EF4444', bg: 'rgba(239,68,68,0.1)' }
+
+  // AI summary lines
+  const summaryLines = aiSummary.split('\n').filter(l => l.trim())
+
+  const dropdownStyle: React.CSSProperties = {
+    position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 50,
+    background: C.card, border: `1px solid ${C.border}`, borderRadius: 10,
+    overflow: 'hidden', minWidth: 200, boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+  }
 
   return (
     <DashboardLayout>
       <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .notes-area:focus { border-color: ${C.purple} !important; box-shadow: 0 0 0 3px rgba(124,58,237,0.2); }
-        @media (max-width: 900px) { .detail-grid { grid-template-columns: 1fr !important; } }
+        @keyframes spin { to { transform: rotate(360deg) } }
+        @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.4 } }
+        .action-btn:hover { filter: brightness(1.15) }
+        .dropdown-item:hover { background: rgba(255,255,255,0.05) !important }
+        .notes-ta:focus { border-color: ${C.purple} !important; box-shadow: 0 0 0 3px rgba(124,58,237,0.2); }
+        @media (max-width: 960px) { .li-grid { grid-template-columns: 1fr !important } }
+        @media (max-width: 640px) { .hero-inner { flex-direction: column !important } .hero-right { border-left: none !important; border-top: 1px solid ${C.border} !important; padding-left: 0 !important; padding-top: 20px !important; width: 100% !important; } .act-row { flex-wrap: wrap !important } }
       `}</style>
 
-      {/* Top bar */}
-      <div className="db-page-topbar" style={{
-        position: 'sticky', top: 0, zIndex: 10,
+      {/* ── Header bar ─────────────────────────────────────────────────────────── */}
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 20,
         background: C.bg, borderBottom: `1px solid ${C.border}`,
-        padding: '14px 28px', display: 'flex', alignItems: 'center', gap: 16,
+        padding: '12px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         fontFamily: 'sans-serif',
       }}>
-        <Link href="/dashboard/leads" style={{ color: C.muted, fontSize: 13, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
-          ← Leads
-        </Link>
-        <span style={{ color: C.border }}>|</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-          <span style={{ fontSize: 16, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lead.name}</span>
-          {cfg && (
-            <span style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.color}50`, borderRadius: 6, padding: '2px 9px', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
-              {cfg.label}
-            </span>
-          )}
+        <div>
+          <div style={{ fontSize: 11, color: C.muted, marginBottom: 2 }}>
+            <Link href="/dashboard/leads" style={{ color: C.muted, textDecoration: 'none' }}>Leads</Link>
+            <span style={{ margin: '0 5px' }}>›</span>
+            <span style={{ color: C.sub }}>{lead.name}</span>
+          </div>
+          <div style={{ fontSize: 17, fontWeight: 800, color: C.text, letterSpacing: '-0.02em' }}>Lead Details</div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Link href="/dashboard/leads" style={{
+            fontSize: 13, fontWeight: 600, color: C.sub, textDecoration: 'none',
+            padding: '8px 14px', borderRadius: 8, border: `1px solid ${C.border}`, background: 'transparent',
+          }}>
+            ← Back to Leads
+          </Link>
+          <div ref={actionsRef} style={{ position: 'relative' }}>
+            <button
+              onClick={() => setActionsOpen(v => !v)}
+              style={{
+                fontSize: 13, fontWeight: 700, color: C.text, cursor: 'pointer',
+                padding: '8px 14px', borderRadius: 8, border: `1px solid ${C.border}`,
+                background: '#1F1F2E', fontFamily: 'sans-serif',
+              }}
+            >
+              Actions ▾
+            </button>
+            {actionsOpen && (
+              <div style={dropdownStyle}>
+                {lead.phone && <DropdownItem onClick={() => { copyToClipboard(lead.phone, 'phone'); setActionsOpen(false) }}>Copy Phone {copied === 'phone' && '✓'}</DropdownItem>}
+                {lead.email && <DropdownItem onClick={() => { copyToClipboard(lead.email, 'email'); setActionsOpen(false) }}>Copy Email {copied === 'email' && '✓'}</DropdownItem>}
+                {property && <DropdownItem href={`/p/${property.id}`}>View Buyer Page →</DropdownItem>}
+                <div style={{ height: 1, background: C.border }} />
+                <DropdownItem danger onClick={() => { setActionsOpen(false); deleteLead() }}>
+                  {deleting ? 'Deleting…' : 'Delete Lead'}
+                </DropdownItem>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      <div style={{ padding: '24px 28px 48px', fontFamily: 'sans-serif', flex: 1 }}>
+      <div style={{ padding: '20px 28px 56px', fontFamily: 'sans-serif', flex: 1 }}>
 
-        {/* Lead header */}
-        <div style={{ background: C.card, border: `1px solid ${cfg?.border ?? C.border}`, borderRadius: 16, padding: '22px 24px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 18 }}>
-          <div style={{
-            width: 60, height: 60, borderRadius: 16, flexShrink: 0,
-            background: cfg ? cfg.bg : `${C.purple}28`,
-            border: `2px solid ${cfg?.border ?? C.border}`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 20, fontWeight: 700, color: cfg?.color ?? C.purpleL,
-          }}>{initials}</div>
-          <div>
-            <div style={{ fontSize: 22, fontWeight: 900, color: C.text, marginBottom: 6, letterSpacing: '-0.02em' }}>{lead.name || 'Unknown'}</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              {cfg && (
-                <span style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.color}50`, borderRadius: 6, padding: '3px 10px', fontSize: 12, fontWeight: 700 }}>
-                  {cfg.label}
-                </span>
+        {/* ── Buyer Hero Card ──────────────────────────────────────────────────── */}
+        <div style={{
+          background: C.card, border: `1px solid ${tier.border}40`,
+          borderRadius: 16, marginBottom: 14, overflow: 'hidden',
+        }}>
+          <div className="hero-inner" style={{ display: 'flex', padding: '22px 24px', gap: 24 }}>
+
+            {/* Left side */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start' }}>
+                {/* Avatar */}
+                <div style={{
+                  width: 80, height: 80, borderRadius: '50%', flexShrink: 0,
+                  background: `linear-gradient(135deg, ${C.purple}, #5B21B6)`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 28, fontWeight: 900, color: '#fff',
+                  boxShadow: `0 0 0 3px ${tier.border}40`,
+                }}>
+                  {initials}
+                </div>
+                <div style={{ minWidth: 0, paddingTop: 2 }}>
+                  {/* Intent badge */}
+                  <span style={{
+                    display: 'inline-block', marginBottom: 6,
+                    background: tier.bg, color: tier.color,
+                    border: `1px solid ${tier.border}60`,
+                    borderRadius: 20, padding: '3px 12px',
+                    fontSize: 12, fontWeight: 700,
+                  }}>
+                    {tier.label}
+                  </span>
+                  {/* Name */}
+                  <div style={{ fontSize: 26, fontWeight: 900, color: C.text, letterSpacing: '-0.02em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {lead.name ?? 'Unknown'}
+                    <span title="Favorite" style={{ fontSize: 18, cursor: 'default', opacity: 0.4 }}>☆</span>
+                    <span title="Edit" style={{ fontSize: 14, cursor: 'default', opacity: 0.4 }}>✏️</span>
+                  </div>
+                  {/* Address */}
+                  {fullAddr && (
+                    <div style={{ fontSize: 13, color: C.sub, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      🏠 {fullAddr}
+                    </div>
+                  )}
+                  {/* Time */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: C.muted }}>
+                    Lead submitted {timeAgo(lead.created_at)}
+                    <span style={{
+                      background: '#052e16', color: '#4ade80',
+                      border: '1px solid #166534', borderRadius: 20,
+                      padding: '2px 10px', fontSize: 11, fontWeight: 700,
+                    }}>
+                      ✓ First Contact
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right side */}
+            <div className="hero-right" style={{
+              width: 280, flexShrink: 0,
+              borderLeft: `1px solid ${C.border}`,
+              paddingLeft: 24,
+              display: 'flex', flexDirection: 'column', gap: 16,
+            }}>
+              {/* Preferred Contact */}
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                  Preferred Contact
+                </div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {allPrefs.map(pref => {
+                    const preferred = prefs.includes(pref)
+                    return (
+                      <span key={pref} style={{
+                        fontSize: 11, fontWeight: 700,
+                        background: preferred ? `${C.purpleL}18` : 'transparent',
+                        border: `1px solid ${preferred ? C.purpleL : C.border}`,
+                        color: preferred ? C.purpleL : C.muted,
+                        borderRadius: 20, padding: '4px 11px',
+                        opacity: preferred ? 1 : 0.7,
+                      }}>
+                        {prefIcon[pref]} {preferred ? pref : `Avoid ${pref}`}
+                      </span>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Lead Score */}
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                  Lead Score
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 44, fontWeight: 900, color: tier.color, lineHeight: 1 }}>{Math.min(score, 25)}</span>
+                  <div>
+                    <div style={{ fontSize: 12, color: C.muted, marginBottom: 4 }}>/ 25</div>
+                    <span style={{
+                      background: tier.bg, color: tier.color,
+                      border: `1px solid ${tier.border}60`,
+                      borderRadius: 20, padding: '3px 10px',
+                      fontSize: 11, fontWeight: 700,
+                    }}>
+                      {tier.intent}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Action buttons row */}
+          <div className="act-row" style={{
+            display: 'flex', gap: 10,
+            padding: '14px 24px',
+            borderTop: `1px solid ${C.border}`,
+            background: C.cardAlt,
+          }}>
+            {lead.phone && (
+              <a href={`tel:${lead.phone}`} className="action-btn" style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                background: '#052e16', border: '1px solid #166534',
+                borderRadius: 10, padding: '10px 20px',
+                color: '#4ade80', fontSize: 14, fontWeight: 700, textDecoration: 'none',
+              }}>📞 Call Now</a>
+            )}
+            {lead.phone && (
+              <a href={`sms:${lead.phone}`} className="action-btn" style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                background: '#0B1E3A', border: '1px solid #1D4ED860',
+                borderRadius: 10, padding: '10px 20px',
+                color: '#60A5FA', fontSize: 14, fontWeight: 700, textDecoration: 'none',
+              }}>💬 Send Text</a>
+            )}
+            {lead.email && (
+              <a href={`mailto:${lead.email}`} className="action-btn" style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                background: `${C.purple}18`, border: `1px solid ${C.purple}50`,
+                borderRadius: 10, padding: '10px 20px',
+                color: C.purpleL, fontSize: 14, fontWeight: 700, textDecoration: 'none',
+              }}>✉️ Send Email</a>
+            )}
+
+            {/* More Actions dropdown */}
+            <div ref={moreRef} style={{ position: 'relative', marginLeft: 'auto' }}>
+              <button
+                onClick={() => setMoreOpen(v => !v)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  background: '#1F1F2E', border: `1px solid ${C.border}`,
+                  borderRadius: 10, padding: '10px 18px',
+                  color: C.sub, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif',
+                }}
+              >
+                More Actions ▾
+              </button>
+              {moreOpen && (
+                <div style={{ ...dropdownStyle, right: 0 }}>
+                  {lead.phone && (
+                    <DropdownItem onClick={() => copyToClipboard(lead.phone, 'phone')}>
+                      📋 Copy Phone {copied === 'phone' ? '✓' : ''}
+                    </DropdownItem>
+                  )}
+                  {lead.email && (
+                    <DropdownItem onClick={() => copyToClipboard(lead.email, 'email')}>
+                      📋 Copy Email {copied === 'email' ? '✓' : ''}
+                    </DropdownItem>
+                  )}
+                  {property && (
+                    <DropdownItem href={`/p/${property.id}`}>🔗 View Buyer Page</DropdownItem>
+                  )}
+                  <div style={{ height: 1, background: C.border }} />
+                  <DropdownItem danger onClick={() => { setMoreOpen(false); deleteLead() }}>
+                    🗑 Delete Lead
+                  </DropdownItem>
+                </div>
               )}
-              <span style={{ fontSize: 13, color: C.muted }}>Lead since {fmtDate(lead.created_at)}</span>
             </div>
           </div>
         </div>
 
-        {/* 2-col layout */}
-        <div className="detail-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16, alignItems: 'start' }}>
+        {/* ── Two-column body ──────────────────────────────────────────────────── */}
+        <div className="li-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 14, alignItems: 'start' }}>
 
-          {/* Left column */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* ── LEFT COLUMN ────────────────────────────────────────────────────── */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-            {/* Buyer's question — shown when present (set at lead submission for 'question' CTA) */}
-            {lead.notes && (
-              <div style={{ background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.3)', borderRadius: 14, padding: '16px 18px' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#60A5FA', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
-                  💬 Buyer's Message
-                </div>
-                <p style={{ fontSize: 15, color: C.text, lineHeight: 1.65, margin: 0, fontStyle: 'italic' }}>"{lead.notes}"</p>
-              </div>
-            )}
-
-            {/* Contact */}
-            <Section title="Contact Info">
-              {lead.phone && <InfoRow icon="📞" label="Phone" value={lead.phone} href={`tel:${lead.phone}`} />}
-              {lead.email && <InfoRow icon="✉️" label="Email" value={lead.email} href={`mailto:${lead.email}`} />}
-              {!lead.phone && !lead.email && <div style={{ fontSize: 13, color: C.muted }}>No contact info provided.</div>}
-              {/* Contact preference */}
-              {lead.contact_preference && (
-                <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>Contact Preference</div>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {(lead.contact_preference as string).split(',').map((p: string) => p.trim()).filter(Boolean).map((pref: string) => (
-                      <span key={pref} style={{ fontSize: 12, fontWeight: 700, background: 'rgba(255,255,255,0.06)', border: `1px solid ${C.border}`, color: C.sub, borderRadius: 6, padding: '5px 11px' }}>
-                        {pref === 'Phone Call' ? '📞' : pref === 'Text' ? '💬' : '✉️'} {pref}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {/* Action buttons */}
-              {(lead.phone || lead.email) && (
-                <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                  {lead.phone && (
-                    <a href={`tel:${lead.phone}`} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#062014', border: '1px solid #166534', borderRadius: 9, padding: '9px 16px', color: '#4ade80', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
-                      📞 Call
-                    </a>
-                  )}
-                  {lead.phone && (
-                    <a href={`sms:${lead.phone}`} style={{ display: 'flex', alignItems: 'center', gap: 6, background: `${C.purple}18`, border: `1px solid ${C.purple}40`, borderRadius: 9, padding: '9px 16px', color: C.purpleL, fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
-                      💬 Text
-                    </a>
-                  )}
-                  {lead.email && (
-                    <a href={`mailto:${lead.email}`} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#0B1E3A', border: '1px solid #1D4ED860', borderRadius: 9, padding: '9px 16px', color: '#60A5FA', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
-                      ✉️ Email
-                    </a>
-                  )}
-                </div>
-              )}
-            </Section>
-
-            {/* Property */}
-            <Section title="Property">
-              {property ? (
-                <>
-                  <InfoRow icon="📍" label="Address" value={[property.address, location].filter(Boolean).join(' — ')} />
-                  {qrCode && (
-                    <>
-                      <InfoRow icon="🏷️" label="QR Code" value={qrCode.label || 'Unlabeled'} />
-                      <InfoRow icon="📊" label="Total Scans" value={`${qrCode.scan_count || 0} scan${qrCode.scan_count !== 1 ? 's' : ''}`} />
-                      {qrCode.placement && <InfoRow icon="📌" label="Placement" value={qrCode.placement} />}
-                    </>
-                  )}
-                  <div style={{ marginTop: 8 }}>
-                    <Link href={`/p/${property.id}`} target="_blank" style={{ fontSize: 12, color: C.purpleL, fontWeight: 700, textDecoration: 'none' }}>
-                      View buyer page →
-                    </Link>
-                  </div>
-                </>
-              ) : (
-                <div style={{ fontSize: 13, color: C.muted }}>Property no longer available.</div>
-              )}
-            </Section>
-
-            {/* Timeline */}
-            <Section title="Activity Timeline">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                {lastScan && (
-                  <div style={{ display: 'flex', gap: 14, paddingBottom: 16, position: 'relative' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
-                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: `${C.purple}28`, border: `1px solid ${C.purple}45`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>📱</div>
-                      <div style={{ width: 1, flex: 1, background: C.border, marginTop: 4 }} />
-                    </div>
-                    <div style={{ paddingTop: 4 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 2 }}>Scanned QR code</div>
-                      <div style={{ fontSize: 12, color: C.muted }}>{fmtDateTime(lastScan)} · {timeAgo(lastScan)}</div>
-                    </div>
-                  </div>
-                )}
-                <div style={{ display: 'flex', gap: 14 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#062014', border: '1px solid #166534', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>✅</div>
-                  <div style={{ paddingTop: 4 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 2 }}>Submitted lead form</div>
-                    <div style={{ fontSize: 12, color: C.muted }}>{fmtDateTime(lead.created_at)} · {timeAgo(lead.created_at)}</div>
-                  </div>
-                </div>
-              </div>
-            </Section>
-
-            {/* Notes */}
-            <Section title="Agent Notes">
-              <textarea
-                className="notes-area"
-                value={notes}
-                onChange={e => setNotes(e.target.value)}
-                placeholder="Add notes about this lead — follow-up status, showing details, feedback…"
-                rows={5}
-                style={{
-                  width: '100%', boxSizing: 'border-box',
-                  background: C.bg, border: `1px solid ${C.border}`,
-                  borderRadius: 9, color: C.text, fontSize: 14,
-                  padding: '12px 14px', resize: 'vertical', outline: 'none',
-                  fontFamily: 'sans-serif', lineHeight: 1.6,
-                  marginBottom: 10,
-                }}
-              />
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* AI Buyer Summary */}
+            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
+              <div style={{ padding: '13px 18px', borderBottom: `1px solid ${C.border}`, background: C.cardAlt, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>✨ AI Buyer Summary</span>
                 <button
-                  onClick={saveNotes}
-                  disabled={savingNotes}
+                  onClick={() => generateAISummary()}
+                  disabled={aiLoading}
                   style={{
-                    background: C.purple, color: '#fff', border: 'none',
-                    borderRadius: 9, padding: '9px 20px', fontSize: 13, fontWeight: 700,
-                    cursor: savingNotes ? 'not-allowed' : 'pointer',
-                    opacity: savingNotes ? 0.7 : 1, fontFamily: 'sans-serif',
+                    fontSize: 12, fontWeight: 600, color: C.purpleL, cursor: aiLoading ? 'default' : 'pointer',
+                    background: 'none', border: 'none', fontFamily: 'sans-serif', opacity: aiLoading ? 0.5 : 1,
+                    padding: 0,
                   }}
                 >
-                  {savingNotes ? 'Saving…' : 'Save Notes'}
+                  {aiLoading ? 'Generating…' : 'Regenerate ↻'}
                 </button>
-                {notesSaved && <span style={{ fontSize: 12, color: '#4ade80', fontWeight: 600 }}>✓ Saved</span>}
               </div>
-            </Section>
+              <div style={{ padding: '16px 18px' }}>
+                {aiLoading ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {[80, 60, 70, 55, 65].map((w, i) => (
+                      <div key={i} style={{
+                        height: 12, borderRadius: 6,
+                        background: C.border,
+                        width: `${w}%`,
+                        animation: 'pulse 1.4s ease-in-out infinite',
+                        animationDelay: `${i * 0.1}s`,
+                      }} />
+                    ))}
+                  </div>
+                ) : aiSummary ? (
+                  <>
+                    {summaryLines.map((line, i) => {
+                      const isBullet = line.startsWith('•') || line.startsWith('-')
+                      if (isBullet) {
+                        return (
+                          <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 5, alignItems: 'flex-start' }}>
+                            <span style={{ color: C.purpleL, flexShrink: 0, marginTop: 1 }}>•</span>
+                            <span style={{ fontSize: 13, color: C.sub, lineHeight: 1.55 }}>
+                              {line.replace(/^[•\-]\s*/, '')}
+                            </span>
+                          </div>
+                        )
+                      }
+                      return <p key={i} style={{ fontSize: 14, color: C.text, lineHeight: 1.65, margin: '0 0 12px' }}>{line}</p>
+                    })}
+                    {aiAction && (
+                      <div style={{
+                        marginTop: 14,
+                        background: `${C.purple}15`,
+                        border: `1px solid ${C.purple}40`,
+                        borderRadius: 10, padding: '12px 14px',
+                      }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: C.purpleL, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                          💡 Recommended Action
+                        </div>
+                        <p style={{ fontSize: 13, color: C.sub, lineHeight: 1.6, margin: 0 }}>{aiAction}</p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div style={{ fontSize: 13, color: C.muted }}>
+                    AI summary unavailable. Make sure ANTHROPIC_API_KEY is set and click Regenerate.
+                  </div>
+                )}
+              </div>
+            </div>
 
-          </div>
+            {/* Buyer Activity Timeline */}
+            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
+              <div style={{ padding: '13px 18px', borderBottom: `1px solid ${C.border}`, background: C.cardAlt, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Buyer Activity Timeline</span>
+                <Link href="/dashboard/leads" style={{ fontSize: 12, color: C.purpleL, textDecoration: 'none', fontWeight: 600 }}>
+                  View All →
+                </Link>
+              </div>
+              <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 0 }}>
+                {timeline.map((ev, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 14, paddingBottom: i < timeline.length - 1 ? 16 : 0, position: 'relative' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <div style={{
+                        width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
+                        background: ev.bg, border: `1px solid ${ev.color}50`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15,
+                      }}>
+                        {ev.icon}
+                      </div>
+                      {i < timeline.length - 1 && (
+                        <div style={{ width: 1, flex: 1, background: C.border, marginTop: 4 }} />
+                      )}
+                    </div>
+                    <div style={{ paddingTop: 6, minWidth: 0, flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 3 }}>{ev.title}</div>
+                      <div style={{ fontSize: 12, color: C.sub, marginBottom: 4, lineHeight: 1.45, wordBreak: 'break-word' }}>{ev.desc}</div>
+                      <div style={{ fontSize: 11, color: C.muted }}>{fmtTime(ev.time)} · {timeAgo(ev.time)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-          {/* Right column — Suggested Action */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {cfg && (
-              <div style={{ background: cfg.bg, border: `1px solid ${cfg.border}40`, borderRadius: 16, padding: '22px 20px' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: cfg.color, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Suggested Action</div>
-                <div style={{ fontSize: 26, marginBottom: 10 }}>{cfg.actionIcon}</div>
-                <div style={{ fontSize: 20, fontWeight: 900, color: C.text, marginBottom: 8, lineHeight: 1.2 }}>{cfg.actionLabel}</div>
-                <p style={{ fontSize: 14, color: C.sub, lineHeight: 1.6, margin: '0 0 18px' }}>{cfg.action}</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {lead.phone && (
-                    <a href={`tel:${lead.phone}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: cfg.color, color: '#fff', border: 'none', borderRadius: 9, padding: '11px 16px', fontSize: 14, fontWeight: 800, textDecoration: 'none', textAlign: 'center' }}>
-                      📞 Call {lead.name?.split(' ')[0] || 'Lead'}
-                    </a>
-                  )}
-                  {lead.phone && (
-                    <a href={`sms:${lead.phone}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: 'rgba(255,255,255,0.08)', color: C.text, border: `1px solid rgba(255,255,255,0.15)`, borderRadius: 9, padding: '10px 16px', fontSize: 14, fontWeight: 700, textDecoration: 'none', textAlign: 'center' }}>
-                      💬 Send Text
-                    </a>
-                  )}
-                  {lead.email && (
-                    <a href={`mailto:${lead.email}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: 'rgba(255,255,255,0.08)', color: C.text, border: `1px solid rgba(255,255,255,0.15)`, borderRadius: 9, padding: '10px 16px', fontSize: 14, fontWeight: 700, textDecoration: 'none', textAlign: 'center' }}>
-                      ✉️ Send Email
-                    </a>
-                  )}
+            {/* Motivation Breakdown */}
+            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
+              <div style={{ padding: '13px 18px', borderBottom: `1px solid ${C.border}`, background: C.cardAlt }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Motivation Breakdown</span>
+              </div>
+              <div style={{ padding: '16px 18px', display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+
+                {/* Donut chart */}
+                <DonutChart segments={factors.map(f => ({ pts: f.pts, color: f.color }))} total={score} />
+
+                {/* Factor list */}
+                <div style={{ flex: 1, minWidth: 160, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {factors.map((f, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 10, height: 10, borderRadius: 3, background: f.color, flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ fontSize: 12, color: C.sub }}>{f.label}</span>
+                        {f.detail && <span style={{ fontSize: 11, color: C.muted, marginLeft: 5 }}>({f.detail})</span>}
+                      </div>
+                      <span style={{
+                        fontSize: 12, fontWeight: 800, color: '#4ade80',
+                        background: 'rgba(74,222,128,0.1)', borderRadius: 6, padding: '2px 7px',
+                      }}>
+                        +{f.pts}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Score Guide */}
+                <div style={{ flexShrink: 0, minWidth: 110 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                    Score Guide
+                  </div>
+                  {SCORE_GUIDE.map(g => (
+                    <div key={g.label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: g.color, flexShrink: 0 }} />
+                      <span style={{ fontSize: 11, color: C.muted, flex: 1 }}>{g.range}</span>
+                      <span style={{ fontSize: 11, color: g.color, fontWeight: 700 }}>{g.label}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-            )}
+            </div>
 
-            {/* Lead summary card */}
-            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: '18px' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 14 }}>Lead Summary</div>
-              {[
-                { label: 'Motivation', value: cfg?.label || lead.motivation || '—' },
-                { label: 'Submitted',  value: fmtDate(lead.created_at) },
-                { label: 'Property',   value: property?.address || '—' },
-                { label: 'QR Code',    value: qrCode?.label || (lead.qr_id ? 'Unlinked' : 'Direct') },
-              ].map(({ label, value }) => (
-                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, gap: 8 }}>
-                  <span style={{ fontSize: 12, color: C.muted, flexShrink: 0 }}>{label}</span>
-                  <span style={{ fontSize: 12, color: C.sub, textAlign: 'right', wordBreak: 'break-word', maxWidth: 180 }}>{value}</span>
+            {/* Notes */}
+            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
+              <div style={{ padding: '13px 18px', borderBottom: `1px solid ${C.border}`, background: C.cardAlt }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>📝 Notes</span>
+              </div>
+              <div style={{ padding: '16px 18px' }}>
+                <textarea
+                  className="notes-ta"
+                  value={notes}
+                  onChange={e => setNotes(e.target.value)}
+                  placeholder="Add private notes about this lead…"
+                  rows={4}
+                  style={{
+                    width: '100%', boxSizing: 'border-box',
+                    background: C.bg, border: `1px solid ${C.border}`,
+                    borderRadius: 9, color: C.text, fontSize: 13,
+                    padding: '11px 13px', resize: 'vertical', outline: 'none',
+                    fontFamily: 'sans-serif', lineHeight: 1.6, marginBottom: 10,
+                  }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <button
+                    onClick={saveNotes}
+                    disabled={savingNotes}
+                    style={{
+                      background: C.purple, color: '#fff', border: 'none',
+                      borderRadius: 9, padding: '9px 20px', fontSize: 13, fontWeight: 700,
+                      cursor: savingNotes ? 'not-allowed' : 'pointer',
+                      opacity: savingNotes ? 0.7 : 1, fontFamily: 'sans-serif',
+                    }}
+                  >
+                    {savingNotes ? 'Saving…' : 'Save Note'}
+                  </button>
+                  {notesSaved && <span style={{ fontSize: 12, color: '#4ade80', fontWeight: 600 }}>✓ Saved</span>}
                 </div>
-              ))}
+              </div>
             </div>
           </div>
 
+          {/* ── RIGHT COLUMN ───────────────────────────────────────────────────── */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+            {/* Property card */}
+            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
+              <div style={{ padding: '13px 18px', borderBottom: `1px solid ${C.border}`, background: C.cardAlt, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Property</span>
+                {property && (
+                  <Link href={`/p/${property.id}`} target="_blank" style={{ fontSize: 12, color: C.purpleL, textDecoration: 'none', fontWeight: 600 }}>
+                    View Property →
+                  </Link>
+                )}
+              </div>
+              <div style={{ padding: '14px 18px' }}>
+                {propPhoto && (
+                  <img src={propPhoto} alt={property?.address ?? 'Property'} style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 8, marginBottom: 12, display: 'block' }} />
+                )}
+                {property ? (
+                  <>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 2 }}>{property.address}</div>
+                    {location && <div style={{ fontSize: 12, color: C.muted, marginBottom: 10 }}>{location}</div>}
+                    <span style={{
+                      fontSize: 11, fontWeight: 700,
+                      color: health.color, background: health.bg,
+                      border: `1px solid ${health.color}40`,
+                      borderRadius: 20, padding: '3px 11px',
+                      display: 'inline-block', marginBottom: 12,
+                    }}>
+                      {health.label}
+                    </span>
+                    {/* Stats row */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+                      {[
+                        { label: 'Scans',      value: propStats.scans },
+                        { label: 'Leads',      value: propStats.leads },
+                        { label: 'Showings',   value: propStats.showings },
+                        { label: 'Disclosures', value: propStats.packets },
+                      ].map(({ label, value }) => (
+                        <div key={label} style={{ background: C.cardAlt, borderRadius: 8, padding: '8px 6px', textAlign: 'center', border: `1px solid ${C.border}` }}>
+                          <div style={{ fontSize: 16, fontWeight: 900, color: C.text }}>{value}</div>
+                          <div style={{ fontSize: 9, color: C.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ fontSize: 13, color: C.muted }}>Property not found.</div>
+                )}
+              </div>
+            </div>
+
+            {/* Buyer Question card */}
+            {buyerQuestion && (
+              <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
+                <div style={{ padding: '13px 18px', borderBottom: `1px solid ${C.border}`, background: C.cardAlt, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Buyer Question</span>
+                  <Link href="/dashboard/leads" style={{ fontSize: 12, color: C.purpleL, textDecoration: 'none', fontWeight: 600 }}>
+                    View All →
+                  </Link>
+                </div>
+                <div style={{ padding: '16px 18px' }}>
+                  <div style={{ fontSize: 28, marginBottom: 10 }}>💬</div>
+                  <p style={{ fontSize: 15, color: C.text, lineHeight: 1.65, margin: '0 0 10px', fontStyle: 'italic' }}>
+                    "{buyerQuestion}"
+                  </p>
+                  <div style={{ fontSize: 11, color: C.muted }}>{timeAgo(lead.created_at)}</div>
+                </div>
+              </div>
+            )}
+
+            {/* Contact Information card */}
+            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
+              <div style={{ padding: '13px 18px', borderBottom: `1px solid ${C.border}`, background: C.cardAlt, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Contact Information</span>
+                <span style={{ fontSize: 12, color: C.muted }}>Edit</span>
+              </div>
+              <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {lead.phone && (
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                    <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>📞</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>
+                        Mobile {prefs.includes('Text') ? '(Text Preferred)' : ''}
+                      </div>
+                      <a href={`tel:${lead.phone}`} style={{ fontSize: 14, fontWeight: 600, color: C.text, textDecoration: 'none' }}>{lead.phone}</a>
+                    </div>
+                    <a href={`sms:${lead.phone}`} title="Send text" style={{
+                      width: 30, height: 30, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: '#0B1E3A', border: '1px solid #1D4ED840', color: '#60A5FA', fontSize: 14, textDecoration: 'none', flexShrink: 0,
+                    }}>💬</a>
+                  </div>
+                )}
+                {lead.email && (
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                    <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>✉️</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>
+                        Email
+                      </div>
+                      <a href={`mailto:${lead.email}`} style={{ fontSize: 13, fontWeight: 600, color: C.text, textDecoration: 'none', wordBreak: 'break-all' }}>{lead.email}</a>
+                    </div>
+                    <a href={`mailto:${lead.email}`} title="Send email" style={{
+                      width: 30, height: 30, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: `${C.purple}18`, border: `1px solid ${C.purple}40`, color: C.purpleL, fontSize: 14, textDecoration: 'none', flexShrink: 0,
+                    }}>✉️</a>
+                  </div>
+                )}
+                {!lead.phone && !lead.email && (
+                  <div style={{ fontSize: 13, color: C.muted }}>No contact info provided.</div>
+                )}
+              </div>
+            </div>
+
+            {/* Lead Source card */}
+            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
+              <div style={{ padding: '13px 18px', borderBottom: `1px solid ${C.border}`, background: C.cardAlt }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Lead Source</span>
+              </div>
+              <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 20 }}>📱</span>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>QR Code Scan</div>
+                    <div style={{ fontSize: 11, color: C.muted }}>
+                      {qrCode?.label || qrCode?.placement || 'Yard Sign'}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 12, color: C.muted }}>
+                  {fmtDateTime(scanEvent?.created_at ?? lead.created_at)}
+                </div>
+                {property && (
+                  <div style={{ fontSize: 12, color: C.muted, fontFamily: 'monospace' }}>
+                    /p/{property.id}
+                  </div>
+                )}
+              </div>
+            </div>
+
+          </div>
         </div>
       </div>
     </DashboardLayout>

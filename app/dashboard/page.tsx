@@ -171,6 +171,7 @@ export default function Dashboard() {
   const [leadSparkline,    setLeadSparkline]     = useState<number[]>([])
   const [profileName,      setProfileName]       = useState('')
   const [loading,          setLoading]           = useState(true)
+  const [propertiesLoaded, setPropertiesLoaded]  = useState(false)
   const [copiedReport,     setCopiedReport]      = useState(false)
   const [origin,           setOrigin]            = useState('')
 
@@ -188,8 +189,8 @@ export default function Dashboard() {
       const { data: props } = await supabase.from('properties').select('id, address, city, state, active, packet_enabled')
         .eq('user_id', session.user.id).order('created_at', { ascending: false })
       if (!props) return // query failed — stay on dashboard, don't redirect
-      if (props.length === 0 && !localStorage.getItem('onboarding_complete')) { router.push('/dashboard/onboarding'); return }
       setProperties(props)
+      setPropertiesLoaded(true)
 
       const ids = props.map((p: any) => p.id)
       const thisMonthStart = new Date(); thisMonthStart.setDate(1); thisMonthStart.setHours(0, 0, 0, 0)
@@ -291,6 +292,12 @@ export default function Dashboard() {
     load()
   }, [])
 
+  useEffect(() => {
+    if (propertiesLoaded && properties.length === 0 && !localStorage.getItem('onboarding_complete')) {
+      router.push('/dashboard/onboarding')
+    }
+  }, [propertiesLoaded, properties])
+
   // ── Derived ─────────────────────────────────────────────────────────────────
   const firstName  = (profileName || '').split(' ')[0]
   const hour       = typeof window !== 'undefined' ? new Date().getHours() : 12
@@ -347,7 +354,7 @@ export default function Dashboard() {
         }
       `}</style>
 
-      {loading ? (
+      {loading || !propertiesLoaded ? (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ width: 36, height: 36, border: `2px solid ${C.purple}`, borderTopColor: 'transparent', borderRadius: '50%', margin: '0 auto 14px', animation: 'spin 0.7s linear infinite' }} />

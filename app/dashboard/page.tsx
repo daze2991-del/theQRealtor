@@ -186,9 +186,13 @@ export default function Dashboard() {
       const { data: profile } = await supabase.from('profiles').select('plan, name').eq('id', session.user.id).single()
       setProfileName(profile?.name || '')
 
-      const { data: props } = await supabase.from('properties').select('id, address, city, state, active, packet_enabled')
-        .eq('user_id', session.user.id).order('created_at', { ascending: false })
-      if (!props) return // query failed — stay on dashboard, don't redirect
+      const { data: props, error: propsError } = await supabase
+        .from('properties')
+        .select('id, address, city, state, price, beds, baths, description, active, agent_name, agent_phone, user_id, created_at')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false })
+      if (propsError) { console.error('[dashboard] properties query error:', propsError); return }
+      if (!props) return
       setProperties(props)
       setPropertiesLoaded(true)
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createBrowserSupabase } from '../../../../lib/supabase-browser'
 import DashboardLayout from '../../../../components/DashboardLayout'
@@ -19,6 +19,20 @@ const TIER = {
   warm:      { label: '👍 Warm Buyer',      color: '#60A5FA', bg: '#0F2238', border: '#60A5FA', intent: 'Moderate Intent' },
   cold:      { label: '❄️ Cold Buyer',      color: '#6B7280', bg: '#1F2937', border: '#6B7280', intent: 'Low Intent' },
 } as const
+
+const INTEL_SUMMARY: Record<string, string> = {
+  hot:       'This buyer is highly engaged and showing strong purchase intent.',
+  motivated: 'This buyer is actively interested and worth following up with today.',
+  warm:      'This buyer is considering this property and may need a nudge.',
+  cold:      'This buyer is early in their search. Stay on their radar.',
+}
+
+const INTEL_ACTION: Record<string, string> = {
+  hot:       'Call within 30 minutes. This buyer requested a showing and is highly engaged. Strike while intent is highest.',
+  motivated: 'Follow up today via their preferred contact method. This buyer is actively searching.',
+  warm:      'Send a friendly follow-up text or email within 24 hours. Keep them engaged.',
+  cold:      'Add to your follow-up list. Check in every 2-3 weeks as they continue their search.',
+}
 
 const SCORE_GUIDE = [
   { label: '🔥 Hot',       range: '20–25', color: '#EF4444' },
@@ -111,16 +125,12 @@ export default function LeadDetailPage() {
   const [notesSaved,     setNotesSaved]     = useState(false)
   const [actionsOpen,    setActionsOpen]    = useState(false)
   const [moreOpen,       setMoreOpen]       = useState(false)
-  const [aiSummary,      setAiSummary]      = useState('')
-  const [aiAction,       setAiAction]       = useState('')
-  const [aiLoading,      setAiLoading]      = useState(false)
   const [copied,         setCopied]         = useState('')
   const [deleting,       setDeleting]       = useState(false)
 
   const saveTimer   = useRef<ReturnType<typeof setTimeout> | null>(null)
   const actionsRef  = useRef<HTMLDivElement>(null)
   const moreRef     = useRef<HTMLDivElement>(null)
-  const aiStarted   = useRef(false)
 
   useEffect(() => {
     const load = async () => {
@@ -181,49 +191,6 @@ export default function LeadDetailPage() {
     document.addEventListener('mousedown', h)
     return () => document.removeEventListener('mousedown', h)
   }, [])
-
-  const generateAISummary = useCallback(async (l = lead, p = property, se = scanEvent) => {
-    if (!l || !p) return
-    setAiLoading(true)
-    setAiSummary('')
-    setAiAction('')
-    try {
-      const res = await fetch('/api/lead-summary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          leadData: {
-            name: l.name,
-            phone: l.phone,
-            email: l.email,
-            motivation: l.motivation,
-            contact_preference: l.contact_preference,
-            notes: l.notes,
-            created_at: l.created_at,
-            propertyAddress: [p.address, p.city, p.state].filter(Boolean).join(', '),
-            returnVisit:    se?.return_visit      ?? false,
-            photosViewed:   se?.photos_viewed     ?? null,
-            timeOnPageSec:  se?.time_on_page_sec  ?? null,
-            ctaClicked:     se?.cta_clicked       ?? null,
-          },
-        }),
-      })
-      const data = await res.json()
-      if (data.summary)           setAiSummary(data.summary)
-      if (data.recommendedAction) setAiAction(data.recommendedAction)
-    } catch (err) {
-      console.error('[lead-summary]', err)
-    }
-    setAiLoading(false)
-  }, [lead, property, scanEvent])
-
-  // Auto-generate AI summary once after data loads
-  useEffect(() => {
-    if (!loading && lead && property && !aiStarted.current) {
-      aiStarted.current = true
-      generateAISummary(lead, property, scanEvent)
-    }
-  }, [loading, lead, property, scanEvent])
 
   const saveNotes = async () => {
     setSavingNotes(true)
@@ -328,8 +295,22 @@ export default function LeadDetailPage() {
     ? { label: '🟡 Moderate Interest', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)' }
     : { label: '🔴 Low Interest',      color: '#EF4444', bg: 'rgba(239,68,68,0.1)' }
 
-  // AI summary lines
-  const summaryLines = aiSummary.split('\n').filter(l => l.trim())
+  // Buyer Intelligence bullets (rule-based)
+  const intelBullets: Array<{ icon: string; text: string }> = []
+  if (eng.visitCount > 1)
+    intelBullets.push({ icon: '↩️', text: `Returned to the property page ${eng.visitCount} times` })
+  if (eng.photosViewed > 0)
+    intelBullets.push({ icon: '📸', text: `Viewed ${eng.photosViewed} photo${eng.photosViewed !== 1 ? 's' : ''}` })
+  if (eng.timeOnPageSec > 60) {
+    const mins = Math.floor(eng.timeOnPageSec / 60)
+    intelBullets.push({ icon: '⏱', text: `Spent ${mins} minute${mins !== 1 ? 's' : ''} on the property page` })
+  }
+  if (eng.ctaClicked === 'disclosures')
+    intelBullets.push({ icon: '📋', text: 'Requested property disclosures' })
+  if (lead.notes)
+    intelBullets.push({ icon: '💬', text: 'Asked a question about the property' })
+  if (lead.motivation === 'hot')
+    intelBullets.push({ icon: '📅', text: 'Requested a showing' })
 
   const dropdownStyle: React.CSSProperties = {
     position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 50,
@@ -341,7 +322,6 @@ export default function LeadDetailPage() {
     <DashboardLayout>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg) } }
-        @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.4 } }
         .action-btn:hover { filter: brightness(1.15) }
         .dropdown-item:hover { background: rgba(255,255,255,0.05) !important }
         .notes-ta:focus { border-color: ${C.purple} !important; box-shadow: 0 0 0 3px rgba(124,58,237,0.2); }
@@ -588,70 +568,37 @@ export default function LeadDetailPage() {
           {/* ── LEFT COLUMN ────────────────────────────────────────────────────── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-            {/* AI Buyer Summary */}
+            {/* Buyer Intelligence */}
             <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
-              <div style={{ padding: '13px 18px', borderBottom: `1px solid ${C.border}`, background: C.cardAlt, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>✨ AI Buyer Summary</span>
-                <button
-                  onClick={() => generateAISummary()}
-                  disabled={aiLoading}
-                  style={{
-                    fontSize: 12, fontWeight: 600, color: C.purpleL, cursor: aiLoading ? 'default' : 'pointer',
-                    background: 'none', border: 'none', fontFamily: 'sans-serif', opacity: aiLoading ? 0.5 : 1,
-                    padding: 0,
-                  }}
-                >
-                  {aiLoading ? 'Generating…' : 'Regenerate ↻'}
-                </button>
+              <div style={{ padding: '13px 18px', borderBottom: `1px solid ${C.border}`, background: C.cardAlt }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>🧠 Buyer Intelligence</span>
               </div>
               <div style={{ padding: '16px 18px' }}>
-                {aiLoading ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {[80, 60, 70, 55, 65].map((w, i) => (
-                      <div key={i} style={{
-                        height: 12, borderRadius: 6,
-                        background: C.border,
-                        width: `${w}%`,
-                        animation: 'pulse 1.4s ease-in-out infinite',
-                        animationDelay: `${i * 0.1}s`,
-                      }} />
+                <p style={{ fontSize: 14, color: C.text, lineHeight: 1.65, margin: '0 0 14px' }}>
+                  {INTEL_SUMMARY[lead.motivation] ?? INTEL_SUMMARY.cold}
+                </p>
+                {intelBullets.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 16 }}>
+                    {intelBullets.map((b, i) => (
+                      <div key={i} style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
+                        <span style={{ flexShrink: 0, fontSize: 14 }}>{b.icon}</span>
+                        <span style={{ fontSize: 13, color: C.sub, lineHeight: 1.5 }}>{b.text}</span>
+                      </div>
                     ))}
                   </div>
-                ) : aiSummary ? (
-                  <>
-                    {summaryLines.map((line, i) => {
-                      const isBullet = line.startsWith('•') || line.startsWith('-')
-                      if (isBullet) {
-                        return (
-                          <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 5, alignItems: 'flex-start' }}>
-                            <span style={{ color: C.purpleL, flexShrink: 0, marginTop: 1 }}>•</span>
-                            <span style={{ fontSize: 13, color: C.sub, lineHeight: 1.55 }}>
-                              {line.replace(/^[•\-]\s*/, '')}
-                            </span>
-                          </div>
-                        )
-                      }
-                      return <p key={i} style={{ fontSize: 14, color: C.text, lineHeight: 1.65, margin: '0 0 12px' }}>{line}</p>
-                    })}
-                    {aiAction && (
-                      <div style={{
-                        marginTop: 14,
-                        background: `${C.purple}15`,
-                        border: `1px solid ${C.purple}40`,
-                        borderRadius: 10, padding: '12px 14px',
-                      }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: C.purpleL, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
-                          💡 Recommended Action
-                        </div>
-                        <p style={{ fontSize: 13, color: C.sub, lineHeight: 1.6, margin: 0 }}>{aiAction}</p>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div style={{ fontSize: 13, color: C.muted }}>
-                    AI summary unavailable. Make sure ANTHROPIC_API_KEY is set and click Regenerate.
-                  </div>
                 )}
+                <div style={{
+                  background: `${C.purple}15`,
+                  border: `1px solid ${C.purple}40`,
+                  borderRadius: 10, padding: '12px 14px',
+                }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.purpleL, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                    💡 Recommended Action
+                  </div>
+                  <p style={{ fontSize: 13, color: C.sub, lineHeight: 1.6, margin: 0 }}>
+                    {INTEL_ACTION[lead.motivation] ?? INTEL_ACTION.cold}
+                  </p>
+                </div>
               </div>
             </div>
 

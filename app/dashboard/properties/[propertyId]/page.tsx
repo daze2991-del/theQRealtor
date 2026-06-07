@@ -281,7 +281,7 @@ export default function PropertyIntelligencePage() {
     : { label: 'Low Interest',      score: 34, color: '#EF4444', bg: 'rgba(239,68,68,0.1)',  badgeLabel: '🔴 Low Interest',      text: 'This listing needs more visibility. Consider repositioning your QR signs.' }
 
   // KPI numbers
-  const totalScans = qrCodes.reduce((s: number, q: any) => s + (q.scan_count ?? 0), 0)
+  const totalScans = scanEvents.length
 
   const thisMonthScans    = scanEvents.filter((e: any) => new Date(e.created_at) >= thisMonthStart).length
   const lastMonthScans    = scanEvents.filter((e: any) => { const d = new Date(e.created_at); return d >= lastMonthStart && d < thisMonthStart }).length
@@ -309,8 +309,8 @@ export default function PropertyIntelligencePage() {
 
   // Buyer funnel
   const engagedVisitors = scanEvents.filter((e: any) => (e.photos_viewed ?? 0) > 0 || (e.time_on_page_sec ?? 0) > 60).length
-  const funnelScans = Math.max(totalScans, scanEvents.length)
-  const showingRatePct = funnelScans > 0 ? ((showingRequests / funnelScans) * 100).toFixed(1) : '0.0'
+  const funnelScans = totalScans
+  const showingRatePct = totalLeads > 0 ? ((showingRequests / totalLeads) * 100).toFixed(1) : '—'
 
   // Activity feed
   type AEvent = { icon: string; title: string; desc: string; time: string; color: string; bg: string }

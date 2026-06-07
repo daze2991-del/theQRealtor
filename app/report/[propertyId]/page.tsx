@@ -158,7 +158,7 @@ export default function SellerReportPage() {
   const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
 
-  const totalScans       = qrCodes.reduce((s: number, q: any) => s + (q.scan_count ?? 0), 0)
+  const totalScans       = scanEvents.length
   const engagedBuyers    = scanEvents.filter((e: any) => (e.photos_viewed ?? 0) > 0 || (e.time_on_page_sec ?? 0) > 60).length
   const showingRequests  = leads.filter((l: any) => l.motivation === 'hot').length
   const buyerQuestions   = leads.filter((l: any) => l.notes && (l.notes as string).trim()).length
@@ -184,13 +184,13 @@ export default function SellerReportPage() {
   const questionSparkData = getDailyCount(leads.filter((l: any) => l.notes), 14)
 
   // Health
-  const health = totalScans >= 10 && leads.length >= 3 && showingRequests >= 1
-    ? { label: '🟢 High Interest',     color: '#10B981', bg: 'rgba(16,185,129,0.12)', score: 'above average',
+  const health = leads.length >= 3 || showingRequests >= 1
+    ? { label: '🟢 High Interest',     color: '#10B981', bg: 'rgba(16,185,129,0.12)', score: 'strong',
         sentence: 'Your listing is performing above average compared to similar homes in your area.' }
-    : totalScans >= 5 && leads.length >= 1
+    : leads.length >= 1 || totalScans >= 1
     ? { label: '🟡 Moderate Interest', color: '#F59E0B', bg: 'rgba(245,158,11,0.12)', score: 'steady',
         sentence: 'Your listing is attracting steady buyer interest.' }
-    : { label: '🔴 Low Interest',      color: '#EF4444', bg: 'rgba(239,68,68,0.12)',  score: 'building',
+    : { label: '🔴 Low Interest',      color: '#EF4444', bg: 'rgba(239,68,68,0.12)',  score: 'growing',
         sentence: 'Your listing needs more visibility. Consider repositioning your QR signs.' }
 
   // Date range

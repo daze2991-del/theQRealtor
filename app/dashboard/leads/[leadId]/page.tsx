@@ -245,6 +245,20 @@ export default function LeadDetailPage() {
   }
   const score = calcIntentScore(eng)
 
+  // Intent label based on the numeric score (not lead.motivation tier)
+  const scoreIntentLabel = score >= 20 ? 'Very High Intent'
+    : score >= 15 ? 'High Intent'
+    : score >= 8  ? 'Moderate Intent'
+    : 'Low Intent'
+  const scoreIntentColor = score >= 20 ? '#EF4444'
+    : score >= 15 ? '#F97316'
+    : score >= 8  ? '#60A5FA'
+    : '#6B7280'
+  const scoreIntentBg = score >= 20 ? '#3B0D0D'
+    : score >= 15 ? '#3B1F0D'
+    : score >= 8  ? '#0F2238'
+    : '#1F2937'
+
   // Scoring factors
   const factors: Array<{ label: string; detail?: string; pts: number; color: string }> = [
     { label: 'First Scan', pts: 1, color: '#F97316' },
@@ -451,7 +465,9 @@ export default function LeadDetailPage() {
                   Preferred Contact
                 </div>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {allPrefs.map(pref => {
+                  {prefs.length === 0 ? (
+                    <span style={{ fontSize: 11, color: C.muted, fontStyle: 'italic' }}>No preference set</span>
+                  ) : allPrefs.map(pref => {
                     const preferred = prefs.includes(pref)
                     return (
                       <span key={pref} style={{
@@ -475,16 +491,16 @@ export default function LeadDetailPage() {
                   Lead Score
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 44, fontWeight: 900, color: tier.color, lineHeight: 1 }}>{Math.min(score, 25)}</span>
+                  <span style={{ fontSize: 44, fontWeight: 900, color: scoreIntentColor, lineHeight: 1 }}>{Math.min(score, 25)}</span>
                   <div>
                     <div style={{ fontSize: 12, color: C.muted, marginBottom: 4 }}>/ 25</div>
                     <span style={{
-                      background: tier.bg, color: tier.color,
-                      border: `1px solid ${tier.border}60`,
+                      background: scoreIntentBg, color: scoreIntentColor,
+                      border: `1px solid ${scoreIntentColor}60`,
                       borderRadius: 20, padding: '3px 10px',
                       fontSize: 11, fontWeight: 700,
                     }}>
-                      {tier.intent}
+                      {scoreIntentLabel}
                     </span>
                   </div>
                 </div>

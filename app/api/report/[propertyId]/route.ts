@@ -9,7 +9,7 @@ export async function GET(
   const supabase = createAdminSupabase()
   const sixtyDaysAgo = new Date(Date.now() - 60 * 86_400_000).toISOString()
 
-  const [propRes, photoRes, leadRes, scanRes, qrRes] = await Promise.all([
+  const [propRes, photoRes, leadRes, scanRes, qrRes, scanCountRes] = await Promise.all([
     supabase.from('properties')
       .select('id, address, city, state, active, created_at, agent_name, price, beds, baths')
       .eq('id', propertyId).single(),
@@ -23,6 +23,7 @@ export async function GET(
       .eq('property_id', propertyId).gte('created_at', sixtyDaysAgo)
       .order('created_at', { ascending: false }).limit(300),
     supabase.from('qrcodes').select('id, label, scan_count').eq('property_id', propertyId),
+    supabase.from('scan_events').select('*', { count: 'exact', head: true }).eq('property_id', propertyId),
   ])
 
   if (!propRes.data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -39,12 +40,13 @@ export async function GET(
   } catch { /* table may not exist */ }
 
   return NextResponse.json({
-    property:    propRes.data,
-    photo:       photoRes.data?.[0]?.url ?? null,
-    leads:       leadRes.data  ?? [],
-    scanEvents:  scanRes.data  ?? [],
-    qrCodes:     qrRes.data    ?? [],
+    property:       propRes.data,
+    photo:          photoRes.data?.[0]?.url ?? null,
+    leads:          leadRes.data  ?? [],
+    scanEvents:     scanRes.data  ?? [],
+    qrCodes:        qrRes.data    ?? [],
     packetCount,
     packets,
+    totalScanCount: scanCountRes.count ?? 0,
   })
 }

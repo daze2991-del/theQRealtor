@@ -468,7 +468,7 @@ export default function LeadDetailPage() {
                   {prefs.length === 0 ? (
                     <span style={{ fontSize: 11, color: C.muted, fontStyle: 'italic' }}>No preference set</span>
                   ) : allPrefs.map(pref => {
-                    const preferred = prefs.includes(pref)
+                    const preferred = prefs.some(p => p.toLowerCase() === pref.toLowerCase())
                     return (
                       <span key={pref} style={{
                         fontSize: 11, fontWeight: 700,

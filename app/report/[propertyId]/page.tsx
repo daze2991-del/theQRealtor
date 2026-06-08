@@ -150,7 +150,7 @@ export default function SellerReportPage() {
     )
   }
 
-  const { property, photo, leads, scanEvents, qrCodes, packetCount, packets } = report
+  const { property, photo, leads, scanEvents, qrCodes, packetCount, packets, totalScanCount } = report
 
   // ── Derived values ────────────────────────────────────────────────────────
   const now            = new Date()
@@ -205,7 +205,7 @@ export default function SellerReportPage() {
   const agentMessage = [
     `Hi there,`,
     ``,
-    `Your home at ${property.address} is generating ${health.score} buyer interest. In the last ${listingDays} day${listingDays !== 1 ? 's' : ''}, ${totalScans} buyer${totalScans !== 1 ? 's' : ''} scanned your QR sign${showingRequests > 0 ? `, ${showingRequests} requested a showing` : ''}${hasDisclosures ? `, and ${packetCount} downloaded your disclosures` : ''}. Buyer engagement is ${health.score} compared to similar listings in the area.`,
+    `Your home at ${property.address} is generating strong buyer interest. In the last ${listingDays} day${listingDays !== 1 ? 's' : ''}, ${totalScanCount} buyer${totalScanCount !== 1 ? 's' : ''} scanned your QR sign${showingRequests > 0 ? `, ${showingRequests} requested a showing` : ''}${hasDisclosures ? `, and ${packetCount} downloaded your disclosures` : ''}. Buyer engagement is strong compared to similar listings in the area.`,
     ``,
     `Let me know if you have any questions.`,
     ``,

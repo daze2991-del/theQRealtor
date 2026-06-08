@@ -138,13 +138,14 @@ export default function PropertyIntelligencePage() {
   const router = useRouter()
   const propertyId = params.propertyId as string
 
-  const [property,    setProperty]    = useState<any>(null)
-  const [photos,      setPhotos]      = useState<any[]>([])
-  const [scanEvents,  setScanEvents]  = useState<any[]>([])
-  const [leads,       setLeads]       = useState<any[]>([])
-  const [packetCount, setPacketCount] = useState(0)
-  const [qrCodes,     setQrCodes]     = useState<any[]>([])
-  const [loading,     setLoading]     = useState(true)
+  const [property,        setProperty]        = useState<any>(null)
+  const [photos,          setPhotos]          = useState<any[]>([])
+  const [scanEvents,      setScanEvents]      = useState<any[]>([])
+  const [allTimeScanCount, setAllTimeScanCount] = useState(0)
+  const [leads,           setLeads]           = useState<any[]>([])
+  const [packetCount,     setPacketCount]     = useState(0)
+  const [qrCodes,         setQrCodes]         = useState<any[]>([])
+  const [loading,         setLoading]         = useState(true)
   const [editOpen,    setEditOpen]    = useState(false)
   const [editForm,    setEditForm]    = useState<any>({})
   const [editSaving,  setEditSaving]  = useState(false)
@@ -166,7 +167,7 @@ export default function PropertyIntelligencePage() {
 
       const sixtyDaysAgo = new Date(Date.now() - 60 * 86400000).toISOString()
 
-      const [photoRes, scanRes, leadRes, qrRes] = await Promise.all([
+      const [photoRes, scanRes, leadRes, qrRes, scanCountRes] = await Promise.all([
         supabase.from('property_photos').select('url, sort_order').eq('property_id', propertyId).order('sort_order', { ascending: true }),
         supabase.from('scan_events')
           .select('created_at, cta_clicked, photos_viewed, time_on_page_sec, return_visit, qr_id')
@@ -174,10 +175,12 @@ export default function PropertyIntelligencePage() {
           .order('created_at', { ascending: false }),
         supabase.from('leads').select('*').eq('property_id', propertyId).order('created_at', { ascending: false }),
         supabase.from('qrcodes').select('id, label, scan_count, placement').eq('property_id', propertyId),
+        supabase.from('scan_events').select('*', { count: 'exact', head: true }).eq('property_id', propertyId),
       ])
 
       setPhotos(photoRes.data ?? [])
       setScanEvents(scanRes.data ?? [])
+      setAllTimeScanCount(scanCountRes.count ?? 0)
       setLeads(leadRes.data ?? [])
       setQrCodes(qrRes.data ?? [])
 
@@ -310,7 +313,7 @@ export default function PropertyIntelligencePage() {
   // Buyer funnel
   const engagedVisitors = scanEvents.filter((e: any) => (e.photos_viewed ?? 0) > 0 || (e.time_on_page_sec ?? 0) > 60).length
   const funnelScans = totalScans
-  const showingRatePct = totalLeads > 0 ? ((showingRequests / totalLeads) * 100).toFixed(1) : '—'
+  const showingRatePct = totalLeads === 0 ? '—' : `${((showingRequests / totalLeads) * 100).toFixed(1)}%`
 
   // Activity feed
   type AEvent = { icon: string; title: string; desc: string; time: string; color: string; bg: string }
@@ -466,7 +469,7 @@ export default function PropertyIntelligencePage() {
 
         {/* ── Section 2: KPI Cards ─────────────────────────────────────────── */}
         <div className="pi-4col" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 20 }}>
-          <KpiCard icon="🔍" label="QR Scans"            value={totalScans}       change={scanChangePct}    sparkData={scanSparkData}    color="#60A5FA" />
+          <KpiCard icon="🔍" label="QR Scans"            value={allTimeScanCount} change={scanChangePct}    sparkData={scanSparkData}    color="#60A5FA" />
           <KpiCard icon="👥" label="Leads"               value={totalLeads}        change={leadChangePct}    sparkData={leadSparkData}    color="#10B981" />
           <KpiCard icon="💬" label="Showing Requests"    value={showingRequests}  change={showingChangePct} sparkData={showingSparkData} color="#F59E0B" />
           <KpiCard icon="📄" label="Disclosure Requests" value={packetCount}      change={0}                sparkData={Array(14).fill(0)} color={C.purpleL} />
@@ -618,7 +621,7 @@ export default function PropertyIntelligencePage() {
             </div>
             <div style={{ background: `${C.purple}12`, border: `1px solid ${C.purple}30`, borderRadius: 9, padding: '10px 12px' }}>
               <div style={{ fontSize: 12, color: C.sub, lineHeight: 1.55 }}>
-                Your showing request rate is <strong style={{ color: C.purpleL }}>{showingRatePct}%</strong> — compare it against similar listings.
+                Your showing request rate is <strong style={{ color: C.purpleL }}>{showingRatePct}</strong> — compare it against similar listings.
               </div>
             </div>
           </SectionCard>

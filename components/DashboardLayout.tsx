@@ -49,7 +49,7 @@ function Sidebar({ email, plan, propertyCount, hotLeadCount, onClose }: {
     { label: 'QR Codes',    icon: 'qrcodes',     href: '/dashboard/qr-codes',    active: pathname.startsWith('/dashboard/qr-codes'),         badge: 0 },
     { label: 'Leads',       icon: 'leads',       href: '/dashboard/leads',       active: pathname.startsWith('/dashboard/leads'),            badge: 0 },
     { label: 'Inbox',       icon: 'inbox',       href: '/dashboard/leads',       active: false,                                              badge: hotLeadCount },
-    { label: 'Disclosures', icon: 'disclosures', href: '/dashboard/disclosures', active: pathname.startsWith('/dashboard/disclosures'),      badge: 0 },
+    { label: 'Disclosures', icon: 'disclosures', href: '/dashboard/leads?motivation=motivated', active: pathname.startsWith('/dashboard/disclosures'), badge: 0 },
     { label: 'Analytics',   icon: 'analytics',   href: '/dashboard/analytics',   active: pathname.startsWith('/dashboard/analytics'),        badge: 0 },
     { label: 'Billing',     icon: 'billing',     href: '/dashboard/billing',     active: pathname.startsWith('/dashboard/billing'),          badge: 0 },
     { label: 'Settings',    icon: 'settings',    href: '/dashboard/settings',    active: pathname.startsWith('/dashboard/settings'),         badge: 0 },

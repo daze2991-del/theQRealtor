@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { createBrowserSupabase } from "@/lib/supabase-browser";
 
 const C = {
-  bg:      '#0F0F13',
-  card:    '#1A1A24',
-  border:  '#252533',
-  input:   '#13131A',
+  bg:      '#0C0C14',
+  card:    '#13131f',
+  border:  '#1e1e2e',
+  input:   '#111118',
   purple:  '#7C3AED',
   purpleL: '#8B5CF6',
   text:    '#FFFFFF',
@@ -50,24 +50,24 @@ export default function AuthPage() {
 
   const inputStyle: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box',
-    background: C.input, border: `1px solid ${C.border}`,
-    borderRadius: 10, color: C.text, fontSize: 15,
-    padding: '12px 14px', outline: 'none',
+    background: C.input, border: `1px solid #2a2a3a`,
+    borderRadius: 12, color: C.text, fontSize: 15,
+    padding: '13px 16px', outline: 'none',
     fontFamily: 'sans-serif',
   }
 
   const primaryBtn: React.CSSProperties = {
-    width: '100%', padding: '13px',
+    width: '100%', padding: '16px',
     background: C.purple, color: '#fff',
-    border: 'none', borderRadius: 10,
+    border: 'none', borderRadius: 50,
     fontSize: 15, fontWeight: 700, cursor: 'pointer',
     fontFamily: 'sans-serif', letterSpacing: '-0.01em',
   }
 
   const ghostBtn: React.CSSProperties = {
-    width: '100%', padding: '13px',
-    background: 'transparent', color: C.sub,
-    border: `1px solid ${C.border}`, borderRadius: 10,
+    width: '100%', padding: '15px',
+    background: '#1a1a2e', color: C.sub,
+    border: `1px solid #333`, borderRadius: 50,
     fontSize: 14, fontWeight: 500, cursor: 'pointer',
     fontFamily: 'sans-serif',
   }
@@ -92,7 +92,7 @@ export default function AuthPage() {
         {/* Card */}
         <div style={{
           background: C.card, border: `1px solid ${C.border}`,
-          borderRadius: 20, padding: '32px 32px',
+          borderRadius: 24, padding: '36px 32px',
         }}>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, margin: '0 0 6px', letterSpacing: '-0.02em' }}>
             {mode === "signin" ? "Welcome back" : "Create your account"}
@@ -154,7 +154,9 @@ export default function AuthPage() {
               type="button"
               onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setMessage(""); }}
             >
-              {mode === "signin" ? "Need an account? Sign up free" : "Already have an account? Sign in"}
+              {mode === "signin"
+                ? <>Need an account? <span style={{ color: C.purpleL, fontWeight: 700 }}>Sign up free</span></>
+                : <>Already have an account? <span style={{ color: C.purpleL, fontWeight: 700 }}>Sign in</span></>}
             </button>
           </form>
         </div>

@@ -1,14 +1,20 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+// DB migration required (run once in Supabase SQL editor):
+// ALTER TABLE leads ADD COLUMN IF NOT EXISTS status text DEFAULT 'new';
+// ALTER TABLE leads ADD COLUMN IF NOT EXISTS notes text;
+// ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_contacted_at timestamptz;
+
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import DashboardLayout from '../../../components/DashboardLayout'
 import Link from 'next/link'
 
+// ── Tokens ────────────────────────────────────────────────────────────────────
 const C = {
-  bg:      '#0F0F13',
-  card:    '#1A1A24',
+  bg:      '#0B0F1A',
+  card:    '#0F1629',
   border:  '#252533',
   purple:  '#7C3AED',
   purpleL: '#8B5CF6',
@@ -17,13 +23,32 @@ const C = {
   muted:   '#6B7280',
 } as const
 
-const MOTIVATION_CFG = {
-  hot:       { label: '🔥 Hot',       color: '#EF4444', bg: '#3B0D0D', border: '#EF4444', action: 'Call Today', actionIcon: '📞' },
-  motivated: { label: '⚡ Motivated', color: '#F97316', bg: '#3B1F0D', border: '#F97316', action: 'Text Now',   actionIcon: '💬' },
-  warm:      { label: '👍 Warm',      color: '#60A5FA', bg: '#0F2238', border: '#60A5FA', action: 'Follow Up This Week', actionIcon: '📅' },
-  cold:      { label: '❄ Cold',       color: '#6B7280', bg: '#1F2937', border: '#6B7280', action: 'Add to Drip', actionIcon: '📧' },
+const STATUS_CFG = {
+  new:       { label: 'New',       color: '#60A5FA', bg: '#0B1E3A', border: '#1E4D8C' },
+  contacted: { label: 'Contacted', color: '#FCD34D', bg: '#2D1A06', border: '#92400E' },
+  qualified: { label: 'Qualified', color: '#8B5CF6', bg: '#2E1065', border: '#7C3AED' },
+  won:       { label: 'Won',       color: '#4ADE80', bg: '#052e16', border: '#166534' },
+  lost:      { label: 'Lost',      color: '#9CA3AF', bg: '#1F2937', border: '#374151' },
 } as const
 
+const MOTIVATION_CFG = {
+  hot:       { label: '🔥 Hot',       color: '#EF4444', bg: '#3B0D0D', border: '#EF4444', action: 'Call Today',          actionIcon: '📞' },
+  motivated: { label: '⚡ Motivated', color: '#F97316', bg: '#3B1F0D', border: '#F97316', action: 'Text Now',            actionIcon: '💬' },
+  warm:      { label: '👍 Warm',      color: '#60A5FA', bg: '#0F2238', border: '#60A5FA', action: 'Follow Up This Week', actionIcon: '📅' },
+  cold:      { label: '❄ Cold',       color: '#6B7280', bg: '#1F2937', border: '#6B7280', action: 'Add to Drip',        actionIcon: '📧' },
+} as const
+
+const TEMP_CHIPS = [
+  { key: 'hot',  label: '🔥 Hot',  motivations: ['hot', 'motivated'] },
+  { key: 'warm', label: '☀️ Warm', motivations: ['warm'] },
+  { key: 'cold', label: '❄️ Cold', motivations: ['cold'] },
+]
+
+const STATUS_OPTIONS = ['new', 'contacted', 'qualified', 'won', 'lost'] as const
+type StatusKey = typeof STATUS_OPTIONS[number]
+const MOTIV_ORDER: Record<string, number> = { hot: 4, motivated: 3, warm: 2, cold: 1 }
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
   const m = Math.floor(diff / 60000)
@@ -34,6 +59,44 @@ function timeAgo(iso: string): string {
   const d = Math.floor(h / 24)
   if (d < 7) return `${d}d ago`
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+function lastContactedText(iso: string | null | undefined): string {
+  if (!iso) return 'Not yet contacted'
+  const diff = Date.now() - new Date(iso).getTime()
+  const days = Math.floor(diff / 86400000)
+  if (days === 0) return 'Last contacted: today'
+  if (days === 1) return 'Last contacted: yesterday'
+  return `Last contacted: ${days}d ago`
+}
+
+function buildSignals(scanEvent: any): string {
+  if (!scanEvent) return ''
+  const parts: string[] = []
+  const pv = scanEvent.photos_viewed ?? 0
+  if (pv > 0) parts.push(`Viewed ${pv} photo${pv !== 1 ? 's' : ''}`)
+  if (scanEvent.cta_clicked === 'showing')    parts.push('Requested showing')
+  else if (scanEvent.cta_clicked === 'disclosures') parts.push('Requested disclosures')
+  else if (scanEvent.cta_clicked === 'question')    parts.push('Asked a question')
+  if (scanEvent.return_visit) parts.push('2nd visit')
+  return parts.join(' · ')
+}
+
+// ── Components ────────────────────────────────────────────────────────────────
+function StatusBadge({ status, onClick }: { status: StatusKey; onClick?: (e: React.MouseEvent) => void }) {
+  const cfg = STATUS_CFG[status] ?? STATUS_CFG.new
+  return (
+    <span
+      onClick={onClick}
+      style={{
+        background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`,
+        borderRadius: 6, padding: '3px 9px', fontSize: 11, fontWeight: 700,
+        whiteSpace: 'nowrap', cursor: onClick ? 'pointer' : 'default', userSelect: 'none',
+      }}
+    >
+      {cfg.label}{onClick ? ' ▾' : ''}
+    </span>
+  )
 }
 
 function MotivationBadge({ level }: { level: string | null }) {
@@ -65,10 +128,7 @@ function Avatar({ name, motivation, size = 40 }: { name: string; motivation?: st
 
 function ActionBtn({ href, title, emoji, bg, border }: { href: string; title: string; emoji: string; bg: string; border: string }) {
   return (
-    <a
-      href={href}
-      title={title}
-      onClick={e => e.stopPropagation()}
+    <a href={href} title={title} onClick={e => e.stopPropagation()}
       style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         width: 32, height: 32, borderRadius: 8, fontSize: 15,
@@ -79,16 +139,39 @@ function ActionBtn({ href, title, emoji, bg, border }: { href: string; title: st
   )
 }
 
+// ── Page ──────────────────────────────────────────────────────────────────────
 export default function LeadsPage() {
   const router = useRouter()
+
   const [loading,        setLoading]        = useState(true)
   const [allLeads,       setAllLeads]       = useState<any[]>([])
   const [properties,     setProperties]     = useState<any[]>([])
   const [qrMap,          setQrMap]          = useState<Record<string, { label: string; scan_count: number }>>({})
+  const [scanEventByQr,  setScanEventByQr]  = useState<Record<string, any>>({})
   const [exportingCSV,   setExportingCSV]   = useState(false)
-  const [tabMotivation,  setTabMotivation]  = useState('')   // '' = All
+
+  // Filters + sort
+  const [filterTemp,     setFilterTemp]     = useState<string[]>(['hot', 'warm', 'cold'])
+  const [filterStatus,   setFilterStatus]   = useState<string[]>([...STATUS_OPTIONS])
   const [filterProperty, setFilterProperty] = useState('')
   const [filterDays,     setFilterDays]     = useState('all')
+  const [sortMode,       setSortMode]       = useState<'recent' | 'score' | 'contacted'>('recent')
+
+  // Per-lead UI state
+  const [localLeads,     setLocalLeads]     = useState<Record<string, Partial<any>>>({})
+  const [expandedNotes,  setExpandedNotes]  = useState<Record<string, boolean>>({})
+  const [noteValues,     setNoteValues]     = useState<Record<string, string>>({})
+  const [savingNotes,    setSavingNotes]    = useState<Record<string, boolean>>({})
+  const [openStatusDd,   setOpenStatusDd]   = useState<string | null>(null)
+
+  const noteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+
+  // Close status dropdown on any outside click
+  useEffect(() => {
+    const h = () => setOpenStatusDd(null)
+    document.addEventListener('click', h)
+    return () => document.removeEventListener('click', h)
+  }, [])
 
   useEffect(() => {
     const load = async () => {
@@ -108,14 +191,29 @@ export default function LeadsPage() {
         .order('created_at', { ascending: false })
       setAllLeads(leads || [])
 
-      // Fetch QR code info for scan counts + labels
+      // Init notes from DB
+      const initNotes: Record<string, string> = {}
+      ;(leads || []).forEach((l: any) => { initNotes[l.id] = l.notes ?? '' })
+      setNoteValues(initNotes)
+
+      // Fetch QR info + converted scan events in parallel
       const qrIds = [...new Set((leads || []).map((l: any) => l.qr_id).filter(Boolean))] as string[]
       if (qrIds.length > 0) {
-        const { data: qrcodes } = await supabase
-          .from('qrcodes').select('id, label, scan_count').in('id', qrIds)
-        const map: Record<string, { label: string; scan_count: number }> = {}
-        ;(qrcodes || []).forEach((q: any) => { map[q.id] = { label: q.label || '', scan_count: q.scan_count || 0 } })
-        setQrMap(map)
+        const [{ data: qrcodes }, { data: scanEvs }] = await Promise.all([
+          supabase.from('qrcodes').select('id, label, scan_count').in('id', qrIds),
+          supabase.from('scan_events')
+            .select('qr_id, cta_clicked, photos_viewed, return_visit')
+            .in('qr_id', qrIds).eq('converted', true)
+            .order('created_at', { ascending: false }),
+        ])
+        const qm: Record<string, { label: string; scan_count: number }> = {}
+        ;(qrcodes || []).forEach((q: any) => { qm[q.id] = { label: q.label || '', scan_count: q.scan_count || 0 } })
+        setQrMap(qm)
+
+        // Most-recent converted scan event per qr_id
+        const em: Record<string, any> = {}
+        ;(scanEvs || []).forEach((e: any) => { if (!em[e.qr_id]) em[e.qr_id] = e })
+        setScanEventByQr(em)
       }
       setLoading(false)
     }
@@ -128,31 +226,114 @@ export default function LeadsPage() {
     return m
   }, [properties])
 
+  // Merge optimistic local overrides on top of DB data
+  const getEffective = useCallback((lead: any) => ({
+    ...lead,
+    ...localLeads[lead.id],
+  }), [localLeads])
+
+  const updateStatus = async (leadId: string, newStatus: StatusKey) => {
+    setOpenStatusDd(null)
+    const lead = allLeads.find(l => l.id === leadId)
+    const current = localLeads[leadId]
+    const currentLastContacted = current?.last_contacted_at ?? lead?.last_contacted_at
+
+    const patch: Partial<any> = { status: newStatus }
+    if (newStatus !== 'new' && !currentLastContacted) {
+      patch.last_contacted_at = new Date().toISOString()
+    }
+    setLocalLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], ...patch } }))
+
+    const supabase = createBrowserSupabase()
+    await supabase.from('leads').update(patch).eq('id', leadId)
+  }
+
+  const saveNotesNow = async (leadId: string, value: string) => {
+    setSavingNotes(prev => ({ ...prev, [leadId]: true }))
+    const supabase = createBrowserSupabase()
+    await supabase.from('leads').update({ notes: value }).eq('id', leadId)
+    setLocalLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], notes: value } }))
+    setSavingNotes(prev => ({ ...prev, [leadId]: false }))
+  }
+
+  const handleNoteChange = (leadId: string, value: string) => {
+    setNoteValues(prev => ({ ...prev, [leadId]: value }))
+    if (noteTimers.current[leadId]) clearTimeout(noteTimers.current[leadId])
+    noteTimers.current[leadId] = setTimeout(() => saveNotesNow(leadId, value), 1500)
+  }
+
+  const handleNoteBlur = (leadId: string) => {
+    if (noteTimers.current[leadId]) {
+      clearTimeout(noteTimers.current[leadId])
+      delete noteTimers.current[leadId]
+    }
+    saveNotesNow(leadId, noteValues[leadId] ?? '')
+  }
+
+  const toggleTemp = (key: string) => {
+    setFilterTemp(prev => prev.includes(key)
+      ? prev.length > 1 ? prev.filter(k => k !== key) : prev
+      : [...prev, key]
+    )
+  }
+
+  const toggleStatus = (s: string) => {
+    setFilterStatus(prev => prev.includes(s)
+      ? prev.length > 1 ? prev.filter(k => k !== s) : prev
+      : [...prev, s]
+    )
+  }
+
   const counts = useMemo(() => ({
-    all:       allLeads.length,
-    hot:       allLeads.filter(l => l.motivation === 'hot').length,
-    motivated: allLeads.filter(l => l.motivation === 'motivated').length,
-    warm:      allLeads.filter(l => l.motivation === 'warm').length,
-    cold:      allLeads.filter(l => l.motivation === 'cold').length,
+    hot:  allLeads.filter(l => l.motivation === 'hot' || l.motivation === 'motivated').length,
+    warm: allLeads.filter(l => l.motivation === 'warm').length,
+    cold: allLeads.filter(l => l.motivation === 'cold').length,
   }), [allLeads])
 
   const leads = useMemo(() => {
     let r = allLeads
-    if (tabMotivation)   r = r.filter(l => l.motivation  === tabMotivation)
-    if (filterProperty)  r = r.filter(l => l.property_id === filterProperty)
+
+    // Temperature chips (multi-select, hot chip covers hot+motivated)
+    const activeMotivatations = TEMP_CHIPS
+      .filter(c => filterTemp.includes(c.key))
+      .flatMap(c => c.motivations)
+    r = r.filter(l => activeMotivatations.includes(l.motivation))
+
+    // Status filter
+    r = r.filter(l => {
+      const s = (localLeads[l.id]?.status ?? l.status ?? 'new') as string
+      return filterStatus.includes(s)
+    })
+
+    // Property + date filters
+    if (filterProperty) r = r.filter(l => l.property_id === filterProperty)
     if (filterDays !== 'all') {
       const cutoff = new Date()
       cutoff.setDate(cutoff.getDate() - parseInt(filterDays))
       r = r.filter(l => new Date(l.created_at) >= cutoff)
     }
-    // Sort: hot first, then recency
-    const order: Record<string, number> = { hot: 4, motivated: 3, warm: 2, cold: 1 }
-    return [...r].sort((a, b) =>
-      (order[b.motivation] || 0) !== (order[a.motivation] || 0)
-        ? (order[b.motivation] || 0) - (order[a.motivation] || 0)
-        : new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    )
-  }, [allLeads, tabMotivation, filterProperty, filterDays])
+
+    const arr = [...r]
+    if (sortMode === 'score') {
+      arr.sort((a, b) =>
+        (MOTIV_ORDER[b.motivation] || 0) !== (MOTIV_ORDER[a.motivation] || 0)
+          ? (MOTIV_ORDER[b.motivation] || 0) - (MOTIV_ORDER[a.motivation] || 0)
+          : new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )
+    } else if (sortMode === 'contacted') {
+      arr.sort((a, b) => {
+        const aLC = localLeads[a.id]?.last_contacted_at ?? a.last_contacted_at
+        const bLC = localLeads[b.id]?.last_contacted_at ?? b.last_contacted_at
+        if (!aLC && !bLC) return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        if (!aLC) return -1
+        if (!bLC) return 1
+        return new Date(aLC).getTime() - new Date(bLC).getTime()
+      })
+    } else {
+      arr.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    }
+    return arr
+  }, [allLeads, filterTemp, filterStatus, filterProperty, filterDays, sortMode, localLeads])
 
   const downloadCSV = async () => {
     if (leads.length === 0) return
@@ -169,18 +350,24 @@ export default function LeadsPage() {
     const motivLabels: Record<string, string> = { hot: 'Ready now', motivated: '1–6 months', warm: '6–12 months', cold: 'Just browsing' }
     const recAction:   Record<string, string> = { hot: 'Call today', motivated: 'Text this week', warm: 'Follow up in 2 weeks', cold: 'Add to drip' }
     const rows = [
-      ['Name', 'Phone', 'Email', 'Intent', 'Motivation', 'Property', 'QR Label', 'Scans', 'Last Scan', 'Submitted', 'Action'],
-      ...leads.map(l => [
-        l.name || '', l.phone || '', l.email || '',
-        MOTIVATION_CFG[l.motivation as keyof typeof MOTIVATION_CFG]?.label || l.motivation || '',
-        motivLabels[l.motivation] || '',
-        propMap[l.property_id] || '',
-        l.qr_id ? (qrMap[l.qr_id]?.label || '') : '',
-        l.qr_id ? String(qrMap[l.qr_id]?.scan_count ?? '') : '',
-        l.qr_id && lastScanMap[l.qr_id] ? new Date(lastScanMap[l.qr_id]).toLocaleString() : '',
-        new Date(l.created_at).toLocaleString(),
-        recAction[l.motivation] || '',
-      ]),
+      ['Name', 'Phone', 'Email', 'Status', 'Intent', 'Motivation', 'Property', 'QR Label', 'Scans', 'Last Scan', 'Last Contacted', 'Submitted', 'Notes', 'Action'],
+      ...leads.map(l => {
+        const eff = getEffective(l)
+        return [
+          l.name || '', l.phone || '', l.email || '',
+          eff.status || 'new',
+          MOTIVATION_CFG[l.motivation as keyof typeof MOTIVATION_CFG]?.label || l.motivation || '',
+          motivLabels[l.motivation] || '',
+          propMap[l.property_id] || '',
+          l.qr_id ? (qrMap[l.qr_id]?.label || '') : '',
+          l.qr_id ? String(qrMap[l.qr_id]?.scan_count ?? '') : '',
+          l.qr_id && lastScanMap[l.qr_id] ? new Date(lastScanMap[l.qr_id]).toLocaleString() : '',
+          eff.last_contacted_at ? new Date(eff.last_contacted_at).toLocaleString() : 'Not contacted',
+          new Date(l.created_at).toLocaleString(),
+          eff.notes || '',
+          recAction[l.motivation] || '',
+        ]
+      }),
     ]
     const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
     const a = document.createElement('a')
@@ -190,29 +377,24 @@ export default function LeadsPage() {
     setExportingCSV(false)
   }
 
-  const tabs = [
-    { key: '',          label: 'All',       count: counts.all },
-    { key: 'hot',       label: '🔥 Hot',    count: counts.hot },
-    { key: 'motivated', label: '⚡ Motivated', count: counts.motivated },
-    { key: 'warm',      label: '👍 Warm',   count: counts.warm },
-    { key: 'cold',      label: '❄ Cold',    count: counts.cold },
-  ]
-
-  const isFiltered = !!(filterProperty || filterDays !== 'all')
+  const allTempOn   = filterTemp.length === TEMP_CHIPS.length
+  const allStatusOn = filterStatus.length === STATUS_OPTIONS.length
+  const isFiltered  = !allTempOn || !allStatusOn || !!filterProperty || filterDays !== 'all'
 
   return (
     <DashboardLayout>
       <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes spin  { to { transform: rotate(360deg); } }
+        @keyframes fadeUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
         .lead-card { cursor: pointer; transition: border-color 0.12s, box-shadow 0.12s; }
         .lead-card:hover { border-color: #7C3AED55 !important; box-shadow: 0 4px 20px rgba(0,0,0,0.25); }
-        .tab-btn { border: none; background: none; cursor: pointer; font-family: sans-serif; transition: color 0.12s; white-space: nowrap; }
-        .tab-btn:hover { color: #8B5CF6 !important; }
-        @media (max-width: 640px) {
-          .leads-grid { padding: 14px !important; }
-          .lead-card-inner { flex-direction: column !important; }
-        }
+        .chip-btn  { cursor: pointer; border: none; font-family: sans-serif; transition: all 0.12s; }
+        .chip-btn:hover { opacity: 0.85; }
+        .dd-item   { display: flex; align-items: center; gap: 8px; width: 100%; border: none; background: none; text-align: left; padding: 9px 14px; font-size: 13px; cursor: pointer; font-family: sans-serif; color: #C4C4D4; }
+        .dd-item:hover { background: rgba(255,255,255,0.06) !important; }
+        .notes-ta  { outline: none; resize: vertical; }
+        .notes-ta:focus { border-color: #7C3AED !important; box-shadow: 0 0 0 3px rgba(124,58,237,0.15) !important; }
+        @media (max-width: 640px) { .leads-grid { padding: 14px !important; } }
       `}</style>
 
       {loading ? (
@@ -224,9 +406,9 @@ export default function LeadsPage() {
         </div>
       ) : (
         <>
-          {/* Top bar */}
-          <div className="db-page-topbar" style={{
-            position: 'sticky', top: 0, zIndex: 10,
+          {/* ── Top bar ── */}
+          <div style={{
+            position: 'sticky', top: 0, zIndex: 20,
             background: C.bg, borderBottom: `1px solid ${C.border}`,
             padding: '15px 28px', display: 'flex', alignItems: 'center',
             justifyContent: 'space-between', gap: 12, fontFamily: 'sans-serif',
@@ -253,77 +435,109 @@ export default function LeadsPage() {
             </button>
           </div>
 
-          {/* Tab strip */}
+          {/* ── Filter bar ── */}
           <div style={{
-            borderBottom: `1px solid ${C.border}`, background: C.bg,
-            padding: '0 28px', display: 'flex', gap: 0, overflowX: 'auto',
-            fontFamily: 'sans-serif',
-          }}>
-            {tabs.map(tab => {
-              const active = tabMotivation === tab.key
-              return (
-                <button
-                  key={tab.key}
-                  className="tab-btn"
-                  onClick={() => setTabMotivation(tab.key)}
-                  style={{
-                    padding: '12px 16px', fontSize: 13, fontWeight: 600,
-                    color: active ? C.purpleL : C.muted,
-                    borderBottom: active ? `2px solid ${C.purple}` : '2px solid transparent',
-                    marginBottom: -1,
-                    display: 'flex', alignItems: 'center', gap: 6,
-                  }}
-                >
-                  {tab.label}
-                  {tab.count > 0 && (
-                    <span style={{
-                      fontSize: 10, fontWeight: 700,
-                      background: active ? `${C.purple}33` : '#252533',
-                      color: active ? C.purpleL : C.muted,
-                      borderRadius: 20, padding: '1px 6px',
-                    }}>{tab.count}</span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Filter bar */}
-          <div style={{
-            padding: '10px 28px', borderBottom: `1px solid ${C.border}`,
+            padding: '11px 28px', borderBottom: `1px solid ${C.border}`,
             display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center',
-            fontFamily: 'sans-serif',
-          }}>
-            <select
-              value={filterProperty}
-              onChange={e => setFilterProperty(e.target.value)}
-              style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, color: filterProperty ? C.text : C.muted, fontSize: 13, padding: '7px 11px', outline: 'none', cursor: 'pointer' }}
+            fontFamily: 'sans-serif', background: C.bg,
+          }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Temperature chips */}
+            <div style={{ display: 'flex', gap: 6 }}>
+              {TEMP_CHIPS.map(chip => {
+                const on = filterTemp.includes(chip.key)
+                const cnt = chip.key === 'hot' ? counts.hot : chip.key === 'warm' ? counts.warm : counts.cold
+                return (
+                  <button key={chip.key} className="chip-btn"
+                    onClick={() => toggleTemp(chip.key)}
+                    style={{
+                      padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                      background: on ? `${C.purple}30` : 'transparent',
+                      border: `1px solid ${on ? C.purple : C.border}`,
+                      color: on ? C.purpleL : C.muted,
+                    }}
+                  >
+                    {chip.label}
+                    {cnt > 0 && <span style={{ marginLeft: 5, fontSize: 10, opacity: 0.7 }}>{cnt}</span>}
+                  </button>
+                )
+              })}
+            </div>
+
+            <div style={{ width: 1, height: 20, background: C.border }} />
+
+            {/* Status multi-select */}
+            <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+              <button className="chip-btn"
+                onClick={() => setOpenStatusDd(v => v === '__filter__' ? null : '__filter__')}
+                style={{
+                  padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                  background: !allStatusOn ? `${C.purple}30` : 'transparent',
+                  border: `1px solid ${!allStatusOn ? C.purple : C.border}`,
+                  color: !allStatusOn ? C.purpleL : C.muted,
+                }}
+              >
+                Status {!allStatusOn ? `(${filterStatus.length})` : '(All)'} ▾
+              </button>
+              {openStatusDd === '__filter__' && (
+                <div style={{
+                  position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 50,
+                  background: C.card, border: `1px solid ${C.border}`, borderRadius: 10,
+                  overflow: 'hidden', minWidth: 170, boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                }}>
+                  {STATUS_OPTIONS.map(s => {
+                    const on = filterStatus.includes(s)
+                    const cfg = STATUS_CFG[s]
+                    return (
+                      <button key={s} className="dd-item" onClick={() => toggleStatus(s)}>
+                        <span style={{ fontSize: 13, color: on ? C.purpleL : C.muted }}>{on ? '☑' : '☐'}</span>
+                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: cfg.color, flexShrink: 0, display: 'inline-block' }} />
+                        <span style={{ color: cfg.color, fontWeight: 600 }}>{cfg.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Sort */}
+            <select value={sortMode} onChange={e => setSortMode(e.target.value as any)}
+              style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, color: C.sub, fontSize: 12, fontWeight: 600, padding: '5px 11px', outline: 'none', cursor: 'pointer' }}
+            >
+              <option value="recent">Most recent</option>
+              <option value="score">Highest score</option>
+              <option value="contacted">Last contacted (oldest first)</option>
+            </select>
+
+            <div style={{ width: 1, height: 20, background: C.border }} />
+
+            {/* Property + date */}
+            <select value={filterProperty} onChange={e => setFilterProperty(e.target.value)}
+              style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, color: filterProperty ? C.text : C.muted, fontSize: 13, padding: '6px 10px', outline: 'none', cursor: 'pointer' }}
             >
               <option value="">All Properties</option>
               {properties.map((p: any) => <option key={p.id} value={p.id}>{p.address}</option>)}
             </select>
-            <select
-              value={filterDays}
-              onChange={e => setFilterDays(e.target.value)}
-              style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, color: filterDays !== 'all' ? C.text : C.muted, fontSize: 13, padding: '7px 11px', outline: 'none', cursor: 'pointer' }}
+            <select value={filterDays} onChange={e => setFilterDays(e.target.value)}
+              style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, color: filterDays !== 'all' ? C.text : C.muted, fontSize: 13, padding: '6px 10px', outline: 'none', cursor: 'pointer' }}
             >
               <option value="all">All time</option>
               <option value="7">Last 7 days</option>
               <option value="30">Last 30 days</option>
               <option value="90">Last 90 days</option>
             </select>
+
             {isFiltered && (
-              <>
-                <button
-                  onClick={() => { setFilterProperty(''); setFilterDays('all') }}
-                  style={{ background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, color: C.muted, fontSize: 13, padding: '7px 13px', cursor: 'pointer', fontFamily: 'sans-serif' }}
-                >Clear</button>
-                <span style={{ fontSize: 13, color: C.muted }}>{leads.length} of {allLeads.length}</span>
-              </>
+              <button
+                onClick={() => { setFilterTemp(['hot','warm','cold']); setFilterStatus([...STATUS_OPTIONS]); setFilterProperty(''); setFilterDays('all') }}
+                style={{ background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, color: C.muted, fontSize: 12, padding: '6px 12px', cursor: 'pointer', fontFamily: 'sans-serif' }}
+              >Clear all</button>
             )}
+            <span style={{ fontSize: 12, color: C.muted, marginLeft: 'auto' }}>{leads.length} of {allLeads.length}</span>
           </div>
 
-          {/* Lead cards */}
+          {/* ── Lead cards ── */}
           <div className="leads-grid" style={{ flex: 1, padding: '20px 28px 40px', fontFamily: 'sans-serif' }}>
             {leads.length === 0 ? (
               <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: '72px 24px', textAlign: 'center' }}>
@@ -332,17 +546,23 @@ export default function LeadsPage() {
                   {allLeads.length === 0 ? 'No leads yet' : 'No leads match your filters'}
                 </div>
                 <div style={{ fontSize: 14, color: C.muted }}>
-                  {allLeads.length === 0
-                    ? 'Place your QR signs to start capturing buyer leads.'
-                    : 'Try adjusting or clearing your filters.'}
+                  {allLeads.length === 0 ? 'Place your QR signs to start capturing buyer leads.' : 'Try adjusting or clearing your filters.'}
                 </div>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {leads.map((lead: any, i: number) => {
-                  const cfg = MOTIVATION_CFG[lead.motivation as keyof typeof MOTIVATION_CFG]
-                  const qr  = lead.qr_id ? qrMap[lead.qr_id] : null
-                  const address = propMap[lead.property_id]
+                  const cfg      = MOTIVATION_CFG[lead.motivation as keyof typeof MOTIVATION_CFG]
+                  const qr       = lead.qr_id ? qrMap[lead.qr_id] : null
+                  const address  = propMap[lead.property_id]
+                  const eff      = getEffective(lead)
+                  const status   = (eff.status ?? 'new') as StatusKey
+                  const signals  = buildSignals(lead.qr_id ? scanEventByQr[lead.qr_id] : null)
+                  const notesVal = noteValues[lead.id] ?? eff.notes ?? ''
+                  const hasNotes = !!(notesVal.trim())
+                  const notesOpen = expandedNotes[lead.id] ?? false
+                  const isDdOpen  = openStatusDd === lead.id
+
                   return (
                     <div
                       key={lead.id}
@@ -355,20 +575,60 @@ export default function LeadsPage() {
                         borderLeft: cfg ? `3px solid ${cfg.border}` : undefined,
                       }}
                     >
-                      {/* Row 1: avatar + name + badge + time */}
+                      {/* Row 1: avatar + name + badges + time */}
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                         <Avatar name={lead.name || ''} motivation={lead.motivation} size={42} />
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', marginBottom: 3 }}>
                             <span style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{lead.name || 'Unknown'}</span>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                               <MotivationBadge level={lead.motivation} />
+
+                              {/* Status badge + per-lead dropdown */}
+                              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                                <StatusBadge
+                                  status={status}
+                                  onClick={() => setOpenStatusDd(v => v === lead.id ? null : lead.id)}
+                                />
+                                {isDdOpen && (
+                                  <div style={{
+                                    position: 'absolute', top: 'calc(100% + 4px)', right: 0, zIndex: 50,
+                                    background: C.card, border: `1px solid ${C.border}`, borderRadius: 10,
+                                    overflow: 'hidden', minWidth: 155, boxShadow: '0 8px 24px rgba(0,0,0,0.45)',
+                                  }}>
+                                    {STATUS_OPTIONS.map(s => {
+                                      const scfg = STATUS_CFG[s]
+                                      const active = s === status
+                                      return (
+                                        <button key={s} className="dd-item"
+                                          onClick={() => updateStatus(lead.id, s)}
+                                          style={{ background: active ? `${C.purple}18` : 'none', fontWeight: active ? 700 : 400 }}
+                                        >
+                                          <span style={{ width: 8, height: 8, borderRadius: '50%', background: scfg.color, flexShrink: 0, display: 'inline-block' }} />
+                                          <span style={{ color: scfg.color, flex: 1 }}>{scfg.label}</span>
+                                          {active && <span style={{ fontSize: 11, color: C.muted }}>✓</span>}
+                                        </button>
+                                      )
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+
                               <span style={{ fontSize: 11, color: C.muted, whiteSpace: 'nowrap' }}>{timeAgo(lead.created_at)}</span>
                             </div>
                           </div>
+
+                          {/* Contact info */}
                           <div style={{ fontSize: 13, color: C.sub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {[lead.phone, lead.email].filter(Boolean).join('  ·  ') || <span style={{ color: C.muted }}>No contact info</span>}
                           </div>
+
+                          {/* Signals summary line */}
+                          {signals && (
+                            <div style={{ fontSize: 11, color: C.muted, marginTop: 4, lineHeight: 1.4 }}>{signals}</div>
+                          )}
+
+                          {/* Contact prefs */}
                           {lead.contact_preference && (
                             <div style={{ display: 'flex', gap: 4, marginTop: 5, flexWrap: 'wrap' }}>
                               {(lead.contact_preference as string).split(',').map((p: string) => p.trim()).filter(Boolean).map((pref: string) => (
@@ -381,7 +641,7 @@ export default function LeadsPage() {
                         </div>
                       </div>
 
-                      {/* Row 2: property + QR */}
+                      {/* Row 2: property info + last contacted + action buttons */}
                       <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0, flex: 1 }}>
                           {address && (
@@ -398,22 +658,67 @@ export default function LeadsPage() {
                               <span style={{ color: C.purpleL, fontWeight: 600 }}>{qr.scan_count} scan{qr.scan_count !== 1 ? 's' : ''}</span>
                             </div>
                           )}
+                          <div style={{ fontSize: 11, color: eff.last_contacted_at ? C.muted : '#EF444460', marginTop: 1 }}>
+                            {lastContactedText(eff.last_contacted_at)}
+                          </div>
                         </div>
 
-                        {/* Suggested action + action buttons */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                           {cfg && (
                             <span style={{ fontSize: 12, fontWeight: 700, color: cfg.color }}>
                               {cfg.actionIcon} {cfg.action}
                             </span>
                           )}
                           <div style={{ display: 'flex', gap: 5 }}>
-                            {lead.phone && <ActionBtn href={`tel:${lead.phone}`}   title={`Call ${lead.name}`}  emoji="📞" bg="#062014"         border="#166534" />}
-                            {lead.phone && <ActionBtn href={`sms:${lead.phone}`}   title={`Text ${lead.name}`}  emoji="💬" bg={`${C.purple}18`}  border={`${C.purple}40`} />}
+                            {lead.phone && <ActionBtn href={`tel:${lead.phone}`}    title={`Call ${lead.name}`}  emoji="📞" bg="#062014"         border="#166534" />}
+                            {lead.phone && <ActionBtn href={`sms:${lead.phone}`}    title={`Text ${lead.name}`}  emoji="💬" bg={`${C.purple}18`}  border={`${C.purple}40`} />}
                             {lead.email && <ActionBtn href={`mailto:${lead.email}`} title={`Email ${lead.name}`} emoji="✉️" bg="#0B1E3A"         border="#1D4ED860" />}
                           </div>
+                          {/* Notes toggle */}
+                          <button
+                            title={notesOpen ? 'Collapse notes' : 'Expand notes'}
+                            onClick={e => { e.stopPropagation(); setExpandedNotes(prev => ({ ...prev, [lead.id]: !prev[lead.id] })) }}
+                            style={{
+                              width: 32, height: 32, borderRadius: 8,
+                              border: `1px solid ${notesOpen ? C.purple : C.border}`,
+                              background: notesOpen ? `${C.purple}20` : 'transparent',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 14, cursor: 'pointer', position: 'relative', flexShrink: 0,
+                            }}
+                          >
+                            📝
+                            {hasNotes && !notesOpen && (
+                              <span style={{ position: 'absolute', top: 3, right: 3, width: 6, height: 6, borderRadius: '50%', background: C.purpleL }} />
+                            )}
+                          </button>
                         </div>
                       </div>
+
+                      {/* Expandable notes */}
+                      {notesOpen && (
+                        <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <textarea
+                            className="notes-ta"
+                            value={notesVal}
+                            onChange={e => handleNoteChange(lead.id, e.target.value)}
+                            onBlur={() => handleNoteBlur(lead.id)}
+                            placeholder="Add private notes about this lead…"
+                            rows={3}
+                            style={{
+                              width: '100%', boxSizing: 'border-box',
+                              background: C.bg, border: `1px solid ${C.border}`,
+                              borderRadius: 8, color: C.text, fontSize: 13,
+                              padding: '10px 12px', fontFamily: 'sans-serif', lineHeight: 1.6,
+                              transition: 'border-color 0.12s',
+                            }}
+                          />
+                          <div style={{ fontSize: 10, color: C.muted, marginTop: 3 }}>
+                            {savingNotes[lead.id] ? '⟳ Saving…' : hasNotes ? '✓ Saved' : 'Auto-saves on blur'}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )
                 })}

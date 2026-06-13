@@ -223,7 +223,6 @@ export default function LeadDetailPage() {
       <DashboardLayout>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ width: 32, height: 32, border: `2px solid ${C.purple}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
-          <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
         </div>
       </DashboardLayout>
     )
@@ -338,9 +337,9 @@ export default function LeadDetailPage() {
         @keyframes spin { to { transform: rotate(360deg) } }
         .action-btn:hover { filter: brightness(1.15) }
         .dropdown-item:hover { background: rgba(255,255,255,0.05) !important }
-        .notes-ta:focus { border-color: ${C.purple} !important; box-shadow: 0 0 0 3px rgba(124,58,237,0.2); }
+        .notes-ta:focus { border-color: #7C3AED !important; box-shadow: 0 0 0 3px rgba(124,58,237,0.2) !important; }
         @media (max-width: 960px) { .li-grid { grid-template-columns: 1fr !important } }
-        @media (max-width: 640px) { .hero-inner { flex-direction: column !important } .hero-right { border-left: none !important; border-top: 1px solid ${C.border} !important; padding-left: 0 !important; padding-top: 20px !important; width: 100% !important; } .act-row { flex-wrap: wrap !important } }
+        @media (max-width: 640px) { .hero-inner { flex-direction: column !important } .hero-right { border-left: none !important; border-top: 1px solid #252533 !important; padding-left: 0 !important; padding-top: 20px !important; width: 100% !important; } .act-row { flex-wrap: wrap !important } }
       `}</style>
 
       {/* ── Header bar ─────────────────────────────────────────────────────────── */}

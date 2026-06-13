@@ -5,12 +5,14 @@ import { createBrowserSupabase } from '../../lib/supabase-browser'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DashboardLayout from '../../components/DashboardLayout'
+import { LineChart, Line, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import { QrCode, MessageSquare } from 'lucide-react'
 
 // ── Tokens ────────────────────────────────────────────────────────────────────
 const C = {
-  bg:      '#0F0F13',
-  card:    '#1A1A24',
-  card2:   '#15151E',
+  bg:      '#0B0F1A',
+  card:    '#0F1629',
+  card2:   '#0A0D1C',
   border:  '#252533',
   purple:  '#7C3AED',
   purpleL: '#8B5CF6',
@@ -53,46 +55,38 @@ function pctDiff(curr: number, prev: number): { n: number; up: boolean } | null 
 // ── Sparkline ─────────────────────────────────────────────────────────────────
 function Sparkline({ data, color }: { data: number[]; color: string }) {
   if (data.length < 2) return null
-  const w = 80, h = 24, max = Math.max(...data, 1)
-  const pts = data.map((v, i) => `${((i / (data.length - 1)) * w).toFixed(1)},${(h - (v / max) * (h - 2)).toFixed(1)}`).join(' ')
+  const chartData = data.map(v => ({ v }))
   return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />
-    </svg>
+    <ResponsiveContainer width={80} height={24}>
+      <LineChart data={chartData}>
+        <Line type="monotone" dataKey="v" stroke={color} strokeWidth={1.5} dot={false} isAnimationActive={false} />
+      </LineChart>
+    </ResponsiveContainer>
   )
 }
 
 // ── Donut chart ───────────────────────────────────────────────────────────────
 function DonutChart({ segments, total }: { segments: Array<{ value: number; color: string; label: string; key: string }>; total: number }) {
-  const cx = 80, cy = 80, r = 56, sw = 20
-  const circumference = 2 * Math.PI * r
-  const arcs: { color: string; dash: number; rotation: number }[] = []
-  let cum = 0
-  for (const seg of segments) {
-    if (seg.value > 0 && total > 0) {
-      arcs.push({ color: seg.color, dash: (seg.value / total) * circumference, rotation: (cum / total) * 360 - 90 })
-      cum += seg.value
-    }
-  }
+  const filled = segments.filter(s => s.value > 0)
+  const data = filled.length > 0 ? filled : [{ key: 'empty', value: 1, color: '#252533', label: '' }]
   return (
-    <svg width="160" height="160" viewBox="0 0 160 160">
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#252533" strokeWidth={sw} />
-      {arcs.map((a, i) => (
-        <circle key={i} cx={cx} cy={cy} r={r} fill="none"
-          stroke={a.color} strokeWidth={sw}
-          strokeDasharray={`${a.dash} ${circumference - a.dash}`}
-          transform={`rotate(${a.rotation}, ${cx}, ${cy})`}
-        />
-      ))}
-      <text x={cx} y={cy - 6} textAnchor="middle" fontSize="22" fontWeight="800" fill="#F8FAFC">{total}</text>
-      <text x={cx} y={cy + 14} textAnchor="middle" fontSize="9" fontWeight="700" fill="#6B7280">TOTAL LEADS</text>
-    </svg>
+    <div style={{ position: 'relative', width: 160, height: 160 }}>
+      <PieChart width={160} height={160}>
+        <Pie data={data} dataKey="value" cx={80} cy={80} innerRadius={54} outerRadius={70} paddingAngle={filled.length > 1 ? 2 : 0} startAngle={90} endAngle={-270} isAnimationActive={false}>
+          {data.map((seg, i) => <Cell key={i} fill={seg.color} />)}
+        </Pie>
+      </PieChart>
+      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none' }}>
+        <div style={{ fontSize: 18, fontWeight: 800, color: '#F8FAFC', lineHeight: 1 }}>{total}</div>
+        <div style={{ fontSize: 8, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 5, whiteSpace: 'nowrap' }}>TOTAL LEADS</div>
+      </div>
+    </div>
   )
 }
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
 function KpiCard({ icon, label, value, change, accent, sparkData }: {
-  icon: string; label: string; value: number | string;
+  icon: React.ReactNode; label: string; value: number | string;
   change?: { n: number; up: boolean } | null;
   accent: typeof ACCENT[keyof typeof ACCENT];
   sparkData?: number[];
@@ -104,10 +98,10 @@ function KpiCard({ icon, label, value, change, accent, sparkData }: {
         <div style={{ width: 36, height: 36, borderRadius: 10, background: accent.bg, border: `1px solid ${accent.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>{icon}</div>
         <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</span>
       </div>
-      <div style={{ fontSize: 36, fontWeight: 900, color: C.text, lineHeight: 1, letterSpacing: '-0.02em' }}>{value}</div>
+      <div style={{ fontSize: 48, fontWeight: 900, color: C.text, lineHeight: 1, letterSpacing: '-0.03em' }}>{value}</div>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: change ? (change.up ? '#4ADE80' : '#F87171') : C.muted, lineHeight: 1.3 }}>
-          {change ? `${change.up ? '↑' : '↓'} ${change.n}% vs last month` : 'vs last month'}
+        <div style={{ fontSize: 11, fontWeight: 600, color: change ? (change.up ? accent.color : '#F87171') : C.muted, lineHeight: 1.3 }}>
+          {change ? `${change.up ? '+' : '-'}${change.n}% vs last month` : '— flat'}
         </div>
         {sparkData && <Sparkline data={sparkData} color={accent.color} />}
       </div>
@@ -255,12 +249,20 @@ export default function Dashboard() {
       // Activity feed
       const propAddr: Record<string, string> = {}
       props.forEach((p: any) => { propAddr[p.id] = p.address })
-      const motivIcon: Record<string, string> = { hot: '🔥', motivated: '⚡', warm: '👍', cold: '❄️' }
-      const motivText: Record<string, string> = { hot: 'Hot lead at', motivated: 'Motivated buyer at', warm: 'New warm lead at', cold: 'New lead at' }
+      const multiProp = props.length > 1
+      const shortAddr = (propId: string) => {
+        if (!multiProp) return ''
+        const addr = propAddr[propId] ?? '—'
+        const words = addr.split(' ')
+        const short = words.length > 2 ? words.slice(0, 2).join(' ') + '…' : addr
+        return ` at ${short}`
+      }
+      const motivIcon: Record<string, string> = { hot: '🔥', motivated: '☀️', warm: '☀️', cold: '❄️' }
+      const motivText: Record<string, string> = { hot: 'Hot lead', motivated: 'Warm lead', warm: 'Warm lead', cold: 'New lead' }
       const feedItems: Array<{ icon: string; label: string; created_at: string }> = [
-        ...(recentLeadsData || []).map((l: any) => ({ icon: motivIcon[l.motivation] ?? '👤', label: `${motivText[l.motivation] ?? 'New lead at'} ${propAddr[l.property_id] ?? '—'}`, created_at: l.created_at })),
-        ...(recentScansData || []).map((e: any) => ({ icon: e.return_visit ? '↩️' : '📱', label: `${e.return_visit ? 'Buyer returned to' : 'Buyer scanned'} ${propAddr[e.property_id] ?? '—'}`, created_at: e.created_at })),
-        ...((recentPacketData as any[] || []).map((r: any) => ({ icon: '📄', label: `Packet request at ${propAddr[r.property_id] ?? '—'}`, created_at: r.created_at }))),
+        ...(recentLeadsData || []).map((l: any) => ({ icon: motivIcon[l.motivation] ?? '👤', label: `${motivText[l.motivation] ?? 'New lead'}${shortAddr(l.property_id)}`, created_at: l.created_at })),
+        ...(recentScansData || []).map((e: any) => ({ icon: e.return_visit ? '↩️' : '📱', label: `${e.return_visit ? 'Buyer returned' : 'Buyer scanned'}${shortAddr(e.property_id)}`, created_at: e.created_at })),
+        ...((recentPacketData as any[] || []).map((r: any) => ({ icon: '📄', label: `Packet request${shortAddr(r.property_id)}`, created_at: r.created_at }))),
       ]
       feedItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
@@ -316,7 +318,7 @@ export default function Dashboard() {
   const topProp         = topPropId ? properties.find(p => p.id === topPropId) : null
   const topPropLeads    = topPropId ? (propLeadCounts[topPropId] || 0) : 0
 
-  const hotLeads        = recentLeads.filter(l => l.motivation === 'hot' || l.motivation === 'motivated').slice(0, 3)
+  const hotLeads        = recentLeads.filter(l => l.motivation === 'hot').slice(0, 5)
   const propNameMap: Record<string, string> = {}
   properties.forEach((p: any) => { propNameMap[p.id] = p.address })
 
@@ -326,12 +328,11 @@ export default function Dashboard() {
   const aiRatio      = otherAvg > 0 && topPropLeads > 0 ? Math.round((topPropLeads / otherAvg) * 10) / 10 : 0
   const showAiBanner = properties.length >= 2 && topProp && aiRatio > 1 && otherProps.some(p => (propLeadCounts[p.id] || 0) > 0)
 
-  // Donut segments
+  // Donut segments — 3 tiers: Hot (11+), Warm (5–10, includes motivated), Cold (0–4)
   const donutSegments = [
-    { key: 'hot',       value: pipelineCounts.hot || 0,       color: '#EF4444', label: '🔥 Hot' },
-    { key: 'motivated', value: pipelineCounts.motivated || 0, color: '#F97316', label: '⚡ Motivated' },
-    { key: 'warm',      value: pipelineCounts.warm || 0,      color: '#60A5FA', label: '👍 Warm' },
-    { key: 'cold',      value: pipelineCounts.cold || 0,      color: '#6B7280', label: '❄️ Cold' },
+    { key: 'hot',  value: pipelineCounts.hot || 0,                                             color: '#EF4444', label: '🔥 Hot' },
+    { key: 'warm', value: (pipelineCounts.motivated || 0) + (pipelineCounts.warm || 0),         color: '#60A5FA', label: '☀️ Warm' },
+    { key: 'cold', value: pipelineCounts.cold || 0,                                             color: '#6B7280', label: '❄️ Cold' },
   ]
 
   return (
@@ -392,10 +393,10 @@ export default function Dashboard() {
 
           {/* ── SECTION 2: KPI Cards ── */}
           <div className="db-kpi4">
-            <KpiCard icon="🔍" label="QR Scans"             value={totalScansAll}    change={scanChange}  accent={ACCENT.purple} sparkData={scanSparkline} />
-            <KpiCard icon="👥" label="New Leads"            value={totalLeads}       change={leadChange}  accent={ACCENT.green}  sparkData={leadSparkline} />
-            <KpiCard icon="💬" label="Showing Requests"     value={hotCount}         change={null}        accent={ACCENT.blue}   sparkData={scanSparkline.map((_, i) => i % 3 === 0 ? 1 : 0)} />
-            <KpiCard icon="📄" label="Disclosure Requests"  value={totalPacketCount} change={null}        accent={ACCENT.amber}  />
+            <KpiCard icon={<QrCode size={18} color={ACCENT.purple.color} />} label="QR Scans"             value={totalScansAll}    change={scanChange}  accent={ACCENT.purple} sparkData={scanSparkline} />
+            <KpiCard icon="👥"                                                label="New Leads"            value={totalLeads}       change={leadChange}  accent={ACCENT.green}  sparkData={leadSparkline} />
+            <KpiCard icon={<MessageSquare size={18} color={ACCENT.blue.color} />} label="Showing Requests" value={hotCount}         change={null}        accent={ACCENT.blue}   sparkData={scanSparkline.map((_, i) => i % 3 === 0 ? 1 : 0)} />
+            <KpiCard icon="📄"                                                label="Disclosure Requests"  value={totalPacketCount} change={null}        accent={ACCENT.amber}  />
           </div>
 
           {/* ── SECTION 3: Three-column middle ── */}
@@ -404,7 +405,7 @@ export default function Dashboard() {
             {/* Hot Leads */}
             <Card>
               <CardHead
-                title="🔥 Hot Leads Need Attention"
+                title="🔥 Hot leads need attention"
                 action={<Link href="/dashboard/leads" style={{ fontSize: 11, color: C.purpleL, textDecoration: 'none', fontWeight: 600 }}>View all →</Link>}
               />
               <div>
@@ -415,9 +416,9 @@ export default function Dashboard() {
                     <div key={lead.id} className="db-hover" style={{ padding: '12px 18px', borderBottom: i < hotLeads.length - 1 ? `1px solid ${C.border}` : 'none', background: C.card }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <div style={{
-                          width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                          width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
                           background: MOTIV[lead.motivation]?.bg ?? C.card,
-                          border: `2px solid ${MOTIV[lead.motivation]?.border ?? C.border}40`,
+                          border: `2px solid ${MOTIV[lead.motivation]?.border ?? C.border}60`,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           fontSize: 11, fontWeight: 700, color: MOTIV[lead.motivation]?.color ?? C.muted,
                         }}>{(lead.name || '??').slice(0, 2).toUpperCase()}</div>
@@ -475,11 +476,11 @@ export default function Dashboard() {
                 {activityFeed.length === 0 ? (
                   <div style={{ padding: '24px 16px', textAlign: 'center', color: C.muted, fontSize: 12 }}>No activity yet.</div>
                 ) : (
-                  activityFeed.slice(0, 6).map((ev, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '9px 16px', borderBottom: i < 5 ? `1px solid ${C.border}` : 'none' }}>
+                  activityFeed.slice(0, 5).map((ev, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '9px 16px', borderBottom: i < 4 ? `1px solid ${C.border}` : 'none' }}>
                       <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>{ev.icon}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, color: C.sub, lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.label}</div>
+                        <div style={{ fontSize: 12, color: C.sub, lineHeight: 1.4 }}>{ev.label}</div>
                         <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{timeAgo(ev.created_at)}</div>
                       </div>
                     </div>
@@ -602,7 +603,7 @@ export default function Dashboard() {
 
           {/* ── SECTION 6: AI Insight Banner ── */}
           {showAiBanner && (
-            <div style={{ background: 'linear-gradient(135deg, #2D1A5E 0%, #1A1A24 100%)', border: `1px solid ${C.purple}40`, borderRadius: 16, padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', animation: 'fadeUp 0.4s ease' }}>
+            <div style={{ background: 'linear-gradient(135deg, #2D1A5E 0%, #0F1629 100%)', border: `1px solid ${C.purple}40`, borderRadius: 16, padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', animation: 'fadeUp 0.4s ease' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
                 <div style={{ width: 40, height: 40, borderRadius: 12, background: `${C.purple}30`, border: `1px solid ${C.purple}50`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>✨</div>
                 <div>

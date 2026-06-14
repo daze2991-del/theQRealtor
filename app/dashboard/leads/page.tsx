@@ -5,7 +5,7 @@
 // ALTER TABLE leads ADD COLUMN IF NOT EXISTS notes text;
 // ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_contacted_at timestamptz;
 
-import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
+import { Suspense, useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import DashboardLayout from '../../../components/DashboardLayout'
@@ -143,6 +143,14 @@ function ActionBtn({ href, title, emoji, bg, border }: { href: string; title: st
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function LeadsPage() {
+  return (
+    <Suspense fallback={null}>
+      <LeadsPageInner />
+    </Suspense>
+  )
+}
+
+function LeadsPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const ctaFilter = searchParams.get('cta')  // 'disclosures' | null

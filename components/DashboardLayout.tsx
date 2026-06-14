@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createBrowserSupabase } from '../lib/supabase-browser'
@@ -35,27 +35,56 @@ function NavIcon({ name }: { name: string }) {
   return null
 }
 
+// Pure nav list renderer — no search-params dependency, safe for SSR fallback.
+function NavLinks({ pathname, isDisclosures, onClose }: {
+  pathname: string; isDisclosures: boolean; onClose?: () => void
+}) {
+  const nav = [
+    { label: 'Dashboard',   icon: 'dashboard',   href: '/dashboard',                       active: pathname === '/dashboard' },
+    { label: 'Properties',  icon: 'properties',  href: '/dashboard/properties',            active: pathname.startsWith('/dashboard/properties') },
+    { label: 'QR Codes',    icon: 'qrcodes',     href: '/dashboard/qr-codes',              active: pathname.startsWith('/dashboard/qr-codes') },
+    { label: 'Leads',       icon: 'leads',       href: '/dashboard/leads',                 active: pathname.startsWith('/dashboard/leads') && !isDisclosures },
+    { label: 'Disclosures', icon: 'disclosures', href: '/dashboard/leads?cta=disclosures', active: isDisclosures },
+    { label: 'Analytics',   icon: 'analytics',   href: '/dashboard/analytics',             active: pathname.startsWith('/dashboard/analytics') },
+    { label: 'Billing',     icon: 'billing',     href: '/dashboard/billing',               active: pathname.startsWith('/dashboard/billing') },
+    { label: 'Settings',    icon: 'settings',    href: '/dashboard/settings',              active: pathname.startsWith('/dashboard/settings') },
+  ]
+  return (
+    <>
+      {nav.map(({ label, icon, href, active }) => (
+        <Link key={label} href={href} onClick={onClose} style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '9px 12px', borderRadius: 9, marginBottom: 1,
+          background: active ? `${C.purple}20` : 'transparent',
+          color: active ? C.purpleL : C.muted,
+          textDecoration: 'none', fontSize: 13.5, fontWeight: active ? 600 : 400,
+          borderLeft: `2px solid ${active ? C.purple : 'transparent'}`,
+          transition: 'all 0.15s',
+        }}>
+          <span style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+            <NavIcon name={icon} />
+          </span>
+          {label}
+        </Link>
+      ))}
+    </>
+  )
+}
+
+// Isolates useSearchParams() so it can be wrapped in <Suspense>.
+function NavLinksWithParams({ pathname, onClose }: { pathname: string; onClose?: () => void }) {
+  const searchParams = useSearchParams()
+  const isDisclosures = pathname === '/dashboard/leads' && searchParams.get('cta') === 'disclosures'
+  return <NavLinks pathname={pathname} isDisclosures={isDisclosures} onClose={onClose} />
+}
+
 function Sidebar({ email, plan, propertyCount, onClose }: {
   email: string; plan: 'free' | 'pro'; propertyCount: number; onClose?: () => void
 }) {
   const pathname = usePathname()
-  const searchParams = useSearchParams()
   const limit = plan === 'pro' ? 50 : 1
   const usagePct = Math.min(100, Math.round((propertyCount / limit) * 100))
   const initials = email ? email.slice(0, 2).toUpperCase() : '??'
-
-  const isDisclosures = pathname === '/dashboard/leads' && searchParams.get('cta') === 'disclosures'
-
-  const nav = [
-    { label: 'Dashboard',   icon: 'dashboard',   href: '/dashboard',                      active: pathname === '/dashboard' },
-    { label: 'Properties',  icon: 'properties',  href: '/dashboard/properties',           active: pathname.startsWith('/dashboard/properties') },
-    { label: 'QR Codes',    icon: 'qrcodes',     href: '/dashboard/qr-codes',             active: pathname.startsWith('/dashboard/qr-codes') },
-    { label: 'Leads',       icon: 'leads',       href: '/dashboard/leads',                active: pathname.startsWith('/dashboard/leads') && !isDisclosures },
-    { label: 'Disclosures', icon: 'disclosures', href: '/dashboard/leads?cta=disclosures', active: isDisclosures },
-    { label: 'Analytics',   icon: 'analytics',   href: '/dashboard/analytics',            active: pathname.startsWith('/dashboard/analytics') },
-    { label: 'Billing',     icon: 'billing',     href: '/dashboard/billing',              active: pathname.startsWith('/dashboard/billing') },
-    { label: 'Settings',    icon: 'settings',    href: '/dashboard/settings',             active: pathname.startsWith('/dashboard/settings') },
-  ]
 
   return (
     <aside style={{
@@ -88,22 +117,9 @@ function Sidebar({ email, plan, propertyCount, onClose }: {
         <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '8px 12px 6px' }}>
           Menu
         </div>
-        {nav.map(({ label, icon, href, active }) => (
-          <Link key={label} href={href} onClick={onClose} style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            padding: '9px 12px', borderRadius: 9, marginBottom: 1,
-            background: active ? `${C.purple}20` : 'transparent',
-            color: active ? C.purpleL : C.muted,
-            textDecoration: 'none', fontSize: 13.5, fontWeight: active ? 600 : 400,
-            borderLeft: `2px solid ${active ? C.purple : 'transparent'}`,
-            transition: 'all 0.15s',
-          }}>
-            <span style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-              <NavIcon name={icon} />
-            </span>
-            {label}
-          </Link>
-        ))}
+        <Suspense fallback={<NavLinks pathname={pathname} isDisclosures={false} onClose={onClose} />}>
+          <NavLinksWithParams pathname={pathname} onClose={onClose} />
+        </Suspense>
       </nav>
 
       {/* Plan usage + agent */}

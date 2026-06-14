@@ -7,6 +7,7 @@ import Link from 'next/link'
 import DashboardLayout from '../../components/DashboardLayout'
 import { LineChart, Line, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { QrCode, MessageSquare } from 'lucide-react'
+import { calcPropertyInterest } from '../../lib/propertyInterest'
 
 // ── Tokens ────────────────────────────────────────────────────────────────────
 const C = {
@@ -110,12 +111,19 @@ function KpiCard({ icon, label, value, change, accent, sparkData }: {
 }
 
 // ── Health badge ──────────────────────────────────────────────────────────────
+const HEALTH_BADGE_STYLE = {
+  high:     { color: '#16A34A', background: '#F0FDF4', border: '1px solid #86EFAC' },
+  moderate: { color: '#CA8A04', background: '#FEFCE8', border: '1px solid #FDE047' },
+  low:      { color: '#DC2626', background: '#FEF2F2', border: '1px solid #FCA5A5' },
+} as const
+
 function HealthBadge({ scans, leads, hot }: { scans: number; leads: number; hot: number }) {
-  if (scans >= 10 && leads >= 3 && hot >= 1)
-    return <span style={{ fontSize: 10, fontWeight: 700, color: '#16A34A', background: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: 6, padding: '2px 7px', whiteSpace: 'nowrap' }}>🟢 High Interest</span>
-  if (scans >= 5 && leads >= 1)
-    return <span style={{ fontSize: 10, fontWeight: 700, color: '#CA8A04', background: '#FEFCE8', border: '1px solid #FDE047', borderRadius: 6, padding: '2px 7px', whiteSpace: 'nowrap' }}>🟡 Moderate</span>
-  return <span style={{ fontSize: 10, fontWeight: 700, color: '#DC2626', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 6, padding: '2px 7px', whiteSpace: 'nowrap' }}>🔴 Low Interest</span>
+  const h = calcPropertyInterest({ totalLeads: leads, totalScans: scans, showingRequests: hot })
+  return (
+    <span style={{ fontSize: 10, fontWeight: 700, borderRadius: 6, padding: '2px 7px', whiteSpace: 'nowrap', ...HEALTH_BADGE_STYLE[h.level] }}>
+      {h.badgeLabel}
+    </span>
+  )
 }
 
 // ── Motivation badge ──────────────────────────────────────────────────────────

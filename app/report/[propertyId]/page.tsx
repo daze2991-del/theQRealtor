@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { calcPropertyInterest } from '../../../lib/propertyInterest'
 
 const C = {
   bg: '#0F0F13', card: '#1A1A24', cardAlt: '#15151E', border: '#252533',
@@ -183,15 +184,8 @@ export default function SellerReportPage() {
   const packetSparkData   = getDailyCount(packets ?? [], 14)
   const questionSparkData = getDailyCount(leads.filter((l: any) => l.notes), 14)
 
-  // Health
-  const health = leads.length >= 3 || showingRequests >= 1
-    ? { label: '🟢 High Interest',     color: '#10B981', bg: 'rgba(16,185,129,0.12)', score: 'strong',
-        sentence: 'Your listing is performing above average compared to similar homes in your area.' }
-    : leads.length >= 1 || totalScans >= 1
-    ? { label: '🟡 Moderate Interest', color: '#F59E0B', bg: 'rgba(245,158,11,0.12)', score: 'steady',
-        sentence: 'Your listing is attracting steady buyer interest.' }
-    : { label: '🔴 Low Interest',      color: '#EF4444', bg: 'rgba(239,68,68,0.12)',  score: 'growing',
-        sentence: 'Your listing needs more visibility. Consider repositioning your QR signs.' }
+  // Health — shared formula via calcPropertyInterest
+  const health = calcPropertyInterest({ totalLeads: leads.length, totalScans, showingRequests })
 
   // Date range
   const createdAt    = new Date(property.created_at)
@@ -350,7 +344,7 @@ export default function SellerReportPage() {
             fontSize: 12, fontWeight: 700, color: health.color, background: health.bg,
             border: `1px solid ${health.color}40`, borderRadius: 20, padding: '3px 12px',
           }}>
-            {health.label}
+            {health.badgeLabel}
           </span>
         </div>
         <div style={{ fontSize: 12, color: C.muted, paddingBottom: 14 }}>
@@ -384,9 +378,9 @@ export default function SellerReportPage() {
               fontSize: 11, fontWeight: 700, color: health.color, background: health.bg,
               border: `1px solid ${health.color}40`, borderRadius: 20, padding: '3px 12px',
             }}>
-              {health.label}
+              {health.badgeLabel}
             </span>
-            <p style={{ fontSize: 13, color: C.sub, lineHeight: 1.65, margin: 0 }}>{health.sentence}</p>
+            <p style={{ fontSize: 13, color: C.sub, lineHeight: 1.65, margin: 0 }}>{health.text}</p>
           </div>
 
           {/* Right: report meta */}

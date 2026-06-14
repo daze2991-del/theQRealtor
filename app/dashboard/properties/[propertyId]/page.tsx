@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { createBrowserSupabase } from '../../../../lib/supabase-browser'
 import DashboardLayout from '../../../../components/DashboardLayout'
 import Link from 'next/link'
+import { calcPropertyInterest } from '../../../../lib/propertyInterest'
 
 const C = {
   bg: '#0F0F13', card: '#1A1A24', cardAlt: '#15151E', border: '#252533',
@@ -274,14 +275,14 @@ export default function PropertyIntelligencePage() {
   const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
 
-  // Health
+  // Health — shared formula via calcPropertyInterest
   const totalLeads = leads.length
   const showingRequests = leads.filter((l: any) => l.motivation === 'hot').length
-  const healthCfg = totalLeads >= 5
-    ? { label: 'High Interest',     score: 92, color: '#10B981', bg: 'rgba(16,185,129,0.1)',  badgeLabel: '🟢 High Interest',     text: 'This listing is performing above average in your market.' }
-    : totalLeads >= 2
-    ? { label: 'Moderate Interest', score: 68, color: '#F59E0B', bg: 'rgba(245,158,11,0.1)', badgeLabel: '🟡 Moderate Interest', text: 'This listing is attracting steady buyer interest.' }
-    : { label: 'Low Interest',      score: 34, color: '#EF4444', bg: 'rgba(239,68,68,0.1)',  badgeLabel: '🔴 Low Interest',      text: 'This listing needs more visibility. Consider repositioning your QR signs.' }
+  const healthCfg = calcPropertyInterest({
+    totalLeads,
+    totalScans:      scanEvents.length,
+    showingRequests,
+  })
 
   // KPI numbers
   const totalScans = scanEvents.length

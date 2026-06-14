@@ -5,7 +5,8 @@ import { useParams, useRouter } from 'next/navigation'
 import { createBrowserSupabase } from '../../../../lib/supabase-browser'
 import DashboardLayout from '../../../../components/DashboardLayout'
 import Link from 'next/link'
-import { calcIntentScore } from '../../../../lib/leadScoring'
+import { calcIntentScore, scoreToLabel } from '../../../../lib/leadScoring'
+import { calcPropertyInterest } from '../../../../lib/propertyInterest'
 
 const C = {
   bg: '#0F0F13', card: '#1A1A24', cardAlt: '#15151E', border: '#252533',
@@ -35,10 +36,10 @@ const INTEL_ACTION: Record<string, string> = {
 }
 
 const SCORE_GUIDE = [
-  { label: '🔥 Hot',       range: '20–25', color: '#EF4444' },
-  { label: '⚡ Motivated', range: '15–19', color: '#F97316' },
-  { label: '👍 Warm',      range: '8–14',  color: '#60A5FA' },
-  { label: '❄️ Cold',      range: '0–7',   color: '#6B7280' },
+  { label: '🔥 Hot',       range: '18–25', color: '#EF4444' },
+  { label: '⚡ Motivated', range: '11–17', color: '#F97316' },
+  { label: '👍 Warm',      range: '5–10',  color: '#60A5FA' },
+  { label: '❄️ Cold',      range: '0–4',   color: '#6B7280' },
 ]
 
 function timeAgo(iso: string) {
@@ -244,19 +245,12 @@ export default function LeadDetailPage() {
   }
   const score = calcIntentScore(eng)
 
-  // Intent label based on the numeric score (not lead.motivation tier)
-  const scoreIntentLabel = score >= 20 ? 'Very High Intent'
-    : score >= 15 ? 'High Intent'
-    : score >= 8  ? 'Moderate Intent'
-    : 'Low Intent'
-  const scoreIntentColor = score >= 20 ? '#EF4444'
-    : score >= 15 ? '#F97316'
-    : score >= 8  ? '#60A5FA'
-    : '#6B7280'
-  const scoreIntentBg = score >= 20 ? '#3B0D0D'
-    : score >= 15 ? '#3B1F0D'
-    : score >= 8  ? '#0F2238'
-    : '#1F2937'
+  // Score badge — uses same canonical thresholds as leadScoring.ts (hot≥18, motivated≥11, warm≥5)
+  const scoreTier        = scoreToLabel(score)
+  const scoreTierCfg     = TIER[scoreTier]
+  const scoreIntentLabel = scoreTierCfg.label
+  const scoreIntentColor = scoreTierCfg.color
+  const scoreIntentBg    = scoreTierCfg.bg
 
   // Scoring factors
   const factors: Array<{ label: string; detail?: string; pts: number; color: string }> = [
@@ -264,7 +258,7 @@ export default function LeadDetailPage() {
   ]
   if (eng.visitCount > 1) {
     const vPts = 3 + (eng.visitCount >= 3 ? 5 : 0)
-    factors.push({ label: 'Return Visit', detail: eng.visitCount >= 3 ? '3+ visits' : '2 visits', pts: vPts, color: '#7C3AED' })
+    factors.push({ label: 'Return Visit', detail: 'Returning visitor', pts: vPts, color: '#7C3AED' })
   }
   if (eng.photosViewed >= 5) {
     factors.push({ label: 'Photo Views', detail: `${eng.photosViewed} photos`, pts: 2, color: '#14B8A6' })
@@ -289,7 +283,7 @@ export default function LeadDetailPage() {
     timeline.push({ icon: '💬', title: 'Asked a Question', desc: `"${lead.notes}"`, time: lead.created_at, color: '#10B981', bg: '#052e16' })
   }
   if (eng.visitCount > 1) {
-    timeline.push({ icon: '↩️', title: 'Returned to Property Page', desc: 'This is visit #2 to the property page', time: scanEvent?.created_at ?? lead.created_at, color: '#7C3AED', bg: '#1e1b4b' })
+    timeline.push({ icon: '↩️', title: 'Returned to Property Page', desc: 'Visited the property page more than once', time: scanEvent?.created_at ?? lead.created_at, color: '#7C3AED', bg: '#1e1b4b' })
   }
   if (eng.photosViewed > 0) {
     timeline.push({ icon: '📸', title: 'Viewed Photos', desc: `Viewed ${eng.photosViewed} photo${eng.photosViewed !== 1 ? 's' : ''}`, time: scanEvent?.created_at ?? lead.created_at, color: '#14B8A6', bg: '#022c22' })
@@ -301,17 +295,17 @@ export default function LeadDetailPage() {
   const allPrefs = ['Text', 'Email', 'Phone Call']
   const prefIcon: Record<string, string> = { Text: '💬', Email: '✉️', 'Phone Call': '📞' }
 
-  // Listing health
-  const health = propStats.leads >= 5
-    ? { label: '🟢 High Interest',     color: '#10B981', bg: 'rgba(16,185,129,0.1)' }
-    : propStats.leads >= 2
-    ? { label: '🟡 Moderate Interest', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)' }
-    : { label: '🔴 Low Interest',      color: '#EF4444', bg: 'rgba(239,68,68,0.1)' }
+  // Listing health — shared formula via calcPropertyInterest
+  const health = calcPropertyInterest({
+    totalLeads:      propStats.leads,
+    totalScans:      propStats.scans,
+    showingRequests: propStats.showings,
+  })
 
   // Buyer Intelligence bullets (rule-based)
   const intelBullets: Array<{ icon: string; text: string }> = []
   if (eng.visitCount > 1)
-    intelBullets.push({ icon: '↩️', text: `Returned to the property page ${eng.visitCount} times` })
+    intelBullets.push({ icon: '↩️', text: 'Visited the property page more than once' })
   if (eng.photosViewed > 0)
     intelBullets.push({ icon: '📸', text: `Viewed ${eng.photosViewed} photo${eng.photosViewed !== 1 ? 's' : ''}` })
   if (eng.timeOnPageSec > 60) {
@@ -762,7 +756,7 @@ export default function LeadDetailPage() {
                       borderRadius: 20, padding: '3px 11px',
                       display: 'inline-block', marginBottom: 12,
                     }}>
-                      {health.label}
+                      {health.badgeLabel}
                     </span>
                     {/* Stats row */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>

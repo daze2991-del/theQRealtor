@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import Image from 'next/image'
+import NavHamburger from '../components/NavHamburger'
 
 export const metadata: Metadata = {
   title: 'theQRealtor — Yard Sign Scans → Instant Buyer Leads',
@@ -128,21 +129,39 @@ export default function LandingPage() {
     <div style={{ background: C.navy, minHeight: '100vh', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', color: C.text, overflowX: 'hidden' }}>
       <style>{`
         * { box-sizing: border-box; }
+        html, body { overflow-x: hidden; max-width: 100%; }
+
+        /* Hamburger hidden on desktop */
+        .nav-hamburger { display: none !important; }
+
+        /* ── 768px — layout stacking ── */
         @media (max-width: 768px) {
           .hero-grid    { flex-direction: column !important; }
           .hero-visual  { display: none !important; }
           .steps-grid   { flex-direction: column !important; }
           .feat-grid    { flex-direction: column !important; }
           .proof-grid   { flex-wrap: wrap !important; }
-          .nav-links    { display: none !important; }
           .hero-h1      { font-size: 36px !important; }
-          .hero-btns    { flex-direction: column !important; }
+          .hero-btns    { flex-direction: column !important; align-items: stretch !important; }
           .faq-item     { padding: 18px 20px !important; }
           .price-card   { padding: 32px 24px !important; }
           .buyer-grid   { grid-template-columns: repeat(2, 1fr) !important; }
           .cmp-grid     { flex-direction: column !important; }
-          .seller-stats { flex-wrap: wrap !important; }
+          .seller-stats { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
         }
+
+        /* ── 640px — nav swap + tighter horizontal padding ── */
+        @media (max-width: 640px) {
+          .nav-links     { display: none !important; }
+          .nav-hamburger { display: flex !important; }
+          .nav-cta       { display: none !important; }
+          .site-nav      { padding-left: 16px !important; padding-right: 16px !important; }
+          .nav-logo-text { font-size: 22px !important; }
+          .hero-h1       { font-size: 30px !important; }
+          .hero-section  { padding-left: 20px !important; padding-right: 20px !important; }
+          .steps-grid    { gap: 12px !important; }
+        }
+
         details summary { cursor: pointer; list-style: none; }
         details summary::-webkit-details-marker { display: none; }
         details[open] .faq-arrow { transform: rotate(180deg); }
@@ -152,7 +171,7 @@ export default function LandingPage() {
       `}</style>
 
       {/* ── NAVBAR ── */}
-      <nav style={{
+      <nav className="site-nav" style={{
         position: 'sticky', top: 0, zIndex: 100,
         background: 'rgba(15,23,42,0.92)', backdropFilter: 'blur(16px)',
         borderBottom: `1px solid ${C.border}`,
@@ -161,7 +180,7 @@ export default function LandingPage() {
         maxWidth: '100%',
       }}>
         <Link href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', flexShrink: 0, background: 'transparent' }}>
-          <div style={{ display: 'flex', alignItems: 'center', fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em' }}>
+          <div className="nav-logo-text" style={{ display: 'flex', alignItems: 'center', fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em' }}>
             <span style={{ color: '#fff' }}>the</span>
             <span style={{ color: '#8B5CF6' }}>QR</span>
             <span style={{ color: '#fff' }}>ealtor.</span>
@@ -174,19 +193,22 @@ export default function LandingPage() {
           <Link href="/auth" style={{ fontSize: 14, color: C.sub, textDecoration: 'none', fontWeight: 500 }}>Sign In</Link>
         </div>
 
-        <Link href="/auth" style={{
-          background: C.blue, color: '#fff',
-          fontSize: 13, fontWeight: 700,
-          padding: '9px 20px', borderRadius: 10,
-          textDecoration: 'none', flexShrink: 0,
-          letterSpacing: '-0.01em',
-        }}>
-          Start Free Trial
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <NavHamburger />
+          <Link href="/auth" className="nav-cta" style={{
+            background: C.blue, color: '#fff',
+            fontSize: 13, fontWeight: 700,
+            padding: '9px 20px', borderRadius: 10,
+            textDecoration: 'none', flexShrink: 0,
+            letterSpacing: '-0.01em',
+          }}>
+            Start Free Trial
+          </Link>
+        </div>
       </nav>
 
       {/* ── HERO ── */}
-      <section style={{ maxWidth: 1140, margin: '0 auto', padding: '80px 32px 72px' }}>
+      <section className="hero-section" style={{ maxWidth: 1140, margin: '0 auto', padding: '80px 32px 72px' }}>
         <div className="hero-grid" style={{ display: 'flex', alignItems: 'center', gap: 56, justifyContent: 'space-between' }}>
           {/* Left */}
           <div style={{ flex: 1, minWidth: 0 }}>

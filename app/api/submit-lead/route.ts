@@ -19,12 +19,6 @@ function isRateLimited(ip: string): boolean {
   return false
 }
 
-const MOTIVATION_LABELS: Record<string, string> = {
-  cold:      'Just browsing',
-  warm:      'Casually looking',
-  motivated: 'Actively searching',
-  hot:       'Ready to make an offer',
-}
 
 export async function POST(request: Request) {
   // ── rate limit ──────────────────────────────────────────────────────────────
@@ -76,6 +70,10 @@ export async function POST(request: Request) {
     .eq('id', propertyId)
     .single()
 
+  console.log('[submit-lead] propertyId received:', propertyId)
+  console.log('[submit-lead] propError:', propError?.message ?? 'none')
+  console.log('[submit-lead] property found:', !!property, '| active:', property?.active ?? '(null)')
+
   if (propError || !property || !property.active) {
     return NextResponse.json({ error: 'Property not found.' }, { status: 404 })
   }
@@ -110,50 +108,63 @@ export async function POST(request: Request) {
     }).eq('id', scanEventId)
   }
 
-  // ── SMS alert — uses server-fetched agent_phone, never client input ─────────
-  const accountSid = process.env.TWILIO_ACCOUNT_SID
-  const authToken  = process.env.TWILIO_AUTH_TOKEN
-  const from       = process.env.TWILIO_PHONE_NUMBER
+  // ── SMS alert (hot leads or showing requests) ────────────────────────────────
+  // Fires when: motivation === 'hot' OR ctaClicked === 'showing'.
+  // A showing click scores 11 pts → 'motivated' (below the 18-pt 'hot' threshold),
+  // but requesting a showing is a time-sensitive signal agents need to act on immediately.
+  // Gate: agent must have a phone saved AND sms_enabled === true in user_metadata.
 
-  console.log('[submit-lead] SMS check — agent_phone:', property.agent_phone ?? '(null)',
-    '| TWILIO_ACCOUNT_SID present:', !!accountSid,
-    '| TWILIO_AUTH_TOKEN present:', !!authToken,
-    '| TWILIO_PHONE_NUMBER present:', !!from,
-    '| TWILIO_PHONE_NUMBER value:', from ?? '(missing)')
+  // ── debug: motivation & agent SMS settings ──────────────────────────────────
+  console.log('[submit-lead] computedMotivation:', computedMotivation, '| raw ctaMotivation:', ctaMotivation)
+  console.log('[submit-lead] eng.ctaClicked:', eng?.ctaClicked ?? '(no engagement data)')
 
-  if (property.agent_phone) {
+  // Fetch agent sms_enabled from user_metadata (separate from agent_phone)
+  let agentSmsEnabled: boolean | null = null
+  if (property.user_id) {
+    const { data: agentAuthData } = await supabase.auth.admin.getUserById(property.user_id)
+    agentSmsEnabled = agentAuthData?.user?.user_metadata?.sms_enabled !== false
+  }
+  console.log('[submit-lead] agent sms_alerts_enabled (user_metadata):', agentSmsEnabled)
+  console.log('[submit-lead] agent_phone (SMS target):', property.agent_phone ?? '(none)')
+
+  const shouldSendSms = (computedMotivation === 'hot' || eng?.ctaClicked === 'showing')
+    && !!property.agent_phone
+    && agentSmsEnabled === true
+  console.log('[submit-lead] SMS will attempt:', shouldSendSms,
+    '| motivation:', computedMotivation, '| ctaClicked:', eng?.ctaClicked ?? 'none')
+
+  if (shouldSendSms) {
+    const accountSid = process.env.TWILIO_ACCOUNT_SID
+    const authToken  = process.env.TWILIO_AUTH_TOKEN
+    const from       = process.env.TWILIO_PHONE_NUMBER
+
     if (accountSid && authToken && from) {
-      console.log('[submit-lead] calling Twilio messages.create to:', property.agent_phone)
       const trimName  = (name as string).trim()
       const trimPhone = (phone as string)?.trim()
-      const trimQ     = (questionText as string)?.trim()
-      const intentLabel = MOTIVATION_LABELS[computedMotivation] ?? computedMotivation
+      const contact   = trimPhone
+        ? `Call now: ${trimPhone}.`
+        : 'View details in your dashboard.'
 
-      const smsBody = computedMotivation === 'hot'
-        ? `🔥 HOT BUYER ALERT — ${property.address}: ${trimName} requested a showing. Phone: ${trimPhone}. They scored hot based on their engagement. Call immediately. Reply STOP to opt out.`
-        : trimQ && (ctaMotivation === 'warm' || ctaMotivation === 'motivated')
-          ? `theQRealtor: New lead! ${trimName} sent a question about ${property.address}: "${trimQ}" Phone: ${trimPhone}. Intent: ${intentLabel}. Reply STOP to opt out.`
-          : `theQRealtor: New lead! ${trimName} contacted you about ${property.address}. Phone: ${trimPhone}. Intent: ${intentLabel}. Reply STOP to opt out.`
+      const smsBody = eng?.ctaClicked === 'showing'
+        ? `🔥 theQRealtor Alert: ${trimName} requested a showing at ${property.address}. ${contact} Reply STOP to opt out.`
+        : `🔥 theQRealtor Alert: HOT lead — ${trimName} at ${property.address}. ${contact} Reply STOP to opt out.`
 
+      console.log('[submit-lead] twilio send attempted — to:', property.agent_phone, '| from:', from)
       try {
         const msg = await twilio(accountSid, authToken).messages.create({
           to:   property.agent_phone,
           from,
           body: smsBody,
         })
-        console.log('[submit-lead] SMS sent OK — sid:', msg.sid, '| status:', msg.status)
+        console.log('[submit-lead] hot SMS sent OK — sid:', msg.sid, '| status:', msg.status)
       } catch (smsErr: any) {
-        // SMS failure must not block the success response — lead is already saved.
-        console.error('[submit-lead] SMS error — code:', smsErr?.code,
-          '| message:', smsErr?.message,
-          '| status:', smsErr?.status,
-          '| moreInfo:', smsErr?.moreInfo)
+        // Never block lead capture on SMS failure.
+        console.error('[submit-lead] SMS error — code:', smsErr?.code, '| message:', smsErr?.message)
       }
     } else {
-      console.warn('[submit-lead] SMS skipped — missing Twilio env vars')
+      console.warn('[submit-lead] hot SMS skipped — missing Twilio env vars',
+        '| TWILIO_ACCOUNT_SID:', !!accountSid, '| TWILIO_AUTH_TOKEN:', !!authToken, '| TWILIO_PHONE_NUMBER:', !!from)
     }
-  } else {
-    console.log('[submit-lead] SMS skipped — no agent_phone on property')
   }
 
   return NextResponse.json({ ok: true })

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createBrowserSupabase } from '../lib/supabase-browser'
 
@@ -35,24 +35,26 @@ function NavIcon({ name }: { name: string }) {
   return null
 }
 
-function Sidebar({ email, plan, propertyCount, hotLeadCount, onClose }: {
-  email: string; plan: 'free' | 'pro'; propertyCount: number; hotLeadCount: number; onClose?: () => void
+function Sidebar({ email, plan, propertyCount, onClose }: {
+  email: string; plan: 'free' | 'pro'; propertyCount: number; onClose?: () => void
 }) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const limit = plan === 'pro' ? 50 : 1
   const usagePct = Math.min(100, Math.round((propertyCount / limit) * 100))
   const initials = email ? email.slice(0, 2).toUpperCase() : '??'
 
+  const isDisclosures = pathname === '/dashboard/leads' && searchParams.get('cta') === 'disclosures'
+
   const nav = [
-    { label: 'Dashboard',   icon: 'dashboard',   href: '/dashboard',             active: pathname === '/dashboard',                          badge: 0 },
-    { label: 'Properties',  icon: 'properties',  href: '/dashboard/properties',  active: pathname.startsWith('/dashboard/properties'),       badge: 0 },
-    { label: 'QR Codes',    icon: 'qrcodes',     href: '/dashboard/qr-codes',    active: pathname.startsWith('/dashboard/qr-codes'),         badge: 0 },
-    { label: 'Leads',       icon: 'leads',       href: '/dashboard/leads',       active: pathname.startsWith('/dashboard/leads'),            badge: 0 },
-    { label: 'Inbox',       icon: 'inbox',       href: '/dashboard/leads',       active: false,                                              badge: hotLeadCount },
-    { label: 'Disclosures', icon: 'disclosures', href: '/dashboard/leads?motivation=motivated', active: pathname.startsWith('/dashboard/disclosures'), badge: 0 },
-    { label: 'Analytics',   icon: 'analytics',   href: '/dashboard/analytics',   active: pathname.startsWith('/dashboard/analytics'),        badge: 0 },
-    { label: 'Billing',     icon: 'billing',     href: '/dashboard/billing',     active: pathname.startsWith('/dashboard/billing'),          badge: 0 },
-    { label: 'Settings',    icon: 'settings',    href: '/dashboard/settings',    active: pathname.startsWith('/dashboard/settings'),         badge: 0 },
+    { label: 'Dashboard',   icon: 'dashboard',   href: '/dashboard',                      active: pathname === '/dashboard' },
+    { label: 'Properties',  icon: 'properties',  href: '/dashboard/properties',           active: pathname.startsWith('/dashboard/properties') },
+    { label: 'QR Codes',    icon: 'qrcodes',     href: '/dashboard/qr-codes',             active: pathname.startsWith('/dashboard/qr-codes') },
+    { label: 'Leads',       icon: 'leads',       href: '/dashboard/leads',                active: pathname.startsWith('/dashboard/leads') && !isDisclosures },
+    { label: 'Disclosures', icon: 'disclosures', href: '/dashboard/leads?cta=disclosures', active: isDisclosures },
+    { label: 'Analytics',   icon: 'analytics',   href: '/dashboard/analytics',            active: pathname.startsWith('/dashboard/analytics') },
+    { label: 'Billing',     icon: 'billing',     href: '/dashboard/billing',              active: pathname.startsWith('/dashboard/billing') },
+    { label: 'Settings',    icon: 'settings',    href: '/dashboard/settings',             active: pathname.startsWith('/dashboard/settings') },
   ]
 
   return (
@@ -86,7 +88,7 @@ function Sidebar({ email, plan, propertyCount, hotLeadCount, onClose }: {
         <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '8px 12px 6px' }}>
           Menu
         </div>
-        {nav.map(({ label, icon, href, active, badge }) => (
+        {nav.map(({ label, icon, href, active }) => (
           <Link key={label} href={href} onClick={onClose} style={{
             display: 'flex', alignItems: 'center', gap: 10,
             padding: '9px 12px', borderRadius: 9, marginBottom: 1,
@@ -100,11 +102,6 @@ function Sidebar({ email, plan, propertyCount, hotLeadCount, onClose }: {
               <NavIcon name={icon} />
             </span>
             {label}
-            {badge > 0 && (
-              <span style={{ marginLeft: 'auto', background: '#EF4444', color: '#fff', fontSize: 10, fontWeight: 700, borderRadius: 10, padding: '1px 7px', minWidth: 18, textAlign: 'center', flexShrink: 0 }}>
-                {badge}
-              </span>
-            )}
           </Link>
         ))}
       </nav>
@@ -174,7 +171,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [email, setEmail]               = useState('')
   const [plan, setPlan]                 = useState<'free' | 'pro'>('free')
   const [propertyCount, setPropertyCount] = useState(0)
-  const [hotLeadCount, setHotLeadCount] = useState(0)
   const [mobileOpen, setMobileOpen]     = useState(false)
 
   useEffect(() => {
@@ -185,10 +181,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (!session) return
         setEmail(session.user.email || '')
 
-        const [{ data: profile, error: profileErr }, { count }, { data: propData }] = await Promise.all([
+        const [{ data: profile, error: profileErr }, { count }] = await Promise.all([
           supabase.from('profiles').select('plan').eq('id', session.user.id).single(),
           supabase.from('properties').select('id', { count: 'exact', head: true }).eq('user_id', session.user.id),
-          supabase.from('properties').select('id').eq('user_id', session.user.id),
         ])
 
         if (profileErr) console.error('[DashboardLayout] profile query error:', profileErr)
@@ -212,16 +207,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         setPlan(resolvedPlan)
         setPropertyCount(count || 0)
-
-        // Fetch hot lead count for Inbox badge
-        const propIds = (propData || []).map((p: any) => p.id)
-        if (propIds.length > 0) {
-          const { count: hotCount } = await supabase.from('leads')
-            .select('*', { count: 'exact', head: true })
-            .in('property_id', propIds)
-            .eq('motivation', 'hot')
-          setHotLeadCount(hotCount || 0)
-        }
       } catch (err) {
         console.error('[DashboardLayout] load error:', err)
       }
@@ -249,14 +234,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <>
           <div onClick={() => setMobileOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 40 }} />
           <div style={{ position: 'fixed', top: 0, left: 0, height: '100vh', zIndex: 50 }}>
-            <Sidebar email={email} plan={plan} propertyCount={propertyCount} hotLeadCount={hotLeadCount} onClose={() => setMobileOpen(false)} />
+            <Sidebar email={email} plan={plan} propertyCount={propertyCount} onClose={() => setMobileOpen(false)} />
           </div>
         </>
       )}
 
       <div style={{ display: 'flex', minHeight: '100vh', background: C.bg, fontFamily: 'sans-serif' }}>
         <div className="db-sidebar">
-          <Sidebar email={email} plan={plan} propertyCount={propertyCount} hotLeadCount={hotLeadCount} />
+          <Sidebar email={email} plan={plan} propertyCount={propertyCount} />
         </div>
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
           <div className="db-mobile-header" style={{ position: 'sticky', top: 0, zIndex: 20, height: 52, background: C.sidebar, borderBottom: `1px solid ${C.border}`, alignItems: 'center', gap: 12, padding: '0 16px', flexShrink: 0 }}>

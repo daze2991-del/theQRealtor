@@ -6,7 +6,7 @@
 // ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_contacted_at timestamptz;
 
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import DashboardLayout from '../../../components/DashboardLayout'
 import Link from 'next/link'
@@ -86,16 +86,18 @@ function buildSignals(scanEvent: any): string {
 function StatusBadge({ status, onClick }: { status: StatusKey; onClick?: (e: React.MouseEvent) => void }) {
   const cfg = STATUS_CFG[status] ?? STATUS_CFG.new
   return (
-    <span
+    <button
+      type="button"
       onClick={onClick}
       style={{
         background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`,
         borderRadius: 6, padding: '3px 9px', fontSize: 11, fontWeight: 700,
         whiteSpace: 'nowrap', cursor: onClick ? 'pointer' : 'default', userSelect: 'none',
+        fontFamily: 'sans-serif',
       }}
     >
       {cfg.label}{onClick ? ' ▾' : ''}
-    </span>
+    </button>
   )
 }
 
@@ -142,6 +144,8 @@ function ActionBtn({ href, title, emoji, bg, border }: { href: string; title: st
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function LeadsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const ctaFilter = searchParams.get('cta')  // 'disclosures' | null
 
   const [loading,        setLoading]        = useState(true)
   const [allLeads,       setAllLeads]       = useState<any[]>([])
@@ -166,9 +170,12 @@ export default function LeadsPage() {
 
   const noteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
-  // Close status dropdown on any outside click
+  // Close status dropdown on any click outside a status dropdown container
   useEffect(() => {
-    const h = () => setOpenStatusDd(null)
+    const h = (e: MouseEvent) => {
+      if ((e.target as HTMLElement).closest('[data-status-dropdown]')) return
+      setOpenStatusDd(null)
+    }
     document.addEventListener('click', h)
     return () => document.removeEventListener('click', h)
   }, [])
@@ -313,6 +320,11 @@ export default function LeadsPage() {
       r = r.filter(l => new Date(l.created_at) >= cutoff)
     }
 
+    // Disclosures mode: only leads whose scan event has cta_clicked === 'disclosures'
+    if (ctaFilter === 'disclosures') {
+      r = r.filter(l => l.qr_id && scanEventByQr[l.qr_id]?.cta_clicked === 'disclosures')
+    }
+
     const arr = [...r]
     if (sortMode === 'score') {
       arr.sort((a, b) =>
@@ -333,7 +345,7 @@ export default function LeadsPage() {
       arr.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     }
     return arr
-  }, [allLeads, filterTemp, filterStatus, filterProperty, filterDays, sortMode, localLeads])
+  }, [allLeads, filterTemp, filterStatus, filterProperty, filterDays, sortMode, localLeads, ctaFilter, scanEventByQr])
 
   const downloadCSV = async () => {
     if (leads.length === 0) return
@@ -414,10 +426,17 @@ export default function LeadsPage() {
             justifyContent: 'space-between', gap: 12, fontFamily: 'sans-serif',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <h1 style={{ fontSize: 20, fontWeight: 800, color: C.text, margin: 0, letterSpacing: '-0.02em' }}>Lead Inbox</h1>
+              <h1 style={{ fontSize: 20, fontWeight: 800, color: C.text, margin: 0, letterSpacing: '-0.02em' }}>
+                {ctaFilter === 'disclosures' ? 'Disclosure Requests' : 'Lead Inbox'}
+              </h1>
               <span style={{ fontSize: 12, fontWeight: 700, color: C.purpleL, background: `${C.purple}22`, borderRadius: 20, padding: '3px 10px' }}>
-                {allLeads.length}
+                {ctaFilter === 'disclosures' ? leads.length : allLeads.length}
               </span>
+              {ctaFilter === 'disclosures' && (
+                <Link href="/dashboard/leads" style={{ fontSize: 12, color: C.muted, textDecoration: 'none', border: `1px solid ${C.border}`, borderRadius: 8, padding: '4px 10px' }}>
+                  ✕ Clear filter
+                </Link>
+              )}
             </div>
             <button
               onClick={downloadCSV}
@@ -468,7 +487,7 @@ export default function LeadsPage() {
             <div style={{ width: 1, height: 20, background: C.border }} />
 
             {/* Status multi-select */}
-            <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+            <div data-status-dropdown style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
               <button className="chip-btn"
                 onClick={() => setOpenStatusDd(v => v === '__filter__' ? null : '__filter__')}
                 style={{
@@ -585,7 +604,7 @@ export default function LeadsPage() {
                               <MotivationBadge level={lead.motivation} />
 
                               {/* Status badge + per-lead dropdown */}
-                              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                              <div data-status-dropdown style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
                                 <StatusBadge
                                   status={status}
                                   onClick={() => setOpenStatusDd(v => v === lead.id ? null : lead.id)}

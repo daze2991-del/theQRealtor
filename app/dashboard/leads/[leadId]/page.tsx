@@ -237,8 +237,6 @@ export default function LeadDetailPage() {
     : motivationToTierV2(lead.motivation)
   const tierCfgV2 = TIER_V2_CFG[tierV2]
 
-  // For backward compat, also keep V1 tier lookup for non-breakdown sections
-  const tier      = TIER[lead.motivation as keyof typeof TIER] ?? TIER.cold
   const initials  = (lead.name ?? '??').slice(0, 2).toUpperCase()
   const firstName = (lead.name ?? 'Lead').split(' ')[0]
   const location  = [property?.city, property?.state].filter(Boolean).join(', ')
@@ -261,13 +259,11 @@ export default function LeadDetailPage() {
   }
   const v1Score = calcIntentScore(eng)
 
-  // Score and tier for the badge next to the donut
-  const displayScore  = hasV2Breakdown ? storedScore : v1Score
-  const scoreTierKey  = hasV2Breakdown ? tierV2 : scoreToLabel(v1Score)
-  const scoreTierCfg  = hasV2Breakdown ? tierCfgV2 : (TIER[scoreTierKey as keyof typeof TIER] ?? TIER.cold)
-  const scoreIntentLabel = scoreTierCfg.label
-  const scoreIntentColor = scoreTierCfg.color
-  const scoreIntentBg    = scoreTierCfg.bg
+  // Score badge — always use the stored DB fields (intent_score + tier), never recompute
+  const displayScore     = storedScore          // lead.intent_score from DB
+  const scoreIntentLabel = tierCfgV2.label      // from lead.tier via TIER_V2_CFG
+  const scoreIntentColor = tierCfgV2.color
+  const scoreIntentBg    = tierCfgV2.bg
 
   // Breakdown lines — V2 stored or V1 reconstructed
   const factors: Array<{ label: string; detail?: string; pts: number; color: string }> = hasV2Breakdown

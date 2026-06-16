@@ -180,6 +180,11 @@ export default function LeadDetailPage() {
       setPropPhoto((photoRes.data as any[])?.[0]?.url ?? null)
       setQrCode(qrRes.data)
       setScanEvent(scanRes.data)
+      // Confirm the scans stat reflects real scan_events rows. If this logs 0 while
+      // scans clearly exist, the scan_events SELECT RLS policy is missing — apply
+      // supabase/migrations/017_scan_events_select_policy.sql. Before fix: 0 (RLS
+      // denied the owner SELECT); after fix: real row count.
+      console.log('[lead-detail] scans for property', leadData.property_id, '=', scanCountRes.count)
       setPropStats({
         leads:    leadCountRes.count ?? 0,
         scans:    scanCountRes.count ?? 0,

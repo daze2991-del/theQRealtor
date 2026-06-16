@@ -605,6 +605,11 @@ export default function LeadDetailPage() {
                 <p style={{ fontSize: 14, color: C.text, lineHeight: 1.65, margin: '0 0 14px' }}>
                   {TIER_V2_CFG[tierV2].summary}
                 </p>
+                {lead.buyer_texted_at && (
+                  <div style={{ fontSize: 11, color: C.muted, margin: '-6px 0 14px' }}>
+                    ✓ Buyer auto-texted {timeAgo(lead.buyer_texted_at)}
+                  </div>
+                )}
                 {intelBullets.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 16 }}>
                     {intelBullets.map((b, i) => (

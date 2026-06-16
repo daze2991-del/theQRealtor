@@ -55,6 +55,13 @@ const inp: React.CSSProperties = {
   padding: '13px 14px', outline: 'none', fontFamily: 'sans-serif',
 }
 
+// ── Format validation ─────────────────────────────────────────────────────────
+// US phone: optional +1, then a valid NANP 10-digit number (area/exchange 2-9).
+const US_PHONE_RE = /^(\+?1[\s.\-]?)?\(?[2-9]\d{2}\)?[\s.\-]?[2-9]\d{2}[\s.\-]?\d{4}$/
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const isValidUSPhone = (v: string) => US_PHONE_RE.test(v.trim())
+const isValidEmail = (v: string) => EMAIL_RE.test(v.trim())
+
 export default function PropertyPage() {
   const params = useParams()
   const searchParams = useSearchParams()
@@ -87,6 +94,8 @@ export default function PropertyPage() {
   const [submitting,  setSubmitting]  = useState(false)
   const [submitted,   setSubmitted]   = useState(false)
   const [error,       setError]       = useState('')
+  const [phoneErr,    setPhoneErr]    = useState('')
+  const [emailErr,    setEmailErr]    = useState('')
 
   // Packet form
   const [packetOpen,       setPacketOpen]       = useState(false)
@@ -188,15 +197,20 @@ export default function PropertyPage() {
   // Submit
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    const cta = CTAS.find(c => c.id === intent)!
+    // showing + question: name required, and at least one of phone/email.
+    // Message is optional. Format-validate whichever contact fields are filled.
+    const hasPhone = !!phone.trim()
+    const hasEmail = !!email.trim()
 
-    if (intent === 'question' && !question.trim()) { setError('Please enter your message.'); return }
     if (!name.trim()) { setError('Please enter your name.'); return }
-    if (cta.needsPhone && !phone.trim()) { setError('Please enter your phone number.'); return }
-    if (!email.trim() || !email.includes('@')) {
-      setError('Please enter a valid email address.')
+    if (!hasPhone && !hasEmail) {
+      setError('Add a phone number or email so the agent can reach you.')
       return
     }
+    const pErr = hasPhone && !isValidUSPhone(phone) ? 'Enter a valid US phone number.' : ''
+    const eErr = hasEmail && !isValidEmail(email) ? 'Enter a valid email address.' : ''
+    setPhoneErr(pErr); setEmailErr(eErr)
+    if (pErr || eErr) { setError(''); return }
 
     setSubmitting(true)
     setError('')
@@ -210,15 +224,15 @@ export default function PropertyPage() {
           qrId:       qrId || null,
           name:              name.trim(),
           phone:             phone.trim() || undefined,
-          email:             email.trim(),
-          motivation:        cta.motivation,
+          email:             email.trim() || undefined,
+          motivation:        CTAS.find(c => c.id === intent)!.motivation,
           questionText:      intent === 'question' ? question.trim() : undefined,
           contactPreference: contactPref.length > 0 ? contactPref.join(', ') : undefined,
           scanEventId: scanEventId.current,
           engagement: {
             timeOnPageSec:       Math.round((Date.now() - pageStart.current) / 1000),
             photosViewed:        visitedMax.current + 1,
-            ctaClicked:          cta.id,
+            ctaClicked:          intent,
             visitCount:          visitCount.current,
             daysSinceFirstVisit: daysSinceFirst.current,
           },
@@ -241,7 +255,7 @@ export default function PropertyPage() {
     setSubmitting(false)
   }
 
-  const closeSheet = () => { setIntent(null); setSubmitted(false); setError(''); setName(''); setPhone(''); setEmail(''); setQuestion(''); setContactPref(['Text', 'Email']) }
+  const closeSheet = () => { setIntent(null); setSubmitted(false); setError(''); setPhoneErr(''); setEmailErr(''); setName(''); setPhone(''); setEmail(''); setQuestion(''); setContactPref(['Text', 'Email']) }
   const closePacket = () => { setPacketOpen(false); setPacketSubmitted(false); setPacketError(''); setPacketEmail(''); setPacketName('') }
 
   const handlePacketSubmit = async (e: FormEvent) => {
@@ -390,7 +404,7 @@ export default function PropertyPage() {
               <button
                 key={cta.id}
                 className="cta-btn"
-                onClick={() => { ctaClickedRef.current = cta.id; setIntent(cta.id); setSubmitted(false); setError(''); setName(''); setPhone(''); setEmail(''); setQuestion(''); setContactPref(['Text', 'Email']) }}
+                onClick={() => { ctaClickedRef.current = cta.id; setIntent(cta.id); setSubmitted(false); setError(''); setPhoneErr(''); setEmailErr(''); setName(''); setPhone(''); setEmail(''); setQuestion(''); setContactPref(['Text', 'Email']) }}
                 style={{
                   background: cta.colorBg, border: `1px solid ${cta.color}40`,
                   borderRadius: 14, padding: '16px 14px',
@@ -469,13 +483,12 @@ export default function PropertyPage() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {/* Question textarea — Ask a Question CTA only */}
+                  {/* Question textarea — Ask a Question CTA only (optional) */}
                   {intent === 'question' && (
                     <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Your Message</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Your Message <span style={{ opacity: 0.6 }}>(optional)</span></span>
                       <textarea
                         className="field"
-                        required
                         placeholder="e.g. When is the next open house? What are the parking options? Is the price negotiable?"
                         value={question}
                         onChange={e => setQuestion(e.target.value)}
@@ -490,16 +503,33 @@ export default function PropertyPage() {
                     <input className="field" type="text" required placeholder="Full name" value={name} onChange={e => setName(e.target.value)} style={inp} />
                   </label>
 
-                  {activeCta?.needsPhone && (
-                    <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Phone</span>
-                      <input className="field" type="tel" required placeholder="Your phone number" value={phone} onChange={e => setPhone(e.target.value)} style={inp} />
-                    </label>
-                  )}
+                  {/* Phone OR email — at least one is required */}
+                  <div style={{ fontSize: 11, color: C.soft, marginTop: -2 }}>
+                    Add a phone number or email — at least one so the agent can reach you.
+                  </div>
+
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Phone</span>
+                    <input
+                      className="field" type="tel" inputMode="tel" placeholder="Your phone number"
+                      value={phone}
+                      onChange={e => { setPhone(e.target.value); if (phoneErr) setPhoneErr('') }}
+                      onBlur={e => setPhoneErr(e.target.value.trim() && !isValidUSPhone(e.target.value) ? 'Enter a valid US phone number.' : '')}
+                      style={{ ...inp, borderColor: phoneErr ? '#EF4444' : C.border }}
+                    />
+                    {phoneErr && <span style={{ color: '#FCA5A5', fontSize: 12 }}>{phoneErr}</span>}
+                  </label>
 
                   <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Email</span>
-                    <input className="field" type="email" required placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} style={inp} />
+                    <input
+                      className="field" type="email" inputMode="email" placeholder="you@example.com"
+                      value={email}
+                      onChange={e => { setEmail(e.target.value); if (emailErr) setEmailErr('') }}
+                      onBlur={e => setEmailErr(e.target.value.trim() && !isValidEmail(e.target.value) ? 'Enter a valid email address.' : '')}
+                      style={{ ...inp, borderColor: emailErr ? '#EF4444' : C.border }}
+                    />
+                    {emailErr && <span style={{ color: '#FCA5A5', fontSize: 12 }}>{emailErr}</span>}
                   </label>
 
                   {/* Contact preference checkboxes */}
@@ -548,6 +578,11 @@ export default function PropertyPage() {
                   >
                     {submitting ? 'Sending…' : `${activeCta?.btnLabel} →`}
                   </button>
+
+                  {/* Consent line */}
+                  <p style={{ fontSize: 11, color: C.muted, textAlign: 'center', margin: 0, lineHeight: 1.55 }}>
+                    By submitting, you agree to be contacted about this property. Reply STOP to opt out.
+                  </p>
 
                   {/* Trust line */}
                   <p style={{ fontSize: 11, color: C.muted, textAlign: 'center', margin: 0, lineHeight: 1.55 }}>

@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
-import twilio from 'twilio'
 import { createAdminSupabase } from '../../../lib/supabase-admin'
 import { computeIntent, type EngagementData } from '../../../lib/leadScoring'
 import { computeScoreV2, isLikelyBot, type EngagementInputV2 } from '../../../lib/leadScoringV2'
+import { sendSms, resolveAgentPhone, queueOrSendAgentSms, msg } from '../../../lib/twilio'
 
 // ─── rate limiter ─────────────────────────────────────────────────────────────
 // Best-effort in-memory window per IP. Works for single-instance deployments;
@@ -41,13 +41,22 @@ export async function POST(request: Request) {
 
   const ctaMotivation = motivation as string | undefined
 
-  if (!propertyId || !(name as string)?.trim() || !(email as string)?.trim() || !ctaMotivation) {
+  const trimmedPhone = (phone as string)?.trim() || ''
+  const trimmedEmail = (email as string)?.trim() || ''
+
+  if (!propertyId || !(name as string)?.trim() || !ctaMotivation) {
     return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 })
   }
-  // phone required for both CTAs (showing + contact-the-agent)
-  if (!(phone as string)?.trim()) {
-    return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 })
+  // CTA-dependent contact rules: a lead needs at least one reachable channel
+  // (phone OR email). The buyer's form enforces which is required per CTA.
+  if (!trimmedPhone && !trimmedEmail) {
+    return NextResponse.json({ error: 'Please provide a phone number or email.' }, { status: 400 })
   }
+
+  // contact_quality drives follow-up routing. 'verified_phone' is reserved for a
+  // future SMS-verification step and is not set here.
+  const contactQuality: 'phone' | 'email_only' | 'none' =
+    trimmedPhone ? 'phone' : trimmedEmail ? 'email_only' : 'none'
 
   // ── bot filter ──────────────────────────────────────────────────────────────
   const ua = request.headers.get('user-agent') ?? ''
@@ -91,7 +100,7 @@ export async function POST(request: Request) {
   // agent_phone comes from the DB only; the client never supplies it.
   const { data: property, error: propError } = await supabase
     .from('properties')
-    .select('id, address, agent_phone, active, user_id')
+    .select('id, address, agent_name, agent_phone, active, user_id')
     .eq('id', propertyId)
     .single()
 
@@ -104,12 +113,13 @@ export async function POST(request: Request) {
   }
 
   // ── insert lead ─────────────────────────────────────────────────────────────
-  const { error: insertError } = await supabase.from('leads').insert({
+  const { data: insertedLead, error: insertError } = await supabase.from('leads').insert({
     property_id:        propertyId,
     qr_id:              (qrId as string) || null,
     name:               (name as string).trim(),
-    phone:              (phone as string)?.trim() || '',
-    email:              (email as string).trim(),
+    phone:              trimmedPhone,
+    email:              trimmedEmail,
+    contact_quality:    contactQuality,
     motivation:         computedMotivation,   // V1 field — kept for compat
     notes:              (questionText as string)?.trim() || null,
     contact_preference: (contactPreference as string)?.trim() || null,
@@ -122,12 +132,13 @@ export async function POST(request: Request) {
     photo_view_count:   v2Score.photo_view_count,
     total_time_on_page: v2Score.total_time_on_page,
     score_breakdown:    v2Score.score_breakdown,
-  })
+  }).select('id').single()
 
-  if (insertError) {
+  if (insertError || !insertedLead) {
     console.error('[submit-lead] insert error:', insertError)
     return NextResponse.json({ error: 'Failed to save your info. Please try again.' }, { status: 500 })
   }
+  const leadId = insertedLead.id as string
 
   // ── mark scan_event as converted ────────────────────────────────────────────
   if (scanEventId) {
@@ -141,63 +152,66 @@ export async function POST(request: Request) {
     }).eq('id', scanEventId)
   }
 
-  // ── SMS alert (hot leads or showing requests) ────────────────────────────────
-  // Fires when: motivation === 'hot' OR ctaClicked === 'showing'.
-  // A showing click scores 11 pts → 'motivated' (below the 18-pt 'hot' threshold),
-  // but requesting a showing is a time-sensitive signal agents need to act on immediately.
-  // Gate: agent must have a phone saved AND sms_enabled === true in user_metadata.
+  // ── SMS automation ────────────────────────────────────────────────────────────
+  // Agent alerts (showing / question / first-time Hot), each gated on the agent's
+  // notification toggles and held during quiet hours. Plus an immediate buyer
+  // confirmation (showing/question CTAs, only when a phone was provided).
+  const buyerName = (name as string).trim()
+  const cta       = eng?.ctaClicked
+  const address   = property.address as string
+  const trimName  = buyerName
 
-  // ── debug: motivation & agent SMS settings ──────────────────────────────────
-  console.log('[submit-lead] computedMotivation:', computedMotivation, '| raw ctaMotivation:', ctaMotivation)
-  console.log('[submit-lead] eng.ctaClicked:', eng?.ctaClicked ?? '(no engagement data)')
+  try {
+    const { data: agentProfile } = await supabase
+      .from('profiles')
+      .select('id, name, notify_showing, notify_question, notify_hot_lead, quiet_hours_start, quiet_hours_end')
+      .eq('id', property.user_id)
+      .single()
 
-  // Fetch agent sms_enabled from user_metadata (separate from agent_phone)
-  let agentSmsEnabled: boolean | null = null
-  if (property.user_id) {
-    const { data: agentAuthData } = await supabase.auth.admin.getUserById(property.user_id)
-    agentSmsEnabled = agentAuthData?.user?.user_metadata?.sms_enabled !== false
-  }
-  console.log('[submit-lead] agent sms_alerts_enabled (user_metadata):', agentSmsEnabled)
-  console.log('[submit-lead] agent_phone (SMS target):', property.agent_phone ?? '(none)')
+    if (agentProfile) {
+      const agentPhone = await resolveAgentPhone(supabase, property.user_id)
+      const agent = {
+        id: agentProfile.id as string,
+        quiet_hours_start: (agentProfile.quiet_hours_start as string) ?? '21:00',
+        quiet_hours_end:   (agentProfile.quiet_hours_end as string)   ?? '08:00',
+      }
+      const dispatch = (message: string) =>
+        queueOrSendAgentSms({ admin: supabase, agent, agentPhone, leadId, message })
 
-  const shouldSendSms = (v2Score.tier === 'hot' || eng?.ctaClicked === 'showing')
-    && !!property.agent_phone
-    && agentSmsEnabled === true
-  console.log('[submit-lead] SMS will attempt:', shouldSendSms,
-    '| motivation:', computedMotivation, '| ctaClicked:', eng?.ctaClicked ?? 'none')
-
-  if (shouldSendSms) {
-    const accountSid = process.env.TWILIO_ACCOUNT_SID
-    const authToken  = process.env.TWILIO_AUTH_TOKEN
-    const from       = process.env.TWILIO_PHONE_NUMBER
-
-    if (accountSid && authToken && from) {
-      const trimName  = (name as string).trim()
-      const trimPhone = (phone as string)?.trim()
-      const contact   = trimPhone
-        ? `Call now: ${trimPhone}.`
-        : 'View details in your dashboard.'
-
-      const smsBody = eng?.ctaClicked === 'showing'
-        ? `🔥 theQRealtor Alert: ${trimName} requested a showing at ${property.address}. ${contact} Reply STOP to opt out.`
-        : `🔥 theQRealtor Alert: HOT lead — ${trimName} at ${property.address}. ${contact} Reply STOP to opt out.`
-
-      console.log('[submit-lead] twilio send attempted — to:', property.agent_phone, '| from:', from)
-      try {
-        const msg = await twilio(accountSid, authToken).messages.create({
-          to:   property.agent_phone,
-          from,
-          body: smsBody,
-        })
-        console.log('[submit-lead] hot SMS sent OK — sid:', msg.sid, '| status:', msg.status)
-      } catch (smsErr: any) {
-        // Never block lead capture on SMS failure.
-        console.error('[submit-lead] SMS error — code:', smsErr?.code, '| message:', smsErr?.message)
+      // Showing request
+      if (cta === 'showing' && agentProfile.notify_showing !== false) {
+        await dispatch(msg.showingAlert(trimName, address, leadId, trimmedPhone, trimmedEmail))
+      }
+      // Question / info request
+      if (cta === 'question' && agentProfile.notify_question !== false) {
+        await dispatch(msg.questionAlert(trimName, address, leadId))
+      }
+      // Hot tier crossed — fire once per lead (guarded by hot_notified_at)
+      if (v2Score.tier === 'hot' && agentProfile.notify_hot_lead !== false) {
+        const { data: hotRows } = await supabase
+          .from('leads')
+          .update({ hot_notified_at: new Date().toISOString() })
+          .eq('id', leadId).is('hot_notified_at', null)
+          .select('id')
+        if (hotRows && hotRows.length > 0) {
+          await dispatch(msg.hotAlert(trimName, address, leadId))
+        }
       }
     } else {
-      console.warn('[submit-lead] hot SMS skipped — missing Twilio env vars',
-        '| TWILIO_ACCOUNT_SID:', !!accountSid, '| TWILIO_AUTH_TOKEN:', !!authToken, '| TWILIO_PHONE_NUMBER:', !!from)
+      console.warn('[submit-lead] no agent profile for', property.user_id, '— agent alerts skipped')
     }
+
+    // Buyer confirmation — showing/question only, phone required, NOT quiet-hours gated
+    if ((cta === 'showing' || cta === 'question') && trimmedPhone) {
+      const agentName = (property.agent_name as string) || null
+      const sid = await sendSms(trimmedPhone, msg.buyerConfirmation(buyerName, address, agentName))
+      if (sid) {
+        await supabase.from('leads').update({ buyer_texted_at: new Date().toISOString() }).eq('id', leadId)
+      }
+    }
+  } catch (smsErr: any) {
+    // Never block lead capture on notification failures.
+    console.error('[submit-lead] notification error:', smsErr?.message)
   }
 
   return NextResponse.json({ ok: true })

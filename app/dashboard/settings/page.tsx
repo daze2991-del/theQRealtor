@@ -88,6 +88,13 @@ export default function SettingsPage() {
   const [phone, setPhone]         = useState('')
   const [smsEnabled, setSmsEnabled] = useState(true)
 
+  // Lead notification preferences (stored on profiles)
+  const [notifyShowing,  setNotifyShowing]  = useState(true)
+  const [notifyQuestion, setNotifyQuestion] = useState(true)
+  const [notifyHotLead,  setNotifyHotLead]  = useState(true)
+  const [quietStart,     setQuietStart]     = useState('21:00')
+  const [quietEnd,       setQuietEnd]       = useState('08:00')
+
   // account summary
   const [plan, setPlan]               = useState<'free' | 'pro'>('free')
   const [propCount, setPropCount]     = useState(0)
@@ -121,12 +128,24 @@ export default function SettingsPage() {
           { data: profile },
           { data: props },
         ] = await Promise.all([
-          supabase.from('profiles').select('name, plan').eq('id', uid).single(),
+          supabase.from('profiles')
+            .select('name, plan, phone, notify_showing, notify_question, notify_hot_lead, quiet_hours_start, quiet_hours_end')
+            .eq('id', uid).single(),
           supabase.from('properties').select('id').eq('user_id', uid),
         ])
 
         if (cancelled) return
-        if (profile) { setName(profile.name || ''); setPlan(profile.plan === 'pro' ? 'pro' : 'free') }
+        if (profile) {
+          setName(profile.name || '')
+          setPlan(profile.plan === 'pro' ? 'pro' : 'free')
+          // Prefer profiles.phone; fall back to the auth metadata phone.
+          if (profile.phone) setPhone(profile.phone)
+          if (typeof profile.notify_showing  === 'boolean') setNotifyShowing(profile.notify_showing)
+          if (typeof profile.notify_question === 'boolean') setNotifyQuestion(profile.notify_question)
+          if (typeof profile.notify_hot_lead === 'boolean') setNotifyHotLead(profile.notify_hot_lead)
+          if (profile.quiet_hours_start) setQuietStart(String(profile.quiet_hours_start).slice(0, 5))
+          if (profile.quiet_hours_end)   setQuietEnd(String(profile.quiet_hours_end).slice(0, 5))
+        }
 
         const propIds = (props || []).map((p: any) => p.id)
         setPropCount(propIds.length)
@@ -157,7 +176,11 @@ export default function SettingsPage() {
       const agentPhone = smsEnabled && phone.trim() ? phone.trim() : null
       const profileRes = await fetch('/api/update-profile', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), phone: phone.trim(), smsEnabled, agentPhone }),
+        body: JSON.stringify({
+          name: name.trim(), phone: phone.trim(), smsEnabled, agentPhone,
+          notifyShowing, notifyQuestion, notifyHotLead,
+          quietHoursStart: quietStart, quietHoursEnd: quietEnd,
+        }),
       })
       if (!profileRes.ok) {
         const { error: msg } = await profileRes.json().catch(() => ({}))
@@ -345,6 +368,40 @@ export default function SettingsPage() {
                   )}
                 </div>
               )}
+            </Section>
+
+            {/* Lead Notifications */}
+            <Section title="Lead Notifications" description="Choose which lead events text your phone. Alerts go to your SMS number above.">
+              {[
+                { key: 'showing',  title: 'Showing requests',          hint: 'Recommended — high intent buyers',                    hintColor: C.purpleL, checked: notifyShowing,  set: setNotifyShowing },
+                { key: 'question', title: 'Questions / info requests',  hint: 'New buyer questions and info requests.',               hintColor: C.muted,   checked: notifyQuestion, set: setNotifyQuestion },
+                { key: 'hot',      title: 'Hot lead alerts',            hint: 'Fires once when a buyer first crosses the Hot tier.',  hintColor: C.muted,   checked: notifyHotLead,  set: setNotifyHotLead },
+              ].map(row => (
+                <div key={row.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 4 }}>{row.title}</div>
+                    <div style={{ fontSize: 12, color: row.hintColor }}>{row.hint}</div>
+                  </div>
+                  <Toggle checked={row.checked} onChange={row.set} />
+                </div>
+              ))}
+
+              <div style={{ marginTop: 4, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 4 }}>Quiet hours</div>
+                <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
+                  Agent alerts triggered during these hours are held — not dropped — and delivered at the end time. Times are America/Los_Angeles. Buyer confirmations are always sent immediately.
+                </div>
+                <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                  <label style={{ flex: 1, minWidth: 130 }}>
+                    <span style={{ display: 'block', fontSize: 12, color: C.muted, marginBottom: 6 }}>Start</span>
+                    <input type="time" value={quietStart} onChange={e => setQuietStart(e.target.value)} style={INPUT} />
+                  </label>
+                  <label style={{ flex: 1, minWidth: 130 }}>
+                    <span style={{ display: 'block', fontSize: 12, color: C.muted, marginBottom: 6 }}>End</span>
+                    <input type="time" value={quietEnd} onChange={e => setQuietEnd(e.target.value)} style={INPUT} />
+                  </label>
+                </div>
+              </div>
             </Section>
 
             {/* Appearance */}

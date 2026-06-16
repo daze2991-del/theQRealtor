@@ -21,7 +21,10 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json().catch(() => ({}))
-  const { name, phone, smsEnabled, agentPhone } = body
+  const {
+    name, phone, smsEnabled, agentPhone,
+    notifyShowing, notifyQuestion, notifyHotLead, quietHoursStart, quietHoursEnd,
+  } = body
   console.log('[update-profile] body keys:', Object.keys(body))
 
   const admin = createAdminSupabase()
@@ -40,10 +43,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: authErr.message }, { status: 500 })
   }
 
-  // Update profiles.name — admin client bypasses table-level GRANT issues
+  // Update profiles — admin client bypasses table-level GRANT issues.
+  // profiles.phone is the agent's real number used for SMS alerts + inbound
+  // reply forwarding; notification prefs + quiet hours live here too.
+  const profileUpdate: Record<string, unknown> = { name: String(name ?? '').trim() }
+  profileUpdate.phone = String(phone ?? '').trim() || null
+  if (typeof notifyShowing  === 'boolean') profileUpdate.notify_showing  = notifyShowing
+  if (typeof notifyQuestion === 'boolean') profileUpdate.notify_question = notifyQuestion
+  if (typeof notifyHotLead  === 'boolean') profileUpdate.notify_hot_lead = notifyHotLead
+  if (typeof quietHoursStart === 'string' && quietHoursStart) profileUpdate.quiet_hours_start = quietHoursStart
+  if (typeof quietHoursEnd   === 'string' && quietHoursEnd)   profileUpdate.quiet_hours_end   = quietHoursEnd
+
   const { error: profileErr } = await admin
     .from('profiles')
-    .update({ name: String(name ?? '').trim() })
+    .update(profileUpdate)
     .eq('id', user.id)
 
   if (profileErr) {

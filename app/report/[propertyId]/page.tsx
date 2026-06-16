@@ -195,19 +195,33 @@ export default function SellerReportPage() {
   const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
 
+  // Must be defined before the KPI counts below so it's in scope.
+  // Resolves V2 tier first; falls back to V1 motivation for legacy rows.
+  const tierOf = (l: any): 'hot' | 'warm' | 'cold' => {
+    if (l.tier === 'hot' || l.tier === 'warm' || l.tier === 'cold') return l.tier
+    if (l.motivation === 'hot' || l.motivation === 'motivated') return 'hot'
+    if (l.motivation === 'warm') return 'warm'
+    return 'cold'
+  }
+
   const totalScans       = scanEvents.length
-  const engagedBuyers    = scanEvents.filter((e: any) => (e.photos_viewed ?? 0) > 0 || (e.time_on_page_sec ?? 0) > 60).length
-  const showingRequests  = leads.filter((l: any) => l.motivation === 'hot').length
+  // Before fix: counted scan_events with photos_viewed>0 OR time_on_page_sec>60 — both
+  // columns are NULL on unconverted scans (createLead path never writes them), so this
+  // always returned 0 even with 12 hot leads. After fix: counts leads with real engagement
+  // (hot or warm tier), which is a meaningful signal independent of scan_events columns.
+  const engagedBuyers    = leads.filter((l: any) => tierOf(l) === 'hot' || tierOf(l) === 'warm').length
+  console.log('[seller-report] engagedBuyers (before was 0, now):', engagedBuyers, '| total leads:', leads.length)
+  const showingRequests  = leads.filter((l: any) => tierOf(l) === 'hot').length
   const buyerQuestions   = leads.filter((l: any) => l.notes && (l.notes as string).trim()).length
   const returnVisitors   = scanEvents.filter((e: any) => e.return_visit).length
   const photoViewers     = scanEvents.filter((e: any) => (e.photos_viewed ?? 0) >= 5).length
 
   const thisMonthScans    = scanEvents.filter((e: any) => new Date(e.created_at) >= thisMonthStart).length
   const lastMonthScans    = scanEvents.filter((e: any) => { const d = new Date(e.created_at); return d >= lastMonthStart && d < thisMonthStart }).length
-  const thisMonthEngaged  = scanEvents.filter((e: any) => new Date(e.created_at) >= thisMonthStart && ((e.photos_viewed ?? 0) > 0 || (e.time_on_page_sec ?? 0) > 60)).length
-  const lastMonthEngaged  = scanEvents.filter((e: any) => { const d = new Date(e.created_at); return d >= lastMonthStart && d < thisMonthStart && ((e.photos_viewed ?? 0) > 0 || (e.time_on_page_sec ?? 0) > 60) }).length
-  const thisMonthShowings = leads.filter((l: any) => l.motivation === 'hot' && new Date(l.created_at) >= thisMonthStart).length
-  const lastMonthShowings = leads.filter((l: any) => { const d = new Date(l.created_at); return l.motivation === 'hot' && d >= lastMonthStart && d < thisMonthStart }).length
+  const thisMonthEngaged  = leads.filter((l: any) => (tierOf(l) === 'hot' || tierOf(l) === 'warm') && new Date(l.created_at) >= thisMonthStart).length
+  const lastMonthEngaged  = leads.filter((l: any) => { const d = new Date(l.created_at); const t = tierOf(l); return (t === 'hot' || t === 'warm') && d >= lastMonthStart && d < thisMonthStart }).length
+  const thisMonthShowings = leads.filter((l: any) => tierOf(l) === 'hot' && new Date(l.created_at) >= thisMonthStart).length
+  const lastMonthShowings = leads.filter((l: any) => { const d = new Date(l.created_at); return tierOf(l) === 'hot' && d >= lastMonthStart && d < thisMonthStart }).length
   const thisMonthQuestions = leads.filter((l: any) => l.notes && new Date(l.created_at) >= thisMonthStart).length
   const lastMonthQuestions = leads.filter((l: any) => { const d = new Date(l.created_at); return l.notes && d >= lastMonthStart && d < thisMonthStart }).length
   const thisMonthPackets  = (packets ?? []).filter((p: any) => new Date(p.created_at) >= thisMonthStart).length
@@ -293,13 +307,7 @@ export default function SellerReportPage() {
     ? uniqueVisitCount
     : scanEvents.filter((e: any) => !e.return_visit).length
 
-  // Lead quality by V2 tier (legacy motivation fallback)
-  const tierOf = (l: any): 'hot' | 'warm' | 'cold' => {
-    if (l.tier === 'hot' || l.tier === 'warm' || l.tier === 'cold') return l.tier
-    if (l.motivation === 'hot' || l.motivation === 'motivated') return 'hot'
-    if (l.motivation === 'warm') return 'warm'
-    return 'cold'
-  }
+  // Lead quality by V2 tier (tierOf defined above)
   const hotCount  = leads.filter((l: any) => tierOf(l) === 'hot').length
   const warmCount = leads.filter((l: any) => tierOf(l) === 'warm').length
   const coldCount = leads.filter((l: any) => tierOf(l) === 'cold').length

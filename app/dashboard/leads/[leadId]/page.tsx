@@ -7,6 +7,10 @@ import DashboardLayout from '../../../../components/DashboardLayout'
 import Link from 'next/link'
 import { calcIntentScore, scoreToLabel } from '../../../../lib/leadScoring'
 import { calcPropertyInterest } from '../../../../lib/propertyInterest'
+import {
+  computeCallPriority, motivationToTierV2, TIER_V2_CFG, SCORE_GUIDE_V2,
+  breakdownLines, type ScoreBreakdown, type LeadTierV2,
+} from '../../../../lib/leadScoringV2'
 
 const C = {
   bg: '#0F0F13', card: '#1A1A24', cardAlt: '#15151E', border: '#252533',
@@ -35,12 +39,7 @@ const INTEL_ACTION: Record<string, string> = {
   cold:      'Add to your follow-up list. Check in every 2-3 weeks as they continue their search.',
 }
 
-const SCORE_GUIDE = [
-  { label: '🔥 Hot',       range: '18–25', color: '#EF4444' },
-  { label: '⚡ Motivated', range: '11–17', color: '#F97316' },
-  { label: '👍 Warm',      range: '5–10',  color: '#60A5FA' },
-  { label: '❄️ Cold',      range: '0–4',   color: '#6B7280' },
-]
+// SCORE_GUIDE is now sourced from leadScoringV2 (SCORE_GUIDE_V2) — V2 tiers only
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime()
@@ -231,48 +230,65 @@ export default function LeadDetailPage() {
   if (!lead) return null
 
   // ── Derived values ────────────────────────────────────────────────────────────
+  // V2: primary tier and score come from the stored DB fields.
+  // Fall back to V1 scan-event reconstruction for legacy rows (_legacy flag or empty breakdown).
+  const tierV2: LeadTierV2 = lead.tier && ['hot','warm','cold'].includes(lead.tier)
+    ? lead.tier
+    : motivationToTierV2(lead.motivation)
+  const tierCfgV2 = TIER_V2_CFG[tierV2]
+
+  // For backward compat, also keep V1 tier lookup for non-breakdown sections
   const tier      = TIER[lead.motivation as keyof typeof TIER] ?? TIER.cold
   const initials  = (lead.name ?? '??').slice(0, 2).toUpperCase()
   const firstName = (lead.name ?? 'Lead').split(' ')[0]
   const location  = [property?.city, property?.state].filter(Boolean).join(', ')
   const fullAddr  = [property?.address, location].filter(Boolean).join(', ')
 
+  // V2 score (stored) — use for primary display
+  const storedScore   = lead.intent_score ?? 0
+  const callPriority  = computeCallPriority(storedScore, lead.last_activity_at ?? lead.created_at)
+
+  // Determine if we have a proper V2 breakdown or need V1 reconstruction
+  const bdRaw        = lead.score_breakdown as Partial<ScoreBreakdown> | undefined
+  const hasV2Breakdown = bdRaw && !bdRaw._legacy && typeof bdRaw.first_scan === 'number'
+
+  // V1 reconstruction (for display in breakdown section when no V2 data)
   const eng = {
     visitCount:    scanEvent?.return_visit ? 2 : 1,
     photosViewed:  scanEvent?.photos_viewed    ?? 0,
     ctaClicked:    scanEvent?.cta_clicked      ?? null,
     timeOnPageSec: scanEvent?.time_on_page_sec ?? 0,
   }
-  const score = calcIntentScore(eng)
+  const v1Score = calcIntentScore(eng)
 
-  // Score badge — uses same canonical thresholds as leadScoring.ts (hot≥18, motivated≥11, warm≥5)
-  const scoreTier        = scoreToLabel(score)
-  const scoreTierCfg     = TIER[scoreTier]
+  // Score and tier for the badge next to the donut
+  const displayScore  = hasV2Breakdown ? storedScore : v1Score
+  const scoreTierKey  = hasV2Breakdown ? tierV2 : scoreToLabel(v1Score)
+  const scoreTierCfg  = hasV2Breakdown ? tierCfgV2 : (TIER[scoreTierKey as keyof typeof TIER] ?? TIER.cold)
   const scoreIntentLabel = scoreTierCfg.label
   const scoreIntentColor = scoreTierCfg.color
   const scoreIntentBg    = scoreTierCfg.bg
 
-  // Scoring factors
-  const factors: Array<{ label: string; detail?: string; pts: number; color: string }> = [
-    { label: 'First Scan', pts: 1, color: '#F97316' },
-  ]
-  if (eng.visitCount > 1) {
-    const vPts = 3 + (eng.visitCount >= 3 ? 5 : 0)
-    factors.push({ label: 'Return Visit', detail: 'Returning visitor', pts: vPts, color: '#7C3AED' })
-  }
-  if (eng.photosViewed >= 5) {
-    factors.push({ label: 'Photo Views', detail: `${eng.photosViewed} photos`, pts: 2, color: '#14B8A6' })
-  }
-  const timePts = (eng.timeOnPageSec >= 120 ? 1 : 0) + (eng.timeOnPageSec >= 300 ? 2 : 0)
-  if (timePts > 0) {
-    const m = Math.floor(eng.timeOnPageSec / 60), s = eng.timeOnPageSec % 60
-    factors.push({ label: 'Time on Page', detail: `${m}m ${s}s`, pts: timePts, color: '#60A5FA' })
-  }
-  if (eng.ctaClicked === 'showing') {
-    factors.push({ label: 'Showing Requested', pts: 10, color: '#EF4444' })
-  } else if (eng.ctaClicked === 'question') {
-    factors.push({ label: 'Question Asked', pts: 5, color: '#10B981' })
-  }
+  // Breakdown lines — V2 stored or V1 reconstructed
+  const factors: Array<{ label: string; detail?: string; pts: number; color: string }> = hasV2Breakdown
+    ? breakdownLines(bdRaw as ScoreBreakdown)
+    : (() => {
+        const f: Array<{ label: string; detail?: string; pts: number; color: string }> = [
+          { label: 'First Scan', pts: 1, color: '#F97316' },
+        ]
+        if (eng.visitCount > 1)
+          f.push({ label: 'Return Visit', detail: 'Returning visitor', pts: 3, color: '#7C3AED' })
+        if (eng.photosViewed >= 5)
+          f.push({ label: 'Photo Views', detail: `${eng.photosViewed} photos`, pts: 2, color: '#14B8A6' })
+        const tPts = (eng.timeOnPageSec >= 120 ? 1 : 0) + (eng.timeOnPageSec >= 300 ? 2 : 0)
+        if (tPts > 0) {
+          const m = Math.floor(eng.timeOnPageSec / 60), s = eng.timeOnPageSec % 60
+          f.push({ label: 'Time on Page', detail: `${m}m ${s}s`, pts: tPts, color: '#60A5FA' })
+        }
+        if (eng.ctaClicked === 'showing') f.push({ label: 'Showing Requested', pts: 10, color: '#EF4444' })
+        else if (eng.ctaClicked === 'question') f.push({ label: 'Question Asked', pts: 5, color: '#10B981' })
+        return f
+      })()
 
   // Timeline events (most recent first)
   const timeline: Array<{ icon: string; title: string; desc: string; time: string; color: string; bg: string }> = []
@@ -389,7 +405,7 @@ export default function LeadDetailPage() {
 
         {/* ── Buyer Hero Card ──────────────────────────────────────────────────── */}
         <div style={{
-          background: C.card, border: `1px solid ${tier.border}40`,
+          background: C.card, border: `1px solid ${tierCfgV2.border}40`,
           borderRadius: 16, marginBottom: 14, overflow: 'hidden',
         }}>
           <div className="hero-inner" style={{ display: 'flex', padding: '22px 24px', gap: 24 }}>
@@ -403,7 +419,7 @@ export default function LeadDetailPage() {
                   background: `linear-gradient(135deg, ${C.purple}, #5B21B6)`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 28, fontWeight: 900, color: '#fff',
-                  boxShadow: `0 0 0 3px ${tier.border}40`,
+                  boxShadow: `0 0 0 3px ${tierCfgV2.border}40`,
                 }}>
                   {initials}
                 </div>
@@ -411,12 +427,12 @@ export default function LeadDetailPage() {
                   {/* Intent badge */}
                   <span style={{
                     display: 'inline-block', marginBottom: 6,
-                    background: tier.bg, color: tier.color,
-                    border: `1px solid ${tier.border}60`,
+                    background: tierCfgV2.bg, color: tierCfgV2.color,
+                    border: `1px solid ${tierCfgV2.border}60`,
                     borderRadius: 20, padding: '3px 12px',
                     fontSize: 12, fontWeight: 700,
                   }}>
-                    {tier.label}
+                    {tierCfgV2.label}
                   </span>
                   {/* Name */}
                   <div style={{ fontSize: 26, fontWeight: 900, color: C.text, letterSpacing: '-0.02em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -484,17 +500,21 @@ export default function LeadDetailPage() {
                   Lead Score
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 44, fontWeight: 900, color: scoreIntentColor, lineHeight: 1 }}>{Math.min(score, 25)}</span>
-                  <div>
-                    <div style={{ fontSize: 12, color: C.muted, marginBottom: 4 }}>/ 25</div>
+                  <span style={{ fontSize: 44, fontWeight: 900, color: scoreIntentColor, lineHeight: 1 }}>{displayScore}</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ fontSize: 12, color: C.muted }}>intent score (durable)</div>
                     <span style={{
                       background: scoreIntentBg, color: scoreIntentColor,
                       border: `1px solid ${scoreIntentColor}60`,
                       borderRadius: 20, padding: '3px 10px',
-                      fontSize: 11, fontWeight: 700,
+                      fontSize: 11, fontWeight: 700, display: 'inline-block',
                     }}>
                       {scoreIntentLabel}
                     </span>
+                    <div style={{ fontSize: 10, color: C.muted }}>
+                      Call priority: <span style={{ color: C.sub, fontWeight: 700 }}>{callPriority.toFixed(1)}</span>
+                      <span style={{ marginLeft: 4, opacity: 0.6 }}>(score × recency)</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -584,7 +604,7 @@ export default function LeadDetailPage() {
               </div>
               <div style={{ padding: '16px 18px' }}>
                 <p style={{ fontSize: 14, color: C.text, lineHeight: 1.65, margin: '0 0 14px' }}>
-                  {INTEL_SUMMARY[lead.motivation] ?? INTEL_SUMMARY.cold}
+                  {TIER_V2_CFG[tierV2].summary}
                 </p>
                 {intelBullets.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 16 }}>
@@ -605,7 +625,7 @@ export default function LeadDetailPage() {
                     💡 Recommended Action
                   </div>
                   <p style={{ fontSize: 13, color: C.sub, lineHeight: 1.6, margin: 0 }}>
-                    {INTEL_ACTION[lead.motivation] ?? INTEL_ACTION.cold}
+                    {TIER_V2_CFG[tierV2].advice}
                   </p>
                 </div>
               </div>
@@ -652,7 +672,7 @@ export default function LeadDetailPage() {
               <div style={{ padding: '16px 18px', display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
 
                 {/* Donut chart */}
-                <DonutChart segments={factors.map(f => ({ pts: f.pts, color: f.color }))} total={score} />
+                <DonutChart segments={factors.map(f => ({ pts: f.pts, color: f.color }))} total={displayScore} />
 
                 {/* Factor list */}
                 <div style={{ flex: 1, minWidth: 160, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -678,7 +698,7 @@ export default function LeadDetailPage() {
                   <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
                     Score Guide
                   </div>
-                  {SCORE_GUIDE.map(g => (
+                  {SCORE_GUIDE_V2.map(g => (
                     <div key={g.label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                       <div style={{ width: 8, height: 8, borderRadius: '50%', background: g.color, flexShrink: 0 }} />
                       <span style={{ fontSize: 11, color: C.muted, flex: 1 }}>{g.range}</span>

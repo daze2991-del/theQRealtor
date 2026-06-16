@@ -10,6 +10,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import DashboardLayout from '../../../components/DashboardLayout'
 import Link from 'next/link'
+import { computeCallPriority, motivationToTierV2, TIER_V2_CFG, type LeadTierV2 } from '../../../lib/leadScoringV2'
 
 // ── Tokens ────────────────────────────────────────────────────────────────────
 const C = {
@@ -31,22 +32,23 @@ const STATUS_CFG = {
   lost:      { label: 'Lost',      color: '#9CA3AF', bg: '#1F2937', border: '#374151' },
 } as const
 
-const MOTIVATION_CFG = {
-  hot:       { label: '🔥 Hot',       color: '#EF4444', bg: '#3B0D0D', border: '#EF4444', action: 'Call Today',          actionIcon: '📞' },
-  motivated: { label: '⚡ Motivated', color: '#F97316', bg: '#3B1F0D', border: '#F97316', action: 'Text Now',            actionIcon: '💬' },
-  warm:      { label: '👍 Warm',      color: '#60A5FA', bg: '#0F2238', border: '#60A5FA', action: 'Follow Up This Week', actionIcon: '📅' },
-  cold:      { label: '❄ Cold',       color: '#6B7280', bg: '#1F2937', border: '#6B7280', action: 'Add to Drip',        actionIcon: '📧' },
-} as const
+// V2: hot / warm / cold only (motivated collapsed into hot)
+const TIER_CHIP_CFG = TIER_V2_CFG
 
-const TEMP_CHIPS = [
-  { key: 'hot',  label: '🔥 Hot',  motivations: ['hot', 'motivated'] },
-  { key: 'warm', label: '☀️ Warm', motivations: ['warm'] },
-  { key: 'cold', label: '❄️ Cold', motivations: ['cold'] },
+const TEMP_CHIPS: Array<{ key: LeadTierV2; label: string }> = [
+  { key: 'hot',  label: '🔥 Hot'  },
+  { key: 'warm', label: '☀️ Warm' },
+  { key: 'cold', label: '❄️ Cold' },
 ]
 
 const STATUS_OPTIONS = ['new', 'contacted', 'qualified', 'won', 'lost'] as const
 type StatusKey = typeof STATUS_OPTIONS[number]
-const MOTIV_ORDER: Record<string, number> = { hot: 4, motivated: 3, warm: 2, cold: 1 }
+
+// Derive V2 tier from a lead row (falls back to motivation for legacy rows)
+function leadTier(lead: any): LeadTierV2 {
+  if (lead.tier && ['hot', 'warm', 'cold'].includes(lead.tier)) return lead.tier as LeadTierV2
+  return motivationToTierV2(lead.motivation)
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function timeAgo(iso: string): string {
@@ -101,10 +103,8 @@ function StatusBadge({ status, onClick }: { status: StatusKey; onClick?: (e: Rea
   )
 }
 
-function MotivationBadge({ level }: { level: string | null }) {
-  if (!level) return null
-  const c = MOTIVATION_CFG[level as keyof typeof MOTIVATION_CFG]
-  if (!c) return null
+function TierBadge({ tier }: { tier: LeadTierV2 }) {
+  const c = TIER_CHIP_CFG[tier]
   return (
     <span style={{
       background: c.bg, color: c.color, border: `1px solid ${c.color}50`,
@@ -113,11 +113,9 @@ function MotivationBadge({ level }: { level: string | null }) {
   )
 }
 
-function Avatar({ name, motivation, size = 40 }: { name: string; motivation?: string | null; size?: number }) {
+function Avatar({ name, tier, size = 40 }: { name: string; tier?: LeadTierV2; size?: number }) {
   const initials = (name || '??').slice(0, 2).toUpperCase()
-  const borderColor = motivation
-    ? (MOTIVATION_CFG[motivation as keyof typeof MOTIVATION_CFG]?.border ?? '#374151')
-    : '#374151'
+  const borderColor = tier ? TIER_CHIP_CFG[tier].border : '#374151'
   return (
     <div style={{
       width: size, height: size, borderRadius: Math.round(size * 0.28), flexShrink: 0,
@@ -163,11 +161,11 @@ function LeadsPageInner() {
   const [exportingCSV,   setExportingCSV]   = useState(false)
 
   // Filters + sort
-  const [filterTemp,     setFilterTemp]     = useState<string[]>(['hot', 'warm', 'cold'])
+  const [filterTemp,     setFilterTemp]     = useState<LeadTierV2[]>(['hot', 'warm', 'cold'])
   const [filterStatus,   setFilterStatus]   = useState<string[]>([...STATUS_OPTIONS])
   const [filterProperty, setFilterProperty] = useState('')
   const [filterDays,     setFilterDays]     = useState('all')
-  const [sortMode,       setSortMode]       = useState<'recent' | 'score' | 'contacted'>('recent')
+  const [sortMode,       setSortMode]       = useState<'recent' | 'priority' | 'contacted'>('recent')
 
   // Per-lead UI state
   const [localLeads,     setLocalLeads]     = useState<Record<string, Partial<any>>>({})
@@ -285,7 +283,7 @@ function LeadsPageInner() {
     saveNotesNow(leadId, noteValues[leadId] ?? '')
   }
 
-  const toggleTemp = (key: string) => {
+  const toggleTemp = (key: LeadTierV2) => {
     setFilterTemp(prev => prev.includes(key)
       ? prev.length > 1 ? prev.filter(k => k !== key) : prev
       : [...prev, key]
@@ -300,19 +298,16 @@ function LeadsPageInner() {
   }
 
   const counts = useMemo(() => ({
-    hot:  allLeads.filter(l => l.motivation === 'hot' || l.motivation === 'motivated').length,
-    warm: allLeads.filter(l => l.motivation === 'warm').length,
-    cold: allLeads.filter(l => l.motivation === 'cold').length,
+    hot:  allLeads.filter(l => leadTier(l) === 'hot').length,
+    warm: allLeads.filter(l => leadTier(l) === 'warm').length,
+    cold: allLeads.filter(l => leadTier(l) === 'cold').length,
   }), [allLeads])
 
   const leads = useMemo(() => {
     let r = allLeads
 
-    // Temperature chips (multi-select, hot chip covers hot+motivated)
-    const activeMotivatations = TEMP_CHIPS
-      .filter(c => filterTemp.includes(c.key))
-      .flatMap(c => c.motivations)
-    r = r.filter(l => activeMotivatations.includes(l.motivation))
+    // Tier chips — use V2 tier field (with fallback to v1 motivation)
+    r = r.filter(l => filterTemp.includes(leadTier(l)))
 
     // Status filter
     r = r.filter(l => {
@@ -334,12 +329,13 @@ function LeadsPageInner() {
     }
 
     const arr = [...r]
-    if (sortMode === 'score') {
-      arr.sort((a, b) =>
-        (MOTIV_ORDER[b.motivation] || 0) !== (MOTIV_ORDER[a.motivation] || 0)
-          ? (MOTIV_ORDER[b.motivation] || 0) - (MOTIV_ORDER[a.motivation] || 0)
-          : new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      )
+    if (sortMode === 'priority') {
+      // call_priority = intent_score × recency decay — read-time only, never stored
+      arr.sort((a, b) => {
+        const pa = computeCallPriority(a.intent_score ?? 0, a.last_activity_at ?? a.created_at)
+        const pb = computeCallPriority(b.intent_score ?? 0, b.last_activity_at ?? b.created_at)
+        return pb !== pa ? pb - pa : new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      })
     } else if (sortMode === 'contacted') {
       arr.sort((a, b) => {
         const aLC = localLeads[a.id]?.last_contacted_at ?? a.last_contacted_at
@@ -376,7 +372,7 @@ function LeadsPageInner() {
         return [
           l.name || '', l.phone || '', l.email || '',
           eff.status || 'new',
-          MOTIVATION_CFG[l.motivation as keyof typeof MOTIVATION_CFG]?.label || l.motivation || '',
+          TIER_CHIP_CFG[leadTier(l)]?.label || l.motivation || '',
           motivLabels[l.motivation] || '',
           propMap[l.property_id] || '',
           l.qr_id ? (qrMap[l.qr_id]?.label || '') : '',
@@ -470,19 +466,20 @@ function LeadsPageInner() {
           }}
             onClick={e => e.stopPropagation()}
           >
-            {/* Temperature chips */}
+            {/* Tier chips (V2: hot/warm/cold) */}
             <div style={{ display: 'flex', gap: 6 }}>
               {TEMP_CHIPS.map(chip => {
-                const on = filterTemp.includes(chip.key)
-                const cnt = chip.key === 'hot' ? counts.hot : chip.key === 'warm' ? counts.warm : counts.cold
+                const on  = filterTemp.includes(chip.key)
+                const cnt = counts[chip.key] ?? 0
+                const cfg = TIER_CHIP_CFG[chip.key]
                 return (
                   <button key={chip.key} className="chip-btn"
                     onClick={() => toggleTemp(chip.key)}
                     style={{
                       padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-                      background: on ? `${C.purple}30` : 'transparent',
-                      border: `1px solid ${on ? C.purple : C.border}`,
-                      color: on ? C.purpleL : C.muted,
+                      background: on ? `${cfg.color}22` : 'transparent',
+                      border: `1px solid ${on ? cfg.color : C.border}`,
+                      color: on ? cfg.color : C.muted,
                     }}
                   >
                     {chip.label}
@@ -533,7 +530,7 @@ function LeadsPageInner() {
               style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, color: C.sub, fontSize: 12, fontWeight: 600, padding: '5px 11px', outline: 'none', cursor: 'pointer' }}
             >
               <option value="recent">Most recent</option>
-              <option value="score">Highest score</option>
+              <option value="priority">Call Priority ↓</option>
               <option value="contacted">Last contacted (oldest first)</option>
             </select>
 
@@ -579,7 +576,9 @@ function LeadsPageInner() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {leads.map((lead: any, i: number) => {
-                  const cfg      = MOTIVATION_CFG[lead.motivation as keyof typeof MOTIVATION_CFG]
+                  const tier     = leadTier(lead)
+                  const cfg      = TIER_CHIP_CFG[tier]
+                  const callPri  = computeCallPriority(lead.intent_score ?? 0, lead.last_activity_at ?? lead.created_at)
                   const qr       = lead.qr_id ? qrMap[lead.qr_id] : null
                   const address  = propMap[lead.property_id]
                   const eff      = getEffective(lead)
@@ -604,12 +603,12 @@ function LeadsPageInner() {
                     >
                       {/* Row 1: avatar + name + badges + time */}
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                        <Avatar name={lead.name || ''} motivation={lead.motivation} size={42} />
+                        <Avatar name={lead.name || ''} tier={tier} size={42} />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', marginBottom: 3 }}>
                             <span style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{lead.name || 'Unknown'}</span>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                              <MotivationBadge level={lead.motivation} />
+                              <TierBadge tier={tier} />
 
                               {/* Status badge + per-lead dropdown */}
                               <div data-status-dropdown style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
@@ -691,11 +690,12 @@ function LeadsPageInner() {
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-                          {cfg && (
-                            <span style={{ fontSize: 12, fontWeight: 700, color: cfg.color }}>
-                              {cfg.actionIcon} {cfg.action}
-                            </span>
-                          )}
+                          <span style={{ fontSize: 12, fontWeight: 700, color: cfg.color }}>
+                            {cfg.actionIcon} {cfg.action}
+                          </span>
+                          <span title={`Call Priority: ${callPri}`} style={{ fontSize: 10, color: C.muted, background: `${C.purple}18`, border: `1px solid ${C.purple}30`, borderRadius: 6, padding: '2px 6px', fontWeight: 700 }}>
+                            P{callPri.toFixed(0)}
+                          </span>
                           <div style={{ display: 'flex', gap: 5 }}>
                             {lead.phone && <ActionBtn href={`tel:${lead.phone}`}    title={`Call ${lead.name}`}  emoji="📞" bg="#062014"         border="#166534" />}
                             {lead.phone && <ActionBtn href={`sms:${lead.phone}`}    title={`Text ${lead.name}`}  emoji="💬" bg={`${C.purple}18`}  border={`${C.purple}40`} />}

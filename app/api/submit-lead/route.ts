@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import twilio from 'twilio'
 import { createAdminSupabase } from '../../../lib/supabase-admin'
 import { computeIntent, type EngagementData } from '../../../lib/leadScoring'
+import { computeScoreV2, isLikelyBot, type EngagementInputV2 } from '../../../lib/leadScoringV2'
 
 // ─── rate limiter ─────────────────────────────────────────────────────────────
 // Best-effort in-memory window per IP. Works for single-instance deployments;
@@ -48,17 +49,41 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 })
   }
 
-  // Compute intent score from engagement data sent by the buyer page
-  const eng = engagement as (EngagementData & { visitCount?: number; returnVisit?: boolean }) | undefined
+  // ── bot filter ──────────────────────────────────────────────────────────────
+  const ua = request.headers.get('user-agent') ?? ''
+  if (isLikelyBot(ua)) {
+    // Silently discard bot submissions — don't reveal the filter to scrapers.
+    return NextResponse.json({ ok: true })
+  }
+
+  // ── engagement data ──────────────────────────────────────────────────────────
+  const eng = engagement as (EngagementData & { visitCount?: number; returnVisit?: boolean; totalPhotos?: number }) | undefined
+
+  // V1 motivation label (kept for backward compat with existing UI queries)
   const computedMotivation = eng
     ? computeIntent({
-        // visitCount preferred; fall back to old returnVisit boolean for deploys in flight
         visitCount:    typeof eng.visitCount === 'number' ? eng.visitCount : (eng.returnVisit ? 2 : 1),
         photosViewed:  typeof eng.photosViewed  === 'number' ? eng.photosViewed  : 0,
         ctaClicked:    eng.ctaClicked ?? null,
         timeOnPageSec: typeof eng.timeOnPageSec === 'number' ? eng.timeOnPageSec : 0,
       })
     : ctaMotivation
+
+  // V2 score — computed server-side from the same engagement payload
+  const engV2: EngagementInputV2 = {
+    visitCount:    typeof eng?.visitCount === 'number' ? eng.visitCount : (eng?.returnVisit ? 2 : 1),
+    photosViewed:  typeof eng?.photosViewed  === 'number' ? eng.photosViewed  : 0,
+    totalPhotos:   typeof eng?.totalPhotos   === 'number' ? eng.totalPhotos   : 0,
+    timeOnPageSec: typeof eng?.timeOnPageSec === 'number' ? eng.timeOnPageSec : 0,
+    ctaClicked:    (eng?.ctaClicked as EngagementInputV2['ctaClicked']) ?? null,
+    hasSaved:      false,
+  }
+  const hasValidContact = !!(((phone as string)?.trim()) || ((email as string)?.trim()))
+  const v2Score = computeScoreV2({
+    eng: engV2,
+    hasValidContact,
+    prev: { returnVisitCount: 0, photoViewCount: 0, totalTimeSec: 0, breakdown: {} },
+  })
 
   const supabase = createAdminSupabase()
 
@@ -85,10 +110,18 @@ export async function POST(request: Request) {
     name:               (name as string).trim(),
     phone:              (phone as string)?.trim() || '',
     email:              (email as string).trim(),
-    motivation:         computedMotivation,
+    motivation:         computedMotivation,   // V1 field — kept for compat
     notes:              (questionText as string)?.trim() || null,
     contact_preference: (contactPreference as string)?.trim() || null,
     agent_id:           property.user_id || null,
+    // V2 scoring fields
+    intent_score:       v2Score.intent_score,
+    tier:               v2Score.tier,
+    last_activity_at:   new Date().toISOString(),
+    return_visit_count: v2Score.return_visit_count,
+    photo_view_count:   v2Score.photo_view_count,
+    total_time_on_page: v2Score.total_time_on_page,
+    score_breakdown:    v2Score.score_breakdown,
   })
 
   if (insertError) {
@@ -127,7 +160,7 @@ export async function POST(request: Request) {
   console.log('[submit-lead] agent sms_alerts_enabled (user_metadata):', agentSmsEnabled)
   console.log('[submit-lead] agent_phone (SMS target):', property.agent_phone ?? '(none)')
 
-  const shouldSendSms = (computedMotivation === 'hot' || eng?.ctaClicked === 'showing')
+  const shouldSendSms = (v2Score.tier === 'hot' || eng?.ctaClicked === 'showing')
     && !!property.agent_phone
     && agentSmsEnabled === true
   console.log('[submit-lead] SMS will attempt:', shouldSendSms,

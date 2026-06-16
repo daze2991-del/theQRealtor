@@ -10,7 +10,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import DashboardLayout from '../../../components/DashboardLayout'
 import Link from 'next/link'
-import { computeCallPriority, motivationToTierV2, TIER_V2_CFG, type LeadTierV2 } from '../../../lib/leadScoringV2'
+import { computeCallPriority, motivationToTierV2, urgencyLabel, topSignalLabel, TIER_V2_CFG, type LeadTierV2 } from '../../../lib/leadScoringV2'
 
 // ── Tokens ────────────────────────────────────────────────────────────────────
 const C = {
@@ -70,6 +70,11 @@ function lastContactedText(iso: string | null | undefined): string {
   if (days === 0) return 'Last contacted: today'
   if (days === 1) return 'Last contacted: yesterday'
   return `Last contacted: ${days}d ago`
+}
+
+// Most recent buyer activity (latest scan), falling back to the original scan / submit time
+function lastActiveText(lastScanIso: string | null | undefined, fallbackIso: string): string {
+  return `Last active: ${timeAgo(lastScanIso || fallbackIso)}`
 }
 
 function buildSignals(scanEvent: any): string {
@@ -158,6 +163,7 @@ function LeadsPageInner() {
   const [properties,     setProperties]     = useState<any[]>([])
   const [qrMap,          setQrMap]          = useState<Record<string, { label: string; scan_count: number }>>({})
   const [scanEventByQr,  setScanEventByQr]  = useState<Record<string, any>>({})
+  const [lastActiveByQr, setLastActiveByQr] = useState<Record<string, string>>({})
   const [exportingCSV,   setExportingCSV]   = useState(false)
 
   // Filters + sort
@@ -212,11 +218,16 @@ function LeadsPageInner() {
       // Fetch QR info + converted scan events in parallel
       const qrIds = [...new Set((leads || []).map((l: any) => l.qr_id).filter(Boolean))] as string[]
       if (qrIds.length > 0) {
-        const [{ data: qrcodes }, { data: scanEvs }] = await Promise.all([
+        const [{ data: qrcodes }, { data: scanEvs }, { data: allScans }] = await Promise.all([
           supabase.from('qrcodes').select('id, label, scan_count').in('id', qrIds),
           supabase.from('scan_events')
             .select('qr_id, cta_clicked, photos_viewed, return_visit')
             .in('qr_id', qrIds).eq('converted', true)
+            .order('created_at', { ascending: false }),
+          // Latest activity per qr_id — any scan_events row (not just converted)
+          supabase.from('scan_events')
+            .select('qr_id, created_at')
+            .in('qr_id', qrIds)
             .order('created_at', { ascending: false }),
         ])
         const qm: Record<string, { label: string; scan_count: number }> = {}
@@ -227,6 +238,11 @@ function LeadsPageInner() {
         const em: Record<string, any> = {}
         ;(scanEvs || []).forEach((e: any) => { if (!em[e.qr_id]) em[e.qr_id] = e })
         setScanEventByQr(em)
+
+        // Most-recent scan timestamp per qr_id (rows arrive newest-first)
+        const lm: Record<string, string> = {}
+        ;(allScans || []).forEach((s: any) => { if (s.qr_id && !lm[s.qr_id]) lm[s.qr_id] = s.created_at })
+        setLastActiveByQr(lm)
       }
       setLoading(false)
     }
@@ -579,7 +595,10 @@ function LeadsPageInner() {
                   const tier     = leadTier(lead)
                   const cfg      = TIER_CHIP_CFG[tier]
                   const callPri  = computeCallPriority(lead.intent_score ?? 0, lead.last_activity_at ?? lead.created_at)
+                  const urgency  = urgencyLabel(callPri)
+                  const reason   = topSignalLabel(lead.score_breakdown, tier)
                   const qr       = lead.qr_id ? qrMap[lead.qr_id] : null
+                  const lastScan = lead.qr_id ? lastActiveByQr[lead.qr_id] : null
                   const address  = propMap[lead.property_id]
                   const eff      = getEffective(lead)
                   const status   = (eff.status ?? 'new') as StatusKey
@@ -676,6 +695,10 @@ function LeadsPageInner() {
                               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{address}</span>
                             </div>
                           )}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.purpleL }}>
+                            <span>⚡</span>
+                            <span>{lastActiveText(lastScan, lead.created_at)}</span>
+                          </div>
                           {qr && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.muted }}>
                               <span>🏷️</span>
@@ -690,9 +713,16 @@ function LeadsPageInner() {
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: cfg.color }}>
-                            {cfg.actionIcon} {cfg.action}
+                          {/* Strongest signal — the one-line "why" */}
+                          <span style={{ fontSize: 11, fontWeight: 700, color: C.sub, background: 'rgba(255,255,255,0.05)', border: `1px solid ${C.border}`, borderRadius: 6, padding: '2px 8px', whiteSpace: 'nowrap' }}>
+                            {reason}
                           </span>
+                          {/* Urgency tag — tiered off call_priority */}
+                          {urgency && (
+                            <span style={{ fontSize: 12, fontWeight: 700, color: urgency.color, whiteSpace: 'nowrap' }}>
+                              {urgency.label}
+                            </span>
+                          )}
                           <span title={`Call Priority: ${callPri}`} style={{ fontSize: 10, color: C.muted, background: `${C.purple}18`, border: `1px solid ${C.purple}30`, borderRadius: 6, padding: '2px 6px', fontWeight: 700 }}>
                             P{callPri.toFixed(0)}
                           </span>

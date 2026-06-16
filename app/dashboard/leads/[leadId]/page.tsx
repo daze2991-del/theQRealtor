@@ -161,7 +161,16 @@ export default function LeadDetailPage() {
               .order('created_at', { ascending: false }).limit(1).single()
           : Promise.resolve({ data: null }),
         supabase.from('leads').select('*', { count: 'exact', head: true }).eq('property_id', leadData.property_id),
-        supabase.from('scan_events').select('*', { count: 'exact', head: true }).eq('property_id', leadData.property_id),
+        // Scan count: count via the property's qr_ids. scan_events.property_id was added
+        // later (migration 009) and is NULL on rows written by the createLead path and on
+        // any pre-migration rows, so counting by property_id under-reports (often 0).
+        // qr_id is NOT NULL on every scan_event, so this reflects the real rows.
+        (async () => {
+          const { data: propQrs } = await supabase.from('qrcodes').select('id').eq('property_id', leadData.property_id)
+          const propQrIds = (propQrs || []).map((q: any) => q.id)
+          if (propQrIds.length === 0) return { count: 0 }
+          return await supabase.from('scan_events').select('*', { count: 'exact', head: true }).in('qr_id', propQrIds)
+        })(),
         supabase.from('leads').select('*', { count: 'exact', head: true })
           .eq('property_id', leadData.property_id).eq('motivation', 'hot'),
         supabase.from('packet_requests').select('*', { count: 'exact', head: true }).eq('property_id', leadData.property_id),
@@ -261,9 +270,7 @@ export default function LeadDetailPage() {
 
   // Score badge — always use the stored DB fields (intent_score + tier), never recompute
   const displayScore     = storedScore          // lead.intent_score from DB
-  const scoreIntentLabel = tierCfgV2.label      // from lead.tier via TIER_V2_CFG
-  const scoreIntentColor = tierCfgV2.color
-  const scoreIntentBg    = tierCfgV2.bg
+  const scoreIntentColor = tierCfgV2.color       // from lead.tier via TIER_V2_CFG
 
   // Breakdown lines — V2 stored or V1 reconstructed
   const factors: Array<{ label: string; detail?: string; pts: number; color: string }> = hasV2Breakdown
@@ -499,17 +506,8 @@ export default function LeadDetailPage() {
                   <span style={{ fontSize: 44, fontWeight: 900, color: scoreIntentColor, lineHeight: 1 }}>{displayScore}</span>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <div style={{ fontSize: 12, color: C.muted }}>intent score (durable)</div>
-                    <span style={{
-                      background: scoreIntentBg, color: scoreIntentColor,
-                      border: `1px solid ${scoreIntentColor}60`,
-                      borderRadius: 20, padding: '3px 10px',
-                      fontSize: 11, fontWeight: 700, display: 'inline-block',
-                    }}>
-                      {scoreIntentLabel}
-                    </span>
-                    <div style={{ fontSize: 10, color: C.muted }}>
-                      Call priority: <span style={{ color: C.sub, fontWeight: 700 }}>{callPriority.toFixed(1)}</span>
-                      <span style={{ marginLeft: 4, opacity: 0.6 }}>(score × recency)</span>
+                    <div style={{ fontSize: 10, color: C.muted }} title="Priority = intent score weighted by how recently this buyer was active">
+                      Priority: <span style={{ color: C.sub, fontWeight: 700 }}>{callPriority.toFixed(1)}</span>
                     </div>
                   </div>
                 </div>
@@ -660,10 +658,10 @@ export default function LeadDetailPage() {
               </div>
             </div>
 
-            {/* Motivation Breakdown */}
+            {/* Intent Score Breakdown */}
             <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
               <div style={{ padding: '13px 18px', borderBottom: `1px solid ${C.border}`, background: C.cardAlt }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Motivation Breakdown</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Intent Score Breakdown</span>
               </div>
               <div style={{ padding: '16px 18px', display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
 

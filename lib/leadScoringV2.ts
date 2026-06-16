@@ -170,6 +170,34 @@ export function computeCallPriority(
   return Math.round(intentScore * decay * 100) / 100
 }
 
+// ── Inbox urgency tag ─────────────────────────────────────────────────────────
+// Tiers the "Call Today" signal off call_priority so it actually carries meaning
+// (previously every hot lead showed the same red tag). Returns null below the
+// threshold so low-priority cards stay uncluttered.
+export function urgencyLabel(callPriority: number): { label: string; color: string } | null {
+  if (callPriority >= 15) return { label: 'Call Today', color: '#EF4444' }  // red
+  if (callPriority >= 8)  return { label: 'This Week',  color: '#F59E0B' }  // amber
+  return null
+}
+
+// ── Inbox "why" reason ────────────────────────────────────────────────────────
+// Single strongest signal from the stored breakdown, in priority order.
+// _legacy rows (and rows missing a breakdown) fall back to the tier label.
+export function topSignalLabel(
+  bd:   Partial<ScoreBreakdown> | null | undefined,
+  tier: LeadTierV2,
+): string {
+  if (bd && !bd._legacy) {
+    if ((bd.requested_showing ?? 0) > 0)      return 'Requested showing'
+    if ((bd.requested_info ?? 0) > 0)         return 'Asked a question'
+    if ((bd.saved ?? 0) > 0)                  return 'Saved property'
+    if ((bd.return_visits?.points ?? 0) > 0)  return 'Return visitor'
+    if ((bd.photos?.points ?? 0) > 0)         return 'Viewed photos'
+    if ((bd.first_scan ?? 0) > 0)             return 'New scan'
+  }
+  return tier === 'hot' ? 'Hot lead' : tier === 'warm' ? 'Warm lead' : 'Cold lead'
+}
+
 // ── Tier derivation (fallback for V1 rows without tier field) ────────────────
 export function motivationToTierV2(motivation: string | null | undefined): LeadTierV2 {
   if (motivation === 'hot' || motivation === 'motivated') return 'hot'

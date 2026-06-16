@@ -3,7 +3,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { calcPropertyInterest } from '../../../lib/propertyInterest'
+
+// App default agent timezone (matches the SMS quiet-hours default). No per-agent
+// timezone is stored, so peak-engagement grouping uses this for UTC→local.
+const AGENT_TZ = 'America/Los_Angeles'
 
 const C = {
   bg: '#0F0F13', card: '#1A1A24', cardAlt: '#15151E', border: '#252533',
@@ -45,6 +50,37 @@ function getDailyCount(items: any[], days = 14): number[] {
 function safePct(curr: number, prev: number) {
   if (prev === 0) return curr > 0 ? 100 : 0
   return Math.round(((curr - prev) / prev) * 100)
+}
+
+// ── Peak-engagement helpers (timezone-aware) ───────────────────────────────────
+const DOW_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const DOW_FULL   = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+const DOW_INDEX: Record<string, number> = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 }
+const TIME_BLOCKS = [
+  { key: 'Morning',   sub: '6am–12pm' },
+  { key: 'Midday',    sub: '12–3pm'   },
+  { key: 'Afternoon', sub: '3–7pm'    },
+  { key: 'Evening',   sub: '7pm–12am' },
+] as const
+
+// Weekday (0=Mon..6=Sun) and hour (0-23) of a UTC timestamp in the agent's tz.
+function tzWeekdayHour(iso: string): { wd: number; hour: number } {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: AGENT_TZ, weekday: 'short', hour: '2-digit', hour12: false,
+  }).formatToParts(new Date(iso))
+  const wdStr = parts.find(p => p.type === 'weekday')?.value ?? 'Mon'
+  let hour = Number(parts.find(p => p.type === 'hour')?.value ?? '0')
+  if (hour === 24) hour = 0 // some ICU builds emit '24' for midnight
+  return { wd: DOW_INDEX[wdStr] ?? 0, hour }
+}
+
+// 0=Morning,1=Midday,2=Afternoon,3=Evening. Overnight (0–6) folds into Evening
+// so no scans are dropped from the distribution.
+function timeBlockIndex(hour: number): number {
+  if (hour >= 6 && hour < 12) return 0
+  if (hour >= 12 && hour < 15) return 1
+  if (hour >= 15 && hour < 19) return 2
+  return 3
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -151,7 +187,7 @@ export default function SellerReportPage() {
     )
   }
 
-  const { property, photo, leads, scanEvents, qrCodes, packetCount, packets, totalScanCount } = report
+  const { property, photo, leads, scanEvents, qrCodes, packetCount, packets, totalScanCount, uniqueVisitCount } = report
 
   // ── Derived values ────────────────────────────────────────────────────────
   const now            = new Date()
@@ -250,6 +286,63 @@ export default function SellerReportPage() {
 
   const initials = (agentName).split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
 
+  // ── Seller-report analytics ────────────────────────────────────────────────
+  // Headline: total unique buyer visits (distinct devices, all-time). Falls back
+  // to a windowed estimate from the returned events if the count is absent.
+  const uniqueVisits = typeof uniqueVisitCount === 'number'
+    ? uniqueVisitCount
+    : scanEvents.filter((e: any) => !e.return_visit).length
+
+  // Lead quality by V2 tier (legacy motivation fallback)
+  const tierOf = (l: any): 'hot' | 'warm' | 'cold' => {
+    if (l.tier === 'hot' || l.tier === 'warm' || l.tier === 'cold') return l.tier
+    if (l.motivation === 'hot' || l.motivation === 'motivated') return 'hot'
+    if (l.motivation === 'warm') return 'warm'
+    return 'cold'
+  }
+  const hotCount  = leads.filter((l: any) => tierOf(l) === 'hot').length
+  const warmCount = leads.filter((l: any) => tierOf(l) === 'warm').length
+  const coldCount = leads.filter((l: any) => tierOf(l) === 'cold').length
+
+  // Weekly buyer activity — last 8 weeks (oldest → newest)
+  const WEEKS = 8
+  const nowMs = now.getTime()
+  const weeklyData = Array.from({ length: WEEKS }, (_, i) => {
+    const d = new Date(nowMs - (WEEKS - 1 - i) * 7 * 86_400_000)
+    return { week: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), Visits: 0 }
+  })
+  scanEvents.forEach((e: any) => {
+    const wAgo = Math.floor((nowMs - new Date(e.created_at).getTime()) / (7 * 86_400_000))
+    if (wAgo >= 0 && wAgo < WEEKS) weeklyData[WEEKS - 1 - wAgo].Visits++
+  })
+
+  // Peak engagement — day-of-week + time-block distribution (tz-aware)
+  const dowCounts   = [0, 0, 0, 0, 0, 0, 0]
+  const blockCounts = [0, 0, 0, 0]
+  scanEvents.forEach((e: any) => {
+    const { wd, hour } = tzWeekdayHour(e.created_at)
+    dowCounts[wd]++
+    blockCounts[timeBlockIndex(hour)]++
+  })
+  const peakTotal    = scanEvents.length
+  const peakDowIdx   = peakTotal ? dowCounts.indexOf(Math.max(...dowCounts)) : -1
+  const peakDowPct   = peakTotal ? Math.round((dowCounts[peakDowIdx] / peakTotal) * 100) : 0
+  const peakBlockIdx = peakTotal ? blockCounts.indexOf(Math.max(...blockCounts)) : -1
+  const peakBlockPct = peakTotal ? Math.round((blockCounts[peakBlockIdx] / peakTotal) * 100) : 0
+  const dowMax       = Math.max(1, ...dowCounts)
+  const blockMax     = Math.max(1, ...blockCounts)
+
+  // Sign performance — real per-sign scan counts from scan_events (qrcodes.scan_count
+  // is unreliable; the buyer-page insert path doesn't increment it).
+  const signCounts: Record<string, number> = {}
+  scanEvents.forEach((e: any) => { if (e.qr_id) signCounts[e.qr_id] = (signCounts[e.qr_id] || 0) + 1 })
+  const signRows = (qrCodes || [])
+    .map((q: any) => ({ id: q.id, label: q.label || 'Unnamed sign', scans: signCounts[q.id] || 0 }))
+    .sort((a: any, b: any) => b.scans - a.scans)
+  const topSignId  = signRows.length && signRows[0].scans > 0 ? signRows[0].id : null
+  const signMax    = Math.max(1, ...signRows.map((s: any) => s.scans))
+  const agentPhone = property.agent_phone || ''
+
   return (
     <main style={{ background: C.bg, minHeight: '100vh', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', color: C.text }}>
       <style>{`
@@ -259,9 +352,18 @@ export default function SellerReportPage() {
         @media (max-width: 900px) { .rpt-2col { grid-template-columns: 1fr !important } .rpt-5col { grid-template-columns: 1fr 1fr !important } }
         @media (max-width: 600px) { .rpt-5col { grid-template-columns: 1fr !important } .rpt-hero { flex-direction: column !important } .rpt-share { flex-direction: column !important } .rpt-nav-center { display: none !important } }
         @media print {
+          /* Hide all interactive chrome — nav, buttons, share card */
           .no-print { display: none !important }
-          nav { position: static !important }
+          nav { display: none !important }
+          /* Drop sticky/fixed positioning so content flows onto pages */
+          * { position: static !important }
+          /* Preserve theme colors + charts (recharts SVGs print fine) */
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important }
+          html, body { background: ${C.bg} !important }
+          main { background: ${C.bg} !important }
+          /* Avoid splitting cards across page breaks where possible */
+          .rpt-card, .rpt-hero { break-inside: avoid; page-break-inside: avoid }
+          @page { margin: 14mm }
         }
       `}</style>
 
@@ -346,6 +448,17 @@ export default function SellerReportPage() {
           }}>
             {health.badgeLabel}
           </span>
+          <button
+            className="no-print"
+            onClick={() => window.print()}
+            style={{
+              marginLeft: 'auto', fontSize: 13, fontWeight: 700,
+              background: C.purple, color: '#fff', border: 'none', borderRadius: 9,
+              padding: '8px 16px', cursor: 'pointer', fontFamily: 'sans-serif',
+            }}
+          >
+            ⬇ Download PDF
+          </button>
         </div>
         <div style={{ fontSize: 12, color: C.muted, paddingBottom: 14 }}>
           📅 {dateRangeStr} &nbsp;|&nbsp; {listingDays} day{listingDays !== 1 ? 's' : ''} on market
@@ -406,6 +519,173 @@ export default function SellerReportPage() {
                 >📋</button>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* ── Live-data badge + last updated ───────────────────────────────── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 7,
+            fontSize: 12, fontWeight: 700, color: C.purpleL,
+            background: `${C.purple}18`, border: `1px solid ${C.purple}40`,
+            borderRadius: 20, padding: '5px 13px',
+          }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#4ade80', boxShadow: '0 0 0 3px rgba(74,222,128,0.25)' }} />
+            Powered by theQRealtor · Live data
+          </span>
+          <span style={{ fontSize: 12, color: C.muted }}>
+            Last updated {now.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+          </span>
+        </div>
+
+        {/* ── Headline stat: total unique buyer visits ─────────────────────── */}
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: '30px 28px', marginBottom: 20, textAlign: 'center' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+            Total Unique Buyer Visits
+          </div>
+          <div style={{ fontSize: 64, fontWeight: 900, color: C.text, lineHeight: 1, letterSpacing: '-0.03em', marginBottom: 12 }}>
+            {uniqueVisits.toLocaleString()}
+          </div>
+          <div style={{ fontSize: 14, color: C.sub, maxWidth: 460, margin: '0 auto', lineHeight: 1.55 }}>
+            Verified buyer visits — timestamped, device-tracked, unfakeable
+          </div>
+        </div>
+
+        {/* ── Lead quality breakdown ───────────────────────────────────────── */}
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 12 }}>Lead Quality Breakdown</div>
+        </div>
+        <div className="rpt-5col" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+          {[
+            { label: 'Hot',      n: hotCount,         desc: 'Ready to move',         color: '#EF4444', icon: '🔥' },
+            { label: 'Warm',     n: warmCount,        desc: 'Actively considering',  color: '#F59E0B', icon: '👍' },
+            { label: 'Cold',     n: coldCount,        desc: 'Early interest',        color: '#60A5FA', icon: '❄️' },
+            { label: 'Showings', n: showingRequests,  desc: 'Requested a tour',      color: '#7C3AED', icon: '📅' },
+          ].map(c => (
+            <div key={c.label} style={{ background: C.card, border: `1px solid ${C.border}`, borderLeft: `3px solid ${c.color}`, borderRadius: 14, padding: '16px 16px 14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+                <span style={{ fontSize: 16 }}>{c.icon}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: c.color, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{c.label}</span>
+              </div>
+              <div style={{ fontSize: 32, fontWeight: 900, color: C.text, lineHeight: 1, marginBottom: 5 }}>{c.n}</div>
+              <div style={{ fontSize: 12, color: C.muted }}>{c.desc}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Buyer activity over time (weekly) ────────────────────────────── */}
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden', marginBottom: 20 }}>
+          <div style={{ padding: '13px 18px', borderBottom: `1px solid ${C.border}`, background: C.cardAlt }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Buyer Activity Over Time</span>
+            <span style={{ fontSize: 12, color: C.muted, marginLeft: 8 }}>· last 8 weeks</span>
+          </div>
+          <div style={{ padding: '18px 14px 10px' }}>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={weeklyData} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
+                <XAxis dataKey="week" tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} axisLine={false} />
+                <YAxis tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                <Tooltip contentStyle={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text }} cursor={{ fill: C.border }} />
+                <Bar dataKey="Visits" fill={C.purpleL} radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* ── Peak engagement ──────────────────────────────────────────────── */}
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden', marginBottom: 20 }}>
+          <div style={{ padding: '13px 18px', borderBottom: `1px solid ${C.border}`, background: C.cardAlt, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Peak Engagement</span>
+            <span style={{ fontSize: 14 }}>⚡</span>
+            <span style={{ fontSize: 11, color: C.muted, marginLeft: 'auto' }}>times in {AGENT_TZ.split('/')[1].replace('_', ' ')}</span>
+          </div>
+          <div style={{ padding: '18px' }}>
+            {peakTotal === 0 ? (
+              <div style={{ fontSize: 13, color: C.muted, textAlign: 'center', padding: '12px 0' }}>No visit timing data yet.</div>
+            ) : (
+              <>
+                {/* Callouts */}
+                <div className="rpt-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+                  <div style={{ background: `${C.purple}12`, border: `1px solid ${C.purple}30`, borderRadius: 10, padding: '14px 16px' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Peak Day</div>
+                    <div style={{ fontSize: 17, fontWeight: 800, color: C.text }}>
+                      {DOW_FULL[peakDowIdx]} <span style={{ color: C.purpleL, fontWeight: 700 }}>— {peakDowPct}% of all visits</span>
+                    </div>
+                  </div>
+                  <div style={{ background: `${C.purple}12`, border: `1px solid ${C.purple}30`, borderRadius: 10, padding: '14px 16px' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Peak Time</div>
+                    <div style={{ fontSize: 17, fontWeight: 800, color: C.text }}>
+                      {TIME_BLOCKS[peakBlockIdx].key} <span style={{ color: C.purpleL, fontWeight: 700 }}>— {peakBlockPct}% of visits</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Two horizontal bar charts */}
+                <div className="rpt-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+                  {/* Day of week */}
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>By Day of Week</div>
+                    {DOW_LABELS.map((d, i) => (
+                      <div key={d} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                        <span style={{ fontSize: 11, color: C.muted, width: 30, flexShrink: 0 }}>{d}</span>
+                        <div style={{ flex: 1, height: 14, background: C.cardAlt, borderRadius: 4, overflow: 'hidden' }}>
+                          <div style={{ width: `${(dowCounts[i] / dowMax) * 100}%`, height: '100%', background: i === peakDowIdx ? C.purpleL : `${C.purple}66`, borderRadius: 4, transition: 'width 0.3s' }} />
+                        </div>
+                        <span style={{ fontSize: 11, color: C.sub, width: 20, textAlign: 'right', flexShrink: 0 }}>{dowCounts[i]}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Time block */}
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>By Time of Day</div>
+                    {TIME_BLOCKS.map((b, i) => (
+                      <div key={b.key} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                        <span style={{ fontSize: 11, color: C.muted, width: 96, flexShrink: 0 }}>{b.key} <span style={{ opacity: 0.6 }}>{b.sub}</span></span>
+                        <div style={{ flex: 1, height: 14, background: C.cardAlt, borderRadius: 4, overflow: 'hidden' }}>
+                          <div style={{ width: `${(blockCounts[i] / blockMax) * 100}%`, height: '100%', background: i === peakBlockIdx ? C.purpleL : `${C.purple}66`, borderRadius: 4, transition: 'width 0.3s' }} />
+                        </div>
+                        <span style={{ fontSize: 11, color: C.sub, width: 20, textAlign: 'right', flexShrink: 0 }}>{blockCounts[i]}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* ── Sign performance ─────────────────────────────────────────────── */}
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden', marginBottom: 20 }}>
+          <div style={{ padding: '13px 18px', borderBottom: `1px solid ${C.border}`, background: C.cardAlt }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Sign Performance</span>
+            <span style={{ fontSize: 12, color: C.muted, marginLeft: 8 }}>· scans by QR sign</span>
+          </div>
+          <div style={{ padding: '16px 18px' }}>
+            {signRows.length === 0 ? (
+              <div style={{ fontSize: 13, color: C.muted, textAlign: 'center', padding: '12px 0' }}>No QR signs created for this property yet.</div>
+            ) : (
+              signRows.map((s: any) => {
+                const isTop = s.id === topSignId
+                return (
+                  <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                    <div style={{ width: 150, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+                      {isTop && <span style={{ fontSize: 13 }}>🏆</span>}
+                      <span style={{ fontSize: 13, fontWeight: isTop ? 700 : 600, color: isTop ? C.text : C.sub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.label}</span>
+                    </div>
+                    <div style={{ flex: 1, height: 18, background: C.cardAlt, borderRadius: 5, overflow: 'hidden' }}>
+                      <div style={{ width: `${(s.scans / signMax) * 100}%`, height: '100%', background: isTop ? C.purpleL : `${C.purple}55`, borderRadius: 5, transition: 'width 0.3s' }} />
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: isTop ? C.purpleL : C.sub, width: 56, textAlign: 'right', flexShrink: 0 }}>
+                      {s.scans} scan{s.scans !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                )
+              })
+            )}
+            {topSignId && (
+              <div style={{ marginTop: 4, fontSize: 12, color: C.muted }}>
+                🏆 Top performer: <span style={{ color: C.purpleL, fontWeight: 700 }}>{signRows[0].label}</span> is driving the most buyer scans.
+              </div>
+            )}
           </div>
         </div>
 
@@ -536,7 +816,7 @@ export default function SellerReportPage() {
         </div>
 
         {/* ── Share & Download ─────────────────────────────────────────────── */}
-        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
+        <div className="no-print" style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
           <div style={{ padding: '13px 18px', borderBottom: `1px solid ${C.border}`, background: C.cardAlt }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Share & Download Report</span>
           </div>
@@ -607,7 +887,10 @@ export default function SellerReportPage() {
             the<span style={{ color: C.purpleL }}>QR</span>ealtor.
           </div>
           <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.65 }}>
-            Powered by theQRealtor · Real-time buyer analytics for real estate agents.
+            Data collected via theQRealtor QR tracking — live, verifiable, tamper-proof.
+          </div>
+          <div style={{ fontSize: 12, color: C.sub, marginTop: 10, fontWeight: 600 }}>
+            {agentName}{agentPhone ? ` · ${agentPhone}` : ''}
           </div>
           <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
             © 2026 theQRealtor. All rights reserved.

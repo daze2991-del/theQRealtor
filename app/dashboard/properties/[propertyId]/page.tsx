@@ -153,6 +153,7 @@ export default function PropertyIntelligencePage() {
   const [editError,   setEditError]   = useState('')
   const [menuOpen,    setMenuOpen]    = useState(false)
   const [copied,      setCopied]      = useState(false)
+  const [toast,       setToast]       = useState('')
   const [deleting,    setDeleting]    = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -237,9 +238,13 @@ export default function PropertyIntelligencePage() {
   }
 
   const copyReport = async () => {
-    try { await navigator.clipboard.writeText(`${window.location.origin}/report/${propertyId}`) } catch {}
+    // Always copy the canonical production link so the seller gets a clean URL,
+    // regardless of which host (preview/local) the agent is viewing from.
+    try { await navigator.clipboard.writeText(`https://theqrealtor.com/report/${propertyId}`) } catch {}
     setCopied(true)
+    setToast('Link copied — send to your seller')
     setTimeout(() => setCopied(false), 2000)
+    setTimeout(() => setToast(''), 2800)
   }
 
   const deleteProp = async () => {
@@ -432,7 +437,7 @@ export default function PropertyIntelligencePage() {
                 fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif',
               }}
             >
-              {copied ? '✓ Copied!' : '📊 Share Report'}
+              {copied ? '✓ Copied!' : '📊 Share Seller Report'}
             </button>
 
             <div ref={menuRef} style={{ position: 'relative' }}>
@@ -864,6 +869,18 @@ export default function PropertyIntelligencePage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div style={{
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 200,
+          background: '#052e16', border: '1px solid #16a34a', borderRadius: 10,
+          padding: '12px 20px', fontSize: 14, fontWeight: 600, color: '#4ade80',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.4)', fontFamily: 'sans-serif',
+        }}>
+          ✓ {toast}
         </div>
       )}
     </DashboardLayout>

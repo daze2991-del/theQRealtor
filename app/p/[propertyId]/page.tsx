@@ -145,16 +145,16 @@ export default function PropertyPage() {
       localStorage.setItem(key, JSON.stringify({ firstVisit: Date.now(), count: 1 }))
     }
 
-    // Only create scan_event for QR-originated visits
-    if (!qrId) return
+    // Create a scan_event for every page visit; only include qr_id when QR-originated
+    const scanRow: Record<string, unknown> = {
+      property_id:            propertyId,
+      return_visit:           visitCount.current > 1,
+      days_since_first_visit: daysSinceFirst.current,
+    }
+    if (qrId) scanRow.qr_id = qrId
     createBrowserSupabase()
       .from('scan_events')
-      .insert([{
-        qr_id:                  qrId,
-        property_id:            propertyId,
-        return_visit:           visitCount.current > 1,
-        days_since_first_visit: daysSinceFirst.current,
-      }])
+      .insert([scanRow])
       .select('id')
       .single()
       .then(({ data }) => { if (data?.id) scanEventId.current = data.id })

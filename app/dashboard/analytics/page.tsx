@@ -97,7 +97,7 @@ export default function AnalyticsPage() {
         { count: lastMonthCount },
         { count: pktCount },
       ] = await Promise.all([
-        supabase.from('scan_events').select('qr_id, created_at').gte('created_at', cutoffStr),
+        supabase.from('scan_events').select('property_id, created_at').in('property_id', propertyIds).gte('created_at', cutoffStr),
         supabase.from('leads').select('property_id, motivation, created_at').in('property_id', propertyIds).gte('created_at', cutoffStr),
         supabase.from('scan_events').select('*', { count: 'exact', head: true })
           .in('property_id', propertyIds).eq('return_visit', true).gte('created_at', cutoffStr),
@@ -122,25 +122,6 @@ export default function AnalyticsPage() {
     load()
   }, [])
 
-  const [qrScanTotals, setQrScanTotals] = useState<Record<string, number>>({})
-
-  useEffect(() => {
-    if (properties.length === 0) return
-    const fetchTotals = async () => {
-      const supabase = createBrowserSupabase()
-      const { data } = await supabase
-        .from('qrcodes')
-        .select('property_id, scan_count')
-        .in('property_id', properties.map((p: any) => p.id))
-      const totals: Record<string, number> = {}
-      data?.forEach((q: any) => {
-        totals[q.property_id] = (totals[q.property_id] || 0) + q.scan_count
-      })
-      setQrScanTotals(totals)
-    }
-    fetchTotals()
-  }, [properties])
-
   // ── derived data ──────────────────────────────────────────────────────────
 
   const days = last30Days()
@@ -162,12 +143,12 @@ export default function AnalyticsPage() {
   const leaderboardRows = properties
     .map(p => ({
       address: p.address,
-      scans: qrScanTotals[p.id] || 0,
+      scans: scans.filter((s: any) => s.property_id === p.id).length,
       leads: leads.filter((l: any) => l.property_id === p.id).length,
     }))
     .sort((a, b) => b.scans - a.scans)
 
-  const totalScans = Object.values(qrScanTotals).reduce((a, b) => a + b, 0)
+  const totalScans = scans.length
   const totalLeads = leads.length
   const convRate   = totalScans > 0 ? ((totalLeads / totalScans) * 100).toFixed(1) + '%' : 'Not enough data yet'
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createBrowserSupabase } from '../lib/supabase-browser'
 
@@ -28,7 +28,6 @@ function NavIcon({ name }: { name: string }) {
   if (name === 'qrcodes')      return <svg {...p}><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h2v2h-2zm4 0h2v2h-2zm-4 4h2v2h-2zm4 0h2v2h-2zm-4 4h2"/><path d="M20 18h2v4h-2"/></svg>
   if (name === 'leads')        return <svg {...p}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
   if (name === 'inbox')        return <svg {...p}><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>
-  if (name === 'disclosures')  return <svg {...p}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
   if (name === 'analytics')    return <svg {...p}><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="3" y1="20" x2="21" y2="20"/></svg>
   if (name === 'billing')      return <svg {...p}><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
   if (name === 'settings')     return <svg {...p}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06-.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
@@ -37,16 +36,15 @@ function NavIcon({ name }: { name: string }) {
 }
 
 // Pure nav list renderer — no search-params dependency, safe for SSR fallback.
-function NavLinks({ pathname, isDisclosures, onClose }: {
-  pathname: string; isDisclosures: boolean; onClose?: () => void
+function NavLinks({ pathname, onClose }: {
+  pathname: string; onClose?: () => void
 }) {
   const nav = [
     { label: 'Dashboard',   icon: 'dashboard',   href: '/dashboard',                       active: pathname === '/dashboard' },
     { label: 'Properties',     icon: 'properties',  href: '/dashboard/properties',            active: pathname.startsWith('/dashboard/properties') },
     { label: 'Seller Reports', icon: 'reports',    href: '/dashboard/seller-reports',        active: pathname.startsWith('/dashboard/seller-reports') },
     { label: 'QR Codes',       icon: 'qrcodes',    href: '/dashboard/qr-codes',              active: pathname.startsWith('/dashboard/qr-codes') },
-    { label: 'Leads',       icon: 'leads',       href: '/dashboard/leads',                 active: pathname.startsWith('/dashboard/leads') && !isDisclosures },
-    { label: 'Disclosures', icon: 'disclosures', href: '/dashboard/leads?cta=disclosures', active: isDisclosures },
+    { label: 'Leads',       icon: 'leads',       href: '/dashboard/leads',                 active: pathname.startsWith('/dashboard/leads') },
     { label: 'Analytics',   icon: 'analytics',   href: '/dashboard/analytics',             active: pathname.startsWith('/dashboard/analytics') },
     { label: 'Billing',     icon: 'billing',     href: '/dashboard/billing',               active: pathname.startsWith('/dashboard/billing') },
     { label: 'Settings',    icon: 'settings',    href: '/dashboard/settings',              active: pathname.startsWith('/dashboard/settings') },
@@ -73,11 +71,8 @@ function NavLinks({ pathname, isDisclosures, onClose }: {
   )
 }
 
-// Isolates useSearchParams() so it can be wrapped in <Suspense>.
 function NavLinksWithParams({ pathname, onClose }: { pathname: string; onClose?: () => void }) {
-  const searchParams = useSearchParams()
-  const isDisclosures = pathname === '/dashboard/leads' && searchParams.get('cta') === 'disclosures'
-  return <NavLinks pathname={pathname} isDisclosures={isDisclosures} onClose={onClose} />
+  return <NavLinks pathname={pathname} onClose={onClose} />
 }
 
 function Sidebar({ email, plan, propertyCount, onClose }: {
@@ -119,7 +114,7 @@ function Sidebar({ email, plan, propertyCount, onClose }: {
         <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '8px 12px 6px' }}>
           Menu
         </div>
-        <Suspense fallback={<NavLinks pathname={pathname} isDisclosures={false} onClose={onClose} />}>
+        <Suspense fallback={<NavLinks pathname={pathname} onClose={onClose} />}>
           <NavLinksWithParams pathname={pathname} onClose={onClose} />
         </Suspense>
       </nav>

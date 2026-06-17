@@ -6,10 +6,9 @@
 // ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_contacted_at timestamptz;
 
 import { Suspense, useEffect, useState, useMemo, useRef, useCallback } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import DashboardLayout from '../../../components/DashboardLayout'
-import Link from 'next/link'
 import { computeCallPriority, motivationToTierV2, urgencyLabel, topSignalLabel, TIER_V2_CFG, type LeadTierV2 } from '../../../lib/leadScoringV2'
 
 // ── Tokens ────────────────────────────────────────────────────────────────────
@@ -155,8 +154,6 @@ export default function LeadsPage() {
 
 function LeadsPageInner() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const ctaFilter = searchParams.get('cta')  // 'disclosures' | null
 
   const [loading,        setLoading]        = useState(true)
   const [allLeads,       setAllLeads]       = useState<any[]>([])
@@ -167,6 +164,7 @@ function LeadsPageInner() {
   const [exportingCSV,   setExportingCSV]   = useState(false)
 
   // Filters + sort
+  const [filterDisclosures, setFilterDisclosures] = useState(false)
   const [filterTemp,     setFilterTemp]     = useState<LeadTierV2[]>(['hot', 'warm', 'cold'])
   const [filterStatus,   setFilterStatus]   = useState<string[]>([...STATUS_OPTIONS])
   const [filterProperty, setFilterProperty] = useState('')
@@ -322,8 +320,13 @@ function LeadsPageInner() {
   const leads = useMemo(() => {
     let r = allLeads
 
-    // Tier chips — use V2 tier field (with fallback to v1 motivation)
-    r = r.filter(l => filterTemp.includes(leadTier(l)))
+    if (filterDisclosures) {
+      // Disclosures chip: filter by cta_clicked on the scan event, replaces tier filter
+      r = r.filter(l => l.qr_id && scanEventByQr[l.qr_id]?.cta_clicked === 'disclosures')
+    } else {
+      // Tier chips — use V2 tier field (with fallback to v1 motivation)
+      r = r.filter(l => filterTemp.includes(leadTier(l)))
+    }
 
     // Status filter
     r = r.filter(l => {
@@ -337,11 +340,6 @@ function LeadsPageInner() {
       const cutoff = new Date()
       cutoff.setDate(cutoff.getDate() - parseInt(filterDays))
       r = r.filter(l => new Date(l.created_at) >= cutoff)
-    }
-
-    // Disclosures mode: only leads whose scan event has cta_clicked === 'disclosures'
-    if (ctaFilter === 'disclosures') {
-      r = r.filter(l => l.qr_id && scanEventByQr[l.qr_id]?.cta_clicked === 'disclosures')
     }
 
     const arr = [...r]
@@ -365,7 +363,7 @@ function LeadsPageInner() {
       arr.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     }
     return arr
-  }, [allLeads, filterTemp, filterStatus, filterProperty, filterDays, sortMode, localLeads, ctaFilter, scanEventByQr])
+  }, [allLeads, filterDisclosures, filterTemp, filterStatus, filterProperty, filterDays, sortMode, localLeads, scanEventByQr])
 
   const downloadCSV = async () => {
     if (leads.length === 0) return
@@ -411,7 +409,7 @@ function LeadsPageInner() {
 
   const allTempOn   = filterTemp.length === TEMP_CHIPS.length
   const allStatusOn = filterStatus.length === STATUS_OPTIONS.length
-  const isFiltered  = !allTempOn || !allStatusOn || !!filterProperty || filterDays !== 'all'
+  const isFiltered  = !allTempOn || !allStatusOn || !!filterProperty || filterDays !== 'all' || filterDisclosures
 
   return (
     <DashboardLayout>
@@ -447,16 +445,11 @@ function LeadsPageInner() {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <h1 style={{ fontSize: 20, fontWeight: 800, color: C.text, margin: 0, letterSpacing: '-0.02em' }}>
-                {ctaFilter === 'disclosures' ? 'Disclosure Requests' : 'Lead Inbox'}
+                Lead Inbox
               </h1>
               <span style={{ fontSize: 12, fontWeight: 700, color: C.purpleL, background: `${C.purple}22`, borderRadius: 20, padding: '3px 10px' }}>
-                {ctaFilter === 'disclosures' ? leads.length : allLeads.length}
+                {allLeads.length}
               </span>
-              {ctaFilter === 'disclosures' && (
-                <Link href="/dashboard/leads" style={{ fontSize: 12, color: C.muted, textDecoration: 'none', border: `1px solid ${C.border}`, borderRadius: 8, padding: '4px 10px' }}>
-                  ✕ Clear filter
-                </Link>
-              )}
             </div>
             <button
               onClick={downloadCSV}
@@ -482,15 +475,15 @@ function LeadsPageInner() {
           }}
             onClick={e => e.stopPropagation()}
           >
-            {/* Tier chips (V2: hot/warm/cold) */}
+            {/* Tier chips (V2: hot/warm/cold) + Disclosures */}
             <div style={{ display: 'flex', gap: 6 }}>
               {TEMP_CHIPS.map(chip => {
-                const on  = filterTemp.includes(chip.key)
+                const on  = filterTemp.includes(chip.key) && !filterDisclosures
                 const cnt = counts[chip.key] ?? 0
                 const cfg = TIER_CHIP_CFG[chip.key]
                 return (
                   <button key={chip.key} className="chip-btn"
-                    onClick={() => toggleTemp(chip.key)}
+                    onClick={() => { setFilterDisclosures(false); toggleTemp(chip.key) }}
                     style={{
                       padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
                       background: on ? `${cfg.color}22` : 'transparent',
@@ -503,6 +496,17 @@ function LeadsPageInner() {
                   </button>
                 )
               })}
+              <button className="chip-btn"
+                onClick={() => setFilterDisclosures(v => !v)}
+                style={{
+                  padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                  background: filterDisclosures ? '#D97706' + '22' : 'transparent',
+                  border: `1px solid ${filterDisclosures ? '#D97706' : C.border}`,
+                  color: filterDisclosures ? '#D97706' : C.muted,
+                }}
+              >
+                📄 Disclosures
+              </button>
             </div>
 
             <div style={{ width: 1, height: 20, background: C.border }} />
@@ -570,7 +574,7 @@ function LeadsPageInner() {
 
             {isFiltered && (
               <button
-                onClick={() => { setFilterTemp(['hot','warm','cold']); setFilterStatus([...STATUS_OPTIONS]); setFilterProperty(''); setFilterDays('all') }}
+                onClick={() => { setFilterDisclosures(false); setFilterTemp(['hot','warm','cold']); setFilterStatus([...STATUS_OPTIONS]); setFilterProperty(''); setFilterDays('all') }}
                 style={{ background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, color: C.muted, fontSize: 12, padding: '6px 12px', cursor: 'pointer', fontFamily: 'sans-serif' }}
               >Clear all</button>
             )}

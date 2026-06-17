@@ -100,9 +100,9 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
 }
 
 function KpiCard({ icon, label, value, change, sparkData, color }: {
-  icon: string; label: string; value: number; change: number; sparkData: number[]; color: string
+  icon: string; label: string; value: number; change: number | null; sparkData: number[]; color: string
 }) {
-  const pos = change >= 0
+  const pos = change !== null && change >= 0
   return (
     <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: '18px 16px 14px', display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
@@ -110,9 +110,11 @@ function KpiCard({ icon, label, value, change, sparkData, color }: {
         <span style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1.3 }}>{label}</span>
       </div>
       <div style={{ fontSize: 34, fontWeight: 900, color: C.text, lineHeight: 1, marginBottom: 5, letterSpacing: '-0.02em' }}>{value.toLocaleString()}</div>
-      <div style={{ fontSize: 11, fontWeight: 600, color: pos ? '#4ade80' : '#F87171', marginBottom: 10 }}>
-        {pos ? '↑' : '↓'} {Math.abs(change)}% vs last month
-      </div>
+      {change !== null && (
+        <div style={{ fontSize: 11, fontWeight: 600, color: pos ? '#4ade80' : '#F87171', marginBottom: 10 }}>
+          {pos ? '↑' : '↓'} {Math.abs(change)}% vs last month
+        </div>
+      )}
       <div style={{ opacity: 0.6 }}><Sparkline data={sparkData} color={color} /></div>
     </div>
   )
@@ -240,6 +242,7 @@ export default function SellerReportPage() {
   // Date range
   const createdAt    = new Date(property.created_at)
   const listingDays  = Math.max(1, Math.ceil((now.getTime() - createdAt.getTime()) / msPerDay))
+  const showComparison = listingDays >= 30
   const dateRangeStr = `${fmtDateShort(property.created_at)} – ${fmtDateShort(now.toISOString())}`
   const location     = [property.city, property.state].filter(Boolean).join(', ')
 
@@ -247,7 +250,7 @@ export default function SellerReportPage() {
   const agentName = property.agent_name || 'Your Agent'
   const hasDisclosures = packetCount > 0
   const agentMessage = [
-    `Hi there,`,
+    `Hi,`,
     ``,
     `Your home at ${property.address} is generating strong buyer interest. In the last ${listingDays} day${listingDays !== 1 ? 's' : ''}, ${totalScanCount} buyer${totalScanCount !== 1 ? 's' : ''} scanned your QR sign${showingRequests > 0 ? `, ${showingRequests} requested a showing` : ''}${hasDisclosures ? `, and ${packetCount} downloaded your disclosures` : ''}. Buyer engagement is strong compared to similar listings in the area.`,
     ``,
@@ -256,28 +259,48 @@ export default function SellerReportPage() {
     `— ${agentName}`,
   ].join('\n')
 
-  // Recent buyer activity (anonymized)
+  // Recent buyer activity — grouped by type so identical rows don't repeat.
   type AEvent = { icon: string; text: string; time: string; color: string; dot: string }
-  const activityEvents: AEvent[] = [
-    ...leads.filter((l: any) => l.motivation === 'hot').map((l: any): AEvent => ({
-      icon: '📅', text: 'Buyer requested a showing', time: l.created_at, color: '#EF4444', dot: '#EF4444',
-    })),
-    ...leads.filter((l: any) => l.notes && (l.notes as string).trim()).map((l: any): AEvent => ({
-      icon: '💬', text: 'Buyer asked a question about the property', time: l.created_at, color: '#10B981', dot: '#10B981',
-    })),
-    ...(packets ?? []).map((p: any): AEvent => ({
-      icon: '📄', text: 'Buyer downloaded property disclosures', time: p.created_at, color: '#7C3AED', dot: '#7C3AED',
-    })),
-    ...scanEvents.filter((e: any) => e.return_visit).map((e: any): AEvent => ({
-      icon: '↩️', text: 'Buyer returned to view this listing again', time: e.created_at, color: '#8B5CF6', dot: '#8B5CF6',
-    })),
-    ...scanEvents.filter((e: any) => !e.return_visit && (e.photos_viewed ?? 0) >= 5).map((e: any): AEvent => ({
-      icon: '📸', text: 'Buyer viewed all photos', time: e.created_at, color: '#14B8A6', dot: '#14B8A6',
-    })),
-    ...scanEvents.filter((e: any) => !e.return_visit && (e.photos_viewed ?? 0) < 5).map((e: any): AEvent => ({
-      icon: '📱', text: 'New buyer discovered this listing', time: e.created_at, color: '#F97316', dot: '#F97316',
-    })),
-  ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 8)
+  const activityEvents: AEvent[] = (() => {
+    const events: AEvent[] = []
+    const showingLeads = leads.filter((l: any) => tierOf(l) === 'hot')
+    if (showingLeads.length === 1) {
+      events.push({ icon: '📅', text: 'Buyer requested a showing', time: showingLeads[0].created_at, color: '#EF4444', dot: '#EF4444' })
+    } else if (showingLeads.length > 1) {
+      events.push({ icon: '📅', text: `${showingLeads.length} buyers requested a showing`, time: showingLeads[0].created_at, color: '#EF4444', dot: '#EF4444' })
+    }
+    const questionLeads = leads.filter((l: any) => l.notes && (l.notes as string).trim())
+    if (questionLeads.length === 1) {
+      events.push({ icon: '💬', text: 'Buyer asked a question about the property', time: questionLeads[0].created_at, color: '#10B981', dot: '#10B981' })
+    } else if (questionLeads.length > 1) {
+      events.push({ icon: '💬', text: `${questionLeads.length} buyers asked questions about the property`, time: questionLeads[0].created_at, color: '#10B981', dot: '#10B981' })
+    }
+    const packs = packets ?? []
+    if (packs.length === 1) {
+      events.push({ icon: '📄', text: 'Buyer downloaded property disclosures', time: packs[0].created_at, color: '#7C3AED', dot: '#7C3AED' })
+    } else if (packs.length > 1) {
+      events.push({ icon: '📄', text: `${packs.length} buyers downloaded property disclosures`, time: packs[0].created_at, color: '#7C3AED', dot: '#7C3AED' })
+    }
+    const returnVisits = scanEvents.filter((e: any) => e.return_visit)
+    if (returnVisits.length === 1) {
+      events.push({ icon: '↩️', text: 'Buyer returned to view this listing again', time: returnVisits[0].created_at, color: '#8B5CF6', dot: '#8B5CF6' })
+    } else if (returnVisits.length > 1) {
+      events.push({ icon: '↩️', text: `${returnVisits.length} buyers returned for a second look`, time: returnVisits[0].created_at, color: '#8B5CF6', dot: '#8B5CF6' })
+    }
+    const photoViewers = scanEvents.filter((e: any) => !e.return_visit && (e.photos_viewed ?? 0) >= 5)
+    if (photoViewers.length === 1) {
+      events.push({ icon: '📸', text: 'Buyer viewed all photos', time: photoViewers[0].created_at, color: '#14B8A6', dot: '#14B8A6' })
+    } else if (photoViewers.length > 1) {
+      events.push({ icon: '📸', text: `${photoViewers.length} buyers viewed all photos`, time: photoViewers[0].created_at, color: '#14B8A6', dot: '#14B8A6' })
+    }
+    const newScans = scanEvents.filter((e: any) => !e.return_visit && (e.photos_viewed ?? 0) < 5)
+    if (newScans.length === 1) {
+      events.push({ icon: '📱', text: 'New buyer discovered this listing', time: newScans[0].created_at, color: '#F97316', dot: '#F97316' })
+    } else if (newScans.length > 1) {
+      events.push({ icon: '📱', text: `${newScans.length} new buyers discovered this listing`, time: newScans[0].created_at, color: '#F97316', dot: '#F97316' })
+    }
+    return events.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+  })()
 
   const dropdownStyle: React.CSSProperties = {
     position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 50,
@@ -546,16 +569,31 @@ export default function SellerReportPage() {
           </span>
         </div>
 
-        {/* ── Headline stat: total unique buyer visits ─────────────────────── */}
-        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: '30px 28px', marginBottom: 20, textAlign: 'center' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
-            Total Unique Buyer Visits
-          </div>
-          <div style={{ fontSize: 64, fontWeight: 900, color: C.text, lineHeight: 1, letterSpacing: '-0.03em', marginBottom: 12 }}>
-            {uniqueVisits.toLocaleString()}
-          </div>
-          <div style={{ fontSize: 14, color: C.sub, maxWidth: 460, margin: '0 auto', lineHeight: 1.55 }}>
-            Verified buyer visits — timestamped, device-tracked, unfakeable
+        {/* ── Headline stats: Total Leads + QR Sign Visits ─────────────────── */}
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: '28px', marginBottom: 20 }}>
+          <div className="rpt-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
+            <div style={{ textAlign: 'center', padding: '0 20px' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+                Total Leads Captured
+              </div>
+              <div style={{ fontSize: 56, fontWeight: 900, color: C.text, lineHeight: 1, letterSpacing: '-0.03em', marginBottom: 8 }}>
+                {leads.length.toLocaleString()}
+              </div>
+              <div style={{ fontSize: 13, color: C.sub }}>
+                Buyers who reached out about your property
+              </div>
+            </div>
+            <div style={{ textAlign: 'center', padding: '0 20px', borderLeft: `1px solid ${C.border}` }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+                QR Sign Visits
+              </div>
+              <div style={{ fontSize: 56, fontWeight: 900, color: C.purpleL, lineHeight: 1, letterSpacing: '-0.03em', marginBottom: 8 }}>
+                {uniqueVisits.toLocaleString()}
+              </div>
+              <div style={{ fontSize: 13, color: C.sub }}>
+                Buyers who scanned your yard sign
+              </div>
+            </div>
           </div>
         </div>
 
@@ -587,16 +625,24 @@ export default function SellerReportPage() {
             <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Buyer Activity Over Time</span>
             <span style={{ fontSize: 12, color: C.muted, marginLeft: 8 }}>· last 8 weeks</span>
           </div>
-          <div style={{ padding: '18px 14px 10px' }}>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={weeklyData} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
-                <XAxis dataKey="week" tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
-                <Tooltip contentStyle={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text }} cursor={{ fill: C.border }} />
-                <Bar dataKey="Visits" fill={C.purpleL} radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {listingDays < 30 ? (
+            <div style={{ padding: '36px 18px', textAlign: 'center' }}>
+              <div style={{ fontSize: 28, marginBottom: 12 }}>📈</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: C.sub, marginBottom: 6 }}>Building your trend</div>
+              <div style={{ fontSize: 12, color: C.muted }}>Check back weekly — your activity chart grows with each buyer scan.</div>
+            </div>
+          ) : (
+            <div style={{ padding: '18px 14px 10px' }}>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={weeklyData} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
+                  <XAxis dataKey="week" tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip contentStyle={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text }} cursor={{ fill: C.border }} />
+                  <Bar dataKey="Visits" fill={C.purpleL} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
 
         {/* ── Peak engagement ──────────────────────────────────────────────── */}
@@ -702,11 +748,11 @@ export default function SellerReportPage() {
           <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 12 }}>Listing Performance Overview</div>
         </div>
         <div className="rpt-5col" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 20 }}>
-          <KpiCard icon="👁" label="Total Scans"          value={totalScans}      change={safePct(thisMonthScans, lastMonthScans)}       sparkData={scanSparkData}     color="#60A5FA" />
-          <KpiCard icon="👥" label="Engaged Buyers"       value={engagedBuyers}   change={safePct(thisMonthEngaged, lastMonthEngaged)}    sparkData={engagedSparkData}  color="#10B981" />
-          <KpiCard icon="💬" label="Showing Requests"     value={showingRequests} change={safePct(thisMonthShowings, lastMonthShowings)}  sparkData={showingSparkData}  color="#F59E0B" />
-          <KpiCard icon="📄" label="Disclosure Requests"  value={packetCount}     change={safePct(thisMonthPackets, lastMonthPackets)}    sparkData={packetSparkData}   color={C.purpleL} />
-          <KpiCard icon="❓" label="Buyer Questions"      value={buyerQuestions}  change={safePct(thisMonthQuestions, lastMonthQuestions)} sparkData={questionSparkData} color="#F97316" />
+          <KpiCard icon="👁" label="QR Scans"              value={totalScans}      change={showComparison ? safePct(thisMonthScans, lastMonthScans) : null}        sparkData={scanSparkData}     color="#60A5FA" />
+          <KpiCard icon="👥" label="Engaged Buyers"       value={engagedBuyers}   change={showComparison ? safePct(thisMonthEngaged, lastMonthEngaged) : null}     sparkData={engagedSparkData}  color="#10B981" />
+          <KpiCard icon="💬" label="Showing Requests"     value={showingRequests} change={showComparison ? safePct(thisMonthShowings, lastMonthShowings) : null}   sparkData={showingSparkData}  color="#F59E0B" />
+          <KpiCard icon="📄" label="Disclosure Requests"  value={packetCount}     change={showComparison ? safePct(thisMonthPackets, lastMonthPackets) : null}     sparkData={packetSparkData}   color={C.purpleL} />
+          <KpiCard icon="❓" label="Buyer Questions"      value={buyerQuestions}  change={showComparison ? safePct(thisMonthQuestions, lastMonthQuestions) : null} sparkData={questionSparkData} color="#F97316" />
         </div>
 
         {/* ── Two Columns ──────────────────────────────────────────────────── */}

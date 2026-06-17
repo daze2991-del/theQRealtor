@@ -440,7 +440,7 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
           </div>
         </div>
 
-        {/* Row 2: Share Report + PDF */}
+        {/* Row 2: Copy Report Link + Open Report + PDF */}
         <div style={{ display: 'flex', gap: 8 }}>
           <button
             onClick={copyReportLink}
@@ -453,8 +453,22 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
               transition: 'all 0.15s', textAlign: 'center',
             }}
           >
-            {copiedReport ? '✓ Report Link Copied' : '📊 Share Seller Report'}
+            {copiedReport ? '✓ Copied' : '📋 Copy Report Link'}
           </button>
+          <a
+            href={`/report/${prop.id}`}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              fontSize: 12, fontWeight: 700,
+              background: C.purple, color: '#fff',
+              border: 'none',
+              borderRadius: 9, padding: '8px 12px',
+              textDecoration: 'none', display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap',
+            }}
+          >
+            Open Report →
+          </a>
           <a
             href={`/report/${prop.id}?print=true`}
             target="_blank"

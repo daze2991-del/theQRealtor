@@ -22,7 +22,7 @@ function StatusBadge({ active, toggling, onToggle }: { active: boolean; toggling
   return (
     <button
       onClick={onToggle} disabled={toggling}
-      title={active ? 'Your buyer page is capturing leads 24/7 — buyers can scan anytime. Click to take offline.' : 'Click to go live'}
+      title={active ? 'Your buyer page is capturing leads 24/7 — buyers can scan anytime.' : 'Click to go live'}
       style={{
         display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
         background: active ? '#062014' : '#18181F',
@@ -461,31 +461,33 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
           </div>
         </div>
 
-        {/* FIX 3 — Copy Shareable Link + Open Report + PDF */}
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            onClick={copyReportLink}
-            title="Send this link to your seller."
-            style={{
-              flex: 1, fontSize: 12, fontWeight: 600,
-              background: copiedReport ? '#052e16' : `${C.purple}14`,
-              color: copiedReport ? '#4ade80' : C.purpleL,
-              border: `1px solid ${copiedReport ? '#166534' : C.purple + '40'}`,
-              borderRadius: 9, padding: '8px 10px', cursor: 'pointer',
-              transition: 'all 0.15s', textAlign: 'center',
-            }}
-          >
-            {copiedReport ? '✓ Copied' : '📋 Copy Shareable Link'}
-          </button>
+        {/* Copy Shareable Link + Open Report + PDF — normalized row */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <button
+              onClick={copyReportLink}
+              style={{
+                width: '100%', fontSize: 12, fontWeight: 600,
+                background: copiedReport ? '#052e16' : `${C.purple}14`,
+                color: copiedReport ? '#4ade80' : C.purpleL,
+                border: `1px solid ${copiedReport ? '#166534' : C.purple + '40'}`,
+                borderRadius: 9, padding: '9px 10px', cursor: 'pointer',
+                transition: 'all 0.15s', textAlign: 'center',
+              }}
+            >
+              {copiedReport ? '✓ Copied' : '📋 Copy Shareable Link'}
+            </button>
+            <div style={{ fontSize: 11, color: C.muted, textAlign: 'center' }}>Send this link to your seller.</div>
+          </div>
           <a
             href={`/report/${prop.id}`}
             target="_blank"
             rel="noreferrer"
             style={{
-              fontSize: 12, fontWeight: 700,
-              background: C.purple, color: '#fff',
-              border: 'none',
-              borderRadius: 9, padding: '8px 12px',
+              fontSize: 12, fontWeight: 600, flexShrink: 0,
+              background: `${C.purple}14`, color: C.purpleL,
+              border: `1px solid ${C.purple}40`,
+              borderRadius: 9, padding: '9px 12px',
               textDecoration: 'none', display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap',
             }}
           >
@@ -496,17 +498,16 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
             target="_blank"
             rel="noreferrer"
             style={{
-              fontSize: 12, fontWeight: 600,
+              fontSize: 12, fontWeight: 600, flexShrink: 0,
               background: 'transparent', color: C.purpleL,
-              border: `1px solid ${C.purple + '40'}`,
-              borderRadius: 9, padding: '8px 12px',
+              border: `1px solid ${C.purple}40`,
+              borderRadius: 9, padding: '9px 12px',
               textDecoration: 'none', display: 'inline-flex', alignItems: 'center',
             }}
           >
-            ⬇ PDF
+            PDF
           </a>
         </div>
-        <div style={{ fontSize: 11, color: C.muted, textAlign: 'center' }}>Send this link to your seller.</div>
       </div>
 
       {/* ── Edit Modal ── */}
@@ -833,7 +834,7 @@ export default function PropertiesPage() {
                 <select
                   value={sortMode}
                   onChange={e => setSortMode(e.target.value as 'recent' | 'leads' | 'active')}
-                  style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 9, padding: '9px 14px', color: C.sub, fontSize: 13, cursor: 'pointer' }}
+                  style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 9, padding: '9px 14px', color: C.sub, fontSize: 13, cursor: 'pointer', flexShrink: 0, minWidth: 140 }}
                 >
                   <option value="recent">Most Recent</option>
                   <option value="leads">Most Leads</option>

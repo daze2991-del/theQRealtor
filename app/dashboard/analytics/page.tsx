@@ -187,15 +187,13 @@ export default function AnalyticsPage() {
       const pScans = scans.filter((s: any) => s.property_id === p.id).length
       const pLeads = leads.filter((l: any) => l.property_id === p.id).length
       const hasUnworkedHot = leads.some((l: any) => l.property_id === p.id && leadTier(l) === 'hot' && isUncontacted(l))
-      return {
-        address: p.address,
-        scans: pScans,
-        leads: pLeads,
-        conv: pScans > 0 ? ((pLeads / pScans) * 100).toFixed(0) + '%' : '—',
-        flag: hasUnworkedHot,
-      }
+      const rawConv = pScans > 0 ? (pLeads / pScans) * 100 : null
+      const isCapped = rawConv !== null && rawConv > 100
+      const conv = rawConv === null ? '—' : isCapped ? '100%*' : Math.round(rawConv) + '%'
+      return { address: p.address, scans: pScans, leads: pLeads, conv, isCapped, flag: hasUnworkedHot }
     })
     .sort((a, b) => b.scans - a.scans)
+  const anyLeaderboardCapped = leaderboardRows.some(r => r.isCapped)
 
   // ── shared styles ─────────────────────────────────────────────────────────
 
@@ -415,6 +413,9 @@ export default function AnalyticsPage() {
             {/* ── CONVERSION FUNNEL ──────────────────────────────────────── */}
             <div style={card}>
               <div style={h2}>Conversion funnel</div>
+              <p style={{ fontSize: 12, color: C.muted, marginTop: -10, marginBottom: 16 }}>
+                Note: lead count may exceed scans for pre-existing data. Funnel will normalize as new scans accumulate.
+              </p>
               {totalScans === 0 ? (
                 <p style={{ color: C.muted, fontSize: 14 }}>No activity yet — place QR signs to start the funnel.</p>
               ) : (() => {
@@ -465,29 +466,36 @@ export default function AnalyticsPage() {
                 {leaderboardRows.length === 0
                   ? <p style={{ color: C.muted, fontSize: 14 }}>No properties yet.</p>
                   : (
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                      <thead>
-                        <tr>
-                          <th style={th}>Property</th>
-                          <th style={{ ...th, textAlign: 'right' }}>Scans</th>
-                          <th style={{ ...th, textAlign: 'right' }}>Leads</th>
-                          <th style={{ ...th, textAlign: 'right' }}>Conv%</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {leaderboardRows.map((row, i) => (
-                          <tr key={i}>
-                            <td style={td}>
-                              <span style={{ marginRight: 4 }}>{row.flag ? '🔥' : ''}</span>
-                              {row.address}
-                            </td>
-                            <td style={{ ...td, textAlign: 'right', color: C.purpleL, fontWeight: 700 }}>{row.scans}</td>
-                            <td style={{ ...td, textAlign: 'right', color: '#FFD700', fontWeight: 700 }}>{row.leads}</td>
-                            <td style={{ ...td, textAlign: 'right', color: C.muted, fontWeight: 600 }}>{row.conv}</td>
+                    <>
+                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr>
+                            <th style={th}>Property</th>
+                            <th style={{ ...th, textAlign: 'right' }}>Scans</th>
+                            <th style={{ ...th, textAlign: 'right' }}>Leads</th>
+                            <th style={{ ...th, textAlign: 'right' }}>Conv%</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {leaderboardRows.map((row, i) => (
+                            <tr key={i}>
+                              <td style={td}>
+                                <span style={{ marginRight: 4 }}>{row.flag ? '🔥' : ''}</span>
+                                {row.address}
+                              </td>
+                              <td style={{ ...td, textAlign: 'right', color: C.purpleL, fontWeight: 700 }}>{row.scans}</td>
+                              <td style={{ ...td, textAlign: 'right', color: '#FFD700', fontWeight: 700 }}>{row.leads}</td>
+                              <td style={{ ...td, textAlign: 'right', color: C.muted, fontWeight: 600 }}>{row.conv}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {anyLeaderboardCapped && (
+                        <div style={{ fontSize: 11, color: C.muted, marginTop: 10 }}>
+                          * Capped at 100% — includes pre-fix leads
+                        </div>
+                      )}
+                    </>
                   )
                 }
               </div>

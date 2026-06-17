@@ -577,12 +577,31 @@ export default function LandingPage() {
           </p>
         </div>
 
+        {/* Benefit bullets */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px 32px', maxWidth: 560, margin: '0 auto 40px', textAlign: 'left' }}>
+          {[
+            '✓ Capture every buyer who scans your sign',
+            '✓ Know which buyers are most interested',
+            '✓ Generate leads automatically',
+            '✓ Know who to call first',
+          ].map(b => (
+            <div key={b} style={{ fontSize: 15, color: C.sub, fontWeight: 500 }}>{b}</div>
+          ))}
+        </div>
+
         <div className="price-card" style={{
           background: C.navy2, border: `2px solid ${C.blue}60`,
           borderRadius: 24, padding: '40px 40px',
           boxShadow: `0 0 80px ${C.blue}15`,
           maxWidth: 680, margin: '0 auto',
         }}>
+          {/* Scarcity */}
+          <div style={{ textAlign: 'center', marginBottom: 28 }}>
+            <span style={{ fontSize: 15, fontWeight: 800, color: '#F97316' }}>
+              🔥 Only 10 Founding Agent Spots Available
+            </span>
+          </div>
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 36 }}>
             {[
               { icon: '🚀', text: '90 days free · Full platform access · Unlimited listings' },

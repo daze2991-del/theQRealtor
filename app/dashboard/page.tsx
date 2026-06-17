@@ -432,12 +432,12 @@ export default function Dashboard() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
             {/* Hot Leads */}
-            <Card>
+            <Card style={{ height: 320, display: 'flex', flexDirection: 'column' }}>
               <CardHead
                 title={<span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Flame size={14} color="#EF4444" /> Hot leads need attention</span>}
                 action={<Link href="/dashboard/leads" style={{ fontSize: 11, color: C.purpleL, textDecoration: 'none', fontWeight: 600 }}>View all →</Link>}
               />
-              <div>
+              <div style={{ flex: 1, overflowY: 'auto' }}>
                 {hotLeads.length === 0 ? (
                   <div style={{ padding: '32px 18px', textAlign: 'center', color: C.muted, fontSize: 13 }}>No hot or motivated leads yet.</div>
                 ) : (
@@ -474,11 +474,12 @@ export default function Dashboard() {
             </Card>
 
             {/* Properties list */}
-            <Card>
+            <Card style={{ height: 320, display: 'flex', flexDirection: 'column' }}>
               <CardHead
                 title={`Your Properties (${properties.length})`}
                 action={<Link href="/dashboard/properties" style={{ fontSize: 11, color: C.purpleL, textDecoration: 'none', fontWeight: 600 }}>View all →</Link>}
               />
+              <div style={{ flex: 1, overflowY: 'auto' }}>
               {properties.length === 0 ? (
                 <div style={{ padding: '32px 18px', textAlign: 'center', color: C.muted, fontSize: 13 }}>No properties yet. <Link href="/dashboard/new-property" style={{ color: C.purpleL }}>Add one →</Link></div>
               ) : (
@@ -525,6 +526,7 @@ export default function Dashboard() {
                   )}
                 </div>
               )}
+              </div>
             </Card>
 
             </div>{/* end left column */}

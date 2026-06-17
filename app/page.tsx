@@ -189,7 +189,7 @@ export default function LandingPage() {
 
         <div className="nav-links" style={{ display: 'flex', gap: 32, alignItems: 'center' }}>
           <a href="#features" style={{ fontSize: 14, color: C.sub, textDecoration: 'none', fontWeight: 500 }}>Features</a>
-          <a href="#pricing" style={{ fontSize: 14, color: C.sub, textDecoration: 'none', fontWeight: 500 }}>Pricing</a>
+          <a href="#pricing" style={{ fontSize: 14, color: C.sub, textDecoration: 'none', fontWeight: 500 }}>Founding Agents</a>
           <Link href="/auth" style={{ fontSize: 14, color: C.sub, textDecoration: 'none', fontWeight: 500 }}>Sign In</Link>
         </div>
 
@@ -202,7 +202,7 @@ export default function LandingPage() {
             textDecoration: 'none', flexShrink: 0,
             letterSpacing: '-0.01em',
           }}>
-            Start Free Trial
+            Apply for Access
           </Link>
         </div>
       </nav>
@@ -252,7 +252,7 @@ export default function LandingPage() {
                 textDecoration: 'none', letterSpacing: '-0.01em',
                 boxShadow: `0 4px 24px ${C.blue}60`,
               }}>
-                Start Free Trial →
+                Apply for Founding Agent Access →
               </Link>
               <a href="#how-it-works" style={{
                 background: 'transparent', color: C.sub,
@@ -265,7 +265,7 @@ export default function LandingPage() {
             </div>
 
             <div style={{ marginTop: 24, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              {['✓ No credit card required', '✓ Setup in minutes', '✓ Cancel anytime'].map((item, i) => (
+              {['✓ No credit card required', '✓ 90 days free', '✓ Limited to 10 agents'].map((item, i) => (
                 <span key={i} style={{ fontSize: 13, color: C.muted }}>
                   <span style={{ color: C.blueXL, fontWeight: 700 }}>{item.slice(0, 1)}</span>{item.slice(1)}{i < 2 ? <span style={{ color: C.border, margin: '0 6px' }}>·</span> : null}
                 </span>
@@ -355,7 +355,7 @@ export default function LandingPage() {
             fontSize: 15, fontWeight: 700, padding: '12px 28px', borderRadius: 11,
             textDecoration: 'none', boxShadow: `0 4px 20px ${C.blue}50`,
           }}>
-            Start Free Trial →
+            Apply for Founding Agent Access →
           </Link>
         </div>
       </section>
@@ -559,58 +559,6 @@ export default function LandingPage() {
                 </div>
               ))}
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── HOW IT WORKS (pre-pricing summary) ── */}
-      <section style={{ background: C.navy3, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }}>
-        <div style={{ maxWidth: 1140, margin: '0 auto', padding: '96px 32px' }}>
-          <div style={{ textAlign: 'center', marginBottom: 56 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.blueXL, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>
-              How It Works
-            </div>
-            <h2 style={{ fontSize: 38, fontWeight: 900, color: C.text, margin: 0, letterSpacing: '-0.025em', lineHeight: 1.15 }}>
-              From yard sign to captured lead in seconds.
-            </h2>
-          </div>
-
-          <div className="steps-grid" style={{ display: 'flex', gap: 20 }}>
-            {[
-              {
-                step: '01', emoji: '🪧',
-                title: 'Put the QR code on your sign',
-                body: 'Print and attach. No app needed for buyers.',
-              },
-              {
-                step: '02', emoji: '📱',
-                title: 'Buyer scans, lead is captured',
-                body: 'They browse the property, click a CTA, and their info is yours instantly.',
-              },
-              {
-                step: '03', emoji: '🔔',
-                title: 'You get alerted, you call first',
-                body: "SMS alert with buyer details. You know who's hot before anyone else does.",
-              },
-            ].map(({ step, emoji, title, body }) => (
-              <div key={step} style={{ flex: 1 }}>
-                <div style={{
-                  background: C.navy2, border: `1px solid ${C.border}`,
-                  borderRadius: 20, padding: '28px 24px', height: '100%',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
-                    <div style={{
-                      width: 44, height: 44, borderRadius: 12, flexShrink: 0,
-                      background: `${C.blue}25`, border: `1px solid ${C.blue}40`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22,
-                    }}>{emoji}</div>
-                    <span style={{ fontSize: 12, fontWeight: 800, color: C.blue, letterSpacing: '0.06em' }}>STEP {step}</span>
-                  </div>
-                  <div style={{ fontSize: 17, fontWeight: 800, color: C.text, margin: '0 0 10px', letterSpacing: '-0.01em', lineHeight: 1.25 }}>{title}</div>
-                  <div style={{ fontSize: 14, color: C.sub, lineHeight: 1.7 }}>{body}</div>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </section>

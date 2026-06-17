@@ -607,9 +607,8 @@ export default function LandingPage() {
               { icon: '🚀', text: '90 days free · Full platform access · Unlimited listings' },
               { icon: '💳', text: 'No credit card required during beta' },
               { icon: '💬', text: 'Direct access to the founder — your feedback shapes the roadmap' },
-              { icon: '📧', text: 'At day 75, agents receive an email: beta ends in 15 days, account converts automatically' },
-              { icon: '🔒', text: 'After 90 days: $24.99/month, locked in for life' },
-              { icon: '📈', text: 'Future public pricing expected at $49+/month' },
+              { icon: '📧', text: 'At day 75, agents receive a reminder to activate their Founding Agent membership and keep their grandfathered pricing.' },
+              { icon: '🔒', text: 'Founding Agent Rate — $24.99/month forever. Future public pricing expected at $49+/month. Save 50% for the life of your account.' },
               { icon: '✅', text: 'Pricing stays locked as long as account remains active' },
             ].map(({ icon, text }) => (
               <div key={text} style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
@@ -642,7 +641,7 @@ export default function LandingPage() {
             textDecoration: 'none', letterSpacing: '-0.01em',
             boxShadow: `0 4px 24px ${C.blue}50`,
           }}>
-            Apply for Founding Agent Access →
+            Lock In Founding Agent Pricing →
           </Link>
           <p style={{ fontSize: 13, color: C.muted, textAlign: 'center', marginTop: 14, marginBottom: 0, lineHeight: 1.6 }}>
             Limited enrollment while we work directly with agents during beta.

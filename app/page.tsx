@@ -563,77 +563,123 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── PRICING ── */}
-      <section id="pricing" style={{ maxWidth: 1140, margin: '0 auto', padding: '96px 32px' }}>
-        <div style={{ textAlign: 'center', marginBottom: 56 }}>
+      {/* ── HOW IT WORKS (pre-pricing summary) ── */}
+      <section style={{ background: C.navy3, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ maxWidth: 1140, margin: '0 auto', padding: '96px 32px' }}>
+          <div style={{ textAlign: 'center', marginBottom: 56 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.blueXL, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>
+              How It Works
+            </div>
+            <h2 style={{ fontSize: 38, fontWeight: 900, color: C.text, margin: 0, letterSpacing: '-0.025em', lineHeight: 1.15 }}>
+              From yard sign to captured lead in seconds.
+            </h2>
+          </div>
+
+          <div className="steps-grid" style={{ display: 'flex', gap: 20 }}>
+            {[
+              {
+                step: '01', emoji: '🪧',
+                title: 'Put the QR code on your sign',
+                body: 'Print and attach. No app needed for buyers.',
+              },
+              {
+                step: '02', emoji: '📱',
+                title: 'Buyer scans, lead is captured',
+                body: 'They browse the property, click a CTA, and their info is yours instantly.',
+              },
+              {
+                step: '03', emoji: '🔔',
+                title: 'You get alerted, you call first',
+                body: "SMS alert with buyer details. You know who's hot before anyone else does.",
+              },
+            ].map(({ step, emoji, title, body }) => (
+              <div key={step} style={{ flex: 1 }}>
+                <div style={{
+                  background: C.navy2, border: `1px solid ${C.border}`,
+                  borderRadius: 20, padding: '28px 24px', height: '100%',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
+                    <div style={{
+                      width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+                      background: `${C.blue}25`, border: `1px solid ${C.blue}40`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22,
+                    }}>{emoji}</div>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: C.blue, letterSpacing: '0.06em' }}>STEP {step}</span>
+                  </div>
+                  <div style={{ fontSize: 17, fontWeight: 800, color: C.text, margin: '0 0 10px', letterSpacing: '-0.01em', lineHeight: 1.25 }}>{title}</div>
+                  <div style={{ fontSize: 14, color: C.sub, lineHeight: 1.7 }}>{body}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── FOUNDING AGENT PROGRAM ── */}
+      <section id="pricing" style={{ maxWidth: 820, margin: '0 auto', padding: '96px 32px' }}>
+        <div style={{ textAlign: 'center', marginBottom: 52 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: C.blueXL, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>
-            Pricing
+            Early Access
           </div>
           <h2 style={{ fontSize: 38, fontWeight: 900, color: C.text, margin: '0 0 16px', letterSpacing: '-0.025em', lineHeight: 1.15 }}>
-            Simple. No surprises.
+            Founding Agent Program
           </h2>
-          <p style={{ fontSize: 16, color: C.sub, maxWidth: 420, margin: '0 auto', lineHeight: 1.65 }}>
-            One plan. Everything included. Cancel anytime.
+          <p style={{ fontSize: 17, color: C.sub, maxWidth: 560, margin: '0 auto', lineHeight: 1.65 }}>
+            Limited to the first 10 qualified agents. Help shape the future of theQRealtor and lock in your pricing for life.
           </p>
         </div>
 
-        <div style={{ maxWidth: 480, margin: '0 auto' }}>
-          <div className="price-card" style={{
-            background: C.navy2, border: `2px solid ${C.blue}`,
-            borderRadius: 24, padding: '40px 36px',
-            boxShadow: `0 0 80px ${C.blue}20`,
+        <div className="price-card" style={{
+          background: C.navy2, border: `2px solid ${C.blue}60`,
+          borderRadius: 24, padding: '40px 40px',
+          boxShadow: `0 0 80px ${C.blue}15`,
+          maxWidth: 680, margin: '0 auto',
+        }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 36 }}>
+            {[
+              { icon: '🚀', text: '90 days free · Full platform access · Unlimited listings' },
+              { icon: '💳', text: 'No credit card required during beta' },
+              { icon: '💬', text: 'Direct access to the founder — your feedback shapes the roadmap' },
+              { icon: '📧', text: 'At day 75, agents receive an email: beta ends in 15 days, account converts automatically' },
+              { icon: '🔒', text: 'After 90 days: $24.99/month, locked in for life' },
+              { icon: '📈', text: 'Future public pricing expected at $49+/month' },
+              { icon: '✅', text: 'Pricing stays locked as long as account remains active' },
+            ].map(({ icon, text }) => (
+              <div key={text} style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                <div style={{
+                  width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+                  background: `${C.blue}20`, border: `1px solid ${C.blue}35`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, marginTop: 1,
+                }}>{icon}</div>
+                <span style={{ fontSize: 15, color: C.sub, lineHeight: 1.65 }}>{text}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Why 90 days callout */}
+          <div style={{
+            background: `${C.blue}12`, border: `1px solid ${C.blue}30`,
+            borderRadius: 14, padding: '18px 22px', marginBottom: 36,
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: C.blueXL, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Pro Plan</div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                  <span style={{ fontSize: 48, fontWeight: 900, color: C.text, letterSpacing: '-0.03em' }}>$29</span>
-                  <span style={{ fontSize: 16, color: C.muted }}>/mo</span>
-                </div>
-                <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>or $249/yr <span style={{ color: C.green, fontWeight: 700 }}>— save 28%</span></div>
-              </div>
-              <div style={{
-                background: `${C.blue}25`, border: `1px solid ${C.blue}40`,
-                borderRadius: 10, padding: '6px 12px',
-                fontSize: 12, fontWeight: 700, color: C.blueXL,
-              }}>
-                Most Popular
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}>
-              {[
-                'Unlimited properties',
-                'Unlimited QR codes',
-                'Instant SMS alerts',
-                'Lead Intent Scoring',
-                'Seller Reports',
-                'Sign Studio',
-                'CSV export',
-              ].map(f => (
-                <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 20, height: 20, borderRadius: '50%', background: `${C.blue}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <span style={{ fontSize: 11, color: C.blueXL, fontWeight: 800 }}>✓</span>
-                  </div>
-                  <span style={{ fontSize: 15, color: C.sub }}>{f}</span>
-                </div>
-              ))}
-            </div>
-
-            <Link href="/auth" style={{
-              display: 'block', textAlign: 'center',
-              background: C.blue, color: '#fff',
-              fontSize: 16, fontWeight: 800,
-              padding: '15px', borderRadius: 12,
-              textDecoration: 'none', letterSpacing: '-0.01em',
-              boxShadow: `0 4px 24px ${C.blue}50`,
-            }}>
-              Start Free Trial →
-            </Link>
-            <p style={{ fontSize: 12, color: C.muted, textAlign: 'center', marginTop: 12, marginBottom: 0 }}>
-              No credit card required to start
+            <div style={{ fontSize: 13, fontWeight: 800, color: C.blueXL, marginBottom: 8 }}>Why 90 days?</div>
+            <p style={{ fontSize: 14, color: C.sub, margin: 0, lineHeight: 1.75 }}>
+              Real estate listings and buyer activity vary by season. 90 days gives agents enough time to place QR codes, collect scans, generate leads, and build the habit across multiple listings.
             </p>
           </div>
+
+          <Link href="/auth" style={{
+            display: 'block', textAlign: 'center',
+            background: C.blue, color: '#fff',
+            fontSize: 16, fontWeight: 800,
+            padding: '16px', borderRadius: 12,
+            textDecoration: 'none', letterSpacing: '-0.01em',
+            boxShadow: `0 4px 24px ${C.blue}50`,
+          }}>
+            Apply for Founding Agent Access →
+          </Link>
+          <p style={{ fontSize: 13, color: C.muted, textAlign: 'center', marginTop: 14, marginBottom: 0, lineHeight: 1.6 }}>
+            Limited enrollment while we work directly with agents during beta.
+          </p>
         </div>
       </section>
 

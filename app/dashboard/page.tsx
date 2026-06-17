@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DashboardLayout from '../../components/DashboardLayout'
 import { LineChart, Line, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-import { QrCode, Users, CalendarCheck, FileText, Flame, TrendingUp, BarChart2, Home, MapPin, Phone, Bell, Calendar, Sparkles, Share2, Download, RotateCcw, Minus, DollarSign } from 'lucide-react'
+import { QrCode, Users, CalendarCheck, FileText, Flame, TrendingUp, BarChart2, Home, MapPin, Phone, Bell, Calendar, Sparkles, Share2, Download, RotateCcw, Minus, AlertCircle } from 'lucide-react'
 import { calcPropertyInterest } from '../../lib/propertyInterest'
 
 // ── Tokens ────────────────────────────────────────────────────────────────────
@@ -192,6 +192,7 @@ export default function Dashboard() {
   const [copiedReport,     setCopiedReport]      = useState(false)
   const [origin,           setOrigin]            = useState('')
   const [hotBuyersCount,   setHotBuyersCount]    = useState(0)
+  const [needsFollowUp,    setNeedsFollowUp]     = useState(0)
 
   useEffect(() => { setOrigin(window.location.origin) }, [])
 
@@ -234,7 +235,7 @@ export default function Dashboard() {
         supabase.from('qrcodes').select('id, label, property_id, scan_count').in('property_id', ids),
         supabase.from('leads').select('*').in('property_id', ids).order('created_at', { ascending: false }).limit(20),
         supabase.from('leads').select('*', { count: 'exact', head: true }).in('property_id', ids),
-        supabase.from('leads').select('property_id, motivation, tier, created_at').in('property_id', ids),
+        supabase.from('leads').select('property_id, motivation, tier, status, created_at').in('property_id', ids),
         supabase.from('property_photos').select('property_id, url').in('property_id', ids).order('sort_order', { ascending: true }),
         supabase.from('scan_events').select('property_id, created_at, return_visit').in('property_id', ids).order('created_at', { ascending: false }).limit(50),
         supabase.from('packet_requests').select('property_id, created_at').in('property_id', ids).order('created_at', { ascending: false }).limit(20),
@@ -314,6 +315,7 @@ export default function Dashboard() {
       setPropHotLeads(hotByProp)
       setPipelineCounts(pipeline)
       setHotBuyersCount((leadsPerProp || []).filter((l: any) => l.tier === 'hot').length)
+      setNeedsFollowUp((leadsPerProp || []).filter((l: any) => l.tier === 'hot' && (!l.status || l.status === 'new')).length)
       setTopPropId(topEntry?.[0] ?? null)
       setActivityFeed(feedItems.slice(0, 10))
       setLastMonthLeads(prevLeadsResult.count || 0)
@@ -340,7 +342,6 @@ export default function Dashboard() {
   const hotCount        = pipelineCounts.hot || 0
   const scanChange      = pctDiff(totalScansAll, prevMonthScans)
   const leadChange      = pctDiff(totalLeads, lastMonthLeads)
-  const pipelineValue   = `$${totalLeads * 8}K`
   const topProp         = topPropId ? properties.find(p => p.id === topPropId) : null
   const topPropLeads    = topPropId ? (propLeadCounts[topPropId] || 0) : 0
 
@@ -399,7 +400,7 @@ export default function Dashboard() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
             <div>
               <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, margin: '0 0 4px', letterSpacing: '-0.02em' }}>
-                {greeting}{firstName ? `, ${firstName}` : ''}! 👋
+                {greeting}{firstName ? `, ${firstName}` : ''}!
               </h1>
               <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>Here's what's happening with your properties.</p>
             </div>
@@ -422,14 +423,14 @@ export default function Dashboard() {
             <KpiCard icon={<Flame         size={18} color={ACCENT.red.color}    />} label="Hot Buyers"              value={hotBuyersCount}   change={null}        accent={ACCENT.red}    />
             <KpiCard icon={<Users         size={18} color={ACCENT.green.color}  />} label="New Leads"               value={totalLeads}       change={leadChange}  accent={ACCENT.green}  sparkData={leadSparkline} caption="Last 30 days" />
             <KpiCard icon={<CalendarCheck size={18} color={ACCENT.blue.color}   />} label="Showing Requests"         value={hotCount}         change={null}        accent={ACCENT.blue}   sparkData={scanSparkline.map((_, i) => i % 3 === 0 ? 1 : 0)} />
-            <KpiCard icon={<DollarSign    size={18} color={ACCENT.amber.color}  />} label="Pipeline Value"           value={pipelineValue}    change={null}        accent={ACCENT.amber}  caption="Est. commission opportunity" tooltip="Based on leads captured × estimated avg commission." />
+            <KpiCard icon={<AlertCircle   size={18} color={ACCENT.amber.color}  />} label="Needs Follow-Up"          value={needsFollowUp}    change={null}        accent={ACCENT.amber}  caption="Hot buyers awaiting contact" />
           </div>
 
           {/* ── SECTION 3: Three-column middle ── */}
           <div className="db-mid3">
 
             {/* Hot Leads */}
-            <Card>
+            <Card style={{ alignSelf: 'start' }}>
               <CardHead
                 title={<span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Flame size={14} color="#EF4444" /> Hot leads need attention</span>}
                 action={<Link href="/dashboard/leads" style={{ fontSize: 11, color: C.purpleL, textDecoration: 'none', fontWeight: 600 }}>View all →</Link>}
@@ -527,7 +528,7 @@ export default function Dashboard() {
           <div className="db-bot2">
 
             {/* Properties list */}
-            <Card>
+            <Card style={{ alignSelf: 'start' }}>
               <CardHead
                 title={`Your Properties (${properties.length})`}
                 action={<Link href="/dashboard/properties" style={{ fontSize: 11, color: C.purpleL, textDecoration: 'none', fontWeight: 600 }}>View all →</Link>}

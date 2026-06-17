@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DashboardLayout from '../../components/DashboardLayout'
 import { LineChart, Line, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-import { QrCode, Users, CalendarCheck, FileText, Flame, TrendingUp, BarChart2, Home, MapPin, Phone, Bell, Calendar, Sparkles, Share2, Download, RotateCcw, Minus } from 'lucide-react'
+import { QrCode, Users, CalendarCheck, FileText, Flame, TrendingUp, BarChart2, Home, MapPin, Phone, Bell, Calendar, Sparkles, Share2, Download, RotateCcw, Minus, DollarSign } from 'lucide-react'
 import { calcPropertyInterest } from '../../lib/propertyInterest'
 
 // ── Tokens ────────────────────────────────────────────────────────────────────
@@ -27,6 +27,7 @@ const ACCENT = {
   green:  { color: '#4ADE80', bg: '#06200F',   border: '#166534'    },
   blue:   { color: '#60A5FA', bg: '#0B1E3A',   border: '#1E4D8C'    },
   amber:  { color: '#FCD34D', bg: '#2D1A06',   border: '#92400E'    },
+  red:    { color: '#EF4444', bg: '#3B0D0D',   border: '#EF444435'  },
 }
 
 const MOTIV: Record<string, { label: string; color: string; bg: string; border: string }> = {
@@ -86,11 +87,13 @@ function DonutChart({ segments, total }: { segments: Array<{ value: number; colo
 }
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
-function KpiCard({ icon, label, value, change, accent, sparkData }: {
+function KpiCard({ icon, label, value, change, accent, sparkData, caption, tooltip }: {
   icon: React.ReactNode; label: string; value: number | string;
   change?: { n: number; up: boolean } | null;
   accent: typeof ACCENT[keyof typeof ACCENT];
   sparkData?: number[];
+  caption?: string;
+  tooltip?: string;
 }) {
   return (
     <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: '18px 20px 14px', display: 'flex', flexDirection: 'column', gap: 10, position: 'relative', overflow: 'hidden' }}>
@@ -99,13 +102,17 @@ function KpiCard({ icon, label, value, change, accent, sparkData }: {
         <div style={{ width: 36, height: 36, borderRadius: 10, background: accent.bg, border: `1px solid ${accent.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>{icon}</div>
         <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</span>
       </div>
-      <div style={{ fontSize: 48, fontWeight: 900, color: C.text, lineHeight: 1, letterSpacing: '-0.03em' }}>{value}</div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+        <div style={{ fontSize: 48, fontWeight: 900, color: C.text, lineHeight: 1, letterSpacing: '-0.03em' }}>{value}</div>
+        {tooltip && <span title={tooltip} style={{ fontSize: 11, color: C.muted, cursor: 'help', flexShrink: 0 }}>ⓘ</span>}
+      </div>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
         <div style={{ fontSize: 11, fontWeight: 600, color: change ? (change.up ? accent.color : '#F87171') : C.muted, lineHeight: 1.3 }}>
-          {change ? `${change.up ? '+' : '-'}${change.n}% vs last month` : '— flat'}
+          {change ? `${change.up ? '+' : '-'}${change.n}% vs last month` : (!caption ? '— flat' : null)}
         </div>
         {sparkData && <Sparkline data={sparkData} color={accent.color} />}
       </div>
+      {caption && <div style={{ fontSize: 11, color: C.muted, marginTop: -4 }}>{caption}</div>}
     </div>
   )
 }
@@ -184,6 +191,7 @@ export default function Dashboard() {
   const [propertiesLoaded, setPropertiesLoaded]  = useState(false)
   const [copiedReport,     setCopiedReport]      = useState(false)
   const [origin,           setOrigin]            = useState('')
+  const [hotBuyersCount,   setHotBuyersCount]    = useState(0)
 
   useEffect(() => { setOrigin(window.location.origin) }, [])
 
@@ -226,7 +234,7 @@ export default function Dashboard() {
         supabase.from('qrcodes').select('id, label, property_id, scan_count').in('property_id', ids),
         supabase.from('leads').select('*').in('property_id', ids).order('created_at', { ascending: false }).limit(20),
         supabase.from('leads').select('*', { count: 'exact', head: true }).in('property_id', ids),
-        supabase.from('leads').select('property_id, motivation, created_at').in('property_id', ids),
+        supabase.from('leads').select('property_id, motivation, tier, created_at').in('property_id', ids),
         supabase.from('property_photos').select('property_id, url').in('property_id', ids).order('sort_order', { ascending: true }),
         supabase.from('scan_events').select('property_id, created_at, return_visit').in('property_id', ids).order('created_at', { ascending: false }).limit(50),
         supabase.from('packet_requests').select('property_id, created_at').in('property_id', ids).order('created_at', { ascending: false }).limit(20),
@@ -305,6 +313,7 @@ export default function Dashboard() {
       setPropThumbs(thumbMap)
       setPropHotLeads(hotByProp)
       setPipelineCounts(pipeline)
+      setHotBuyersCount((leadsPerProp || []).filter((l: any) => l.tier === 'hot').length)
       setTopPropId(topEntry?.[0] ?? null)
       setActivityFeed(feedItems.slice(0, 10))
       setLastMonthLeads(prevLeadsResult.count || 0)
@@ -331,6 +340,7 @@ export default function Dashboard() {
   const hotCount        = pipelineCounts.hot || 0
   const scanChange      = pctDiff(totalScansAll, prevMonthScans)
   const leadChange      = pctDiff(totalLeads, lastMonthLeads)
+  const pipelineValue   = `$${totalLeads * 8}K`
   const topProp         = topPropId ? properties.find(p => p.id === topPropId) : null
   const topPropLeads    = topPropId ? (propLeadCounts[topPropId] || 0) : 0
 
@@ -409,10 +419,10 @@ export default function Dashboard() {
 
           {/* ── SECTION 2: KPI Cards ── */}
           <div className="db-kpi4">
-            <KpiCard icon={<QrCode        size={18} color={ACCENT.purple.color} />} label="QR Scans"            value={totalScansAll}    change={scanChange}  accent={ACCENT.purple} sparkData={scanSparkline} />
-            <KpiCard icon={<Users         size={18} color={ACCENT.green.color}  />} label="New Leads"           value={totalLeads}       change={leadChange}  accent={ACCENT.green}  sparkData={leadSparkline} />
-            <KpiCard icon={<CalendarCheck size={18} color={ACCENT.blue.color}   />} label="Showing Requests"    value={hotCount}         change={null}        accent={ACCENT.blue}   sparkData={scanSparkline.map((_, i) => i % 3 === 0 ? 1 : 0)} />
-            <KpiCard icon={<FileText      size={18} color={ACCENT.amber.color}  />} label="Disclosure Requests" value={totalPacketCount} change={null}        accent={ACCENT.amber}  />
+            <KpiCard icon={<Flame         size={18} color={ACCENT.red.color}    />} label="Hot Buyers"              value={hotBuyersCount}   change={null}        accent={ACCENT.red}    />
+            <KpiCard icon={<Users         size={18} color={ACCENT.green.color}  />} label="New Leads"               value={totalLeads}       change={leadChange}  accent={ACCENT.green}  sparkData={leadSparkline} caption="Last 30 days" />
+            <KpiCard icon={<CalendarCheck size={18} color={ACCENT.blue.color}   />} label="Showing Requests"         value={hotCount}         change={null}        accent={ACCENT.blue}   sparkData={scanSparkline.map((_, i) => i % 3 === 0 ? 1 : 0)} />
+            <KpiCard icon={<DollarSign    size={18} color={ACCENT.amber.color}  />} label="Pipeline Value"           value={pipelineValue}    change={null}        accent={ACCENT.amber}  caption="Est. commission opportunity" tooltip="Based on leads captured × estimated avg commission." />
           </div>
 
           {/* ── SECTION 3: Three-column middle ── */}

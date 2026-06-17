@@ -148,6 +148,22 @@ function MotivBadge({ level }: { level: string }) {
   )
 }
 
+// ── Lead card helpers ─────────────────────────────────────────────────────────
+function getCtaPill(sb: any): { label: string; color: string; bg: string } | null {
+  if (!sb) return null
+  if (sb.requested_showing > 0) return { label: 'Showing Requested', color: '#EF4444', bg: '#3B0D0D' }
+  if (sb.question_asked    > 0) return { label: 'Question Asked',     color: '#60A5FA', bg: '#0F2238' }
+  if (sb.packet_requested  > 0) return { label: 'Info Requested',     color: '#6B7280', bg: '#1F2937' }
+  return null
+}
+function getRecommendedAction(lead: any): string {
+  const hoursSince = lead.last_activity_at
+    ? (Date.now() - new Date(lead.last_activity_at).getTime()) / 3600000
+    : Infinity
+  if (lead.motivation === 'hot') return hoursSince < 24 ? 'Call today' : 'Follow up now'
+  return 'Nurture'
+}
+
 // ── Section card wrapper ──────────────────────────────────────────────────────
 function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
@@ -193,6 +209,8 @@ export default function Dashboard() {
   const [origin,           setOrigin]            = useState('')
   const [hotBuyersCount,   setHotBuyersCount]    = useState(0)
   const [needsFollowUp,    setNeedsFollowUp]     = useState(0)
+  const [hotNotCalled,     setHotNotCalled]      = useState(0)
+  const [warmNotCalled,    setWarmNotCalled]      = useState(0)
 
   useEffect(() => { setOrigin(window.location.origin) }, [])
 
@@ -251,11 +269,15 @@ export default function Dashboard() {
       const hotByProp: Record<string, number> = {}
       const pipeline: Record<string, number> = { hot: 0, motivated: 0, warm: 0, cold: 0 }
       const monthLeadsByProp: Record<string, number> = {}
+      let hotNotCalledCount = 0, warmNotCalledCount = 0
       ;(leadsPerProp || []).forEach((l: any) => {
         leadMap[l.property_id] = (leadMap[l.property_id] || 0) + 1
         if (l.motivation && pipeline[l.motivation] !== undefined) pipeline[l.motivation]++
         if (l.motivation === 'hot') hotByProp[l.property_id] = (hotByProp[l.property_id] || 0) + 1
         if (l.created_at >= monthISO) monthLeadsByProp[l.property_id] = (monthLeadsByProp[l.property_id] || 0) + 1
+        const uncontacted = !l.status || l.status === 'new'
+        if (l.motivation === 'hot' && uncontacted) hotNotCalledCount++
+        if ((l.motivation === 'motivated' || l.motivation === 'warm') && uncontacted) warmNotCalledCount++
       })
       const topEntry = Object.entries(monthLeadsByProp).sort((a, b) => b[1] - a[1])[0]
 
@@ -316,6 +338,8 @@ export default function Dashboard() {
       setPipelineCounts(pipeline)
       setHotBuyersCount((leadsPerProp || []).filter((l: any) => l.tier === 'hot').length)
       setNeedsFollowUp((leadsPerProp || []).filter((l: any) => l.tier === 'hot' && (!l.status || l.status === 'new')).length)
+      setHotNotCalled(hotNotCalledCount)
+      setWarmNotCalled(warmNotCalledCount)
       setTopPropId(topEntry?.[0] ?? null)
       setActivityFeed(feedItems.slice(0, 10))
       setLastMonthLeads(prevLeadsResult.count || 0)
@@ -417,12 +441,30 @@ export default function Dashboard() {
             </div>
           </div>
 
+          {/* ── Today's Focus ── */}
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.purple}`, borderRadius: 12, padding: '11px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Today's Focus</div>
+              {needsFollowUp === 0 && hotCount === 0 ? (
+                <span style={{ fontSize: 13, color: C.sub }}>You're all caught up — no urgent actions right now.</span>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {needsFollowUp > 0 && <span style={{ fontSize: 13, color: C.sub }}>• {needsFollowUp} hot buyer{needsFollowUp !== 1 ? 's' : ''} awaiting contact</span>}
+                  {hotCount > 0 && <span style={{ fontSize: 13, color: C.sub }}>• {hotCount} showing request{hotCount !== 1 ? 's' : ''} pending</span>}
+                </div>
+              )}
+            </div>
+            {(needsFollowUp > 0 || hotCount > 0) && (
+              <Link href="/dashboard/leads" style={{ fontSize: 12, fontWeight: 700, color: C.purpleL, textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0 }}>Review Leads →</Link>
+            )}
+          </div>
+
           {/* ── SECTION 2: KPI Cards ── */}
           <div className="db-kpi4">
-            <KpiCard icon={<Flame         size={18} color={ACCENT.red.color}    />} label="Hot Buyers"              value={hotBuyersCount}   change={null}        accent={ACCENT.red}    />
-            <KpiCard icon={<Users         size={18} color={ACCENT.green.color}  />} label="New Leads"               value={totalLeads}       change={leadChange}  accent={ACCENT.green}  sparkData={leadSparkline} caption="Last 30 days" />
-            <KpiCard icon={<CalendarCheck size={18} color={ACCENT.blue.color}   />} label="Showing Requests"         value={hotCount}         change={null}        accent={ACCENT.blue}   sparkData={scanSparkline.map((_, i) => i % 3 === 0 ? 1 : 0)} />
-            <KpiCard icon={<AlertCircle   size={18} color={ACCENT.amber.color}  />} label="Needs Follow-Up"          value={needsFollowUp}    change={null}        accent={ACCENT.amber}  caption="Hot buyers awaiting contact" />
+            <KpiCard icon={<Flame         size={18} color={ACCENT.red.color}    />} label="Hot Buyers"       value={hotBuyersCount} change={null}       accent={ACCENT.red}   caption={hotBuyersCount === 0 ? 'Place your first QR sign to start capturing buyers' : undefined} />
+            <KpiCard icon={<Users         size={18} color={ACCENT.green.color}  />} label="New Leads"        value={totalLeads}     change={leadChange} accent={ACCENT.green} sparkData={leadSparkline} caption="Last 30 days" />
+            <KpiCard icon={<CalendarCheck size={18} color={ACCENT.blue.color}   />} label="Showing Requests" value={hotCount}       change={null}       accent={ACCENT.blue}  sparkData={scanSparkline.map((_, i) => i % 3 === 0 ? 1 : 0)} caption={hotCount === 0 ? "Appears when buyers click 'Request a Showing'" : undefined} />
+            <KpiCard icon={<AlertCircle   size={18} color={ACCENT.amber.color}  />} label="Needs Follow-Up"  value={needsFollowUp}  change={null}       accent={ACCENT.amber} caption={needsFollowUp === 0 ? "You're all caught up" : 'Hot buyers awaiting contact'} />
           </div>
 
           {/* ── SECTION 3+4+5: Two-column main layout ── */}
@@ -439,36 +481,43 @@ export default function Dashboard() {
               />
               <div style={{ flex: 1, overflowY: 'auto' }}>
                 {hotLeads.length === 0 ? (
-                  <div style={{ padding: '32px 18px', textAlign: 'center', color: C.muted, fontSize: 13 }}>No hot or motivated leads yet.</div>
+                  <div style={{ padding: '32px 18px', textAlign: 'center', color: C.muted, fontSize: 13, lineHeight: 1.6 }}>No hot leads right now. Hot buyers appear here the moment a buyer shows strong intent.</div>
                 ) : (
-                  hotLeads.map((lead: any, i: number) => (
-                    <div key={lead.id} className="db-hover" style={{ padding: '12px 18px', borderBottom: i < hotLeads.length - 1 ? `1px solid ${C.border}` : 'none', background: C.card }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{
-                          width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-                          background: MOTIV[lead.motivation]?.bg ?? C.card,
-                          border: `2px solid ${MOTIV[lead.motivation]?.border ?? C.border}60`,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 11, fontWeight: 700, color: MOTIV[lead.motivation]?.color ?? C.muted,
-                        }}>{(lead.name || '??').slice(0, 2).toUpperCase()}</div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 3 }}>
-                            <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{lead.name || 'Unknown'}</span>
-                            <MotivBadge level={lead.motivation} />
+                  hotLeads.map((lead: any, i: number) => {
+                    const ctaPill = getCtaPill(lead.score_breakdown)
+                    const recAction = getRecommendedAction(lead)
+                    return (
+                      <div key={lead.id} className="db-hover" style={{ padding: '11px 18px', borderBottom: i < hotLeads.length - 1 ? `1px solid ${C.border}` : 'none', background: C.card }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                          <div style={{
+                            width: 32, height: 32, borderRadius: '50%', flexShrink: 0, marginTop: 1,
+                            background: MOTIV[lead.motivation]?.bg ?? C.card,
+                            border: `2px solid ${MOTIV[lead.motivation]?.border ?? C.border}60`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 10, fontWeight: 700, color: MOTIV[lead.motivation]?.color ?? C.muted,
+                          }}>{(lead.name || '??').slice(0, 2).toUpperCase()}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 2 }}>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{lead.name || 'Unknown'}</span>
+                              <MotivBadge level={lead.motivation} />
+                              {lead.phone && <a href={`tel:${lead.phone}`} style={{ width: 24, height: 24, borderRadius: 6, background: `${C.purple}20`, border: `1px solid ${C.purple}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', marginLeft: 'auto' }}><Phone size={11} color={C.purpleL} /></a>}
+                            </div>
+                            <div style={{ fontSize: 10, color: C.muted, display: 'flex', alignItems: 'center', gap: 3, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              <MapPin size={9} />{propNameMap[lead.property_id] || '—'}
+                            </div>
+                            <div style={{ display: 'flex', gap: 10, marginBottom: 4 }}>
+                              {lead.intent_score != null && <span style={{ fontSize: 10, color: C.muted }}>Score: <span style={{ color: C.sub, fontWeight: 600 }}>{lead.intent_score}</span></span>}
+                              {lead.last_activity_at && <span style={{ fontSize: 10, color: C.muted }}>Last active {timeAgo(lead.last_activity_at)}</span>}
+                            </div>
+                            {ctaPill && (
+                              <span style={{ display: 'inline-block', fontSize: 10, fontWeight: 700, color: ctaPill.color, background: ctaPill.bg, borderRadius: 4, padding: '2px 6px', marginBottom: 4 }}>{ctaPill.label}</span>
+                            )}
+                            <div style={{ fontSize: 10, fontWeight: 700, color: C.purpleL }}>{recAction}</div>
                           </div>
-                          <div style={{ fontSize: 11, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 3 }}>
-                            <MapPin size={10} />{propNameMap[lead.property_id] || '—'}
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                          <span style={{ fontSize: 10, color: C.muted }}>{timeAgo(lead.created_at)}</span>
-                          {lead.phone && (
-                            <a href={`tel:${lead.phone}`} style={{ width: 28, height: 28, borderRadius: 7, background: `${C.purple}20`, border: `1px solid ${C.purple}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}><Phone size={13} color={C.purpleL} /></a>
-                          )}
                         </div>
                       </div>
-                    </div>
-                  ))
+                    )
+                  })
                 )}
               </div>
             </Card>
@@ -481,42 +530,31 @@ export default function Dashboard() {
               />
               <div style={{ flex: 1, overflowY: 'auto' }}>
               {properties.length === 0 ? (
-                <div style={{ padding: '32px 18px', textAlign: 'center', color: C.muted, fontSize: 13 }}>No properties yet. <Link href="/dashboard/new-property" style={{ color: C.purpleL }}>Add one →</Link></div>
+                <div style={{ padding: '32px 18px', textAlign: 'center', color: C.muted, fontSize: 13 }}>No properties yet. <Link href="/dashboard/properties" style={{ color: C.purpleL }}>Add Property →</Link></div>
               ) : (
                 <div>
-                  {properties.slice(0, 4).map((p: any, i: number) => {
-                    const scans  = propScanCounts[p.id] || 0
-                    const leads  = propLeadCounts[p.id] || 0
-                    const hot    = propHotLeads[p.id] || 0
-                    const packet = propPacketCounts[p.id] || 0
-                    const thumb  = propThumbs[p.id]
-                    const loc    = [p.city, p.state].filter(Boolean).join(', ')
+                  {[...properties].sort((a, b) => (propLeadCounts[b.id] || 0) - (propLeadCounts[a.id] || 0)).slice(0, 4).map((p: any, i: number, arr) => {
+                    const scans = propScanCounts[p.id] || 0
+                    const leads = propLeadCounts[p.id] || 0
+                    const hot   = propHotLeads[p.id] || 0
+                    const isTop = i === 0 && properties.length >= 2
                     return (
-                      <div key={p.id} className="db-hover" style={{ padding: '12px 18px', borderBottom: i < Math.min(properties.length, 4) - 1 ? `1px solid ${C.border}` : 'none', background: C.card }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          {thumb ? (
-                            <img src={thumb} alt="" style={{ width: 48, height: 48, borderRadius: 9, objectFit: 'cover', flexShrink: 0, border: `1px solid ${C.border}` }} />
-                          ) : (
-                            <div style={{ width: 48, height: 48, borderRadius: 9, flexShrink: 0, background: `${C.purple}18`, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Home size={22} color={C.purpleL} /></div>
-                          )}
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-                              <span style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>{p.address}</span>
-                              <HealthBadge scans={scans} leads={leads} hot={hot} />
-                            </div>
-                            {loc && <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>{loc}</div>}
-                            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                              <span style={{ fontSize: 11, color: C.purpleL, fontWeight: 600 }}>{scans} scans</span>
-                              <span style={{ fontSize: 11, color: '#FCD34D', fontWeight: 600 }}>{leads} leads</span>
-                              {hot > 0 && <span style={{ fontSize: 11, color: '#EF4444', fontWeight: 600 }}>{hot} showing</span>}
-                              {packet > 0 && <span style={{ fontSize: 11, color: '#D97706', fontWeight: 600 }}>{packet} packets</span>}
-                            </div>
+                      <Link key={p.id} href={`/dashboard/properties/${p.id}`} style={{ textDecoration: 'none', display: 'block' }}>
+                        <div className="db-hover" style={{ padding: '11px 18px', borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : 'none', background: C.card }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{p.address}</span>
+                            <HealthBadge scans={scans} leads={leads} hot={hot} />
+                            {isTop && <span style={{ fontSize: 10, fontWeight: 700, color: '#FCD34D', flexShrink: 0 }}>🏆 Top</span>}
                           </div>
-                          <Link href="/dashboard/properties" style={{ fontSize: 11, fontWeight: 700, color: C.purpleL, textDecoration: 'none', background: `${C.purple}18`, border: `1px solid ${C.purple}30`, borderRadius: 7, padding: '5px 10px', flexShrink: 0 }}>
-                            Details
-                          </Link>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
+                            <span style={{ color: '#FCD34D', fontWeight: 600 }}>{leads}</span><span style={{ color: C.muted }}>Leads</span>
+                            <span style={{ color: C.border }}>·</span>
+                            <span style={{ color: '#EF4444', fontWeight: 600 }}>{hot}</span><span style={{ color: C.muted }}>Showings</span>
+                            <span style={{ color: C.border }}>·</span>
+                            <span style={{ color: C.purpleL, fontWeight: 600 }}>{scans}</span><span style={{ color: C.muted }}>Scans</span>
+                          </div>
                         </div>
-                      </div>
+                      </Link>
                     )
                   })}
                   {properties.length > 4 && (
@@ -535,25 +573,26 @@ export default function Dashboard() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div className="db-rtop">
 
-            {/* Lead Pipeline Donut */}
+            {/* Lead Health */}
             <Card>
-              <CardHead title="Lead Pipeline" />
-              <div style={{ padding: '20px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-                <DonutChart segments={donutSegments} total={totalLeads} />
-                <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {donutSegments.map(seg => {
-                    const pct = totalLeads > 0 ? Math.round((seg.value / totalLeads) * 100) : 0
-                    return (
-                      <div key={seg.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ width: 8, height: 8, borderRadius: 2, background: seg.color, flexShrink: 0 }} />
-                        <span style={{ fontSize: 12, color: C.sub, flex: 1 }}>{seg.label}</span>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{seg.value}</span>
-                        <span style={{ fontSize: 11, color: C.muted, minWidth: 32, textAlign: 'right' }}>{pct}%</span>
-                      </div>
-                    )
-                  })}
-                </div>
-                <p style={{ fontSize: 11, color: C.muted, margin: 0, textAlign: 'center' }}>Based on buyer intent &amp; engagement</p>
+              <CardHead title="Lead Health" />
+              <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {[
+                  { label: 'Hot',  color: '#EF4444', count: pipelineCounts.hot || 0,                                           uncontacted: hotNotCalled  },
+                  { label: 'Warm', color: '#60A5FA', count: (pipelineCounts.motivated || 0) + (pipelineCounts.warm || 0),       uncontacted: warmNotCalled },
+                  { label: 'Cold', color: '#6B7280', count: pipelineCounts.cold || 0,                                           uncontacted: null          },
+                ].map(({ label, color, count, uncontacted }) => (
+                  <div key={label} style={{ borderLeft: `3px solid ${color}`, paddingLeft: 10, paddingTop: 5, paddingBottom: 5 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: C.text, minWidth: 36 }}>{label}</span>
+                      <span style={{ fontSize: 12, color: C.sub }}>{count} lead{count !== 1 ? 's' : ''}</span>
+                      {uncontacted !== null && uncontacted > 0 && (
+                        <span style={{ fontSize: 11, color: C.muted }}>· {uncontacted} not yet called</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                <p style={{ fontSize: 11, color: C.muted, margin: '4px 0 0', textAlign: 'center' }}>Based on buyer intent &amp; engagement</p>
               </div>
             </Card>
 

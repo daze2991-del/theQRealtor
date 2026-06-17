@@ -183,12 +183,20 @@ export default function BillingPage() {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 16 }}>
                   {[
-                    { label: 'Leads Captured',                value: leadCount.toString() },
-                    { label: 'Est. Commission Opportunity',   value: commissionOpp > 0 ? `$${commissionOpp.toLocaleString()}+` : '—' },
-                    { label: 'Monthly Cost',                  value: plan === 'pro' ? '$19/mo' : '$0' },
-                  ].map(({ label, value }) => (
+                    { label: 'Leads Captured',                value: leadCount.toString(),                                         isComm: false },
+                    { label: 'Est. Commission Opportunity',   value: commissionOpp > 0 ? `$${commissionOpp.toLocaleString()}+` : '—', isComm: true },
+                    { label: 'Monthly Cost',                  value: plan === 'pro' ? '$19/mo' : '$0',                             isComm: false },
+                  ].map(({ label, value, isComm }) => (
                     <div key={label} style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`, borderRadius: 10, padding: '14px 12px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 22, fontWeight: 800, color: C.purpleL, lineHeight: 1, marginBottom: 6 }}>{value}</div>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: C.purpleL, lineHeight: 1, marginBottom: 6 }}>
+                        {value}
+                        {isComm && commissionOpp > 0 && (
+                          <span
+                            title="Based on leads captured × estimated local transaction value × average commission rate. Actual results vary."
+                            style={{ fontSize: 11, color: C.muted, marginLeft: 4, cursor: 'help', verticalAlign: 'middle' }}
+                          >ⓘ</span>
+                        )}
+                      </div>
                       <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4 }}>{label}</div>
                     </div>
                   ))}
@@ -330,22 +338,20 @@ export default function BillingPage() {
                     </thead>
                     <tbody>
                       {[
-                        ['Properties',            '1',          'Unlimited'],
-                        ['QR codes per property', 'Unlimited',  'Unlimited'],
-                        ['Lead capture form',     '✓',          '✓'],
-                        ['Scan tracking',         '✓',          '✓'],
-                        ['Agent SMS alerts',      '✓',          '✓'],
-                        ['Analytics dashboard',   '✓',          '✓'],
-                        ['CSV export',            '✓',          '✓'],
-                        ['Priority support',      '—',          '✓'],
-                        ['Multi-Agent Teams',     '—',          'Coming Soon'],
+                        ['Properties',             '1',  'Unlimited'],
+                        ['Buyer Lead Capture',     '✓',  '✓'],
+                        ['QR Sign Tracking',       '✓',  '✓'],
+                        ['Buyer Interest Scoring', '—',  '✓'],
+                        ['SMS Lead Alerts',        '—',  '✓'],
+                        ['Seller Reports',         '—',  '✓'],
+                        ['Analytics Dashboard',    '—',  '✓'],
+                        ['CSV Export',             '—',  '✓'],
+                        ['Priority Support',       '—',  '✓'],
                       ].map(([feature, free, pro], i) => (
                         <tr key={i} style={{ borderTop: `1px solid ${C.border}` }}>
                           <td style={{ padding: '10px 0', color: C.text }}>{feature}</td>
                           <td style={{ textAlign: 'center', color: C.muted, padding: '10px 0' }}>{free}</td>
-                          <td style={{ textAlign: 'center', padding: '10px 0', fontWeight: pro === 'Coming Soon' ? 600 : 700, color: pro === 'Coming Soon' ? '#A78BFA' : C.purpleL, fontSize: pro === 'Coming Soon' ? 11 : 14 }}>
-                            {pro}
-                          </td>
+                          <td style={{ textAlign: 'center', padding: '10px 0', fontWeight: 700, color: C.purpleL }}>{pro}</td>
                         </tr>
                       ))}
                     </tbody>

@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
 } from 'recharts'
 import DashboardLayout from '../../../components/DashboardLayout'
+import { TIER_V2_CFG } from '../../../lib/leadScoringV2'
 
 // ── tokens ──────────────────────────────────────────────────────────────────
 
@@ -43,11 +43,24 @@ function groupByDay(rows: { created_at: string }[]): Record<string, number> {
   return map
 }
 
-const MOTIVATION_CONFIG: Record<string, { label: string; color: string }> = {
-  cold:      { label: 'Just browsing',        color: '#6B7280' },
-  warm:      { label: 'Casually looking',     color: '#60A5FA' },
-  motivated: { label: 'Actively searching',   color: '#FB923C' },
-  hot:       { label: 'Ready to offer',       color: '#F87171' },
+function hoursSince(isoStr: string): number {
+  return (Date.now() - new Date(isoStr).getTime()) / 3_600_000
+}
+
+function leadTier(l: any): 'hot' | 'warm' | 'cold' {
+  if (l.tier === 'hot' || l.tier === 'warm' || l.tier === 'cold') return l.tier
+  // fall back to motivation mapping
+  if (l.motivation === 'hot' || l.motivation === 'motivated') return 'hot'
+  if (l.motivation === 'warm') return 'warm'
+  return 'cold'
+}
+
+function isUncontacted(l: any): boolean {
+  return (l.status ?? 'new') === 'new'
+}
+
+function requestedShowing(l: any): boolean {
+  return (l.score_breakdown?.requested_showing ?? 0) > 0
 }
 
 const CHART_COLORS = { scans: '#8B5CF6', leads: '#FFD700' }
@@ -58,19 +71,21 @@ export default function AnalyticsPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
 
-  const [scans, setScans]               = useState<any[]>([])
-  const [leads, setLeads]               = useState<any[]>([])
-  const [properties, setProperties]     = useState<any[]>([])
-  const [returnVisitCount, setReturnVisitCount]     = useState(0)
-  const [thisMonthLeadCount, setThisMonthLeadCount] = useState(0)
-  const [lastMonthLeadCount, setLastMonthLeadCount] = useState(0)
-  const [packetCount,      setPacketCount]          = useState(0)
+  const [scans, setScans]           = useState<any[]>([])
+  const [leads, setLeads]           = useState<any[]>([])
+  const [properties, setProperties] = useState<any[]>([])
+  const [prevScanCount, setPrevScanCount] = useState(0)
+  const [prevLeadCount, setPrevLeadCount] = useState(0)
+  const [oldLastSeen, setOldLastSeen]     = useState<string | null>(null)
+  const [sessionUserId, setSessionUserId] = useState<string | null>(null)
 
   useEffect(() => {
     const load = async () => {
       const supabase = createBrowserSupabase()
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.push('/auth'); return }
+
+      setSessionUserId(session.user.id)
 
       const { data: props } = await supabase
         .from('properties')
@@ -83,50 +98,45 @@ export default function AnalyticsPage() {
 
       if (propertyIds.length === 0) { setLoading(false); return }
 
-      const cutoff = new Date()
-      cutoff.setDate(cutoff.getDate() - 29)
-      const cutoffStr = cutoff.toISOString()
-      const thisMonthStart = new Date(); thisMonthStart.setDate(1); thisMonthStart.setHours(0, 0, 0, 0)
-      const lastMonthStart = new Date(thisMonthStart); lastMonthStart.setMonth(lastMonthStart.getMonth() - 1)
+      const now = new Date()
+      const cutoff30 = new Date(now); cutoff30.setDate(cutoff30.getDate() - 29)
+      const cutoff60 = new Date(now); cutoff60.setDate(cutoff60.getDate() - 59)
+      const cutoffStr  = cutoff30.toISOString()
+      const cutoff60Str = cutoff60.toISOString()
 
       const [
         { data: scanData },
         { data: leadData },
-        { count: rvCount },
-        { count: thisMonthCount },
-        { count: lastMonthCount },
-        { count: pktCount },
+        { data: profileData },
+        { count: prevScans },
+        { count: prevLeads },
       ] = await Promise.all([
         supabase.from('scan_events').select('property_id, created_at').in('property_id', propertyIds).gte('created_at', cutoffStr),
-        supabase.from('leads').select('property_id, motivation, created_at').in('property_id', propertyIds).gte('created_at', cutoffStr),
-        supabase.from('scan_events').select('*', { count: 'exact', head: true })
-          .in('property_id', propertyIds).eq('return_visit', true).gte('created_at', cutoffStr),
-        supabase.from('leads').select('*', { count: 'exact', head: true })
-          .in('property_id', propertyIds).gte('created_at', thisMonthStart.toISOString()),
-        supabase.from('leads').select('*', { count: 'exact', head: true })
-          .in('property_id', propertyIds)
-          .gte('created_at', lastMonthStart.toISOString())
-          .lt('created_at', thisMonthStart.toISOString()),
-        supabase.from('packet_requests').select('*', { count: 'exact', head: true })
-          .in('property_id', propertyIds).gte('created_at', cutoffStr),
+        supabase.from('leads').select('id, name, property_id, motivation, tier, intent_score, status, last_contacted_at, last_activity_at, score_breakdown, created_at').in('property_id', propertyIds).gte('created_at', cutoffStr),
+        supabase.from('profiles').select('last_seen_analytics_at').eq('id', session.user.id).single(),
+        supabase.from('scan_events').select('*', { count: 'exact', head: true }).in('property_id', propertyIds).gte('created_at', cutoff60Str).lt('created_at', cutoffStr),
+        supabase.from('leads').select('*', { count: 'exact', head: true }).in('property_id', propertyIds).gte('created_at', cutoff60Str).lt('created_at', cutoffStr),
       ])
 
+      const lastSeen = profileData?.last_seen_analytics_at ?? null
+      setOldLastSeen(lastSeen)
       setScans(scanData || [])
       setLeads(leadData || [])
-      setReturnVisitCount(rvCount || 0)
-      setThisMonthLeadCount(thisMonthCount || 0)
-      setLastMonthLeadCount(lastMonthCount || 0)
-      setPacketCount(pktCount || 0)
+      setPrevScanCount(prevScans || 0)
+      setPrevLeadCount(prevLeads || 0)
       setLoading(false)
+
+      // update last_seen AFTER capturing the old value above
+      supabase.from('profiles').update({ last_seen_analytics_at: now.toISOString() }).eq('id', session.user.id).then(() => {})
     }
     load()
   }, [])
 
   // ── derived data ──────────────────────────────────────────────────────────
 
-  const days = last30Days()
-  const scansByDay = groupByDay(scans)
-  const leadsByDay = groupByDay(leads)
+  const days        = last30Days()
+  const scansByDay  = groupByDay(scans)
+  const leadsByDay  = groupByDay(leads)
 
   const timelineData = days.map(day => ({
     day: day.slice(5),
@@ -134,46 +144,57 @@ export default function AnalyticsPage() {
     Leads: leadsByDay[day] || 0,
   }))
 
-  const motivationData = Object.entries(MOTIVATION_CONFIG).map(([key, cfg]) => ({
-    name: cfg.label,
-    value: leads.filter(l => l.motivation === key).length,
-    color: cfg.color,
-  })).filter(d => d.value > 0)
+  const totalScans  = scans.length
+  const totalLeads  = leads.length
 
+  // conversion rate with prior-window comparison
+  const convNow  = totalScans  > 0 ? (totalLeads  / totalScans)  * 100 : null
+  const convPrev = prevScanCount > 0 ? (prevLeadCount / prevScanCount) * 100 : null
+  const convDelta = convNow !== null && convPrev !== null ? convNow - convPrev : null
+
+  // briefing
+  const AGING_HOURS = 6
+  const agingHot = leads.filter(l => leadTier(l) === 'hot' && isUncontacted(l) && hoursSince(l.created_at) >= AGING_HOURS)
+  const outstandingShowings = leads.filter(l => requestedShowing(l) && isUncontacted(l))
+  const newSinceLastVisit = oldLastSeen ? leads.filter(l => l.created_at > oldLastSeen) : []
+  const newHot = newSinceLastVisit.filter(l => leadTier(l) === 'hot')
+  const allCaughtUp = agingHot.length === 0 && outstandingShowings.length === 0 && (oldLastSeen === null || newSinceLastVisit.length === 0)
+
+  // funnel
+  const funnelContacted = leads.filter(l => !isUncontacted(l)).length
+  const funnelShowing   = leads.filter(requestedShowing).length
+
+  // tier distribution
+  const tierRows = (['hot', 'warm', 'cold'] as const).map(tier => {
+    const total = leads.filter(l => leadTier(l) === tier).length
+    const uncontacted = leads.filter(l => leadTier(l) === tier && isUncontacted(l)).length
+    return { tier, total, uncontacted, cfg: TIER_V2_CFG[tier] }
+  })
+
+  // seller-report readiness
+  const readyProperties = properties.filter(p => {
+    const pScans = scans.filter((s: any) => s.property_id === p.id).length
+    const pLeads = leads.filter((l: any) => l.property_id === p.id).length
+    return pScans >= 10 || pLeads >= 3
+  })
+
+  // leaderboard with conversion %
   const leaderboardRows = properties
-    .map(p => ({
-      address: p.address,
-      scans: scans.filter((s: any) => s.property_id === p.id).length,
-      leads: leads.filter((l: any) => l.property_id === p.id).length,
-    }))
+    .map(p => {
+      const pScans = scans.filter((s: any) => s.property_id === p.id).length
+      const pLeads = leads.filter((l: any) => l.property_id === p.id).length
+      const hasUnworkedHot = leads.some((l: any) => l.property_id === p.id && leadTier(l) === 'hot' && isUncontacted(l))
+      return {
+        address: p.address,
+        scans: pScans,
+        leads: pLeads,
+        conv: pScans > 0 ? ((pLeads / pScans) * 100).toFixed(0) + '%' : '—',
+        flag: hasUnworkedHot,
+      }
+    })
     .sort((a, b) => b.scans - a.scans)
 
-  const totalScans = scans.length
-  const totalLeads = leads.length
-  const convRate   = totalScans > 0 ? ((totalLeads / totalScans) * 100).toFixed(1) + '%' : 'Not enough data yet'
-
-  // ── Insights ──────────────────────────────────────────────────────────────
-  const hotLeadsCount = leads.filter((l: any) => l.motivation === 'hot').length
-  const monthGrowth   = lastMonthLeadCount > 0
-    ? Math.round(((thisMonthLeadCount - lastMonthLeadCount) / lastMonthLeadCount) * 100)
-    : null
-  const topPropByLeads = [...properties]
-    .map((p: any) => ({ ...p, count30d: leads.filter((l: any) => l.property_id === p.id).length }))
-    .sort((a: any, b: any) => b.count30d - a.count30d)[0]
-
-  const insightCards: Array<{ icon: string; accent: string; text: string; sub: string }> = []
-  if (totalLeads === 0 && totalScans === 0) {
-    insightCards.push({ icon: '📍', accent: C.muted, text: 'Place your first QR sign to start seeing insights', sub: "Once buyers scan, you'll see real activity and lead data here." })
-  } else {
-    if (hotLeadsCount > 0) insightCards.push({ icon: '🔥', accent: '#EF4444', text: `${hotLeadsCount} buyer${hotLeadsCount > 1 ? 's' : ''} ready to act — call them today`, sub: 'Hot buyers have shown strong purchase intent. Reach out now.' })
-    if (monthGrowth !== null && monthGrowth > 0) insightCards.push({ icon: '📈', accent: '#22C55E', text: `Lead volume up ${monthGrowth}% this month vs last month`, sub: 'Your QR signs are generating more leads than before.' })
-    if (monthGrowth !== null && monthGrowth < 0) insightCards.push({ icon: '📉', accent: '#F97316', text: `Lead volume down ${Math.abs(monthGrowth)}% this month vs last month`, sub: 'Consider adding more QR signs or promoting your listings.' })
-    if (topPropByLeads?.count30d > 0) insightCards.push({ icon: '🏆', accent: '#FCD34D', text: `${topPropByLeads.address} is your top listing this month`, sub: `${topPropByLeads.count30d} lead${topPropByLeads.count30d > 1 ? 's' : ''} captured in the last 30 days.` })
-    if (returnVisitCount > 0) insightCards.push({ icon: '↩️', accent: C.purpleL, text: `${returnVisitCount} buyer${returnVisitCount > 1 ? 's' : ''} returned to view listings multiple times`, sub: 'Return visitors show strong purchase intent.' })
-    if (packetCount > 0) insightCards.push({ icon: '📄', accent: '#D97706', text: `${packetCount} buyer${packetCount > 1 ? 's' : ''} requested your property packet`, sub: 'Packet requests show high research intent — follow up promptly.' })
-  }
-
-  // ── shared card / table styles ────────────────────────────────────────────
+  // ── shared styles ─────────────────────────────────────────────────────────
 
   const card: React.CSSProperties = {
     background: C.card, border: `1px solid ${C.border}`,
@@ -193,12 +214,15 @@ export default function AnalyticsPage() {
     textTransform: 'uppercase', letterSpacing: '0.06em',
   }
 
+  const s = (n: number) => n === 1 ? '' : 's'
+
   return (
     <DashboardLayout>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         .an-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
         @media (max-width: 900px) { .an-grid2 { grid-template-columns: 1fr; } }
+        .briefing-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; margin-bottom: 28px; }
       `}</style>
 
       {loading ? (
@@ -216,7 +240,7 @@ export default function AnalyticsPage() {
       ) : (
         <>
           {/* Top bar */}
-          <div className="db-page-topbar" style={{
+          <div style={{
             position: 'sticky', top: 0, zIndex: 10,
             background: C.bg, borderBottom: `1px solid ${C.border}`,
             padding: '16px 28px',
@@ -234,65 +258,204 @@ export default function AnalyticsPage() {
           {/* Page body */}
           <div style={{ flex: 1, padding: '28px 28px 40px', overflowY: 'auto', fontFamily: 'sans-serif' }}>
 
-            {/* Insights */}
-            {insightCards.length > 0 && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 14, marginBottom: 28 }}>
-                {insightCards.map((ins, i) => (
-                  <div key={i} style={{
-                    background: C.card, border: `1px solid ${C.border}`,
-                    borderRadius: 14, padding: '18px 20px',
-                    borderLeft: `3px solid ${ins.accent}`,
-                    display: 'flex', flexDirection: 'column', gap: 6,
-                  }}>
-                    <div style={{ fontSize: 22 }}>{ins.icon}</div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: C.text, lineHeight: 1.35 }}>{ins.text}</div>
-                    <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.55 }}>{ins.sub}</div>
-                  </div>
-                ))}
+            {/* ── TODAY BRIEFING ─────────────────────────────────────────── */}
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>
+                Today's briefing
+              </div>
+            </div>
+
+            {allCaughtUp ? (
+              <div className="briefing-grid">
+                <div style={{
+                  ...card, marginBottom: 0,
+                  borderLeft: `3px solid ${C.muted}`,
+                  display: 'flex', flexDirection: 'column', gap: 6,
+                }}>
+                  <div style={{ fontSize: 22 }}>✅</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>You're all caught up</div>
+                  <div style={{ fontSize: 12, color: C.muted }}>No urgent calls right now.</div>
+                </div>
+              </div>
+            ) : (
+              <div className="briefing-grid">
+                {agingHot.length > 0 && (
+                  <a href="/dashboard/leads" style={{ textDecoration: 'none' }}>
+                    <div style={{
+                      background: C.card, border: `1px solid ${C.border}`,
+                      borderRadius: 14, padding: '18px 20px',
+                      borderLeft: '3px solid #EF4444',
+                      display: 'flex', flexDirection: 'column', gap: 6,
+                      cursor: 'pointer',
+                    }}>
+                      <div style={{ fontSize: 22 }}>🔥</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: C.text, lineHeight: 1.35 }}>
+                        {agingHot.length} hot lead{s(agingHot.length)} uncontacted {AGING_HOURS}h+
+                      </div>
+                      <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.55 }}>
+                        Call now — intent decays every hour you wait.
+                      </div>
+                    </div>
+                  </a>
+                )}
+
+                {oldLastSeen !== null && newSinceLastVisit.length > 0 && (
+                  <a href="/dashboard/leads" style={{ textDecoration: 'none' }}>
+                    <div style={{
+                      background: C.card, border: `1px solid ${C.border}`,
+                      borderRadius: 14, padding: '18px 20px',
+                      borderLeft: `3px solid ${C.purpleL}`,
+                      display: 'flex', flexDirection: 'column', gap: 6,
+                      cursor: 'pointer',
+                    }}>
+                      <div style={{ fontSize: 22 }}>✨</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: C.text, lineHeight: 1.35 }}>
+                        {newSinceLastVisit.length} new lead{s(newSinceLastVisit.length)} since your last visit
+                        {newHot.length > 0 && ` — ${newHot.length} hot`}
+                      </div>
+                      <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.55 }}>
+                        Review and reach out while they're warm.
+                      </div>
+                    </div>
+                  </a>
+                )}
+
+                {outstandingShowings.length > 0 && (
+                  <a href="/dashboard/leads" style={{ textDecoration: 'none' }}>
+                    <div style={{
+                      background: C.card, border: `1px solid ${C.border}`,
+                      borderRadius: 14, padding: '18px 20px',
+                      borderLeft: '3px solid #EF4444',
+                      display: 'flex', flexDirection: 'column', gap: 6,
+                      cursor: 'pointer',
+                    }}>
+                      <div style={{ fontSize: 22 }}>🏠</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: C.text, lineHeight: 1.35 }}>
+                        {outstandingShowings.length} showing request{s(outstandingShowings.length)} awaiting response
+                      </div>
+                      <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.55 }}>
+                        Highest-intent signal a buyer can send. Book it.
+                      </div>
+                    </div>
+                  </a>
+                )}
+
+                {readyProperties.length > 0 && (
+                  <a href="/dashboard/seller-reports" style={{ textDecoration: 'none' }}>
+                    <div style={{
+                      background: C.card, border: `1px solid ${C.border}`,
+                      borderRadius: 14, padding: '18px 20px',
+                      borderLeft: '3px solid #22C55E',
+                      display: 'flex', flexDirection: 'column', gap: 6,
+                      cursor: 'pointer',
+                    }}>
+                      <div style={{ fontSize: 22 }}>📊</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: C.text, lineHeight: 1.35 }}>
+                        {readyProperties.length} listing{s(readyProperties.length)} ready for a seller update
+                      </div>
+                      <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.55 }}>
+                        {readyProperties.map((p: any) => p.address).join(', ')}
+                      </div>
+                    </div>
+                  </a>
+                )}
               </div>
             )}
 
-            {/* KPI row */}
+            {/* ── KPI ROW ────────────────────────────────────────────────── */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
-              {[
-                { label: 'Total Scans',     value: totalScans,       color: C.purpleL },
-                { label: 'Total Leads',     value: totalLeads,       color: '#FFD700'  },
-                { label: 'Conversion Rate', value: convRate,           color: '#C084FC'  },
-              ].map(k => {
-                const isNote = typeof k.value === 'string' && k.value.length > 6
-                return (
-                  <div key={k.label} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: '20px 24px' }}>
-                    <div style={{ fontSize: isNote ? 12 : 32, fontWeight: isNote ? 600 : 700, color: isNote ? C.muted : k.color, lineHeight: isNote ? 1.4 : 1 }}>{k.value}</div>
-                    <div style={{ fontSize: 12, color: C.muted, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{k.label}</div>
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* Motivation + Leaderboard row — shown first */}
-            <div className="an-grid2">
-              <div style={card}>
-                <div style={h2}>Lead Motivation</div>
-                {motivationData.length === 0
-                  ? <p style={{ color: C.muted, fontSize: 14 }}>No leads yet.</p>
-                  : (
-                    <ResponsiveContainer width="100%" height={220}>
-                      <PieChart>
-                        <Pie data={motivationData} dataKey="value" innerRadius={60} outerRadius={90} paddingAngle={3}>
-                          {motivationData.map((entry, i) => (
-                            <Cell key={i} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip contentStyle={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text }} />
-                        <Legend formatter={(value) => <span style={{ color: '#9CA3AF', fontSize: 12 }}>{value}</span>} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  )
-                }
+              {/* Total Scans */}
+              <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: '20px 24px' }}>
+                <div style={{ fontSize: 32, fontWeight: 700, color: C.purpleL, lineHeight: 1 }}>{totalScans}</div>
+                <div style={{ fontSize: 12, color: C.muted, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Scans</div>
+                <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>Buyer reach — share with your sellers</div>
               </div>
 
+              {/* Total Leads */}
+              <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: '20px 24px' }}>
+                <div style={{ fontSize: 32, fontWeight: 700, color: '#FFD700', lineHeight: 1 }}>{totalLeads}</div>
+                <div style={{ fontSize: 12, color: C.muted, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Leads</div>
+              </div>
+
+              {/* Conversion Rate */}
+              <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: '20px 24px' }}>
+                {convNow === null ? (
+                  <>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: C.muted, lineHeight: 1.4 }}>Not enough data yet</div>
+                    <div style={{ fontSize: 12, color: C.muted, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Conversion Rate</div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                      <div style={{ fontSize: 32, fontWeight: 700, color: '#C084FC', lineHeight: 1 }}>{convNow.toFixed(1)}%</div>
+                      {convDelta !== null && (
+                        <div style={{ fontSize: 12, fontWeight: 600, color: convDelta >= 0 ? '#22C55E' : '#EF4444' }}>
+                          {convDelta >= 0 ? '▲' : '▼'} {Math.abs(convDelta).toFixed(1)}pp
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 12, color: C.muted, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Conversion Rate</div>
+                    {convDelta !== null && (
+                      <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>vs your prior 30-day avg</div>
+                    )}
+                    {convPrev === null && (
+                      <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>Not enough history for comparison</div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* ── CONVERSION FUNNEL ──────────────────────────────────────── */}
+            <div style={card}>
+              <div style={h2}>Conversion funnel</div>
+              {totalScans === 0 ? (
+                <p style={{ color: C.muted, fontSize: 14 }}>No activity yet — place QR signs to start the funnel.</p>
+              ) : (() => {
+                const stages = [
+                  { label: 'Scans',             value: totalScans,       color: C.purpleL },
+                  { label: 'Leads',             value: totalLeads,       color: '#FFD700' },
+                  { label: 'Showing requests',  value: funnelShowing,    color: '#FB923C' },
+                  { label: 'Contacted',         value: funnelContacted,  color: '#22C55E' },
+                ]
+                const maxW = totalScans
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {stages.map((stage, i) => {
+                      const pct = maxW > 0 ? Math.max((stage.value / maxW) * 100, stage.value > 0 ? 4 : 0) : 0
+                      const dropPct = i > 0 && stages[i - 1].value > 0
+                        ? Math.round(((stages[i - 1].value - stage.value) / stages[i - 1].value) * 100)
+                        : null
+                      const isFollowUpGap = i === 2 // Showing → Contacted
+                      return (
+                        <div key={stage.label}>
+                          {dropPct !== null && (
+                            <div style={{ fontSize: 11, color: isFollowUpGap ? '#EF4444' : C.muted, marginBottom: 4, paddingLeft: 2 }}>
+                              ↓ {dropPct}% drop{isFollowUpGap ? ' — leads you haven\'t worked yet' : ''}
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div style={{ flex: 1, height: 32, background: C.border, borderRadius: 6, overflow: 'hidden' }}>
+                              <div style={{ width: `${pct}%`, height: '100%', background: stage.color, borderRadius: 6, transition: 'width 0.4s ease' }} />
+                            </div>
+                            <div style={{ minWidth: 90, display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: 12, color: C.muted }}>{stage.label}</span>
+                              <span style={{ fontSize: 13, fontWeight: 700, color: stage.color }}>{stage.value}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })()}
+            </div>
+
+            {/* ── LEADERBOARD + TIER BAR ─────────────────────────────────── */}
+            <div className="an-grid2">
+              {/* Leaderboard */}
               <div style={card}>
-                <div style={h2}>Property Leaderboard</div>
+                <div style={h2}>Property leaderboard</div>
                 {leaderboardRows.length === 0
                   ? <p style={{ color: C.muted, fontSize: 14 }}>No properties yet.</p>
                   : (
@@ -302,14 +465,19 @@ export default function AnalyticsPage() {
                           <th style={th}>Property</th>
                           <th style={{ ...th, textAlign: 'right' }}>Scans</th>
                           <th style={{ ...th, textAlign: 'right' }}>Leads</th>
+                          <th style={{ ...th, textAlign: 'right' }}>Conv%</th>
                         </tr>
                       </thead>
                       <tbody>
                         {leaderboardRows.map((row, i) => (
                           <tr key={i}>
-                            <td style={td}>{row.address}</td>
+                            <td style={td}>
+                              <span style={{ marginRight: 4 }}>{row.flag ? '🔥' : ''}</span>
+                              {row.address}
+                            </td>
                             <td style={{ ...td, textAlign: 'right', color: C.purpleL, fontWeight: 700 }}>{row.scans}</td>
                             <td style={{ ...td, textAlign: 'right', color: '#FFD700', fontWeight: 700 }}>{row.leads}</td>
+                            <td style={{ ...td, textAlign: 'right', color: C.muted, fontWeight: 600 }}>{row.conv}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -317,43 +485,79 @@ export default function AnalyticsPage() {
                   )
                 }
               </div>
+
+              {/* Tier distribution */}
+              <div style={card}>
+                <div style={h2}>Lead tiers</div>
+                {totalLeads === 0
+                  ? <p style={{ color: C.muted, fontSize: 14 }}>No leads yet.</p>
+                  : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                      {tierRows.map(({ tier, total, uncontacted, cfg }) => (
+                        total > 0 && (
+                          <a key={tier} href={`/dashboard/leads?tier=${tier}`} style={{ textDecoration: 'none' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                <span style={{ fontSize: 13, fontWeight: 700, color: cfg.color }}>
+                                  {cfg.label} · {total}
+                                </span>
+                                {uncontacted > 0 && (
+                                  <span style={{ fontSize: 11, color: C.muted }}>
+                                    {uncontacted} not yet called
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ height: 10, background: C.border, borderRadius: 5, overflow: 'hidden' }}>
+                                <div style={{
+                                  height: '100%',
+                                  width: `${(total / totalLeads) * 100}%`,
+                                  background: cfg.color,
+                                  borderRadius: 5,
+                                }} />
+                              </div>
+                              {uncontacted > 0 && (
+                                <div style={{ height: 6, background: C.border, borderRadius: 5, overflow: 'hidden' }}>
+                                  <div style={{
+                                    height: '100%',
+                                    width: `${(uncontacted / total) * 100}%`,
+                                    background: '#EF4444',
+                                    borderRadius: 5,
+                                  }} />
+                                </div>
+                              )}
+                            </div>
+                          </a>
+                        )
+                      ))}
+                      <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
+                        Red bar = uncontacted share within tier
+                      </div>
+                    </div>
+                  )
+                }
+              </div>
             </div>
 
-            {/* Charts row */}
-            <div className="an-grid2">
-              <div style={card}>
-                <div style={h2}>Scans — last 30 days</div>
-                {scans.length === 0
-                  ? <p style={{ color: C.muted, fontSize: 14 }}>No QR scans recorded yet. Generate a QR code and place it on yard signs, open houses, and flyers.</p>
-                  : (
-                    <ResponsiveContainer width="100%" height={200}>
-                      <BarChart data={timelineData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                        <XAxis dataKey="day" tick={{ fill: C.muted, fontSize: 10 }} tickLine={false} axisLine={false} interval={6} />
-                        <YAxis tick={{ fill: C.muted, fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
-                        <Tooltip contentStyle={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text }} cursor={{ fill: C.border }} />
-                        <Bar dataKey="Scans" fill={CHART_COLORS.scans} radius={[3, 3, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )
-                }
-              </div>
-
-              <div style={card}>
-                <div style={h2}>Leads — last 30 days</div>
-                {leads.length === 0
-                  ? <p style={{ color: C.muted, fontSize: 14 }}>No lead data yet.</p>
-                  : (
-                    <ResponsiveContainer width="100%" height={200}>
-                      <BarChart data={timelineData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                        <XAxis dataKey="day" tick={{ fill: C.muted, fontSize: 10 }} tickLine={false} axisLine={false} interval={6} />
-                        <YAxis tick={{ fill: C.muted, fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
-                        <Tooltip contentStyle={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text }} cursor={{ fill: C.border }} />
-                        <Bar dataKey="Leads" fill={CHART_COLORS.leads} radius={[3, 3, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )
-                }
-              </div>
+            {/* ── COMBINED TREND CHART ───────────────────────────────────── */}
+            <div style={card}>
+              <div style={h2}>Activity — last 30 days</div>
+              {scans.length === 0 && leads.length === 0
+                ? <p style={{ color: C.muted, fontSize: 14 }}>No activity recorded yet. Generate a QR code and place it on yard signs, open houses, and flyers.</p>
+                : (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={timelineData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                      <XAxis dataKey="day" tick={{ fill: C.muted, fontSize: 10 }} tickLine={false} axisLine={false} interval={6} />
+                      <YAxis tick={{ fill: C.muted, fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                      <Tooltip
+                        contentStyle={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text }}
+                        cursor={{ fill: C.border }}
+                      />
+                      <Bar dataKey="Scans" fill={CHART_COLORS.scans} radius={[3, 3, 0, 0]} />
+                      <Bar dataKey="Leads" fill={CHART_COLORS.leads} radius={[3, 3, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )
+              }
             </div>
 
           </div>

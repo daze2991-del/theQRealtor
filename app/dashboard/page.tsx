@@ -368,18 +368,17 @@ export default function Dashboard() {
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
         .db-kpi4    { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
-        .db-mid3    { display: grid; grid-template-columns: 2fr 1.6fr 1fr; gap: 14px; }
-        .db-bot2    { display: grid; grid-template-columns: 1fr 340px; gap: 14px; }
+        .db-layout  { display: grid; grid-template-columns: 2fr 2.6fr; gap: 14px; }
+        .db-rtop    { display: grid; grid-template-columns: 1.6fr 1fr; gap: 14px; }
         .prop-row   { display: grid; grid-template-columns: 48px 1fr auto; gap: 12px; align-items: center; }
         .db-hover   { transition: background 0.1s; }
         .db-hover:hover { background: #1E1E2A !important; }
         @media (max-width: 1100px) {
-          .db-mid3  { grid-template-columns: 1fr 1fr !important; }
-          .db-bot2  { grid-template-columns: 1fr !important; }
+          .db-layout { grid-template-columns: 1fr !important; }
         }
         @media (max-width: 860px) {
-          .db-kpi4  { grid-template-columns: repeat(2,1fr) !important; }
-          .db-mid3  { grid-template-columns: 1fr !important; }
+          .db-kpi4   { grid-template-columns: repeat(2,1fr) !important; }
+          .db-rtop   { grid-template-columns: 1fr !important; }
         }
         @media (max-width: 500px) {
           .db-kpi4  { grid-template-columns: 1fr 1fr !important; }
@@ -426,11 +425,14 @@ export default function Dashboard() {
             <KpiCard icon={<AlertCircle   size={18} color={ACCENT.amber.color}  />} label="Needs Follow-Up"          value={needsFollowUp}    change={null}        accent={ACCENT.amber}  caption="Hot buyers awaiting contact" />
           </div>
 
-          {/* ── SECTION 3: Three-column middle ── */}
-          <div className="db-mid3">
+          {/* ── SECTION 3+4+5: Two-column main layout ── */}
+          <div className="db-layout">
+
+            {/* Left column: Hot Leads stacked above Properties */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
             {/* Hot Leads */}
-            <Card style={{ alignSelf: 'start' }}>
+            <Card>
               <CardHead
                 title={<span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Flame size={14} color="#EF4444" /> Hot leads need attention</span>}
                 action={<Link href="/dashboard/leads" style={{ fontSize: 11, color: C.purpleL, textDecoration: 'none', fontWeight: 600 }}>View all →</Link>}
@@ -471,64 +473,8 @@ export default function Dashboard() {
               </div>
             </Card>
 
-            {/* Lead Pipeline Donut */}
-            <Card>
-              <CardHead title="Lead Pipeline" />
-              <div style={{ padding: '20px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-                <DonutChart segments={donutSegments} total={totalLeads} />
-                <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {donutSegments.map(seg => {
-                    const pct = totalLeads > 0 ? Math.round((seg.value / totalLeads) * 100) : 0
-                    return (
-                      <div key={seg.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ width: 8, height: 8, borderRadius: 2, background: seg.color, flexShrink: 0 }} />
-                        <span style={{ fontSize: 12, color: C.sub, flex: 1 }}>{seg.label}</span>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{seg.value}</span>
-                        <span style={{ fontSize: 11, color: C.muted, minWidth: 32, textAlign: 'right' }}>{pct}%</span>
-                      </div>
-                    )
-                  })}
-                </div>
-                <p style={{ fontSize: 11, color: C.muted, margin: 0, textAlign: 'center' }}>Based on buyer intent &amp; engagement</p>
-              </div>
-            </Card>
-
-            {/* Live Activity */}
-            <Card>
-              <CardHead
-                title={<>Live Activity <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4ade80', display: 'inline-block', marginLeft: 6, boxShadow: '0 0 6px #4ade80' }} /></>}
-                action={<Link href="/dashboard/leads" style={{ fontSize: 11, color: C.purpleL, textDecoration: 'none', fontWeight: 600 }}>View all →</Link>}
-              />
-              <div>
-                {activityFeed.length === 0 ? (
-                  <div style={{ padding: '24px 16px', textAlign: 'center', color: C.muted, fontSize: 12 }}>No activity yet.</div>
-                ) : (
-                  activityFeed.slice(0, 5).map((ev, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '9px 16px', borderBottom: i < 4 ? `1px solid ${C.border}` : 'none' }}>
-                      <span style={{ flexShrink: 0, marginTop: 1, display: 'flex', alignItems: 'center', width: 18, justifyContent: 'center' }}>
-                        {ev.iconKey === 'flame'    && <Flame      size={14} color="#EF4444" />}
-                        {ev.iconKey === 'trending' && <TrendingUp size={14} color="#60A5FA" />}
-                        {ev.iconKey === 'scan'     && <QrCode     size={14} color={C.muted} />}
-                        {ev.iconKey === 'return'   && <RotateCcw  size={14} color={C.muted} />}
-                        {ev.iconKey === 'packet'   && <FileText   size={14} color="#D97706" />}
-                        {ev.iconKey === 'user'     && <Users      size={14} color={C.muted} />}
-                      </span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, color: C.sub, lineHeight: 1.4 }}>{ev.label}</div>
-                        <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{timeAgo(ev.created_at)}</div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </Card>
-          </div>
-
-          {/* ── SECTION 4+5: Properties + Seller Report ── */}
-          <div className="db-bot2">
-
             {/* Properties list */}
-            <Card style={{ alignSelf: 'start' }}>
+            <Card>
               <CardHead
                 title={`Your Properties (${properties.length})`}
                 action={<Link href="/dashboard/properties" style={{ fontSize: 11, color: C.purpleL, textDecoration: 'none', fontWeight: 600 }}>View all →</Link>}
@@ -581,9 +527,68 @@ export default function Dashboard() {
               )}
             </Card>
 
+            </div>{/* end left column */}
+
+            {/* Right column: Lead Pipeline + Live Activity top row, Seller Report below */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="db-rtop">
+
+            {/* Lead Pipeline Donut */}
+            <Card>
+              <CardHead title="Lead Pipeline" />
+              <div style={{ padding: '20px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+                <DonutChart segments={donutSegments} total={totalLeads} />
+                <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {donutSegments.map(seg => {
+                    const pct = totalLeads > 0 ? Math.round((seg.value / totalLeads) * 100) : 0
+                    return (
+                      <div key={seg.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ width: 8, height: 8, borderRadius: 2, background: seg.color, flexShrink: 0 }} />
+                        <span style={{ fontSize: 12, color: C.sub, flex: 1 }}>{seg.label}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{seg.value}</span>
+                        <span style={{ fontSize: 11, color: C.muted, minWidth: 32, textAlign: 'right' }}>{pct}%</span>
+                      </div>
+                    )
+                  })}
+                </div>
+                <p style={{ fontSize: 11, color: C.muted, margin: 0, textAlign: 'center' }}>Based on buyer intent &amp; engagement</p>
+              </div>
+            </Card>
+
+            {/* Live Activity */}
+            <Card>
+              <CardHead
+                title={<>Live Activity <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4ade80', display: 'inline-block', marginLeft: 6, boxShadow: '0 0 6px #4ade80' }} /></>}
+                action={<Link href="/dashboard/leads" style={{ fontSize: 11, color: C.purpleL, textDecoration: 'none', fontWeight: 600 }}>View all →</Link>}
+              />
+              <div>
+                {activityFeed.length === 0 ? (
+                  <div style={{ padding: '24px 16px', textAlign: 'center', color: C.muted, fontSize: 12 }}>No activity yet.</div>
+                ) : (
+                  activityFeed.slice(0, 5).map((ev, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '9px 16px', borderBottom: i < 4 ? `1px solid ${C.border}` : 'none' }}>
+                      <span style={{ flexShrink: 0, marginTop: 1, display: 'flex', alignItems: 'center', width: 18, justifyContent: 'center' }}>
+                        {ev.iconKey === 'flame'    && <Flame      size={14} color="#EF4444" />}
+                        {ev.iconKey === 'trending' && <TrendingUp size={14} color="#60A5FA" />}
+                        {ev.iconKey === 'scan'     && <QrCode     size={14} color={C.muted} />}
+                        {ev.iconKey === 'return'   && <RotateCcw  size={14} color={C.muted} />}
+                        {ev.iconKey === 'packet'   && <FileText   size={14} color="#D97706" />}
+                        {ev.iconKey === 'user'     && <Users      size={14} color={C.muted} />}
+                      </span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, color: C.sub, lineHeight: 1.4 }}>{ev.label}</div>
+                        <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{timeAgo(ev.created_at)}</div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
+            </div>{/* end db-rtop */}
+
             {/* Seller Report Preview */}
             {topProp ? (
-              <Card style={{ alignSelf: 'start' }}>
+              <Card>
                 <CardHead title={<span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><BarChart2 size={14} color={C.purpleL} /> Seller Report Preview</span>} />
                 <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
                   {propThumbs[topProp.id] ? (
@@ -628,12 +633,13 @@ export default function Dashboard() {
                 </div>
               </Card>
             ) : (
-              <Card style={{ alignSelf: 'start' }}>
+              <Card>
                 <CardHead title={<span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><BarChart2 size={14} color={C.purpleL} /> Seller Report Preview</span>} />
                 <div style={{ padding: '32px 18px', textAlign: 'center', color: C.muted, fontSize: 13 }}>Capture leads to unlock your top performing listing preview.</div>
               </Card>
             )}
-          </div>
+            </div>{/* end right column */}
+          </div>{/* end db-layout */}
 
           {/* ── SECTION 6: AI Insight Banner ── */}
           {showAiBanner && (

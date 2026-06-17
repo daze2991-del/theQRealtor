@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { Zap, Lock } from 'lucide-react'
 import { createBrowserSupabase } from '../lib/supabase-browser'
 
 const C = {
@@ -123,7 +124,7 @@ function Sidebar({ email, plan, propertyCount, onClose }: {
       <div style={{ padding: '14px', borderTop: `1px solid ${C.border}` }}>
         <div style={{ background: `${C.purple}18`, border: `1px solid ${C.purple}35`, borderRadius: 12, padding: '14px', marginBottom: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 6 }}>
-            <span style={{ fontSize: 14 }}>{plan === 'pro' ? '👑' : '🔒'}</span>
+            {plan === 'pro' ? <Zap size={14} color="#FCD34D" /> : <Lock size={14} color={C.muted} />}
             <span style={{ fontSize: 13, fontWeight: 700, color: plan === 'pro' ? '#A78BFA' : C.muted }}>
               {plan === 'pro' ? 'Pro Plan' : 'Free Plan'}
             </span>

@@ -7,6 +7,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import DashboardLayout from '../../../components/DashboardLayout'
+import { Flame, Home, CalendarCheck, BarChart2, Sparkles, CheckCircle, TrendingUp, Minus } from 'lucide-react'
 import { TIER_V2_CFG } from '../../../lib/leadScoringV2'
 
 // ── tokens ──────────────────────────────────────────────────────────────────
@@ -273,7 +274,7 @@ export default function AnalyticsPage() {
                   borderLeft: `3px solid ${C.muted}`,
                   display: 'flex', flexDirection: 'column', gap: 6,
                 }}>
-                  <div style={{ fontSize: 22 }}>✅</div>
+                  <CheckCircle size={22} color={C.muted} />
                   <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>You're all caught up</div>
                   <div style={{ fontSize: 12, color: C.muted }}>No urgent calls right now.</div>
                 </div>
@@ -289,7 +290,7 @@ export default function AnalyticsPage() {
                       display: 'flex', flexDirection: 'column', gap: 6,
                       cursor: 'pointer',
                     }}>
-                      <div style={{ fontSize: 22 }}>🔥</div>
+                      <Flame size={22} color="#EF4444" />
                       <div style={{ fontSize: 14, fontWeight: 700, color: C.text, lineHeight: 1.35 }}>
                         {agingHot.length} hot lead{s(agingHot.length)} uncontacted {AGING_HOURS}h+
                       </div>
@@ -309,7 +310,7 @@ export default function AnalyticsPage() {
                       display: 'flex', flexDirection: 'column', gap: 6,
                       cursor: 'pointer',
                     }}>
-                      <div style={{ fontSize: 22 }}>✨</div>
+                      <Sparkles size={22} color={C.purpleL} />
                       <div style={{ fontSize: 14, fontWeight: 700, color: C.text, lineHeight: 1.35 }}>
                         {newSinceLastVisit.length} new lead{s(newSinceLastVisit.length)} since your last visit
                         {newHot.length > 0 && ` — ${newHot.length} hot`}
@@ -330,7 +331,7 @@ export default function AnalyticsPage() {
                       display: 'flex', flexDirection: 'column', gap: 6,
                       cursor: 'pointer',
                     }}>
-                      <div style={{ fontSize: 22 }}>🏠</div>
+                      <Home size={22} color="#EF4444" />
                       <div style={{ fontSize: 14, fontWeight: 700, color: C.text, lineHeight: 1.35 }}>
                         {outstandingShowings.length} showing request{s(outstandingShowings.length)} awaiting response
                       </div>
@@ -350,7 +351,7 @@ export default function AnalyticsPage() {
                       display: 'flex', flexDirection: 'column', gap: 6,
                       cursor: 'pointer',
                     }}>
-                      <div style={{ fontSize: 22 }}>📊</div>
+                      <BarChart2 size={22} color="#22C55E" />
                       <div style={{ fontSize: 14, fontWeight: 700, color: C.text, lineHeight: 1.35 }}>
                         {readyProperties.length} listing{s(readyProperties.length)} ready for a seller update
                       </div>
@@ -512,8 +513,11 @@ export default function AnalyticsPage() {
                           <a key={tier} href={`/dashboard/leads?tier=${tier}`} style={{ textDecoration: 'none' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                <span style={{ fontSize: 13, fontWeight: 700, color: cfg.color }}>
-                                  {cfg.label} · {total}
+                                <span style={{ fontSize: 13, fontWeight: 700, color: cfg.color, display: 'flex', alignItems: 'center', gap: 5 }}>
+                                  {tier === 'hot'  && <Flame      size={13} />}
+                                  {tier === 'warm' && <TrendingUp size={13} />}
+                                  {tier === 'cold' && <Minus      size={13} />}
+                                  {tier === 'hot' ? 'Hot' : tier === 'warm' ? 'Warm' : 'Cold'} · {total}
                                 </span>
                                 {uncontacted > 0 && (
                                   <span style={{ fontSize: 11, color: C.muted }}>

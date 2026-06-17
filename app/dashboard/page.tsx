@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DashboardLayout from '../../components/DashboardLayout'
 import { LineChart, Line, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-import { QrCode, MessageSquare } from 'lucide-react'
+import { QrCode, Users, CalendarCheck, FileText, Flame, TrendingUp, BarChart2, Home, MapPin, Phone, Bell, Calendar, Sparkles, Share2, Download, RotateCcw, Minus } from 'lucide-react'
 import { calcPropertyInterest } from '../../lib/propertyInterest'
 
 // ── Tokens ────────────────────────────────────────────────────────────────────
@@ -30,10 +30,10 @@ const ACCENT = {
 }
 
 const MOTIV: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  hot:       { label: '🔥 Hot',       color: '#EF4444', bg: '#3B0D0D', border: '#EF4444' },
-  motivated: { label: '⚡ Motivated', color: '#F97316', bg: '#3B1F0D', border: '#F97316' },
-  warm:      { label: '👍 Warm',      color: '#60A5FA', bg: '#0F2238', border: '#60A5FA' },
-  cold:      { label: '❄️ Cold',      color: '#6B7280', bg: '#1F2937', border: '#6B7280' },
+  hot:       { label: 'Hot',       color: '#EF4444', bg: '#3B0D0D', border: '#EF4444' },
+  motivated: { label: 'Motivated', color: '#F97316', bg: '#3B1F0D', border: '#F97316' },
+  warm:      { label: 'Warm',      color: '#60A5FA', bg: '#0F2238', border: '#60A5FA' },
+  cold:      { label: 'Cold',      color: '#6B7280', bg: '#1F2937', border: '#6B7280' },
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -130,7 +130,15 @@ function HealthBadge({ scans, leads, hot }: { scans: number; leads: number; hot:
 function MotivBadge({ level }: { level: string }) {
   const m = MOTIV[level]
   if (!m) return null
-  return <span style={{ fontSize: 10, fontWeight: 700, color: m.color, background: m.bg, border: `1px solid ${m.border}40`, borderRadius: 5, padding: '2px 7px', whiteSpace: 'nowrap' }}>{m.label}</span>
+  return (
+    <span style={{ fontSize: 10, fontWeight: 700, color: m.color, background: m.bg, border: `1px solid ${m.border}40`, borderRadius: 5, padding: '2px 7px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+      {level === 'hot'       && <Flame      size={9} />}
+      {level === 'motivated' && <Flame      size={9} />}
+      {level === 'warm'      && <TrendingUp size={9} />}
+      {level === 'cold'      && <Minus      size={9} />}
+      {m.label}
+    </span>
+  )
 }
 
 // ── Section card wrapper ──────────────────────────────────────────────────────
@@ -165,7 +173,7 @@ export default function Dashboard() {
   const [propPacketCounts, setPropPacketCounts]  = useState<Record<string, number>>({})
   const [pipelineCounts,   setPipelineCounts]    = useState<Record<string, number>>({ hot: 0, motivated: 0, warm: 0, cold: 0 })
   const [topPropId,        setTopPropId]         = useState<string | null>(null)
-  const [activityFeed,     setActivityFeed]      = useState<Array<{ icon: string; label: string; created_at: string }>>([])
+  const [activityFeed,     setActivityFeed]      = useState<Array<{ iconKey: string; label: string; created_at: string }>>([])
   const [totalPacketCount, setTotalPacketCount]  = useState(0)
   const [lastMonthLeads,   setLastMonthLeads]    = useState(0)
   const [prevMonthScans,   setPrevMonthScans]    = useState(0)
@@ -265,12 +273,12 @@ export default function Dashboard() {
         const short = words.length > 2 ? words.slice(0, 2).join(' ') + '…' : addr
         return ` at ${short}`
       }
-      const motivIcon: Record<string, string> = { hot: '🔥', motivated: '☀️', warm: '☀️', cold: '❄️' }
+      const motivIconKey: Record<string, string> = { hot: 'flame', motivated: 'flame', warm: 'trending', cold: 'user' }
       const motivText: Record<string, string> = { hot: 'Hot lead', motivated: 'Warm lead', warm: 'Warm lead', cold: 'New lead' }
-      const feedItems: Array<{ icon: string; label: string; created_at: string }> = [
-        ...(recentLeadsData || []).map((l: any) => ({ icon: motivIcon[l.motivation] ?? '👤', label: `${motivText[l.motivation] ?? 'New lead'}${shortAddr(l.property_id)}`, created_at: l.created_at })),
-        ...(recentScansData || []).map((e: any) => ({ icon: e.return_visit ? '↩️' : '📱', label: `${e.return_visit ? 'Buyer returned' : 'Buyer scanned'}${shortAddr(e.property_id)}`, created_at: e.created_at })),
-        ...((recentPacketData as any[] || []).map((r: any) => ({ icon: '📄', label: `Packet request${shortAddr(r.property_id)}`, created_at: r.created_at }))),
+      const feedItems: Array<{ iconKey: string; label: string; created_at: string }> = [
+        ...(recentLeadsData || []).map((l: any) => ({ iconKey: motivIconKey[l.motivation] ?? 'user', label: `${motivText[l.motivation] ?? 'New lead'}${shortAddr(l.property_id)}`, created_at: l.created_at })),
+        ...(recentScansData || []).map((e: any) => ({ iconKey: e.return_visit ? 'return' : 'scan', label: `${e.return_visit ? 'Buyer returned' : 'Buyer scanned'}${shortAddr(e.property_id)}`, created_at: e.created_at })),
+        ...((recentPacketData as any[] || []).map((r: any) => ({ iconKey: 'packet', label: `Packet request${shortAddr(r.property_id)}`, created_at: r.created_at }))),
       ]
       feedItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
@@ -338,9 +346,9 @@ export default function Dashboard() {
 
   // Donut segments — 3 tiers: Hot (11+), Warm (5–10, includes motivated), Cold (0–4)
   const donutSegments = [
-    { key: 'hot',  value: pipelineCounts.hot || 0,                                             color: '#EF4444', label: '🔥 Hot' },
-    { key: 'warm', value: (pipelineCounts.motivated || 0) + (pipelineCounts.warm || 0),         color: '#60A5FA', label: '☀️ Warm' },
-    { key: 'cold', value: pipelineCounts.cold || 0,                                             color: '#6B7280', label: '❄️ Cold' },
+    { key: 'hot',  value: pipelineCounts.hot || 0,                                             color: '#EF4444', label: 'Hot' },
+    { key: 'warm', value: (pipelineCounts.motivated || 0) + (pipelineCounts.warm || 0),         color: '#60A5FA', label: 'Warm' },
+    { key: 'cold', value: pipelineCounts.cold || 0,                                             color: '#6B7280', label: 'Cold' },
   ]
 
   return (
@@ -387,11 +395,11 @@ export default function Dashboard() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: C.card, border: `1px solid ${C.border}`, borderRadius: 9, padding: '7px 13px' }}>
-                <span style={{ fontSize: 14 }}>📅</span>
+                <Calendar size={14} color={C.sub} />
                 <span style={{ fontSize: 12, fontWeight: 600, color: C.sub }}>{monthRange}</span>
               </div>
               <div style={{ position: 'relative' }}>
-                <div style={{ width: 36, height: 36, background: C.card, border: `1px solid ${C.border}`, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, cursor: 'pointer' }}>🔔</div>
+                <div style={{ width: 36, height: 36, background: C.card, border: `1px solid ${C.border}`, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Bell size={17} color={C.sub} /></div>
                 {hotCount > 0 && (
                   <div style={{ position: 'absolute', top: -4, right: -4, background: '#EF4444', color: '#fff', fontSize: 10, fontWeight: 800, borderRadius: 10, minWidth: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>{hotCount}</div>
                 )}
@@ -401,10 +409,10 @@ export default function Dashboard() {
 
           {/* ── SECTION 2: KPI Cards ── */}
           <div className="db-kpi4">
-            <KpiCard icon={<QrCode size={18} color={ACCENT.purple.color} />} label="QR Scans"             value={totalScansAll}    change={scanChange}  accent={ACCENT.purple} sparkData={scanSparkline} />
-            <KpiCard icon="👥"                                                label="New Leads"            value={totalLeads}       change={leadChange}  accent={ACCENT.green}  sparkData={leadSparkline} />
-            <KpiCard icon={<MessageSquare size={18} color={ACCENT.blue.color} />} label="Showing Requests" value={hotCount}         change={null}        accent={ACCENT.blue}   sparkData={scanSparkline.map((_, i) => i % 3 === 0 ? 1 : 0)} />
-            <KpiCard icon="📄"                                                label="Disclosure Requests"  value={totalPacketCount} change={null}        accent={ACCENT.amber}  />
+            <KpiCard icon={<QrCode        size={18} color={ACCENT.purple.color} />} label="QR Scans"            value={totalScansAll}    change={scanChange}  accent={ACCENT.purple} sparkData={scanSparkline} />
+            <KpiCard icon={<Users         size={18} color={ACCENT.green.color}  />} label="New Leads"           value={totalLeads}       change={leadChange}  accent={ACCENT.green}  sparkData={leadSparkline} />
+            <KpiCard icon={<CalendarCheck size={18} color={ACCENT.blue.color}   />} label="Showing Requests"    value={hotCount}         change={null}        accent={ACCENT.blue}   sparkData={scanSparkline.map((_, i) => i % 3 === 0 ? 1 : 0)} />
+            <KpiCard icon={<FileText      size={18} color={ACCENT.amber.color}  />} label="Disclosure Requests" value={totalPacketCount} change={null}        accent={ACCENT.amber}  />
           </div>
 
           {/* ── SECTION 3: Three-column middle ── */}
@@ -413,7 +421,7 @@ export default function Dashboard() {
             {/* Hot Leads */}
             <Card>
               <CardHead
-                title="🔥 Hot leads need attention"
+                title={<span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Flame size={14} color="#EF4444" /> Hot leads need attention</span>}
                 action={<Link href="/dashboard/leads" style={{ fontSize: 11, color: C.purpleL, textDecoration: 'none', fontWeight: 600 }}>View all →</Link>}
               />
               <div>
@@ -435,14 +443,14 @@ export default function Dashboard() {
                             <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{lead.name || 'Unknown'}</span>
                             <MotivBadge level={lead.motivation} />
                           </div>
-                          <div style={{ fontSize: 11, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            📍 {propNameMap[lead.property_id] || '—'}
+                          <div style={{ fontSize: 11, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <MapPin size={10} />{propNameMap[lead.property_id] || '—'}
                           </div>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                           <span style={{ fontSize: 10, color: C.muted }}>{timeAgo(lead.created_at)}</span>
                           {lead.phone && (
-                            <a href={`tel:${lead.phone}`} style={{ width: 28, height: 28, borderRadius: 7, background: `${C.purple}20`, border: `1px solid ${C.purple}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, textDecoration: 'none' }}>📞</a>
+                            <a href={`tel:${lead.phone}`} style={{ width: 28, height: 28, borderRadius: 7, background: `${C.purple}20`, border: `1px solid ${C.purple}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}><Phone size={13} color={C.purpleL} /></a>
                           )}
                         </div>
                       </div>
@@ -486,7 +494,14 @@ export default function Dashboard() {
                 ) : (
                   activityFeed.slice(0, 5).map((ev, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '9px 16px', borderBottom: i < 4 ? `1px solid ${C.border}` : 'none' }}>
-                      <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>{ev.icon}</span>
+                      <span style={{ flexShrink: 0, marginTop: 1, display: 'flex', alignItems: 'center', width: 18, justifyContent: 'center' }}>
+                        {ev.iconKey === 'flame'    && <Flame      size={14} color="#EF4444" />}
+                        {ev.iconKey === 'trending' && <TrendingUp size={14} color="#60A5FA" />}
+                        {ev.iconKey === 'scan'     && <QrCode     size={14} color={C.muted} />}
+                        {ev.iconKey === 'return'   && <RotateCcw  size={14} color={C.muted} />}
+                        {ev.iconKey === 'packet'   && <FileText   size={14} color="#D97706" />}
+                        {ev.iconKey === 'user'     && <Users      size={14} color={C.muted} />}
+                      </span>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 12, color: C.sub, lineHeight: 1.4 }}>{ev.label}</div>
                         <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{timeAgo(ev.created_at)}</div>
@@ -524,7 +539,7 @@ export default function Dashboard() {
                           {thumb ? (
                             <img src={thumb} alt="" style={{ width: 48, height: 48, borderRadius: 9, objectFit: 'cover', flexShrink: 0, border: `1px solid ${C.border}` }} />
                           ) : (
-                            <div style={{ width: 48, height: 48, borderRadius: 9, flexShrink: 0, background: `${C.purple}18`, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🏠</div>
+                            <div style={{ width: 48, height: 48, borderRadius: 9, flexShrink: 0, background: `${C.purple}18`, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Home size={22} color={C.purpleL} /></div>
                           )}
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
@@ -535,8 +550,8 @@ export default function Dashboard() {
                             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                               <span style={{ fontSize: 11, color: C.purpleL, fontWeight: 600 }}>{scans} scans</span>
                               <span style={{ fontSize: 11, color: '#FCD34D', fontWeight: 600 }}>{leads} leads</span>
-                              {hot > 0 && <span style={{ fontSize: 11, color: '#EF4444', fontWeight: 600 }}>🔥 {hot} showing</span>}
-                              {packet > 0 && <span style={{ fontSize: 11, color: '#D97706', fontWeight: 600 }}>📄 {packet}</span>}
+                              {hot > 0 && <span style={{ fontSize: 11, color: '#EF4444', fontWeight: 600 }}>{hot} showing</span>}
+                              {packet > 0 && <span style={{ fontSize: 11, color: '#D97706', fontWeight: 600 }}>{packet} packets</span>}
                             </div>
                           </div>
                           <Link href="/dashboard/properties" style={{ fontSize: 11, fontWeight: 700, color: C.purpleL, textDecoration: 'none', background: `${C.purple}18`, border: `1px solid ${C.purple}30`, borderRadius: 7, padding: '5px 10px', flexShrink: 0 }}>
@@ -558,12 +573,12 @@ export default function Dashboard() {
             {/* Seller Report Preview */}
             {topProp ? (
               <Card style={{ alignSelf: 'start' }}>
-                <CardHead title="📊 Seller Report Preview" />
+                <CardHead title={<span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><BarChart2 size={14} color={C.purpleL} /> Seller Report Preview</span>} />
                 <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
                   {propThumbs[topProp.id] ? (
                     <img src={propThumbs[topProp.id]} alt="" style={{ width: '100%', height: 90, objectFit: 'cover', borderRadius: 10, display: 'block', border: `1px solid ${C.border}` }} />
                   ) : (
-                    <div style={{ width: '100%', height: 72, background: `${C.purple}18`, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, border: `1px solid ${C.border}` }}>🏠</div>
+                    <div style={{ width: '100%', height: 72, background: `${C.purple}18`, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${C.border}` }}><Home size={32} color={C.purpleL} /></div>
                   )}
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4 }}>{topProp.address}</div>
@@ -591,11 +606,11 @@ export default function Dashboard() {
                       }}
                       style={{ flex: 1, background: copiedReport ? '#052e16' : `${C.purple}20`, border: `1px solid ${copiedReport ? '#166534' : C.purple + '35'}`, borderRadius: 9, padding: '9px', fontSize: 11, fontWeight: 700, color: copiedReport ? '#4ade80' : C.purpleL, cursor: 'pointer', fontFamily: 'sans-serif', transition: 'all 0.15s' }}
                     >
-                      {copiedReport ? '✓ Copied!' : '🔗 Share Report'}
+                      {copiedReport ? '✓ Copied!' : <><Share2 size={11} style={{ verticalAlign: 'middle', marginRight: 4 }} />Share Report</>}
                     </button>
                     <a href={`/report/${topProp.id}?print=true`} target="_blank" rel="noreferrer"
                       style={{ flex: 1, background: '#2563EB', borderRadius: 9, padding: '9px', fontSize: 11, fontWeight: 700, color: '#fff', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      ⬇ PDF
+                      <Download size={11} style={{ verticalAlign: 'middle', marginRight: 4 }} />PDF
                     </a>
                   </div>
                   <Link href={`/report/${topProp.id}`} style={{ fontSize: 12, color: C.purpleL, textDecoration: 'none', fontWeight: 600, textAlign: 'center' }}>View full report →</Link>
@@ -603,7 +618,7 @@ export default function Dashboard() {
               </Card>
             ) : (
               <Card style={{ alignSelf: 'start' }}>
-                <CardHead title="📊 Seller Report Preview" />
+                <CardHead title={<span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><BarChart2 size={14} color={C.purpleL} /> Seller Report Preview</span>} />
                 <div style={{ padding: '32px 18px', textAlign: 'center', color: C.muted, fontSize: 13 }}>Capture leads to unlock your top performing listing preview.</div>
               </Card>
             )}
@@ -613,7 +628,7 @@ export default function Dashboard() {
           {showAiBanner && (
             <div style={{ background: 'linear-gradient(135deg, #2D1A5E 0%, #0F1629 100%)', border: `1px solid ${C.purple}40`, borderRadius: 16, padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', animation: 'fadeUp 0.4s ease' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-                <div style={{ width: 40, height: 40, borderRadius: 12, background: `${C.purple}30`, border: `1px solid ${C.purple}50`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>✨</div>
+                <div style={{ width: 40, height: 40, borderRadius: 12, background: `${C.purple}30`, border: `1px solid ${C.purple}50`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Sparkles size={18} color={C.purpleL} /></div>
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 700, color: C.purpleL, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>AI Insight</div>
                   <div style={{ fontSize: 14, color: C.text, lineHeight: 1.6, maxWidth: 580 }}>

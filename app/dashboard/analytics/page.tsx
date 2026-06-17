@@ -148,8 +148,11 @@ export default function AnalyticsPage() {
   const totalLeads  = leads.length
 
   // conversion rate with prior-window comparison
-  const convNow  = totalScans  > 0 ? (totalLeads  / totalScans)  * 100 : null
-  const convPrev = prevScanCount > 0 ? (prevLeadCount / prevScanCount) * 100 : null
+  // cap at 100% — leads created before scan tracking fix can exceed scan count
+  const convRaw   = totalScans  > 0 ? (totalLeads  / totalScans)  * 100 : null
+  const convNow   = convRaw !== null ? Math.min(convRaw, 100) : null
+  const convCapped = convRaw !== null && convRaw > 100
+  const convPrev  = prevScanCount > 0 ? Math.min((prevLeadCount / prevScanCount) * 100, 100) : null
   const convDelta = convNow !== null && convPrev !== null ? convNow - convPrev : null
 
   // briefing
@@ -395,10 +398,13 @@ export default function AnalyticsPage() {
                       )}
                     </div>
                     <div style={{ fontSize: 12, color: C.muted, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Conversion Rate</div>
-                    {convDelta !== null && (
+                    {convCapped && (
+                      <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>Capped at 100% — includes pre-fix leads</div>
+                    )}
+                    {!convCapped && convDelta !== null && (
                       <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>vs your prior 30-day avg</div>
                     )}
-                    {convPrev === null && (
+                    {!convCapped && convPrev === null && (
                       <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>Not enough history for comparison</div>
                     )}
                   </>

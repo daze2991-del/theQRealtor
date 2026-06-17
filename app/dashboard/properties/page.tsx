@@ -5,6 +5,7 @@ import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DashboardLayout from '../../../components/DashboardLayout'
+import { Flame } from 'lucide-react'
 
 const C = {
   bg:      '#0F0F13',
@@ -21,7 +22,7 @@ function StatusBadge({ active, toggling, onToggle }: { active: boolean; toggling
   return (
     <button
       onClick={onToggle} disabled={toggling}
-      title={active ? 'Click to take offline' : 'Click to go live'}
+      title={active ? 'Your buyer page is capturing leads 24/7 — buyers can scan anytime. Click to take offline.' : 'Click to go live'}
       style={{
         display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
         background: active ? '#062014' : '#18181F',
@@ -33,14 +34,14 @@ function StatusBadge({ active, toggling, onToggle }: { active: boolean; toggling
     >
       <div style={{ width: 6, height: 6, borderRadius: '50%', background: active ? '#4ade80' : '#6B7280', transition: 'background 0.15s' }} />
       <span style={{ fontSize: 11, fontWeight: 700, color: active ? '#4ade80' : '#6B7280' }}>
-        {toggling ? '…' : active ? 'Live' : 'Offline'}
+        {toggling ? '…' : active ? 'Active' : 'Offline'}
       </span>
     </button>
   )
 }
 
-function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle, onDelete, onEdit, deleting, userId, origin, thumbnail }: {
-  prop: any; scanCount: number; leadCount: number; qrCount: number;
+function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onToggle, onDelete, onEdit, deleting, userId, origin, thumbnail }: {
+  prop: any; scanCount: number; leadCount: number; hotLeadCount: number;
   toggling: boolean; onToggle: () => void;
   onDelete: () => void; onEdit: (updated: any) => void;
   deleting: boolean; userId: string; origin: string; thumbnail?: string;
@@ -234,6 +235,12 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
     } catch { /* clipboard unavailable */ }
   }
 
+  const healthBadge = leadCount === 0
+    ? { label: 'Needs Attention',   dotColor: '#EF4444', textColor: '#F87171' }
+    : hotLeadCount > 2
+    ? { label: 'High Activity',     dotColor: '#4ade80', textColor: '#4ade80' }
+    : { label: 'Moderate Activity', dotColor: '#FCD34D', textColor: '#FCD34D' }
+
   return (
     <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 22, display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Header */}
@@ -249,16 +256,35 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
               {prop.address}
             </div>
             {location ? (
-              <div style={{ fontSize: 12.5, color: C.muted }}>{location}</div>
+              <div style={{ fontSize: 12.5, color: C.muted, marginBottom: 4 }}>{location}</div>
             ) : (
-              <div style={{ fontSize: 12, color: '#FB923C', fontWeight: 600 }}>⚠️ Missing Location</div>
+              <div style={{ fontSize: 12, color: '#FB923C', fontWeight: 600, marginBottom: 4 }}>⚠️ Missing Location</div>
             )}
+            {/* FIX 5 — Health badge */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div style={{ width: 7, height: 7, borderRadius: '50%', background: healthBadge.dotColor, flexShrink: 0 }} />
+              <span style={{ fontSize: 11, fontWeight: 600, color: healthBadge.textColor }}>{healthBadge.label}</span>
+            </div>
           </div>
         </div>
         <StatusBadge active={!!prop.active} toggling={toggling} onToggle={onToggle} />
       </div>
 
-      {/* Stats */}
+      {/* FIX 2 — Preview Public Page (prominent, above stats) */}
+      <Link
+        href={`/p/${prop.id}`}
+        target="_blank"
+        style={{
+          display: 'block', textAlign: 'center',
+          background: `${C.purple}14`, border: `1px solid ${C.purple}35`,
+          borderRadius: 9, padding: '9px 14px',
+          fontSize: 13, fontWeight: 700, color: C.purpleL, textDecoration: 'none',
+        }}
+      >
+        Preview Public Page →
+      </Link>
+
+      {/* Stats — FIX 4: QR Codes → Hot Buyers */}
       <div style={{ display: 'flex', gap: 10 }}>
         <div style={{ flex: 1, background: `${C.purple}14`, border: `1px solid ${C.purple}30`, borderRadius: 10, padding: '10px 14px', textAlign: 'center' }}>
           <div style={{ fontSize: 22, fontWeight: 800, color: C.purpleL, lineHeight: 1 }}>{scanCount}</div>
@@ -268,9 +294,12 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
           <div style={{ fontSize: 22, fontWeight: 800, color: '#FCD34D', lineHeight: 1 }}>{leadCount}</div>
           <div style={{ fontSize: 10, color: C.muted, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Leads</div>
         </div>
-        <div style={{ flex: 1, background: '#0D1117', border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 14px', textAlign: 'center' }}>
-          <div style={{ fontSize: 22, fontWeight: 800, color: C.sub, lineHeight: 1 }}>{qrCount}</div>
-          <div style={{ fontSize: 10, color: C.muted, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>QR Codes</div>
+        <div style={{ flex: 1, background: '#3B0D0D', border: '1px solid #EF444430', borderRadius: 10, padding: '10px 14px', textAlign: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, lineHeight: 1 }}>
+            <Flame size={15} color="#EF4444" />
+            <span style={{ fontSize: 22, fontWeight: 800, color: '#EF4444', lineHeight: 1 }}>{hotLeadCount}</span>
+          </div>
+          <div style={{ fontSize: 10, color: C.muted, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Hot Buyers</div>
         </div>
       </div>
 
@@ -369,32 +398,18 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
 
       {/* Actions */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 4, borderTop: `1px solid ${C.border}` }}>
-        {/* View Details — primary CTA */}
-        <Link
-          href={`/dashboard/properties/${prop.id}`}
-          style={{
-            display: 'block', textAlign: 'center',
-            background: C.purple, color: '#fff',
-            borderRadius: 9, padding: '10px 14px',
-            fontSize: 13, fontWeight: 700, textDecoration: 'none',
-          }}
-        >
-          View Details →
-        </Link>
-
-        {/* Row 1: View Buyer Page + ⋮ menu */}
+        {/* Row 1: View Details + ⋮ menu */}
         <div style={{ display: 'flex', gap: 8 }}>
           <Link
-            href={`/p/${prop.id}`}
-            target="_blank"
+            href={`/dashboard/properties/${prop.id}`}
             style={{
-              flex: 1, fontSize: 13, fontWeight: 700, color: C.text,
-              background: `${C.purple}18`, border: `1px solid ${C.purple}35`,
-              borderRadius: 9, padding: '9px 14px', textDecoration: 'none',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flex: 1, display: 'block', textAlign: 'center',
+              background: C.purple, color: '#fff',
+              borderRadius: 9, padding: '10px 14px',
+              fontSize: 13, fontWeight: 700, textDecoration: 'none',
             }}
           >
-            View Buyer Page →
+            View Details →
           </Link>
 
           <div ref={menuRef} style={{ position: 'relative' }}>
@@ -410,7 +425,7 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
               <div style={{
                 position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 50,
                 background: C.card, border: `1px solid ${C.border}`,
-                borderRadius: 10, padding: '6px 0', minWidth: 190,
+                borderRadius: 10, padding: '6px 0', minWidth: 210,
                 boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
               }}>
                 <button onClick={() => { setMenuOpen(false); copyBuyerLink() }}
@@ -420,6 +435,12 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
                 <button onClick={() => { setMenuOpen(false); router.push('/dashboard/qr-codes') }}
                   style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
                   📱 QR Codes
+                </button>
+                {/* FIX 7 — Download Sign Template */}
+                <button onClick={() => { setMenuOpen(false); router.push('/dashboard/sign-studio') }}
+                  style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
+                  <div>📐 Download Sign Template</div>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Get a printable sign insert with your QR code.</div>
                 </button>
                 <button onClick={() => { setMenuOpen(false); openEdit() }}
                   style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
@@ -440,10 +461,11 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
           </div>
         </div>
 
-        {/* Row 2: Copy Report Link + Open Report + PDF */}
+        {/* FIX 3 — Copy Shareable Link + Open Report + PDF */}
         <div style={{ display: 'flex', gap: 8 }}>
           <button
             onClick={copyReportLink}
+            title="Send this link to your seller."
             style={{
               flex: 1, fontSize: 12, fontWeight: 600,
               background: copiedReport ? '#052e16' : `${C.purple}14`,
@@ -453,7 +475,7 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
               transition: 'all 0.15s', textAlign: 'center',
             }}
           >
-            {copiedReport ? '✓ Copied' : '📋 Copy Report Link'}
+            {copiedReport ? '✓ Copied' : '📋 Copy Shareable Link'}
           </button>
           <a
             href={`/report/${prop.id}`}
@@ -484,6 +506,7 @@ function PropertyCard({ prop, scanCount, leadCount, qrCount, toggling, onToggle,
             ⬇ PDF
           </a>
         </div>
+        <div style={{ fontSize: 11, color: C.muted, textAlign: 'center' }}>Send this link to your seller.</div>
       </div>
 
       {/* ── Edit Modal ── */}
@@ -616,17 +639,20 @@ export default function PropertiesPage() {
   const routerRef = useRef(router)
   routerRef.current = router
 
-  const [properties, setProperties]     = useState<any[]>([])
-  const [qrCounts, setQrCounts]         = useState<Record<string, number>>({})
-  const [scanCounts, setScanCounts]     = useState<Record<string, number>>({})
-  const [leadCounts, setLeadCounts]     = useState<Record<string, number>>({})
-  const [propThumbs, setPropThumbs]     = useState<Record<string, string>>({})
-  const [plan, setPlan]                 = useState<'free' | 'pro'>('free')
-  const [loading, setLoading]           = useState(true)
-  const [togglingId, setTogglingId]     = useState<string | null>(null)
-  const [deletingId, setDeletingId]     = useState<string | null>(null)
-  const [userId, setUserId]             = useState('')
-  const [origin, setOrigin]             = useState('')
+  const [properties, setProperties]       = useState<any[]>([])
+  const [qrCounts, setQrCounts]           = useState<Record<string, number>>({})
+  const [scanCounts, setScanCounts]       = useState<Record<string, number>>({})
+  const [leadCounts, setLeadCounts]       = useState<Record<string, number>>({})
+  const [hotLeadCounts, setHotLeadCounts] = useState<Record<string, number>>({})
+  const [propThumbs, setPropThumbs]       = useState<Record<string, string>>({})
+  const [plan, setPlan]                   = useState<'free' | 'pro'>('free')
+  const [loading, setLoading]             = useState(true)
+  const [togglingId, setTogglingId]       = useState<string | null>(null)
+  const [deletingId, setDeletingId]       = useState<string | null>(null)
+  const [userId, setUserId]               = useState('')
+  const [origin, setOrigin]               = useState('')
+  const [search, setSearch]               = useState('')
+  const [sortMode, setSortMode]           = useState<'recent' | 'leads' | 'active'>('recent')
 
   useEffect(() => { setOrigin(window.location.origin) }, [])
 
@@ -652,7 +678,7 @@ export default function PropertiesPage() {
           const ids = props.map((p: any) => p.id)
           const [{ data: qrcodes }, { data: leads }, { data: thumbData }] = await Promise.all([
             supabase.from('qrcodes').select('property_id, scan_count').in('property_id', ids),
-            supabase.from('leads').select('property_id').in('property_id', ids),
+            supabase.from('leads').select('property_id, tier').in('property_id', ids),
             supabase.from('property_photos').select('property_id, url')
               .in('property_id', ids).order('sort_order', { ascending: true }),
           ])
@@ -665,13 +691,18 @@ export default function PropertiesPage() {
             scanMap[q.property_id] = (scanMap[q.property_id] || 0) + (q.scan_count || 0)
           })
           const leadMap: Record<string, number> = {}
-          ;(leads || []).forEach((l: any) => { leadMap[l.property_id] = (leadMap[l.property_id] || 0) + 1 })
+          const hotMap: Record<string, number> = {}
+          ;(leads || []).forEach((l: any) => {
+            leadMap[l.property_id] = (leadMap[l.property_id] || 0) + 1
+            if (l.tier === 'hot') hotMap[l.property_id] = (hotMap[l.property_id] || 0) + 1
+          })
           const thumbMap: Record<string, string> = {}
           ;(thumbData || []).forEach((t: any) => { if (!thumbMap[t.property_id]) thumbMap[t.property_id] = t.url })
 
           setQrCounts(qrMap)
           setScanCounts(scanMap)
           setLeadCounts(leadMap)
+          setHotLeadCounts(hotMap)
           setPropThumbs(thumbMap)
         }
       } catch (err) {
@@ -745,8 +776,14 @@ export default function PropertiesPage() {
     }
   }
 
-  // sort by most leads first
-  const sortedProperties = [...properties].sort((a, b) => (leadCounts[b.id] || 0) - (leadCounts[a.id] || 0))
+  const filteredProperties = properties.filter(p =>
+    p.address.toLowerCase().includes(search.toLowerCase())
+  )
+  const sortedProperties = [...filteredProperties].sort((a, b) => {
+    if (sortMode === 'leads')  return (leadCounts[b.id]  || 0) - (leadCounts[a.id]  || 0)
+    if (sortMode === 'active') return (scanCounts[b.id]  || 0) - (scanCounts[a.id]  || 0)
+    return 0 // 'recent' — preserve DB order (created_at desc)
+  })
 
   const canAddProperty = plan === 'pro' || properties.length < 1
 
@@ -783,6 +820,27 @@ export default function PropertiesPage() {
           </div>
 
           <div style={{ padding: '24px 28px' }}>
+            {/* FIX 6 — Search + Sort */}
+            {properties.length > 0 && (
+              <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+                <input
+                  type="text"
+                  placeholder="Search by address…"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  style={{ flex: 1, background: C.card, border: `1px solid ${C.border}`, borderRadius: 9, padding: '9px 14px', color: C.text, fontSize: 13, outline: 'none' }}
+                />
+                <select
+                  value={sortMode}
+                  onChange={e => setSortMode(e.target.value as 'recent' | 'leads' | 'active')}
+                  style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 9, padding: '9px 14px', color: C.sub, fontSize: 13, cursor: 'pointer' }}
+                >
+                  <option value="recent">Most Recent</option>
+                  <option value="leads">Most Leads</option>
+                  <option value="active">Most Active</option>
+                </select>
+              </div>
+            )}
             {sortedProperties.length === 0 ? (
               <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: '72px 32px', textAlign: 'center' }}>
                 <div style={{ fontSize: 48, marginBottom: 16 }}>🏠</div>
@@ -802,7 +860,7 @@ export default function PropertiesPage() {
                     prop={prop}
                     scanCount={scanCounts[prop.id] || 0}
                     leadCount={leadCounts[prop.id] || 0}
-                    qrCount={qrCounts[prop.id] || 0}
+                    hotLeadCount={hotLeadCounts[prop.id] || 0}
                     toggling={togglingId === prop.id}
                     onToggle={() => toggleActive(prop)}
                     onDelete={() => deleteProperty(prop)}

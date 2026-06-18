@@ -384,7 +384,8 @@ export default function AnalyticsPage() {
                 {convNow === null ? (
                   <>
                     <div style={{ fontSize: 12, fontWeight: 600, color: C.muted, lineHeight: 1.4 }}>Not enough data yet</div>
-                    <div style={{ fontSize: 12, color: C.muted, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Conversion Rate</div>
+                    <div style={{ fontSize: 12, color: C.muted, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Lead Capture Rate</div>
+                    <div style={{ fontSize: 11, color: C.muted, marginTop: 6, lineHeight: 1.45 }}>Reflects leads captured vs. scans recorded. Engagement metric only — not a sales outcome.</div>
                   </>
                 ) : (
                   <>
@@ -396,7 +397,7 @@ export default function AnalyticsPage() {
                         </div>
                       )}
                     </div>
-                    <div style={{ fontSize: 12, color: C.muted, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Conversion Rate</div>
+                    <div style={{ fontSize: 12, color: C.muted, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Lead Capture Rate</div>
                     {convCapped && (
                       <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>Capped at 100% — includes pre-fix leads</div>
                     )}
@@ -406,6 +407,7 @@ export default function AnalyticsPage() {
                     {!convCapped && convPrev === null && (
                       <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>Not enough history for comparison</div>
                     )}
+                    <div style={{ fontSize: 11, color: C.muted, marginTop: 6, lineHeight: 1.45 }}>Reflects leads captured vs. scans recorded. Engagement metric only — not a sales outcome.</div>
                   </>
                 )}
               </div>

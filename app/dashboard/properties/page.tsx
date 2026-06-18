@@ -64,6 +64,12 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
   const [editForm, setEditForm]           = useState<any>({})
   const [editSaving, setEditSaving]       = useState(false)
   const [editError, setEditError]         = useState('')
+  const [qrModalOpen, setQrModalOpen]   = useState(false)
+  const [qrName, setQrName]             = useState('')
+  const [qrType, setQrType]             = useState<'property' | 'openhouse'>('property')
+  const [qrFormat, setQrFormat]         = useState<'outdoor' | 'indoor'>('outdoor')
+  const [qrSaving, setQrSaving]         = useState(false)
+  const [qrError, setQrError]           = useState('')
   const fileInputRef  = useRef<HTMLInputElement>(null)
   const menuRef       = useRef<HTMLDivElement>(null)
   const photoGridRef  = useRef<HTMLDivElement>(null)
@@ -233,6 +239,28 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
       setCopiedReport(true)
       setTimeout(() => setCopiedReport(false), 2000)
     } catch { /* clipboard unavailable */ }
+  }
+
+  const openQrModal = () => {
+    setQrName(''); setQrType('property'); setQrFormat('outdoor'); setQrError(''); setQrModalOpen(true)
+  }
+
+  const submitQR = async () => {
+    const name = qrName.trim()
+    if (!name) return
+    setQrSaving(true); setQrError('')
+    try {
+      const supabase = createBrowserSupabase()
+      const { error } = await supabase.from('qrcodes').insert({
+        property_id: prop.id,
+        label: name,
+        placement: qrFormat === 'outdoor' ? 'Yard Sign' : 'Window Sign',
+        scan_count: 0,
+      })
+      if (error) { setQrError('Failed to create QR code. Please try again.') }
+      else { setQrModalOpen(false); router.push('/dashboard/qr-codes') }
+    } catch { setQrError('Something went wrong. Please try again.') }
+    finally { setQrSaving(false) }
   }
 
   const healthBadge = leadCount === 0
@@ -412,19 +440,19 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
             View Details →
           </Link>
 
-          <Link
-            href={`/dashboard/qr-codes?propertyId=${prop.id}`}
+          <button
+            onClick={openQrModal}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 4,
-              background: `${C.purple}14`, color: C.purpleL,
-              border: `1px solid ${C.purple}40`,
+              background: 'transparent', color: C.purpleL,
+              border: `1px solid ${C.purple}50`,
               borderRadius: 9, padding: '10px 12px',
-              fontSize: 12, fontWeight: 700, textDecoration: 'none',
+              fontSize: 12, fontWeight: 700, cursor: 'pointer',
               whiteSpace: 'nowrap',
             }}
           >
-            🔲 Generate QR
-          </Link>
+            + Add QR
+          </button>
 
           <div ref={menuRef} style={{ position: 'relative' }}>
             <button
@@ -450,12 +478,7 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
                   style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
                   📱 QR Codes
                 </button>
-                {/* FIX 7 — Download Sign Template */}
-                <button onClick={() => { setMenuOpen(false); router.push('/dashboard/sign-studio') }}
-                  style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
-                  <div>📐 Download Sign Template</div>
-                  <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Get a printable sign insert with your QR code.</div>
-                </button>
+
                 <button onClick={() => { setMenuOpen(false); openEdit() }}
                   style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
                   ✏️ Edit Property
@@ -641,6 +664,99 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
                 style={{ flex: 2, background: editSaving ? `${C.purple}80` : C.purple, border: 'none', borderRadius: 9, padding: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: editSaving ? 'not-allowed' : 'pointer' }}>
                 {editSaving ? 'Saving…' : 'Save Changes'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Generate QR Modal ── */}
+      {qrModalOpen && (
+        <div
+          onClick={e => { if (e.target === e.currentTarget) setQrModalOpen(false) }}
+          style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+        >
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 28, width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
+              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: C.text }}>Generate New QR Code</h2>
+              <button onClick={() => setQrModalOpen(false)} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 18, cursor: 'pointer', padding: 4, lineHeight: 1 }}>✕</button>
+            </div>
+
+            {/* Field 1 — Sign Name */}
+            <label style={{ display: 'block', marginBottom: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Sign Name</div>
+              <input
+                value={qrName}
+                onChange={e => setQrName(e.target.value)}
+                placeholder="e.g. Front Lawn, Street Corner, Backyard, A-Frame"
+                style={{ width: '100%', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 9, padding: '10px 13px', color: C.text, fontSize: 13, boxSizing: 'border-box', outline: 'none' }}
+              />
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 5 }}>Name this sign so you can identify it later.</div>
+            </label>
+
+            {/* Field 2 — QR Type */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>QR Type</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {([
+                  { id: 'property'  as const, icon: '🏡', title: 'Property QR',    desc: 'For active listings. Buyers scan and see property details, photos, and contact options.', features: ['Lead Capture', 'Photo Gallery', 'Request Showing', 'Analytics'] },
+                  { id: 'openhouse' as const, icon: '🏠', title: 'Open House QR',  desc: 'Capture visitor info before, during, and after an open house.',                         features: ['Visitor Check-In', 'Contact Capture', 'Follow-Up', 'Analytics'] },
+                ]).map(qt => (
+                  <button
+                    key={qt.id}
+                    onClick={() => setQrType(qt.id)}
+                    style={{
+                      padding: '14px 12px', borderRadius: 12, cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s',
+                      border: `2px solid ${qrType === qt.id ? C.purple : C.border}`,
+                      background: qrType === qt.id ? `${C.purple}14` : C.bg,
+                    }}
+                  >
+                    <div style={{ fontSize: 22, marginBottom: 6 }}>{qt.icon}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 5 }}>{qt.title}</div>
+                    <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4, marginBottom: 8 }}>{qt.desc}</div>
+                    {qt.features.map(f => (
+                      <div key={f} style={{ fontSize: 11, color: C.sub, display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                        <span style={{ color: '#4ade80', fontSize: 10 }}>✓</span> {f}
+                      </div>
+                    ))}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Field 3 — Sign Format */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Sign Format</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {([
+                  { id: 'outdoor' as const, label: 'Outdoor Sign',  desc: 'Standard QR for yard signs and riders' },
+                  { id: 'indoor'  as const, label: 'Indoor Sheet',   desc: 'QR formatted for printed indoor sign sheets' },
+                ]).map(fmt => (
+                  <label key={fmt.id} style={{ cursor: 'pointer' }}>
+                    <input type="radio" name={`qrFmt-${prop.id}`} checked={qrFormat === fmt.id} onChange={() => setQrFormat(fmt.id)} style={{ display: 'none' }} />
+                    <div style={{
+                      padding: '12px 14px', borderRadius: 10, transition: 'all 0.15s',
+                      border: `2px solid ${qrFormat === fmt.id ? C.purple : C.border}`,
+                      background: qrFormat === fmt.id ? `${C.purple}12` : C.bg,
+                    }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 3 }}>{fmt.label}</div>
+                      <div style={{ fontSize: 11, color: C.muted }}>{fmt.desc}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {qrError && <p style={{ color: '#F87171', fontSize: 12, marginBottom: 14 }}>{qrError}</p>}
+
+            <button
+              onClick={submitQR}
+              disabled={qrSaving || !qrName.trim()}
+              style={{ width: '100%', background: qrSaving || !qrName.trim() ? `${C.purple}60` : C.purple, border: 'none', borderRadius: 10, padding: '13px', color: '#fff', fontSize: 14, fontWeight: 700, cursor: qrSaving || !qrName.trim() ? 'not-allowed' : 'pointer', marginBottom: 12 }}
+            >
+              {qrSaving ? 'Generating…' : 'Generate QR Code'}
+            </button>
+            <div style={{ textAlign: 'center' }}>
+              <button onClick={() => setQrModalOpen(false)} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}>Cancel</button>
             </div>
           </div>
         </div>

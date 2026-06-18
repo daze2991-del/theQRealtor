@@ -127,6 +127,15 @@ export default function QRCodesPage() {
   const [ohCapture,     setOhCapture]     = useState({ name: true, email: true, phone: true, agent: true })
   const [modalCopied,   setModalCopied]   = useState(false)
 
+  // ── create QR modal state ──
+  const [createModal,  setCreateModal]  = useState(false)
+  const [createPropId, setCreatePropId] = useState('')
+  const [createName,   setCreateName]   = useState('')
+  const [createType,   setCreateType]   = useState<'property' | 'openhouse'>('property')
+  const [createFormat, setCreateFormat] = useState<'outdoor' | 'indoor'>('outdoor')
+  const [createSaving, setCreateSaving] = useState(false)
+  const [createError,  setCreateError]  = useState('')
+
   useEffect(() => { setOrigin(window.location.origin) }, [])
 
   useEffect(() => {
@@ -244,6 +253,29 @@ export default function QRCodesPage() {
     } catch {}
   }
 
+  const openCreateModal = () => {
+    setCreatePropId(''); setCreateName(''); setCreateType('property')
+    setCreateFormat('outdoor'); setCreateError(''); setCreateModal(true)
+  }
+
+  const submitCreateQR = async () => {
+    const name = createName.trim()
+    if (!createPropId || !name) return
+    setCreateSaving(true); setCreateError('')
+    try {
+      const supabase = createBrowserSupabase()
+      const { data, error } = await supabase.from('qrcodes').insert({
+        property_id: createPropId,
+        label: name,
+        placement: createFormat === 'outdoor' ? 'Yard Sign' : 'Window Sign',
+        scan_count: 0,
+      }).select().single()
+      if (error) { setCreateError('Failed to create QR code. Please try again.') }
+      else { setQrCodes(prev => [data, ...prev]); setCreateModal(false) }
+    } catch { setCreateError('Something went wrong. Please try again.') }
+    finally { setCreateSaving(false) }
+  }
+
   const accent  = activeModal === 'openhouse' ? AMBER  : C.purple
   const accentL = activeModal === 'openhouse' ? AMBERL : C.purpleL
 
@@ -289,7 +321,7 @@ export default function QRCodesPage() {
                 </select>
               )}
               <button
-                onClick={() => openModal('property')}
+                onClick={openCreateModal}
                 style={{ background: C.purple, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
               >
                 + Generate QR Code
@@ -742,6 +774,100 @@ export default function QRCodesPage() {
                 <button onClick={() => setModalStep(2)} style={{ width: '100%', marginTop: 12, padding: '10px', borderRadius: 10, border: `1px solid ${C.border}`, background: 'transparent', color: C.muted, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>← Back</button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {/* ── create QR modal ── */}
+      {createModal && (
+        <div
+          onClick={e => { if (e.target === e.currentTarget) setCreateModal(false) }}
+          style={{ position: 'fixed', inset: 0, zIndex: 1200, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, fontFamily: 'sans-serif' }}
+        >
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 28, width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
+              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: C.text }}>Generate New QR Code</h2>
+              <button onClick={() => setCreateModal(false)} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 18, cursor: 'pointer', padding: 4, lineHeight: 1 }}>✕</button>
+            </div>
+
+            {/* Property selector */}
+            <label style={{ display: 'block', marginBottom: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Property</div>
+              <select
+                value={createPropId}
+                onChange={e => setCreatePropId(e.target.value)}
+                style={{ width: '100%', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 9, padding: '10px 13px', color: createPropId ? C.text : C.muted, fontSize: 13, outline: 'none', cursor: 'pointer', boxSizing: 'border-box' }}
+              >
+                <option value="">Select a property…</option>
+                {properties.map((p: any) => <option key={p.id} value={p.id}>{p.address}</option>)}
+              </select>
+            </label>
+
+            {/* Sign Name */}
+            <label style={{ display: 'block', marginBottom: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Sign Name</div>
+              <input
+                value={createName}
+                onChange={e => setCreateName(e.target.value)}
+                placeholder="e.g. Front Lawn, Street Corner, Backyard, A-Frame"
+                style={{ width: '100%', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 9, padding: '10px 13px', color: C.text, fontSize: 13, boxSizing: 'border-box', outline: 'none' }}
+              />
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 5 }}>Name this sign so you can identify it later.</div>
+            </label>
+
+            {/* QR Type */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>QR Type</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {([
+                  { id: 'property'  as const, icon: '🏡', title: 'Property QR',   desc: 'For active listings. Buyers scan and see property details, photos, and contact options.', features: ['Lead Capture', 'Photo Gallery', 'Request Showing', 'Analytics'] },
+                  { id: 'openhouse' as const, icon: '🏠', title: 'Open House QR', desc: 'Capture visitor info before, during, and after an open house.',                          features: ['Visitor Check-In', 'Contact Capture', 'Follow-Up', 'Analytics'] },
+                ]).map(qt => (
+                  <button key={qt.id} onClick={() => setCreateType(qt.id)}
+                    style={{ padding: '14px 12px', borderRadius: 12, cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s', border: `2px solid ${createType === qt.id ? C.purple : C.border}`, background: createType === qt.id ? `${C.purple}14` : C.bg }}>
+                    <div style={{ fontSize: 22, marginBottom: 6 }}>{qt.icon}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 5 }}>{qt.title}</div>
+                    <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4, marginBottom: 8 }}>{qt.desc}</div>
+                    {qt.features.map(f => (
+                      <div key={f} style={{ fontSize: 11, color: C.sub, display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                        <span style={{ color: '#4ade80', fontSize: 10 }}>✓</span> {f}
+                      </div>
+                    ))}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Sign Format */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Sign Format</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {([
+                  { id: 'outdoor' as const, label: 'Outdoor Sign', desc: 'Standard QR for yard signs and riders' },
+                  { id: 'indoor'  as const, label: 'Indoor Sheet', desc: 'QR formatted for printed indoor sign sheets' },
+                ]).map(fmt => (
+                  <label key={fmt.id} style={{ cursor: 'pointer' }}>
+                    <input type="radio" name="createFmt" checked={createFormat === fmt.id} onChange={() => setCreateFormat(fmt.id)} style={{ display: 'none' }} />
+                    <div style={{ padding: '12px 14px', borderRadius: 10, transition: 'all 0.15s', border: `2px solid ${createFormat === fmt.id ? C.purple : C.border}`, background: createFormat === fmt.id ? `${C.purple}12` : C.bg }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 3 }}>{fmt.label}</div>
+                      <div style={{ fontSize: 11, color: C.muted }}>{fmt.desc}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {createError && <p style={{ color: '#F87171', fontSize: 12, marginBottom: 14 }}>{createError}</p>}
+
+            <button
+              onClick={submitCreateQR}
+              disabled={createSaving || !createPropId || !createName.trim()}
+              style={{ width: '100%', background: createSaving || !createPropId || !createName.trim() ? `${C.purple}60` : C.purple, border: 'none', borderRadius: 10, padding: '13px', color: '#fff', fontSize: 14, fontWeight: 700, cursor: createSaving || !createPropId || !createName.trim() ? 'not-allowed' : 'pointer', marginBottom: 12 }}
+            >
+              {createSaving ? 'Generating…' : 'Generate QR Code'}
+            </button>
+            <div style={{ textAlign: 'center' }}>
+              <button onClick={() => setCreateModal(false)} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}>Cancel</button>
+            </div>
           </div>
         </div>
       )}

@@ -342,7 +342,7 @@ export default function LandingPage() {
               <span style={{ fontSize: 16 }}>🟢</span>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#4ADE80' }}>Above Average Buyer Interest</div>
-                <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>This listing is generating strong engagement compared to typical listings.</div>
+                <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>This listing is generating strong engagement based on real buyer activity from your listing.</div>
               </div>
             </div>
           </div>

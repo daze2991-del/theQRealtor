@@ -290,7 +290,7 @@ export default function LandingPage() {
             {[
               { stat: 'Minutes', label: 'Quick setup' },
               { stat: 'Instant', label: 'SMS alerts' },
-              { stat: '100%', label: 'Your leads' },
+              { stat: '0', label: 'Leads resold' },
             ].map(({ stat, label }) => (
               <div key={label} style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 18, fontWeight: 900, color: C.blueXL, letterSpacing: '-0.02em' }}>{stat}</div>
@@ -668,8 +668,8 @@ export default function LandingPage() {
                 a: 'No. Buyers scan the QR code and see the property page instantly in their browser. No app download, no friction. Just tap and see.',
               },
               {
-                q: 'Who owns the leads?',
-                a: 'You do — 100%. Every lead goes directly to you. Never shared with your broker, Zillow, or anyone else. Your QR code, your leads.',
+                q: 'Where do my leads go?',
+                a: 'Straight into your private theQRealtor dashboard. Only you can see the leads from your listings. We don\'t sell, resell, or share your buyer data with portals, lead-resale services, or any third party — unlike Zillow and similar platforms, we never monetize your leads or sell them back to you. theQRealtor delivers leads to your account and nowhere else.',
               },
               {
                 q: 'How is this different from a regular QR code?',

@@ -92,8 +92,11 @@ export default function PrivacyPage() {
           <p style={{ margin: '0 0 12px' }}>
             <strong style={{ color: C.text }}>Agent account data.</strong> When a real estate agent creates an account, we collect their name, email address, and optionally a phone number for receiving SMS lead alerts.
           </p>
-          <p style={{ margin: 0 }}>
+          <p style={{ margin: '0 0 12px' }}>
             <strong style={{ color: C.text }}>Usage data.</strong> We collect anonymous usage information such as QR code scan counts and page load events to help agents understand their listing performance.
+          </p>
+          <p style={{ margin: 0 }}>
+            When a buyer visits a property page, we also record visit timestamp, whether the visit is a return visit, and days since the buyer's first visit to the same listing. This data is used solely to help agents understand buyer engagement patterns and is never sold or shared with third parties.
           </p>
         </Section>
 

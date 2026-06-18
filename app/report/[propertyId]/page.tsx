@@ -252,7 +252,7 @@ export default function SellerReportPage() {
   const agentMessage = [
     `Hi,`,
     ``,
-    `Your home at ${property.address} is generating strong buyer interest. In the last ${listingDays} day${listingDays !== 1 ? 's' : ''}, ${totalScanCount} buyer${totalScanCount !== 1 ? 's' : ''} scanned your QR sign${showingRequests > 0 ? `, ${showingRequests} requested a showing` : ''}${hasDisclosures ? `, and ${packetCount} downloaded your disclosures` : ''}. Buyer engagement is strong compared to similar listings in the area.`,
+    `Your home at ${property.address} is generating strong buyer interest. In the last ${listingDays} day${listingDays !== 1 ? 's' : ''}, ${totalScanCount} buyer${totalScanCount !== 1 ? 's' : ''} scanned your QR sign${showingRequests > 0 ? `, ${showingRequests} requested a showing` : ''}${hasDisclosures ? `, and ${packetCount} downloaded your disclosures` : ''}.`,
     ``,
     `Let me know if you have any questions.`,
     ``,
@@ -794,7 +794,7 @@ export default function SellerReportPage() {
               <div style={{ background: `${C.purple}12`, border: `1px solid ${C.purple}30`, borderRadius: 10, padding: '12px 14px' }}>
                 <div style={{ fontSize: 13, color: C.sub, lineHeight: 1.6 }}>
                   {showingRequests > 0
-                    ? 'Buyers are actively engaging with this listing. Strong showing request activity indicates serious purchase intent.'
+                    ? 'Buyers are actively engaging with this listing. Buyers who request showings are your highest-engagement leads.'
                     : leads.length > 0
                     ? 'Buyers are exploring this listing. Continued QR sign visibility will help convert interest into showings.'
                     : 'Place your QR signs to start capturing buyer engagement data.'}

@@ -112,8 +112,11 @@ export default function TermsPage() {
           <p style={{ margin: '0 0 12px' }}>
             You may cancel your subscription at any time. Cancellation takes effect at the end of the current billing period. Downgrading to the free plan may restrict access to features and properties beyond the free plan limits.
           </p>
-          <p style={{ margin: 0 }}>
+          <p style={{ margin: '0 0 12px' }}>
             We reserve the right to change pricing with 30 days' notice to active subscribers.
+          </p>
+          <p style={{ margin: 0 }}>
+            Participants in the Founding Agent program who were granted locked pricing at account creation are exempt from price increases for as long as their account remains active and in good standing.
           </p>
         </Section>
 

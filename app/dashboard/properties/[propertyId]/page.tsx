@@ -627,7 +627,7 @@ export default function PropertyIntelligencePage() {
             </div>
             <div style={{ background: `${C.purple}12`, border: `1px solid ${C.purple}30`, borderRadius: 9, padding: '10px 12px' }}>
               <div style={{ fontSize: 12, color: C.sub, lineHeight: 1.55 }}>
-                Your showing request rate is <strong style={{ color: C.purpleL }}>{showingRatePct}</strong> — compare it against similar listings.
+                Your showing request rate is <strong style={{ color: C.purpleL }}>{showingRatePct}</strong>.
               </div>
             </div>
           </SectionCard>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
+import { Flame } from 'lucide-react'
 import DashboardLayout from '../../../components/DashboardLayout'
 
 const C = {
@@ -184,15 +185,15 @@ export default function BillingPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 16 }}>
                   {[
                     { label: 'Leads Captured',                value: leadCount.toString(),                                         isComm: false },
-                    { label: 'Est. Commission Opportunity',   value: commissionOpp > 0 ? `$${commissionOpp.toLocaleString()}+` : '—', isComm: true },
-                    { label: 'Monthly Cost',                  value: plan === 'pro' ? '$19/mo' : '$0',                             isComm: false },
+                    { label: 'Est. Pipeline Value',   value: commissionOpp > 0 ? `$${commissionOpp.toLocaleString()}+` : '—', isComm: true },
+                    { label: 'Monthly Cost',         value: plan === 'pro' ? '$24.99/mo' : '$0',                          isComm: false },
                   ].map(({ label, value, isComm }) => (
                     <div key={label} style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`, borderRadius: 10, padding: '14px 12px', textAlign: 'center' }}>
                       <div style={{ fontSize: 22, fontWeight: 800, color: C.purpleL, lineHeight: 1, marginBottom: 6 }}>
                         {value}
                         {isComm && commissionOpp > 0 && (
                           <span
-                            title="Based on leads captured × estimated local transaction value × average commission rate. Actual results vary."
+                            title="Estimated gross value of leads captured before brokerage splits, taxes, and fees. Not a guarantee of income."
                             style={{ fontSize: 11, color: C.muted, marginLeft: 4, cursor: 'help', verticalAlign: 'middle' }}
                           >ⓘ</span>
                         )}
@@ -211,7 +212,7 @@ export default function BillingPage() {
                 <div style={row}>
                   <div>
                     <span style={label}>Current Plan</span>
-                    <span style={badge(plan)}>{plan === 'pro' ? 'Pro' : 'Free'}</span>
+                    <span style={badge(plan)}>{plan === 'pro' ? 'Founding Agent' : 'Free'}</span>
                   </div>
                   {subscription && (
                     <div style={{ textAlign: 'right' }}>
@@ -233,7 +234,7 @@ export default function BillingPage() {
                     <div>
                       <span style={{ ...label, display: 'block', marginBottom: 4 }}>Billing cycle</span>
                       <span style={{ fontSize: 14, color: '#9CA3AF' }}>
-                        {subscription.interval === 'year' ? 'Yearly ($159/yr)' : 'Monthly ($19/mo)'}
+                        {subscription.interval === 'year' ? 'Yearly ($159/yr)' : 'Monthly ($24.99/mo)'}
                       </span>
                     </div>
                     <div>
@@ -262,7 +263,7 @@ export default function BillingPage() {
                     </p>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                       <div style={{ background: `${C.purple}10`, border: `1px solid ${C.border}`, borderRadius: 10, padding: 20 }}>
-                        <div style={{ fontSize: 22, fontWeight: 700, color: C.purpleL, marginBottom: 4 }}>$19/mo</div>
+                        <div style={{ fontSize: 22, fontWeight: 700, color: C.purpleL, marginBottom: 4 }}>$24.99/mo</div>
                         <div style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>Billed monthly</div>
                         <button onClick={() => handleCheckout('monthly')} disabled={checkingOut}
                           style={{ ...btnPrimary, marginBottom: 0, opacity: checkingOut ? 0.7 : 1, cursor: checkingOut ? 'not-allowed' : 'pointer' }}>
@@ -291,7 +292,7 @@ export default function BillingPage() {
                     <p style={{ color: '#9CA3AF', fontSize: 14, marginBottom: 20 }}>
                       {subscription?.cancel_at_period_end
                         ? <>Your subscription is <strong style={{ color: '#FB923C' }}>scheduled to cancel</strong> on {formatDate(subscription.current_period_end)}. You can reactivate anytime from the portal.</>
-                        : <>You're on the <strong style={{ color: '#4ade80' }}>Pro plan</strong>. You have unlimited properties, SMS lead alerts, and full analytics access.</>
+                        : <>You're a <strong style={{ color: '#4ade80' }}>Founding Agent</strong>. You have full platform access at $24.99/month locked in forever — this rate never increases as long as your account remains active.</>
                       }
                     </p>
                     <button onClick={handlePortal} disabled={openingPortal}
@@ -314,48 +315,60 @@ export default function BillingPage() {
                 <div style={{ ...label, marginBottom: 16, display: 'block' }}>Account Usage</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 }}>
                   {[
-                    { label: 'Properties',      value: propCount },
-                    { label: 'QR Codes',        value: qrCount },
-                    { label: 'Leads Captured',  value: leadCount },
-                    { label: 'Hot Leads 🔥',    value: hotLeadCount },
-                  ].map(({ label: lbl, value }) => (
+                    { label: 'Properties',     value: propCount,    isHot: false },
+                    { label: 'QR Codes',       value: qrCount,      isHot: false },
+                    { label: 'Leads Captured', value: leadCount,    isHot: false },
+                    { label: 'Hot Leads',      value: hotLeadCount, isHot: true  },
+                  ].map(({ label: lbl, value, isHot }) => (
                     <div key={lbl} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 10px', textAlign: 'center' }}>
                       <div style={{ fontSize: 22, fontWeight: 800, color: C.purpleL, lineHeight: 1, marginBottom: 5 }}>{value}</div>
-                      <div style={{ fontSize: 10.5, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{lbl}</div>
+                      <div style={{ fontSize: 10.5, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
+                        {isHot && <Flame size={11} color="#EF4444" />}
+                        {lbl}
+                      </div>
                     </div>
                   ))}
                 </div>
 
                 <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 16 }}>
-                  <div style={{ ...label, marginBottom: 14, display: 'block' }}>What's Included</div>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-                    <thead>
-                      <tr>
-                        <th style={{ textAlign: 'left', color: C.muted, fontWeight: 600, paddingBottom: 10 }}>Feature</th>
-                        <th style={{ textAlign: 'center', color: '#9CA3AF', fontWeight: 600, paddingBottom: 10 }}>Free</th>
-                        <th style={{ textAlign: 'center', color: C.purpleL, fontWeight: 600, paddingBottom: 10 }}>Pro</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  <div style={{ ...label, marginBottom: 14, display: 'block' }}>Your Founding Agent Plan</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
+                    {[
+                      'Unlimited properties',
+                      'Buyer lead capture',
+                      'QR sign tracking',
+                      'Buyer interest scoring (Hot/Warm/Cold)',
+                      'SMS lead alerts',
+                      'Seller reports',
+                      'Analytics dashboard',
+                      'CSV export',
+                      'Priority support',
+                      '$24.99/month locked forever',
+                    ].map((feature, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: C.text }}>
+                        <span style={{ color: '#4ade80', fontWeight: 700, fontSize: 15, flexShrink: 0 }}>✓</span>
+                        {feature}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 16 }}>
+                    <div style={{ ...label, marginBottom: 14, display: 'block' }}>Future Public Pricing</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
                       {[
-                        ['Properties',             '1',  'Unlimited'],
-                        ['Buyer Lead Capture',     '✓',  '✓'],
-                        ['QR Sign Tracking',       '✓',  '✓'],
-                        ['Buyer Interest Scoring', '—',  '✓'],
-                        ['SMS Lead Alerts',        '—',  '✓'],
-                        ['Seller Reports',         '—',  '✓'],
-                        ['Analytics Dashboard',    '—',  '✓'],
-                        ['CSV Export',             '—',  '✓'],
-                        ['Priority Support',       '—',  '✓'],
-                      ].map(([feature, free, pro], i) => (
-                        <tr key={i} style={{ borderTop: `1px solid ${C.border}` }}>
-                          <td style={{ padding: '10px 0', color: C.text }}>{feature}</td>
-                          <td style={{ textAlign: 'center', color: C.muted, padding: '10px 0' }}>{free}</td>
-                          <td style={{ textAlign: 'center', padding: '10px 0', fontWeight: 700, color: C.purpleL }}>{pro}</td>
-                        </tr>
+                        { name: 'Starter', price: '$49/mo' },
+                        { name: 'Growth',  price: '$79/mo' },
+                      ].map(({ name, price }) => (
+                        <div key={name} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 12px', textAlign: 'center', opacity: 0.6 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: C.sub, marginBottom: 2 }}>{name}</div>
+                          <div style={{ fontSize: 18, fontWeight: 800, color: C.muted }}>{price}</div>
+                        </div>
                       ))}
-                    </tbody>
-                  </table>
+                    </div>
+                    <p style={{ fontSize: 12, color: C.muted, margin: 0, textAlign: 'center', fontStyle: 'italic' }}>
+                      Limited Founding Agent spots remaining. Your rate is locked for life.
+                    </p>
+                  </div>
                 </div>
               </div>
 

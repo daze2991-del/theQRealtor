@@ -137,8 +137,6 @@ export default function BillingPage() {
     marginLeft: 10,
   })
 
-  const commissionOpp = leadCount > 0 ? leadCount * 8000 : 0
-
   return (
     <DashboardLayout>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -182,29 +180,19 @@ export default function BillingPage() {
                 <div style={{ fontSize: 11, color: C.purpleL, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
                   Your ROI Potential
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, marginBottom: 16 }}>
                   {[
-                    { label: 'Leads Captured',                value: leadCount.toString(),                                         isComm: false },
-                    { label: 'Est. Pipeline Value',   value: commissionOpp > 0 ? `$${commissionOpp.toLocaleString()}+` : '—', isComm: true },
-                    { label: 'Monthly Cost',         value: plan === 'pro' ? '$24.99/mo' : '$0',                          isComm: false },
-                  ].map(({ label, value, isComm }) => (
+                    { label: 'Leads Captured', value: leadCount.toString() },
+                    { label: 'Monthly Cost',   value: plan === 'pro' ? '$24.99/mo' : '$0' },
+                  ].map(({ label, value }) => (
                     <div key={label} style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`, borderRadius: 10, padding: '14px 12px', textAlign: 'center' }}>
                       <div style={{ fontSize: 22, fontWeight: 800, color: C.purpleL, lineHeight: 1, marginBottom: 6 }}>
                         {value}
-                        {isComm && commissionOpp > 0 && (
-                          <span
-                            title="Estimated gross value of leads captured before brokerage splits, taxes, and fees. Not a guarantee of income."
-                            style={{ fontSize: 11, color: C.muted, marginLeft: 4, cursor: 'help', verticalAlign: 'middle' }}
-                          >ⓘ</span>
-                        )}
                       </div>
                       <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4 }}>{label}</div>
                     </div>
                   ))}
                 </div>
-                <p style={{ fontSize: 13, color: C.sub, margin: 0, lineHeight: 1.5 }}>
-                  One closed deal could pay for years of Pro. Every lead captured is a potential transaction.
-                </p>
               </div>
 
               {/* Current plan card */}

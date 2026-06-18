@@ -611,7 +611,7 @@ export default function LandingPage() {
               { icon: '💳', text: 'No credit card required during beta' },
               { icon: '💬', text: 'Direct access to the founder — your feedback shapes the roadmap' },
               { icon: '📧', text: 'At day 75, agents receive a reminder to activate their Founding Agent membership and keep their grandfathered pricing.' },
-              { icon: '🔒', text: 'Founding Agent Rate — $24.99/month for as long as your subscription remains continuously active. Future public pricing expected at $49+/month. Save 50% for the life of your account.' },
+              { icon: '🔒', text: 'Founding Agent Rate — $24.99/month for as long as your subscription remains continuously active. Future public pricing expected at $49+/month. Save 50% off future public pricing.' },
               { icon: '✅', text: 'Pricing stays locked as long as account remains active' },
             ].map(({ icon, text }) => (
               <div key={text} style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>

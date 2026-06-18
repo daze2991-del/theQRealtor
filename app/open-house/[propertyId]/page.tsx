@@ -311,6 +311,12 @@ export default function OpenHouseCheckInPage() {
                 >
                   {submitting ? 'Checking in…' : 'Check In'}
                 </button>
+
+                {/* Privacy notice */}
+                <p style={{ fontSize: 11, color: C.muted, textAlign: 'center', margin: 0, lineHeight: 1.55 }}>
+                  Your information is shared only with the listing agent.{' '}
+                  <a href="/privacy" style={{ color: C.muted, textDecoration: 'underline' }}>See our Privacy Policy.</a>
+                </p>
               </div>
             </form>
           )}

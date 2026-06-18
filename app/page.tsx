@@ -344,7 +344,7 @@ export default function LandingPage() {
             <div style={{ background: '#052E16', border: '1px solid #166534', borderRadius: 10, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: 16 }}>🟢</span>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#4ADE80' }}>Above Average Buyer Interest</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#4ADE80' }}>Active Buyer Engagement</div>
                 <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>This listing is generating strong engagement based on real buyer activity from your listing.</div>
               </div>
             </div>

@@ -949,6 +949,9 @@ export default function SellerReportPage() {
           <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
             © 2026 theQRealtor. All rights reserved.
           </div>
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 12, fontStyle: 'italic', maxWidth: 560, margin: '12px auto 0' }}>
+            Reflects buyer engagement activity only. Not a valuation, appraisal, or guarantee of sale.
+          </div>
         </div>
       </div>
     </main>

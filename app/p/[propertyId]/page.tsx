@@ -579,6 +579,12 @@ export default function PropertyPage() {
                     {submitting ? 'Sending…' : `${activeCta?.btnLabel} →`}
                   </button>
 
+                  {/* Privacy notice */}
+                  <p style={{ fontSize: 11, color: C.muted, textAlign: 'center', margin: 0, lineHeight: 1.55 }}>
+                    Your information is shared only with the listing agent.{' '}
+                    <a href="/privacy" style={{ color: C.muted, textDecoration: 'underline' }}>See our Privacy Policy.</a>
+                  </p>
+
                   {/* Consent line */}
                   <p style={{ fontSize: 11, color: C.muted, textAlign: 'center', margin: 0, lineHeight: 1.55 }}>
                     By submitting, you agree to be contacted about this property. Reply STOP to opt out.

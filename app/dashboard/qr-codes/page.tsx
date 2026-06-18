@@ -280,13 +280,21 @@ export default function QRCodesPage() {
               <h1 style={{ fontSize: 19, fontWeight: 700, color: C.text, margin: 0 }}>QR Codes</h1>
               <span style={{ fontSize: 11, fontWeight: 700, color: C.purpleL, background: `${C.purple}22`, borderRadius: 20, padding: '2px 9px' }}>{qrCodes.length}</span>
             </div>
-            {properties.length > 1 && (
-              <select value={filterPropId} onChange={e => setFilterPropId(e.target.value)}
-                style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, color: filterPropId === 'all' ? C.muted : C.text, fontSize: 13, padding: '7px 12px', cursor: 'pointer', outline: 'none' }}>
-                <option value="all">All Properties</option>
-                {properties.map((p: any) => <option key={p.id} value={p.id}>{p.address}</option>)}
-              </select>
-            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {properties.length > 1 && (
+                <select value={filterPropId} onChange={e => setFilterPropId(e.target.value)}
+                  style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, color: filterPropId === 'all' ? C.muted : C.text, fontSize: 13, padding: '7px 12px', cursor: 'pointer', outline: 'none' }}>
+                  <option value="all">All Properties</option>
+                  {properties.map((p: any) => <option key={p.id} value={p.id}>{p.address}</option>)}
+                </select>
+              )}
+              <button
+                onClick={() => openModal('property')}
+                style={{ background: C.purple, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+              >
+                + Generate QR Code
+              </button>
+            </div>
           </div>
 
           {/* ── generate new QR header ── */}

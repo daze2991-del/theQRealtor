@@ -398,7 +398,7 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
 
       {/* Actions */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 4, borderTop: `1px solid ${C.border}` }}>
-        {/* Row 1: View Details + ⋮ menu */}
+        {/* Row 1: View Details + Generate QR + ⋮ menu */}
         <div style={{ display: 'flex', gap: 8 }}>
           <Link
             href={`/dashboard/properties/${prop.id}`}
@@ -410,6 +410,20 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
             }}
           >
             View Details →
+          </Link>
+
+          <Link
+            href={`/dashboard/qr-codes?propertyId=${prop.id}`}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              background: `${C.purple}14`, color: C.purpleL,
+              border: `1px solid ${C.purple}40`,
+              borderRadius: 9, padding: '10px 12px',
+              fontSize: 12, fontWeight: 700, textDecoration: 'none',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            🔲 Generate QR
           </Link>
 
           <div ref={menuRef} style={{ position: 'relative' }}>

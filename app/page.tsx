@@ -324,7 +324,7 @@ export default function LandingPage() {
             <div style={{ fontSize: 13, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 20 }}>
               123 Main St — This Month
             </div>
-            <div className="seller-stats" style={{ display: 'flex', gap: 12, justifyContent: 'center', marginBottom: 20 }}>
+            <div className="seller-stats" style={{ display: 'flex', gap: 12, justifyContent: 'center', marginBottom: 10 }}>
               {[
                 { v: '217', label: 'Scans',            color: C.blueXL,  bg: `${C.blue}18` },
                 { v: '42',  label: 'Buyer Leads',       color: '#FCD34D', bg: '#2D200A' },
@@ -336,6 +336,9 @@ export default function LandingPage() {
                   <div style={{ fontSize: 10, color: C.muted, marginTop: 6, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, lineHeight: 1.4 }}>{label}</div>
                 </div>
               ))}
+            </div>
+            <div style={{ fontSize: 11, color: C.muted, textAlign: 'center', marginBottom: 20, fontStyle: 'italic' }}>
+              Sample data shown for illustration purposes only.
             </div>
             {/* Benchmark badge */}
             <div style={{ background: '#052E16', border: '1px solid #166534', borderRadius: 10, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -608,7 +611,7 @@ export default function LandingPage() {
               { icon: '💳', text: 'No credit card required during beta' },
               { icon: '💬', text: 'Direct access to the founder — your feedback shapes the roadmap' },
               { icon: '📧', text: 'At day 75, agents receive a reminder to activate their Founding Agent membership and keep their grandfathered pricing.' },
-              { icon: '🔒', text: 'Founding Agent Rate — $24.99/month forever. Future public pricing expected at $49+/month. Save 50% for the life of your account.' },
+              { icon: '🔒', text: 'Founding Agent Rate — $24.99/month for as long as your subscription remains continuously active. Future public pricing expected at $49+/month. Save 50% for the life of your account.' },
               { icon: '✅', text: 'Pricing stays locked as long as account remains active' },
             ].map(({ icon, text }) => (
               <div key={text} style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
@@ -669,7 +672,7 @@ export default function LandingPage() {
               },
               {
                 q: 'Where do my leads go?',
-                a: 'Straight into your private theQRealtor dashboard. Only you can see the leads from your listings. We don\'t sell, resell, or share your buyer data with portals, lead-resale services, or any third party — unlike Zillow and similar platforms, we never monetize your leads or sell them back to you. theQRealtor delivers leads to your account and nowhere else.',
+                a: 'Straight into your private theQRealtor dashboard. Only you can see the leads from your listings. We don\'t sell, resell, or share your buyer data with portals, lead-resale services, or any third party — unlike other lead portals, we never monetize your leads or sell them back to you. theQRealtor delivers leads to your account and nowhere else.',
               },
               {
                 q: 'How is this different from a regular QR code?',

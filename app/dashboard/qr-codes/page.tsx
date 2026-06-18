@@ -248,7 +248,10 @@ export default function QRCodesPage() {
 
   const copyModalLink = async () => {
     try {
-      await navigator.clipboard.writeText(`${origin}/p/${modalPropId}`)
+      const url = activeModal === 'openhouse'
+        ? `${origin}/open-house/${modalPropId}`
+        : `${origin}/p/${modalPropId}`
+      await navigator.clipboard.writeText(url)
       setModalCopied(true); setTimeout(() => setModalCopied(false), 2000)
     } catch {}
   }
@@ -268,6 +271,7 @@ export default function QRCodesPage() {
         property_id: createPropId,
         label: name,
         placement: createFormat === 'outdoor' ? 'Yard Sign' : 'Window Sign',
+        type: createType,
         scan_count: 0,
       }).select().single()
       if (error) { setCreateError('Failed to create QR code. Please try again.') }
@@ -506,7 +510,14 @@ export default function QRCodesPage() {
                             <td style={{ ...TD, textAlign: 'right' }}>
                               <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                                 {origin && (
-                                  <button onClick={() => window.open(`${origin}/p/${qr.property_id}?qr=${qr.id}`, '_blank')} title="Test QR — open buyer page"
+                                  <button
+                                    onClick={() => {
+                                      const url = isOH
+                                        ? `${origin}/open-house/${qr.property_id}`
+                                        : `${origin}/p/${qr.property_id}?qr=${qr.id}`
+                                      window.open(url, '_blank')
+                                    }}
+                                    title="Test QR — open buyer page"
                                     style={{ background: 'transparent', color: C.muted, border: `1px solid ${C.border}`, borderRadius: 7, padding: '5px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                                     🔗 Test QR
                                   </button>
@@ -747,10 +758,16 @@ export default function QRCodesPage() {
               <div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0, marginBottom: 20 }}>
                   <div style={{ background: '#fff', borderRadius: 16, padding: 16, marginBottom: 12 }}>
-                    <QRCodeSVG id="qr-modal-preview" value={`${origin}/p/${modalPropId}`} size={200} />
+                    <QRCodeSVG
+                      id="qr-modal-preview"
+                      value={activeModal === 'openhouse' ? `${origin}/open-house/${modalPropId}` : `${origin}/p/${modalPropId}`}
+                      size={200}
+                    />
                   </div>
                   <div style={{ fontSize: 13, color: C.muted, textAlign: 'center' }}>{propMap[modalPropId]}</div>
-                  <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>{origin}/p/{modalPropId}</div>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
+                    {origin}/{activeModal === 'openhouse' ? 'open-house' : 'p'}/{modalPropId}
+                  </div>
                 </div>
                 <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
                   <button onClick={downloadModalQR}

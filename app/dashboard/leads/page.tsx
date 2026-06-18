@@ -631,6 +631,16 @@ function LeadsPageInner() {
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', marginBottom: 3 }}>
                             <span style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{lead.name || 'Unknown'}</span>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                              {lead.source === 'open_house_checkin' && (
+                                <span style={{ fontSize: 10, fontWeight: 700, background: '#1A1200', border: '1px solid #D9770640', color: '#F59E0B', borderRadius: 6, padding: '2px 8px', whiteSpace: 'nowrap' }}>
+                                  🏠 Open House
+                                </span>
+                              )}
+                              {lead.do_not_contact && (
+                                <span style={{ fontSize: 10, fontWeight: 700, background: '#3B0D0D', border: '1px solid #EF444450', color: '#EF4444', borderRadius: 6, padding: '2px 8px', whiteSpace: 'nowrap' }}>
+                                  🚫 Do Not Contact
+                                </span>
+                              )}
                               <TierBadge tier={tier} />
 
                               {/* Status badge + per-lead dropdown */}

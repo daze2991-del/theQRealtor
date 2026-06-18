@@ -15,7 +15,7 @@ export async function GET(
 
   const { data: qrCode, error } = await supabase
     .from('qrcodes')
-    .select('property_id')
+    .select('property_id, type')
     .eq('id', qrId)
     .single()
 
@@ -26,7 +26,14 @@ export async function GET(
   // Increment scan_count via the existing security-definer RPC
   await supabase.rpc('increment_qr_scan_count', { qr_code_id: qrId })
 
-  // Pass qrId as a query param so the property page can attribute the lead
+  const isOpenHouse = (qrCode.type || 'property') === 'openhouse'
+
+  if (isOpenHouse) {
+    // Open House QR → check-in page (no qr param needed; check-in has its own form)
+    return NextResponse.redirect(new URL(`/open-house/${qrCode.property_id}`, request.url))
+  }
+
+  // Property QR → buyer property page with qrId for lead attribution
   const destination = new URL(`/p/${qrCode.property_id}`, request.url)
   destination.searchParams.set('qr', qrId)
 

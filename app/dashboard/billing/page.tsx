@@ -280,7 +280,7 @@ export default function BillingPage() {
                     <p style={{ color: '#9CA3AF', fontSize: 14, marginBottom: 20 }}>
                       {subscription?.cancel_at_period_end
                         ? <>Your subscription is <strong style={{ color: '#FB923C' }}>scheduled to cancel</strong> on {formatDate(subscription.current_period_end)}. You can reactivate anytime from the portal.</>
-                        : <>You're a <strong style={{ color: '#4ade80' }}>Founding Agent</strong>. You have full platform access at $24.99/month locked in forever — this rate never increases as long as your account remains active.</>
+                        : <>You're a <strong style={{ color: '#4ade80' }}>Founding Agent</strong>. You have full platform access at $24.99/month locked in for as long as your subscription remains continuously active — this rate never increases as long as your account remains active.</>
                       }
                     </p>
                     <button onClick={handlePortal} disabled={openingPortal}

@@ -23,12 +23,34 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
+  const [betaFull, setBetaFull] = useState(false);
+  const [waitlistEmail, setWaitlistEmail] = useState("");
+  const [waitlistMessage, setWaitlistMessage] = useState("");
+  const [waitlistDone, setWaitlistDone] = useState(false);
+
+  // Founding Agent beta is capped at this many accounts. Past the cap, signups
+  // are blocked and overflow emails are collected on the waitlist instead.
+  const SIGNUP_CAP = 10;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage("");
 
     const supabase = createBrowserSupabase();
+
+    if (mode === "signup") {
+      // Enforce the hard cap before creating anything. signup_count() is a
+      // SECURITY DEFINER RPC that counts profiles past the per-row RLS.
+      const { data: count, error: countError } = await supabase.rpc("signup_count");
+      if (countError) {
+        console.error("[auth] signup_count failed:", countError.message);
+      } else if (typeof count === "number" && count >= SIGNUP_CAP) {
+        setWaitlistEmail(email);
+        setBetaFull(true);
+        return;
+      }
+    }
+
     const result =
       mode === "signup"
         ? await supabase.auth.signUp({ email, password, options: { data: { name } } })
@@ -46,6 +68,24 @@ export default function AuthPage() {
 
     router.push("/dashboard");
     router.refresh();
+  }
+
+  async function joinWaitlist(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setWaitlistMessage("");
+
+    if (!waitlistEmail.trim()) {
+      setWaitlistMessage("Please enter your email.");
+      return;
+    }
+
+    const supabase = createBrowserSupabase();
+    const { error } = await supabase.from("waitlist").insert({ email: waitlistEmail.trim() });
+    if (error) {
+      setWaitlistMessage(error.message);
+      return;
+    }
+    setWaitlistDone(true);
   }
 
   const inputStyle: React.CSSProperties = {
@@ -94,71 +134,111 @@ export default function AuthPage() {
           background: C.card, border: `1px solid ${C.border}`,
           borderRadius: 24, padding: '36px 32px',
         }}>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, margin: '0 0 6px', letterSpacing: '-0.02em' }}>
-            {mode === "signin" ? "Welcome back" : "Create your account"}
-          </h1>
-          <p style={{ fontSize: 13.5, color: C.muted, margin: '0 0 28px' }}>
-            {mode === "signin"
-              ? "Sign in to your theQRealtor account."
-              : "Start capturing buyer leads for free."}
-          </p>
+          {betaFull ? (
+            <>
+              <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, margin: '0 0 6px', letterSpacing: '-0.02em' }}>
+                Founding Agent beta is full
+              </h1>
+              {waitlistDone ? (
+                <p style={{ fontSize: 14, color: '#4ade80', margin: '12px 0 0', lineHeight: 1.6 }}>
+                  You're on the list! We'll email you the moment a spot opens.
+                </p>
+              ) : (
+                <>
+                  <p style={{ fontSize: 13.5, color: C.muted, margin: '0 0 28px', lineHeight: 1.6 }}>
+                    Our Founding Agent beta is currently full. Drop your email below and we'll notify you when a spot opens.
+                  </p>
+                  <form onSubmit={joinWaitlist} style={{ display: 'grid', gap: 16 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: C.sub, marginBottom: 7 }}>Email</label>
+                      <input
+                        style={inputStyle}
+                        type="email"
+                        value={waitlistEmail}
+                        onChange={(e) => setWaitlistEmail(e.target.value)}
+                        placeholder="you@example.com"
+                        required
+                      />
+                    </div>
 
-          <form onSubmit={submit} style={{ display: 'grid', gap: 16 }}>
-            {mode === "signup" && (
-              <div>
-                <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: C.sub, marginBottom: 7 }}>Name</label>
-                <input
-                  style={inputStyle}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Your full name"
-                  required
-                />
-              </div>
-            )}
-            <div>
-              <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: C.sub, marginBottom: 7 }}>Email</label>
-              <input
-                style={inputStyle}
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                required
-              />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: C.sub, marginBottom: 7 }}>Password</label>
-              <input
-                style={inputStyle}
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Min. 6 characters"
-                required
-                minLength={6}
-              />
-            </div>
+                    {waitlistMessage && (
+                      <p style={{ color: '#F87171', fontSize: 13, margin: 0 }}>{waitlistMessage}</p>
+                    )}
 
-            {message && (
-              <p style={{ color: mode === 'signup' && message.includes('created') ? '#4ade80' : '#F87171', fontSize: 13, margin: 0 }}>
-                {message}
+                    <button style={primaryBtn} type="submit">Notify me →</button>
+                  </form>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, margin: '0 0 6px', letterSpacing: '-0.02em' }}>
+                {mode === "signin" ? "Welcome back" : "Create your account"}
+              </h1>
+              <p style={{ fontSize: 13.5, color: C.muted, margin: '0 0 28px' }}>
+                {mode === "signin"
+                  ? "Sign in to your theQRealtor account."
+                  : "Start capturing buyer leads for free."}
               </p>
-            )}
 
-            <button style={primaryBtn} type="submit">
-              {mode === "signin" ? "Sign in →" : "Create account →"}
-            </button>
-            <button
-              style={ghostBtn}
-              type="button"
-              onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setMessage(""); }}
-            >
-              {mode === "signin"
-                ? <>Need an account? <span style={{ color: C.purpleL, fontWeight: 700 }}>Sign up free</span></>
-                : <>Already have an account? <span style={{ color: C.purpleL, fontWeight: 700 }}>Sign in</span></>}
-            </button>
-          </form>
+              <form onSubmit={submit} style={{ display: 'grid', gap: 16 }}>
+                {mode === "signup" && (
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: C.sub, marginBottom: 7 }}>Name</label>
+                    <input
+                      style={inputStyle}
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Your full name"
+                      required
+                    />
+                  </div>
+                )}
+                <div>
+                  <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: C.sub, marginBottom: 7 }}>Email</label>
+                  <input
+                    style={inputStyle}
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: C.sub, marginBottom: 7 }}>Password</label>
+                  <input
+                    style={inputStyle}
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Min. 6 characters"
+                    required
+                    minLength={6}
+                  />
+                </div>
+
+                {message && (
+                  <p style={{ color: mode === 'signup' && message.includes('created') ? '#4ade80' : '#F87171', fontSize: 13, margin: 0 }}>
+                    {message}
+                  </p>
+                )}
+
+                <button style={primaryBtn} type="submit">
+                  {mode === "signin" ? "Sign in →" : "Create account →"}
+                </button>
+                <button
+                  style={ghostBtn}
+                  type="button"
+                  onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setMessage(""); }}
+                >
+                  {mode === "signin"
+                    ? <>Need an account? <span style={{ color: C.purpleL, fontWeight: 700 }}>Sign up free</span></>
+                    : <>Already have an account? <span style={{ color: C.purpleL, fontWeight: 700 }}>Sign in</span></>}
+                </button>
+              </form>
+            </>
+          )}
         </div>
       </div>
     </div>

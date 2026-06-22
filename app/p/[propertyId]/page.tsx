@@ -406,11 +406,6 @@ export default function PropertyPage() {
           {property.description && (
             <p style={{ color: '#D4D4D8', fontSize: 15, lineHeight: 1.75, margin: '0 0 18px' }}>{property.description}</p>
           )}
-
-          {/* Map link */}
-          <a href={mapUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: C.purpleL, fontSize: 14, fontWeight: 600, textDecoration: 'none', marginBottom: 28 }}>
-            📍 View on Map →
-          </a>
         </div>
 
         {/* ── PHASE 2: CTA buttons ── */}

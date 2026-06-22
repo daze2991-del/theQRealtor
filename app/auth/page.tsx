@@ -66,7 +66,18 @@ export default function AuthPage() {
       return;
     }
 
-    router.push("/dashboard");
+    // Sign-in success — route first-time agents through the welcome screen once.
+    const { data: { user: signedInUser } } = await supabase.auth.getUser();
+    let destination = "/dashboard";
+    if (signedInUser) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("has_seen_welcome")
+        .eq("id", signedInUser.id)
+        .single();
+      if (profile && !profile.has_seen_welcome) destination = "/dashboard/welcome";
+    }
+    router.push(destination);
     router.refresh();
   }
 

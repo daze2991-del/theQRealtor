@@ -16,6 +16,7 @@ alter table public.waitlist enable row level security;
 
 -- Anyone hitting the signup page (anonymous) can add themselves to the waitlist.
 -- No select policy — overflow emails are read server-side / in the dashboard only.
+drop policy if exists "anon_insert_waitlist" on public.waitlist;
 create policy "anon_insert_waitlist"
   on public.waitlist for insert
   to anon, authenticated

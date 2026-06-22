@@ -21,6 +21,8 @@ const C = {
 
 const US_PHONE_RE = /^(\+?1[\s.\-]?)?\(?[2-9]\d{2}\)?[\s.\-]?[2-9]\d{2}[\s.\-]?\d{4}$/
 const isValidUSPhone = (v: string) => US_PHONE_RE.test(v.trim())
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const isValidEmail = (v: string) => EMAIL_RE.test(v.trim())
 
 function formatPrice(price: unknown) {
   if (!price) return null
@@ -52,6 +54,8 @@ export default function OpenHouseCheckInPage() {
   const [submitted,         setSubmitted]         = useState(false)
   const [error,             setError]             = useState('')
   const [phoneErr,          setPhoneErr]          = useState('')
+  const [emailErr,          setEmailErr]          = useState('')
+  const [website,           setWebsite]           = useState('')   // honeypot — must stay empty
 
   useEffect(() => {
     if (!propertyId) return
@@ -74,14 +78,19 @@ export default function OpenHouseCheckInPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    // Honeypot — bots fill the hidden "website" field. Silently drop the
+    // submission and show the success state as if it had gone through.
+    if (website.trim()) { setSubmitted(true); return }
     if (!name.trim()) { setError('Please enter your name.'); return }
     if (!phone.trim()) { setError('Please enter your phone number.'); return }
-    if (!isValidUSPhone(phone)) { setPhoneErr('Enter a valid US phone number.'); return }
+    if (!isValidUSPhone(phone)) { setPhoneErr('Please enter a valid phone number'); return }
+    if (email.trim() && !isValidEmail(email)) { setEmailErr('Please enter a valid email address'); return }
     if (workingWithAgent === null) { setError("Please indicate whether you're working with a buyer's agent."); return }
 
     setSubmitting(true)
     setError('')
     setPhoneErr('')
+    setEmailErr('')
 
     try {
       const res = await fetch('/api/open-house-checkin', {
@@ -198,6 +207,12 @@ export default function OpenHouseCheckInPage() {
             </div>
           ) : (
             <form onSubmit={handleSubmit}>
+              {/* Honeypot — hidden from humans; bots that fill it are silently dropped */}
+              <input
+                type="text" name="website" tabIndex={-1} autoComplete="off"
+                value={website} onChange={e => setWebsite(e.target.value)}
+                aria-hidden="true" style={{ display: 'none' }}
+              />
               <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 18, marginTop: 4 }}>
                 Sign in to check in
               </div>
@@ -226,7 +241,7 @@ export default function OpenHouseCheckInPage() {
                     type="tel" inputMode="tel" required placeholder="Your phone number"
                     value={phone}
                     onChange={e => { setPhone(e.target.value); if (phoneErr) setPhoneErr('') }}
-                    onBlur={e => setPhoneErr(e.target.value.trim() && !isValidUSPhone(e.target.value) ? 'Enter a valid US phone number.' : '')}
+                    onBlur={e => setPhoneErr(e.target.value.trim() && !isValidUSPhone(e.target.value) ? 'Please enter a valid phone number' : '')}
                     style={{ ...inp, borderColor: phoneErr ? '#EF4444' : '#2A1F3D' }}
                   />
                   {phoneErr ? (
@@ -244,9 +259,12 @@ export default function OpenHouseCheckInPage() {
                   <input
                     className="oh-field"
                     type="email" inputMode="email" placeholder="you@example.com"
-                    value={email} onChange={e => setEmail(e.target.value)}
-                    style={inp}
+                    value={email}
+                    onChange={e => { setEmail(e.target.value); if (emailErr) setEmailErr('') }}
+                    onBlur={e => setEmailErr(e.target.value.trim() && !isValidEmail(e.target.value) ? 'Please enter a valid email address' : '')}
+                    style={{ ...inp, borderColor: emailErr ? '#EF4444' : '#2A1F3D' }}
                   />
+                  {emailErr && <span style={{ color: '#FCA5A5', fontSize: 12 }}>{emailErr}</span>}
                 </label>
 
                 {/* Working with agent toggle */}

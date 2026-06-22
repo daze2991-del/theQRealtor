@@ -96,6 +96,7 @@ export default function PropertyPage() {
   const [error,       setError]       = useState('')
   const [phoneErr,    setPhoneErr]    = useState('')
   const [emailErr,    setEmailErr]    = useState('')
+  const [website,     setWebsite]     = useState('')   // honeypot — must stay empty
 
   // Packet form
   const [packetOpen,       setPacketOpen]       = useState(false)
@@ -197,6 +198,9 @@ export default function PropertyPage() {
   // Submit
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    // Honeypot — bots fill the hidden "website" field. Silently drop the
+    // submission and show the success state as if it had gone through.
+    if (website.trim()) { setSubmitted(true); return }
     // showing + question: name required, and at least one of phone/email.
     // Message is optional. Format-validate whichever contact fields are filled.
     const hasPhone = !!phone.trim()
@@ -255,7 +259,7 @@ export default function PropertyPage() {
     setSubmitting(false)
   }
 
-  const closeSheet = () => { setIntent(null); setSubmitted(false); setError(''); setPhoneErr(''); setEmailErr(''); setName(''); setPhone(''); setEmail(''); setQuestion(''); setContactPref(['Text', 'Email']) }
+  const closeSheet = () => { setIntent(null); setSubmitted(false); setError(''); setPhoneErr(''); setEmailErr(''); setName(''); setPhone(''); setEmail(''); setQuestion(''); setWebsite(''); setContactPref(['Text', 'Email']) }
   const closePacket = () => { setPacketOpen(false); setPacketSubmitted(false); setPacketError(''); setPacketEmail(''); setPacketName('') }
 
   const handlePacketSubmit = async (e: FormEvent) => {
@@ -481,6 +485,12 @@ export default function PropertyPage() {
             {!submitted ? (
               /* ── Form ── */
               <form onSubmit={handleSubmit} style={{ padding: '4px 20px 28px' }}>
+                {/* Honeypot — hidden from humans; bots that fill it are silently dropped */}
+                <input
+                  type="text" name="website" tabIndex={-1} autoComplete="off"
+                  value={website} onChange={e => setWebsite(e.target.value)}
+                  aria-hidden="true" style={{ display: 'none' }}
+                />
                 {/* Header */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
                   <div>

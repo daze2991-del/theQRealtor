@@ -177,6 +177,8 @@ function LeadsPageInner() {
   const [noteValues,     setNoteValues]     = useState<Record<string, string>>({})
   const [savingNotes,    setSavingNotes]    = useState<Record<string, boolean>>({})
   const [openStatusDd,   setOpenStatusDd]   = useState<string | null>(null)
+  const [viewSpam,       setViewSpam]       = useState(false)
+  const [spamConfirmId,  setSpamConfirmId]  = useState<string | null>(null)
 
   const noteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
@@ -275,6 +277,13 @@ function LeadsPageInner() {
     await supabase.from('leads').update(patch).eq('id', leadId)
   }
 
+  const markSpam = async (leadId: string, spam: boolean) => {
+    setSpamConfirmId(null)
+    setLocalLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], spam } }))
+    const supabase = createBrowserSupabase()
+    await supabase.from('leads').update({ spam }).eq('id', leadId)
+  }
+
   const saveNotesNow = async (leadId: string, value: string) => {
     setSavingNotes(prev => ({ ...prev, [leadId]: true }))
     const supabase = createBrowserSupabase()
@@ -317,8 +326,19 @@ function LeadsPageInner() {
     cold: allLeads.filter(l => leadTier(l) === 'cold').length,
   }), [allLeads])
 
+  const spamCount = useMemo(
+    () => allLeads.filter(l => (localLeads[l.id]?.spam ?? l.spam) === true).length,
+    [allLeads, localLeads]
+  )
+
   const leads = useMemo(() => {
     let r = allLeads
+
+    // Spam view vs main inbox — spam leads are hidden from the inbox
+    r = r.filter(l => {
+      const sp = (localLeads[l.id]?.spam ?? l.spam) === true
+      return viewSpam ? sp : !sp
+    })
 
     if (filterDisclosures) {
       // Disclosures chip: filter by cta_clicked on the scan event, replaces tier filter
@@ -363,7 +383,7 @@ function LeadsPageInner() {
       arr.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     }
     return arr
-  }, [allLeads, filterDisclosures, filterTemp, filterStatus, filterProperty, filterDays, sortMode, localLeads, scanEventByQr])
+  }, [allLeads, filterDisclosures, filterTemp, filterStatus, filterProperty, filterDays, sortMode, localLeads, scanEventByQr, viewSpam])
 
   const downloadCSV = async () => {
     if (leads.length === 0) return
@@ -506,6 +526,18 @@ function LeadsPageInner() {
                 }}
               >
                 📄 Disclosures
+              </button>
+              <button className="chip-btn"
+                onClick={() => { setViewSpam(v => !v); setSpamConfirmId(null) }}
+                style={{
+                  padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                  background: viewSpam ? '#EF444422' : 'transparent',
+                  border: `1px solid ${viewSpam ? '#EF4444' : C.border}`,
+                  color: viewSpam ? '#EF4444' : C.muted,
+                }}
+              >
+                🚫 Spam
+                {spamCount > 0 && <span style={{ marginLeft: 5, fontSize: 10, opacity: 0.7 }}>{spamCount}</span>}
               </button>
             </div>
 
@@ -762,8 +794,53 @@ function LeadsPageInner() {
                               <span style={{ position: 'absolute', top: 3, right: 3, width: 6, height: 6, borderRadius: '50%', background: C.purpleL }} />
                             )}
                           </button>
+                          {/* Mark as spam / restore */}
+                          {viewSpam ? (
+                            <button
+                              title="Restore from spam"
+                              onClick={e => { e.stopPropagation(); markSpam(lead.id, false) }}
+                              style={{
+                                width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+                                border: `1px solid ${C.border}`, background: 'transparent',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: 14, cursor: 'pointer',
+                              }}
+                            >♻️</button>
+                          ) : (
+                            <button
+                              title="Mark as spam"
+                              onClick={e => { e.stopPropagation(); setSpamConfirmId(lead.id) }}
+                              style={{
+                                width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+                                border: `1px solid ${spamConfirmId === lead.id ? '#EF4444' : C.border}`,
+                                background: spamConfirmId === lead.id ? '#EF444418' : 'transparent',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: 14, cursor: 'pointer',
+                              }}
+                            >🚫</button>
+                          )}
                         </div>
                       </div>
+
+                      {/* Mark-as-spam confirmation */}
+                      {spamConfirmId === lead.id && (
+                        <div
+                          onClick={e => e.stopPropagation()}
+                          style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}
+                        >
+                          <span style={{ fontSize: 13, color: C.sub }}>Mark this lead as spam?</span>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button
+                              onClick={() => markSpam(lead.id, true)}
+                              style={{ background: '#EF4444', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}
+                            >Confirm</button>
+                            <button
+                              onClick={() => setSpamConfirmId(null)}
+                              style={{ background: 'transparent', color: C.muted, border: `1px solid ${C.border}`, borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'sans-serif' }}
+                            >Cancel</button>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Expandable notes */}
                       {notesOpen && (

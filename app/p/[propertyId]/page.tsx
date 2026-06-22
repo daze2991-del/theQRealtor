@@ -384,6 +384,25 @@ export default function PropertyPage() {
             </div>
           )}
 
+          {/* Directions — secondary/outline button (opens native maps on mobile, Google Maps on desktop) */}
+          {property.address && (
+            <a
+              href={mapUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="cta-btn"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                background: 'transparent', border: `1px solid ${C.purple}`,
+                color: C.purpleL, borderRadius: 12, padding: '11px 18px',
+                fontSize: 14, fontWeight: 800, textDecoration: 'none',
+                marginBottom: 18,
+              }}
+            >
+              📍 Take Me There →
+            </a>
+          )}
+
           {property.description && (
             <p style={{ color: '#D4D4D8', fontSize: 15, lineHeight: 1.75, margin: '0 0 18px' }}>{property.description}</p>
           )}

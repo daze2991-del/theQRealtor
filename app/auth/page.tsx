@@ -66,18 +66,10 @@ export default function AuthPage() {
       return;
     }
 
-    // Sign-in success — route first-time agents through the welcome screen once.
-    const { data: { user: signedInUser } } = await supabase.auth.getUser();
-    let destination = "/dashboard";
-    if (signedInUser) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("has_seen_welcome")
-        .eq("id", signedInUser.id)
-        .single();
-      if (profile && !profile.has_seen_welcome) destination = "/dashboard/welcome";
-    }
-    router.push(destination);
+    // Sign-in success. The dashboard routes brand-new agents (no property and
+    // onboarding not completed) into the onboarding wizard, which ends at
+    // /dashboard/welcome — so we just land on /dashboard here.
+    router.push("/dashboard");
     router.refresh();
   }
 

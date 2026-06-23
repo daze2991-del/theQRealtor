@@ -205,6 +205,7 @@ export default function Dashboard() {
   const [profileName,      setProfileName]       = useState('')
   const [loading,          setLoading]           = useState(true)
   const [propertiesLoaded, setPropertiesLoaded]  = useState(false)
+  const [onboardingDone,   setOnboardingDone]    = useState<boolean | null>(null)
   const [copiedReport,     setCopiedReport]      = useState(false)
   const [origin,           setOrigin]            = useState('')
   const [hotBuyersCount,   setHotBuyersCount]    = useState(0)
@@ -220,8 +221,9 @@ export default function Dashboard() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.push('/auth'); return }
 
-      const { data: profile } = await supabase.from('profiles').select('plan, name').eq('id', session.user.id).single()
+      const { data: profile } = await supabase.from('profiles').select('plan, name, onboarding_completed').eq('id', session.user.id).single()
       setProfileName(profile?.name || '')
+      setOnboardingDone(profile?.onboarding_completed ?? false)
 
       const { data: props, error: propsError } = await supabase
         .from('properties')
@@ -349,11 +351,13 @@ export default function Dashboard() {
     load()
   }, [])
 
+  // Route brand-new agents into the wizard. Once onboarding is completed (or
+  // skipped), never auto-route into it again — even with no property.
   useEffect(() => {
-    if (propertiesLoaded && properties.length === 0 && !localStorage.getItem('onboarding_complete')) {
+    if (propertiesLoaded && onboardingDone === false && properties.length === 0) {
       router.push('/dashboard/onboarding')
     }
-  }, [propertiesLoaded, properties])
+  }, [propertiesLoaded, onboardingDone, properties])
 
   // ── Derived ─────────────────────────────────────────────────────────────────
   const firstName  = (profileName || '').split(' ')[0]

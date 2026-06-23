@@ -18,6 +18,30 @@ const C = {
   muted:   '#6B7280',
 } as const
 
+type Plan = 'founding' | 'free' | 'starter' | 'pro' | 'elite'
+
+const PLAN_LABELS: Record<Plan, string> = {
+  founding: 'Founding Agent',
+  free:     'Free Plan',
+  starter:  'Starter',
+  pro:      'Pro',
+  elite:    'Elite',
+}
+
+// Per-plan sidebar usage. QR-based plans cap QR codes; free caps properties;
+// elite is unlimited (usage hidden — returns null).
+function planUsage(plan: Plan, propertyCount: number, qrCount: number):
+  { used: number; limit: number; noun: string } | null {
+  switch (plan) {
+    case 'founding': return { used: qrCount, limit: 10, noun: 'QR codes' }
+    case 'starter':  return { used: qrCount, limit: 3,  noun: 'QR codes' }
+    case 'pro':      return { used: qrCount, limit: 10, noun: 'QR codes' }
+    case 'elite':    return null
+    case 'free':
+    default:         return { used: propertyCount, limit: 1, noun: 'properties' }
+  }
+}
+
 function NavIcon({ name }: { name: string }) {
   const p = {
     width: 17, height: 17, viewBox: '0 0 24 24', fill: 'none',
@@ -76,12 +100,12 @@ function NavLinksWithParams({ pathname, onClose }: { pathname: string; onClose?:
   return <NavLinks pathname={pathname} onClose={onClose} />
 }
 
-function Sidebar({ email, plan, propertyCount, onClose }: {
-  email: string; plan: 'free' | 'pro'; propertyCount: number; onClose?: () => void
+function Sidebar({ email, plan, propertyCount, qrCount, onClose }: {
+  email: string; plan: Plan; propertyCount: number; qrCount: number; onClose?: () => void
 }) {
   const pathname = usePathname()
-  const limit = plan === 'pro' ? 50 : 1
-  const usagePct = Math.min(100, Math.round((propertyCount / limit) * 100))
+  const usage = planUsage(plan, propertyCount, qrCount)
+  const usagePct = usage ? Math.min(100, Math.round((usage.used / usage.limit) * 100)) : 0
   const initials = email ? email.slice(0, 2).toUpperCase() : '??'
 
   return (
@@ -126,22 +150,30 @@ function Sidebar({ email, plan, propertyCount, onClose }: {
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 6 }}>
             {plan === 'pro' ? <Zap size={14} color="#FCD34D" /> : <Lock size={14} color={C.muted} />}
             <span style={{ fontSize: 13, fontWeight: 700, color: plan === 'pro' ? '#A78BFA' : C.muted }}>
-              {plan === 'pro' ? 'Pro Plan' : 'Free Plan'}
+              {PLAN_LABELS[plan]}
             </span>
           </div>
-          <p style={{ fontSize: 11, color: C.muted, margin: '0 0 10px', lineHeight: 1.5 }}>
-            {plan === 'pro' ? "You're on the Pro Plan" : 'Upgrade for unlimited access'}
-          </p>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: C.muted, marginBottom: 5 }}>
-            <span>Properties used</span>
-            <span style={{ fontWeight: 700 }}>{propertyCount}/{limit}</span>
-          </div>
-          <div style={{ height: 3, background: C.border, borderRadius: 4, overflow: 'hidden', marginBottom: 10 }}>
-            <div style={{ height: '100%', borderRadius: 4, width: `${usagePct}%`, background: `linear-gradient(90deg, ${C.purple}, ${C.purpleL})` }} />
-          </div>
-          <Link href="/dashboard/billing" onClick={onClose} style={{ fontSize: 11.5, color: C.purpleL, textDecoration: 'none', fontWeight: 600 }}>
-            {plan === 'free' ? 'Upgrade to Pro →' : 'Manage Plan →'}
-          </Link>
+          {plan !== 'founding' && (
+            <p style={{ fontSize: 11, color: C.muted, margin: '0 0 10px', lineHeight: 1.5 }}>
+              {plan === 'pro' ? "You're on the Pro Plan" : 'Upgrade for unlimited access'}
+            </p>
+          )}
+          {usage && (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: C.muted, marginBottom: 5 }}>
+                <span>{usage.noun[0].toUpperCase() + usage.noun.slice(1)} used</span>
+                <span style={{ fontWeight: 700 }}>{usage.used}/{usage.limit}</span>
+              </div>
+              <div style={{ height: 3, background: C.border, borderRadius: 4, overflow: 'hidden', marginBottom: 10 }}>
+                <div style={{ height: '100%', borderRadius: 4, width: `${usagePct}%`, background: `linear-gradient(90deg, ${C.purple}, ${C.purpleL})` }} />
+              </div>
+            </>
+          )}
+          {plan !== 'founding' && (
+            <Link href="/dashboard/billing" onClick={onClose} style={{ fontSize: 11.5, color: C.purpleL, textDecoration: 'none', fontWeight: 600 }}>
+              {plan === 'free' ? 'Upgrade to Pro →' : 'Manage Plan →'}
+            </Link>
+          )}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -183,8 +215,9 @@ function SignOutButton() {
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [email, setEmail]               = useState('')
-  const [plan, setPlan]                 = useState<'free' | 'pro'>('free')
+  const [plan, setPlan]                 = useState<Plan>('free')
   const [propertyCount, setPropertyCount] = useState(0)
+  const [qrCount, setQrCount]           = useState(0)
   const [mobileOpen, setMobileOpen]     = useState(false)
 
   useEffect(() => {
@@ -195,14 +228,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (!session) return
         setEmail(session.user.email || '')
 
-        const [{ data: profile, error: profileErr }, { count }] = await Promise.all([
+        const [{ data: profile, error: profileErr }, { data: props }] = await Promise.all([
           supabase.from('profiles').select('plan').eq('id', session.user.id).single(),
-          supabase.from('properties').select('id', { count: 'exact', head: true }).eq('user_id', session.user.id),
+          supabase.from('properties').select('id').eq('user_id', session.user.id),
         ])
 
         if (profileErr) console.error('[DashboardLayout] profile query error:', profileErr)
 
-        let resolvedPlan: 'free' | 'pro' = profile?.plan === 'pro' ? 'pro' : 'free'
+        const propertyIds = (props || []).map((p: any) => p.id)
+
+        // qrcodes has a permissive public-read policy, so RLS alone would count
+        // every row — scope the QR count to the user's own properties explicitly.
+        let qrCnt = 0
+        if (propertyIds.length > 0) {
+          const { count: qc } = await supabase
+            .from('qrcodes').select('id', { count: 'exact', head: true })
+            .in('property_id', propertyIds)
+          qrCnt = qc || 0
+        }
+
+        const rawPlan = (profile?.plan as string) || 'free'
+        const KNOWN_PLANS: Plan[] = ['founding', 'free', 'starter', 'pro', 'elite']
+        let resolvedPlan: Plan = (KNOWN_PLANS.includes(rawPlan as Plan) ? rawPlan : 'free') as Plan
 
         if (resolvedPlan === 'free') {
           try {
@@ -220,7 +267,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }
 
         setPlan(resolvedPlan)
-        setPropertyCount(count || 0)
+        setPropertyCount(propertyIds.length)
+        setQrCount(qrCnt)
       } catch (err) {
         console.error('[DashboardLayout] load error:', err)
       }
@@ -248,14 +296,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <>
           <div onClick={() => setMobileOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 40 }} />
           <div style={{ position: 'fixed', top: 0, left: 0, height: '100vh', zIndex: 50 }}>
-            <Sidebar email={email} plan={plan} propertyCount={propertyCount} onClose={() => setMobileOpen(false)} />
+            <Sidebar email={email} plan={plan} propertyCount={propertyCount} qrCount={qrCount} onClose={() => setMobileOpen(false)} />
           </div>
         </>
       )}
 
       <div style={{ display: 'flex', minHeight: '100vh', background: C.bg, fontFamily: 'sans-serif' }}>
         <div className="db-sidebar">
-          <Sidebar email={email} plan={plan} propertyCount={propertyCount} />
+          <Sidebar email={email} plan={plan} propertyCount={propertyCount} qrCount={qrCount} />
         </div>
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
           <div className="db-mobile-header" style={{ position: 'sticky', top: 0, zIndex: 20, height: 52, background: C.sidebar, borderBottom: `1px solid ${C.border}`, alignItems: 'center', gap: 12, padding: '0 16px', flexShrink: 0 }}>

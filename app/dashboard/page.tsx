@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DashboardLayout from '../../components/DashboardLayout'
 import { LineChart, Line, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-import { QrCode, Users, CalendarCheck, FileText, Flame, TrendingUp, BarChart2, Home, MapPin, Phone, Bell, Calendar, Sparkles, Share2, Download, RotateCcw, Minus, AlertCircle } from 'lucide-react'
+import { QrCode, Users, CalendarCheck, FileText, Flame, TrendingUp, BarChart2, Home, MapPin, Phone, Bell, Calendar, Share2, Download, RotateCcw, Minus, AlertCircle } from 'lucide-react'
 import { calcPropertyInterest } from '../../lib/propertyInterest'
 
 // ── Tokens ────────────────────────────────────────────────────────────────────
@@ -367,17 +367,10 @@ export default function Dashboard() {
   const scanChange      = pctDiff(totalScansAll, prevMonthScans)
   const leadChange      = pctDiff(totalLeads, lastMonthLeads)
   const topProp         = topPropId ? properties.find(p => p.id === topPropId) : null
-  const topPropLeads    = topPropId ? (propLeadCounts[topPropId] || 0) : 0
 
   const hotLeads        = recentLeads.filter(l => l.motivation === 'hot').slice(0, 5)
   const propNameMap: Record<string, string> = {}
   properties.forEach((p: any) => { propNameMap[p.id] = p.address })
-
-  // AI insight
-  const otherProps   = properties.filter(p => p.id !== topPropId)
-  const otherAvg     = otherProps.length > 0 ? otherProps.reduce((s, p) => s + (propLeadCounts[p.id] || 0), 0) / otherProps.length : 0
-  const aiRatio      = otherAvg > 0 && topPropLeads > 0 ? Math.round((topPropLeads / otherAvg) * 10) / 10 : 0
-  const showAiBanner = properties.length >= 2 && topProp && aiRatio > 1 && otherProps.some(p => (propLeadCounts[p.id] || 0) > 0)
 
   // Donut segments — 3 tiers: Hot (11+), Warm (5–10, includes motivated), Cold (0–4)
   const donutSegments = [
@@ -681,24 +674,6 @@ export default function Dashboard() {
             )}
             </div>{/* end right column */}
           </div>{/* end db-layout */}
-
-          {/* ── SECTION 6: AI Insight Banner ── */}
-          {showAiBanner && (
-            <div style={{ background: 'linear-gradient(135deg, #2D1A5E 0%, #0F1629 100%)', border: `1px solid ${C.purple}40`, borderRadius: 16, padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', animation: 'fadeUp 0.4s ease' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-                <div style={{ width: 40, height: 40, borderRadius: 12, background: `${C.purple}30`, border: `1px solid ${C.purple}50`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Sparkles size={18} color={C.purpleL} /></div>
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: C.purpleL, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>AI Insight</div>
-                  <div style={{ fontSize: 14, color: C.text, lineHeight: 1.6, maxWidth: 580 }}>
-                    <strong>{topProp?.address}</strong> is performing <strong style={{ color: C.purpleL }}>{aiRatio}×</strong> better than your other listings. Consider boosting this property in your marketing campaigns.
-                  </div>
-                </div>
-              </div>
-              <Link href="/dashboard/analytics" style={{ background: C.purple, color: '#fff', fontSize: 13, fontWeight: 700, padding: '9px 18px', borderRadius: 10, textDecoration: 'none', flexShrink: 0 }}>
-                View Recommendations →
-              </Link>
-            </div>
-          )}
 
         </div>
       )}

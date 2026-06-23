@@ -329,9 +329,16 @@ function OnboardingWizard() {
         {/* Progress header — 5 segments */}
         <div style={{ padding: '20px 28px 18px', borderBottom: `1px solid ${C.border}` }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: C.muted, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-              Step {step} of 4
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              {step > 1 && (
+                <button onClick={() => goToStep(step - 1)} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'sans-serif', padding: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  ← Back
+                </button>
+              )}
+              <span style={{ fontSize: 12, fontWeight: 600, color: C.muted, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                Step {step} of 4
+              </span>
+            </div>
             <button onClick={handleSkip} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, cursor: 'pointer', fontFamily: 'sans-serif' }}>
               Skip for now →
             </button>

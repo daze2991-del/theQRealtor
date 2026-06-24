@@ -87,16 +87,21 @@ function DonutChart({ segments, total }: { segments: Array<{ value: number; colo
 }
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
-function KpiCard({ icon, label, value, change, accent, sparkData, caption, tooltip }: {
+function KpiCard({ icon, label, value, change, accent, sparkData, caption, tooltip, href }: {
   icon: React.ReactNode; label: string; value: number | string;
   change?: { n: number; up: boolean } | null;
   accent: typeof ACCENT[keyof typeof ACCENT];
   sparkData?: number[];
   caption?: string;
   tooltip?: string;
+  href?: string;
 }) {
+  const router = useRouter()
   return (
-    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: '18px 20px 14px', display: 'flex', flexDirection: 'column', gap: 10, position: 'relative', overflow: 'hidden' }}>
+    <div
+      className={href ? 'db-kpi-card' : undefined}
+      onClick={href ? () => router.push(href) : undefined}
+      style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: '18px 20px 14px', display: 'flex', flexDirection: 'column', gap: 10, position: 'relative', overflow: 'hidden', cursor: href ? 'pointer' : undefined }}>
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: accent.color, opacity: 0.7 }} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <div style={{ width: 36, height: 36, borderRadius: 10, background: accent.bg, border: `1px solid ${accent.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>{icon}</div>
@@ -394,6 +399,8 @@ export default function Dashboard() {
         .prop-row   { display: grid; grid-template-columns: 48px 1fr auto; gap: 12px; align-items: center; }
         .db-hover   { transition: background 0.1s; }
         .db-hover:hover { background: #1E1E2A !important; }
+        .db-kpi-card { transition: border-color 0.12s, background 0.12s; }
+        .db-kpi-card:hover { border-color: #7C3AED66 !important; background: #131A2E !important; }
         @media (max-width: 1100px) {
           .db-layout { grid-template-columns: 1fr !important; }
         }
@@ -458,10 +465,10 @@ export default function Dashboard() {
 
           {/* ── SECTION 2: KPI Cards ── */}
           <div className="db-kpi4">
-            <KpiCard icon={<Flame         size={18} color={ACCENT.red.color}    />} label="Hot Buyers"       value={hotBuyersCount} change={null}       accent={ACCENT.red}   caption={hotBuyersCount === 0 ? 'Place your first QR sign to start capturing buyers' : undefined} />
-            <KpiCard icon={<Users         size={18} color={ACCENT.green.color}  />} label="New Leads"        value={totalLeads}     change={leadChange} accent={ACCENT.green} sparkData={leadSparkline} caption="Last 30 days" />
-            <KpiCard icon={<CalendarCheck size={18} color={ACCENT.blue.color}   />} label="Showing Requests" value={hotCount}       change={null}       accent={ACCENT.blue}  sparkData={scanSparkline.map((_, i) => i % 3 === 0 ? 1 : 0)} caption={hotCount === 0 ? "Appears when buyers click 'Request a Showing'" : undefined} />
-            <KpiCard icon={<AlertCircle   size={18} color={ACCENT.amber.color}  />} label="Needs Follow-Up"  value={needsFollowUp}  change={null}       accent={ACCENT.amber} caption={needsFollowUp === 0 ? "You're all caught up" : 'Hot buyers awaiting contact'} />
+            <KpiCard href="/dashboard/leads?tier=hot"                  icon={<Flame         size={18} color={ACCENT.red.color}    />} label="Hot Buyers"       value={hotBuyersCount} change={null}       accent={ACCENT.red}   caption={hotBuyersCount === 0 ? 'Place your first QR sign to start capturing buyers' : undefined} />
+            <KpiCard href="/dashboard/leads?tier=all&sort=newest"      icon={<Users         size={18} color={ACCENT.green.color}  />} label="New Leads"        value={totalLeads}     change={leadChange} accent={ACCENT.green} sparkData={leadSparkline} caption="Last 30 days" />
+            <KpiCard href="/dashboard/leads?motivation=showing"        icon={<CalendarCheck size={18} color={ACCENT.blue.color}   />} label="Showing Requests" value={hotCount}       change={null}       accent={ACCENT.blue}  sparkData={scanSparkline.map((_, i) => i % 3 === 0 ? 1 : 0)} caption={hotCount === 0 ? "Appears when buyers click 'Request a Showing'" : undefined} />
+            <KpiCard href="/dashboard/leads?status=not_contacted"      icon={<AlertCircle   size={18} color={ACCENT.amber.color}  />} label="Needs Follow-Up"  value={needsFollowUp}  change={null}       accent={ACCENT.amber} caption={needsFollowUp === 0 ? "You're all caught up" : 'Hot buyers awaiting contact'} />
           </div>
 
           {/* ── SECTION 3+4+5: Two-column main layout ── */}

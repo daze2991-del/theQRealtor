@@ -6,7 +6,7 @@
 // ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_contacted_at timestamptz;
 
 import { Suspense, useEffect, useState, useMemo, useRef, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import DashboardLayout from '../../../components/DashboardLayout'
 import { computeCallPriority, motivationToTierV2, urgencyLabel, topSignalLabel, TIER_V2_CFG, type LeadTierV2 } from '../../../lib/leadScoringV2'
@@ -163,10 +163,27 @@ function LeadsPageInner() {
   const [lastActiveByQr, setLastActiveByQr] = useState<Record<string, string>>({})
   const [exportingCSV,   setExportingCSV]   = useState(false)
 
+  // Deep-link filters from the dashboard KPI cards (and the tier links elsewhere).
+  // Map URL params onto the EXISTING tab/filter state — no new filter logic:
+  //   tier=hot|warm|cold   → that tier chip
+  //   motivation=showing   → Hot tier (showing requesters are the Hot tier)
+  //   status=not_contacted → 'new' status (uncontacted)
+  //   sort=newest          → the existing 'recent' (newest-first) sort, already the default
+  const searchParams    = useSearchParams()
+  const tierParam       = searchParams.get('tier')
+  const motivationParam = searchParams.get('motivation')
+  const statusParam     = searchParams.get('status')
+  const initialTemp: LeadTierV2[] =
+    motivationParam === 'showing' ? ['hot']
+    : (tierParam === 'hot' || tierParam === 'warm' || tierParam === 'cold') ? [tierParam]
+    : ['hot', 'warm', 'cold']
+  const initialStatus: string[] =
+    statusParam === 'not_contacted' ? ['new'] : [...STATUS_OPTIONS]
+
   // Filters + sort
   const [filterDisclosures, setFilterDisclosures] = useState(false)
-  const [filterTemp,     setFilterTemp]     = useState<LeadTierV2[]>(['hot', 'warm', 'cold'])
-  const [filterStatus,   setFilterStatus]   = useState<string[]>([...STATUS_OPTIONS])
+  const [filterTemp,     setFilterTemp]     = useState<LeadTierV2[]>(initialTemp)
+  const [filterStatus,   setFilterStatus]   = useState<string[]>(initialStatus)
   const [filterProperty, setFilterProperty] = useState('')
   const [filterDays,     setFilterDays]     = useState('all')
   const [sortMode,       setSortMode]       = useState<'recent' | 'priority' | 'contacted'>('recent')

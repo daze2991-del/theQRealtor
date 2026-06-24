@@ -194,7 +194,7 @@ export async function POST(request: Request) {
           .eq('id', leadId).is('hot_notified_at', null)
           .select('id')
         if (hotRows && hotRows.length > 0) {
-          await dispatch(msg.hotAlert(trimName, address, leadId))
+          await dispatch(msg.hotAlert(trimName, address, leadId, (contactPreference as string)?.trim() || null))
         }
       }
     } else {

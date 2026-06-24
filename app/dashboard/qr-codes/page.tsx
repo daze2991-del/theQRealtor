@@ -787,6 +787,10 @@ export default function QRCodesPage() {
                     {modalCopied ? '✓ Copied' : '⎘ Copy Link'}
                   </button>
                 </div>
+                <button onClick={() => setActiveModal(null)}
+                  style={{ width: '100%', marginBottom: 16, padding: '11px', borderRadius: 10, border: `1px solid ${C.border}`, background: 'transparent', color: C.sub, fontSize: 14, fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s' }}>
+                  Done ✓
+                </button>
                 <div style={{ background: '#1A120A', border: `1px solid ${AMBER}30`, borderRadius: 12, padding: '14px 16px' }}>
                   <div style={{ fontSize: 13, color: '#FCD34D', fontWeight: 700, marginBottom: 6 }}>⚠️ Used the wrong QR type?</div>
                   <p style={{ fontSize: 12, color: C.sub, margin: '0 0 10px', lineHeight: 1.55 }}>

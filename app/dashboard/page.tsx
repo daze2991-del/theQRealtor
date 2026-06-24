@@ -101,7 +101,7 @@ function KpiCard({ icon, label, value, change, accent, sparkData, caption, toolt
     <div
       className={href ? 'db-kpi-card' : undefined}
       onClick={href ? () => router.push(href) : undefined}
-      style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: '18px 20px 14px', display: 'flex', flexDirection: 'column', gap: 10, position: 'relative', overflow: 'hidden', cursor: href ? 'pointer' : undefined }}>
+      style={{ background: C.card, border: `1px solid #7C3AED60`, borderRadius: 16, padding: '18px 20px 14px', display: 'flex', flexDirection: 'column', gap: 10, position: 'relative', overflow: 'hidden', cursor: href ? 'pointer' : undefined }}>
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: accent.color, opacity: 0.7 }} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <div style={{ width: 36, height: 36, borderRadius: 10, background: accent.bg, border: `1px solid ${accent.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>{icon}</div>

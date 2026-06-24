@@ -180,7 +180,7 @@ export async function POST(request: Request) {
 
       // Showing request
       if (cta === 'showing' && agentProfile.notify_showing !== false) {
-        await dispatch(msg.showingAlert(trimName, address, leadId, trimmedPhone, trimmedEmail))
+        await dispatch(msg.showingAlert(trimName, address, leadId, trimmedPhone, trimmedEmail, (contactPreference as string)?.trim() || null))
       }
       // Question / info request
       if (cta === 'question' && agentProfile.notify_question !== false) {

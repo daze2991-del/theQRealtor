@@ -150,12 +150,25 @@ export async function queueOrSendAgentSms(opts: {
 // ── Message templates ─────────────────────────────────────────────────────────
 const firstName = (n?: string | null) => (n || '').trim().split(/\s+/)[0] || ''
 
+// Maps the buyer's contact_preference to the agent's contact instruction word.
+// A single explicit preference wins; empty, unknown, or multiple → neutral "Contact".
+const contactVerb = (pref?: string | null): string => {
+  const parts = (pref || '').split(',').map(s => s.trim()).filter(Boolean)
+  if (parts.length !== 1) return 'Contact'
+  switch (parts[0]) {
+    case 'Phone Call': return 'Call'
+    case 'Text':       return 'Text'
+    case 'Email':      return 'Email'
+    default:           return 'Contact'
+  }
+}
+
 export const msg = {
-  showingAlert: (buyer: string, address: string, leadId: string, buyerPhone?: string | null, buyerEmail?: string | null) => {
+  showingAlert: (buyer: string, address: string, leadId: string, buyerPhone?: string | null, buyerEmail?: string | null, contactPreference?: string | null) => {
     const contact = buyerPhone && buyerPhone.trim()
       ? buyerPhone.trim()
       : `email only: ${(buyerEmail || '').trim() || 'n/a'}`
-    return `🏠 New showing request: ${buyer} wants to see ${address}. Call: ${contact}. View lead: ${leadUrl(leadId)}`
+    return `🏠 New showing request: ${buyer} wants to see ${address}. ${contactVerb(contactPreference)}: ${contact}. View lead: ${leadUrl(leadId)}`
   },
   questionAlert: (buyer: string, address: string, leadId: string) =>
     `💬 New question from ${buyer} re: ${address}. View lead: ${leadUrl(leadId)}`,

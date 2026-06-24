@@ -124,7 +124,7 @@ export default function QRCodesPage() {
   const [trafficMode,   setTrafficMode]   = useState(false)
   const [ohDate,        setOhDate]        = useState('')
   const [ohTime,        setOhTime]        = useState('')
-  const [ohCapture,     setOhCapture]     = useState({ name: true, email: true, phone: true, agent: true })
+  const [ohCapture,     setOhCapture]     = useState({ name: true, email: true, phone: true })
   const [modalCopied,   setModalCopied]   = useState(false)
 
   // ── create QR modal state ──
@@ -196,7 +196,7 @@ export default function QRCodesPage() {
   const openModal = (type: 'property' | 'openhouse') => {
     setActiveModal(type); setModalStep(1); setModalPropId(''); setSignFormat(null)
     setTrafficMode(false); setOhDate(''); setOhTime(''); setModalCopied(false)
-    setOhCapture({ name: true, email: true, phone: true, agent: true })
+    setOhCapture({ name: true, email: true, phone: true })
   }
 
   const propMap       = Object.fromEntries(properties.map((p: any) => [p.id, p.address]))
@@ -695,7 +695,6 @@ export default function QRCodesPage() {
                         { key: 'name',  label: 'Name'  },
                         { key: 'email', label: 'Email' },
                         { key: 'phone', label: 'Phone' },
-                        { key: 'agent', label: 'Are you working with an agent?' },
                       ] as { key: keyof typeof ohCapture; label: string }[]).map(({ key, label }) => (
                         <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13.5, color: C.sub }}>
                           <input type="checkbox" checked={ohCapture[key]} onChange={e => setOhCapture(prev => ({ ...prev, [key]: e.target.checked }))}

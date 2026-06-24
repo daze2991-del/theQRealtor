@@ -286,13 +286,20 @@ export default function QRCodesPage() {
   // ── shared sign-format step (used by both modals) ──
   const formats = activeModal === 'openhouse'
     ? [
-        { id: 'aframe', icon: '🔼', title: 'A-Frame',          size: '18"×24"', desc: 'Sidewalk or driveway sandwich board' },
-        { id: 'flyer',  icon: '📄', title: 'Open House Flyer',  size: '8.5"×11"', desc: 'Handout with photo + details' },
+        { id: 'aframe',      icon: '🔼', title: 'A-Frame',          size: '18"×24"',  desc: 'Sidewalk or driveway sandwich board', traffic: true  },
+        { id: 'lawn',        icon: '🪧', title: 'Lawn Sign',        size: '18"×24"',  desc: 'Standard yard sign with stake',       traffic: true  },
+        { id: 'directional', icon: '➡️', title: 'Directional Sign', size: '12"×18"',  desc: 'Arrow sign placed at intersections',  traffic: true  },
+        { id: 'flyer',       icon: '📄', title: 'Open House Flyer',  size: '8.5"×11"', desc: 'Handout with photo + details',         traffic: false },
       ]
     : [
-        { id: 'hang',   icon: '🪧', title: 'Hang Sign',   size: '6"×12"',  desc: 'Clips onto yard sign post rider' },
-        { id: 'window', icon: '🪟', title: 'Window Sign', size: '5"×7"',   desc: 'Adheres to window or door glass' },
+        { id: 'hang',   icon: '🪧', title: 'Hang Sign',   size: '6"×12"',  desc: 'Clips onto yard sign post rider', traffic: true },
+        { id: 'window', icon: '🪟', title: 'Window Sign', size: '5"×7"',   desc: 'Adheres to window or door glass', traffic: true },
       ]
+
+  // Traffic Mode is a physical-sign placement strategy — show it only when a
+  // traffic-eligible sign is selected (hidden for the printed Open House Flyer).
+  const selectedFormat  = formats.find(f => f.id === signFormat)
+  const showTrafficMode = !!selectedFormat?.traffic
 
   return (
     <DashboardLayout>
@@ -717,7 +724,7 @@ export default function QRCodesPage() {
               <div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
                   {formats.map(fmt => (
-                    <button key={fmt.id} onClick={() => setSignFormat(fmt.id)}
+                    <button key={fmt.id} onClick={() => { setSignFormat(fmt.id); if (!fmt.traffic) setTrafficMode(false) }}
                       style={{ padding: '18px 16px', borderRadius: 12, border: `2px solid ${signFormat === fmt.id ? accent : C.border}`, background: signFormat === fmt.id ? `${accent}15` : C.bg, cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s' }}>
                       <div style={{ fontSize: 28, marginBottom: 8 }}>{fmt.icon}</div>
                       <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 2 }}>{fmt.title}</div>
@@ -726,6 +733,7 @@ export default function QRCodesPage() {
                     </button>
                   ))}
                 </div>
+                {showTrafficMode && (
                 <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, marginBottom: 20 }}>
                   <label style={{ display: 'flex', alignItems: 'flex-start', gap: 12, cursor: 'pointer' }}>
                     <input type="checkbox" checked={trafficMode} onChange={e => setTrafficMode(e.target.checked)}
@@ -742,6 +750,7 @@ export default function QRCodesPage() {
                   </label>
                   {trafficMode && <TrafficTips />}
                 </div>
+                )}
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button onClick={() => setModalStep(1)} style={{ flex: 1, padding: '12px', borderRadius: 10, border: `1px solid ${C.border}`, background: 'transparent', color: C.muted, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>← Back</button>
                   <button onClick={() => signFormat && setModalStep(3)} disabled={!signFormat}

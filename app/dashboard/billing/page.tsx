@@ -17,6 +17,8 @@ const C = {
   muted:   '#6B7280',
 } as const
 
+const PAID_PLANS_ENABLED = false
+
 type SubscriptionInfo = {
   status: string
   current_period_end: number
@@ -244,6 +246,7 @@ export default function BillingPage() {
                 <div style={divider} />
 
                 {plan === 'free' ? (
+                  PAID_PLANS_ENABLED ? (
                   <>
                     <p style={{ color: '#9CA3AF', fontSize: 14, marginBottom: 20 }}>
                       You're on the <strong style={{ color: C.text }}>Free plan</strong> — 1 property, no SMS alerts.
@@ -275,6 +278,11 @@ export default function BillingPage() {
                       Secure checkout via Stripe · Cancel anytime
                     </p>
                   </>
+                  ) : (
+                    <p style={{ color: '#9CA3AF', fontSize: 14 }}>
+                      You have free full platform access during the beta testing period. No credit card required.
+                    </p>
+                  )
                 ) : (
                   <>
                     <p style={{ color: '#9CA3AF', fontSize: 14, marginBottom: 20 }}>

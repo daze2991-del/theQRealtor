@@ -116,7 +116,7 @@ export default function TermsPage() {
             We reserve the right to change pricing with 30 days' notice to active subscribers.
           </p>
           <p style={{ margin: 0 }}>
-            Participants in the Founding Agent program who were granted locked pricing at account creation are exempt from price increases for as long as their account remains active and in good standing.
+            Beta Agent participants receive free full platform access during the beta testing period. No charge and no payment method is required during beta. Pricing for paid plans will be communicated before any charges occur.
           </p>
         </Section>
 

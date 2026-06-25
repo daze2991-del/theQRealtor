@@ -60,7 +60,7 @@ function PhoneMock() {
               <div style={{ fontSize: 10, color: '#9CA3AF' }}>now</div>
             </div>
           </div>
-          <div style={{ fontSize: 12, color: '#fff', fontWeight: 700, marginBottom: 3 }}>🔥 HOT BUYER ALERT</div>
+          <div style={{ fontSize: 12, color: '#fff', fontWeight: 700, marginBottom: 3 }}>🔥 BUYER INTEREST ALERT</div>
           <div style={{ fontSize: 11, color: '#E2E8F0', lineHeight: 1.5 }}>
             Sarah M. requested a showing at 742 Evergreen Terrace. Phone: (555) 210-4821. Call immediately.
           </div>
@@ -328,7 +328,7 @@ export default function LandingPage() {
               {[
                 { v: '217', label: 'Scans',            color: C.blueXL,  bg: `${C.blue}18` },
                 { v: '42',  label: 'Buyer Leads',       color: '#FCD34D', bg: '#2D200A' },
-                { v: '18',  label: 'Hot Buyers 🔥',     color: C.hot,     bg: '#300808' },
+                { v: '18',  label: 'Buyer Interest 🔥',  color: C.hot,     bg: '#300808' },
                 { v: '7',   label: 'Showing Requests',  color: C.green,   bg: '#0A2010' },
               ].map(({ v, label, color, bg }) => (
                 <div key={label} style={{ flex: 1, background: bg, borderRadius: 12, padding: '16px 10px', minWidth: 80 }}>
@@ -441,7 +441,7 @@ export default function LandingPage() {
             {
               emoji: '🔥', step: '04',
               title: 'Know Who to Call First',
-              body: 'Your Lead Inbox ranks every buyer by engagement. Hot buyers at the top. Call the right person at the right time.',
+              body: 'Your Lead Inbox ranks every buyer by engagement. Buyers with the most interest at the top. Call the right person at the right time.',
             },
           ].map(({ emoji, step, title, body }) => (
             <div key={step} style={{ flex: 1 }}>
@@ -481,12 +481,12 @@ export default function LandingPage() {
             <FeatureCard
               icon="🎯"
               title="Lead Inbox"
-              body="See every lead ranked by intent. Hot buyers at the top. Cold ones at the bottom. Know who to call today — not tomorrow."
+              body="See every lead ranked by intent. Buyers with the most interest at the top. Cold ones at the bottom. Know who to call today — not tomorrow."
             />
             <FeatureCard
               icon="📊"
               title="Seller Reports"
-              body="Walk into every listing appointment with real buyer data. '42 leads, 6 hot buyers, 3 showing requests.' Sellers love it. You win the listing."
+              body="Walk into every listing appointment with real buyer data. '42 leads, 6 high-interest buyers, 3 showing requests.' Sellers love it. You win the listing."
             />
             <FeatureCard
               icon="📍"

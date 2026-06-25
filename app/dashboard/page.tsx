@@ -212,7 +212,7 @@ export default function Dashboard() {
   const [onboardingDone,   setOnboardingDone]    = useState<boolean | null>(null)
   const [copiedReport,     setCopiedReport]      = useState(false)
   const [origin,           setOrigin]            = useState('')
-  const [hotBuyersCount,   setHotBuyersCount]    = useState(0)
+  const [buyerInterestCount, setBuyerInterestCount] = useState(0)
   const [needsFollowUp,    setNeedsFollowUp]     = useState(0)
   const [hotNotCalled,     setHotNotCalled]      = useState(0)
   const [warmNotCalled,    setWarmNotCalled]      = useState(0)
@@ -342,7 +342,7 @@ export default function Dashboard() {
       setPropThumbs(thumbMap)
       setPropHotLeads(hotByProp)
       setPipelineCounts(pipeline)
-      setHotBuyersCount((leadsPerProp || []).filter((l: any) => l.tier === 'hot').length)
+      setBuyerInterestCount((leadsPerProp || []).filter((l: any) => l.tier === 'hot').length)
       setNeedsFollowUp((leadsPerProp || []).filter((l: any) => l.tier === 'hot' && (!l.status || l.status === 'new')).length)
       setHotNotCalled(hotNotCalledCount)
       setWarmNotCalled(warmNotCalledCount)
@@ -452,7 +452,7 @@ export default function Dashboard() {
                 <span style={{ fontSize: 13, color: C.sub }}>You're all caught up — no urgent actions right now.</span>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {needsFollowUp > 0 && <span style={{ fontSize: 13, color: C.sub }}>• {needsFollowUp} hot buyer{needsFollowUp !== 1 ? 's' : ''} awaiting contact</span>}
+                  {needsFollowUp > 0 && <span style={{ fontSize: 13, color: C.sub }}>• {needsFollowUp} high-interest buyer{needsFollowUp !== 1 ? 's' : ''} awaiting contact</span>}
                   {hotCount > 0 && <span style={{ fontSize: 13, color: C.sub }}>• {hotCount} showing request{hotCount !== 1 ? 's' : ''} pending</span>}
                 </div>
               )}
@@ -464,10 +464,10 @@ export default function Dashboard() {
 
           {/* ── SECTION 2: KPI Cards ── */}
           <div className="db-kpi4">
-            <KpiCard href="/dashboard/leads?tier=hot"                  icon={<Flame         size={18} color={ACCENT.red.color}    />} label="Hot Buyers"       value={hotBuyersCount} change={null}       accent={ACCENT.red}   caption={hotBuyersCount === 0 ? 'Place your first QR sign to start capturing buyers' : undefined} />
+            <KpiCard href="/dashboard/leads?tier=hot"                  icon={<Flame         size={18} color={ACCENT.red.color}    />} label="Buyer Interest"   value={buyerInterestCount} change={null}   accent={ACCENT.red}   caption={buyerInterestCount === 0 ? 'Place your first QR sign to start capturing buyers' : undefined} />
             <KpiCard href="/dashboard/leads?tier=all&sort=newest"      icon={<Users         size={18} color={ACCENT.green.color}  />} label="New Leads"        value={totalLeads}     change={leadChange} accent={ACCENT.green} sparkData={leadSparkline} caption="Last 30 days" />
             <KpiCard href="/dashboard/leads?motivation=showing"        icon={<CalendarCheck size={18} color={ACCENT.blue.color}   />} label="Showing Requests" value={hotCount}       change={null}       accent={ACCENT.blue}  sparkData={scanSparkline.map((_, i) => i % 3 === 0 ? 1 : 0)} caption={hotCount === 0 ? "Appears when buyers click 'Request a Showing'" : undefined} />
-            <KpiCard href="/dashboard/leads?status=not_contacted"      icon={<AlertCircle   size={18} color={ACCENT.amber.color}  />} label="Needs Follow-Up"  value={needsFollowUp}  change={null}       accent={ACCENT.amber} caption={needsFollowUp === 0 ? "You're all caught up" : 'Hot buyers awaiting contact'} />
+            <KpiCard href="/dashboard/leads?status=not_contacted"      icon={<AlertCircle   size={18} color={ACCENT.amber.color}  />} label="Needs Follow-Up"  value={needsFollowUp}  change={null}       accent={ACCENT.amber} caption={needsFollowUp === 0 ? "You're all caught up" : 'High-interest buyers awaiting contact'} />
           </div>
 
           {/* ── SECTION 3+4+5: Two-column main layout ── */}
@@ -484,7 +484,7 @@ export default function Dashboard() {
               />
               <div style={{ flex: 1, overflowY: 'auto' }}>
                 {hotLeads.length === 0 ? (
-                  <div style={{ padding: '32px 18px', textAlign: 'center', color: C.muted, fontSize: 13, lineHeight: 1.6 }}>No hot leads right now. Hot buyers appear here the moment a buyer shows strong intent.</div>
+                  <div style={{ padding: '32px 18px', textAlign: 'center', color: C.muted, fontSize: 13, lineHeight: 1.6 }}>No hot leads right now. High-interest buyers appear here the moment a buyer shows strong intent.</div>
                 ) : (
                   hotLeads.map((lead: any, i: number) => {
                     const ctaPill = getCtaPill(lead.score_breakdown)

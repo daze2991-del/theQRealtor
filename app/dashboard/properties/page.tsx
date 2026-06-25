@@ -5,7 +5,6 @@ import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DashboardLayout from '../../../components/DashboardLayout'
-import { Flame } from 'lucide-react'
 
 const C = {
   bg:      '#0F0F13',
@@ -34,7 +33,7 @@ function StatusBadge({ active, toggling, onToggle }: { active: boolean; toggling
     >
       <div style={{ width: 6, height: 6, borderRadius: '50%', background: active ? '#4ade80' : '#6B7280', transition: 'background 0.15s' }} />
       <span style={{ fontSize: 11, fontWeight: 700, color: active ? '#4ade80' : '#6B7280' }}>
-        {toggling ? '…' : active ? 'Active' : 'Offline'}
+        {toggling ? '…' : active ? 'Active' : 'Inactive'}
       </span>
     </button>
   )
@@ -263,21 +262,15 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
     finally { setQrSaving(false) }
   }
 
-  const healthBadge = leadCount === 0
-    ? { label: 'Needs Attention',   dotColor: '#EF4444', textColor: '#F87171' }
-    : hotLeadCount > 2
-    ? { label: 'High Activity',     dotColor: '#4ade80', textColor: '#4ade80' }
-    : { label: 'Moderate Activity', dotColor: '#FCD34D', textColor: '#FCD34D' }
-
   return (
-    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 22, display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ background: C.card, border: `1px solid #7C3AED60`, borderRadius: 16, padding: 22, display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
           {thumbnail ? (
-            <img src={thumbnail} alt="" style={{ width: 80, height: 80, borderRadius: 10, objectFit: 'cover', flexShrink: 0, border: `1px solid ${C.border}` }} />
+            <img src={thumbnail} alt="" style={{ width: 60, height: 60, borderRadius: 10, objectFit: 'cover', flexShrink: 0, border: `1px solid ${C.border}` }} />
           ) : (
-            <div style={{ width: 80, height: 80, borderRadius: 10, flexShrink: 0, background: '#252533', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>🏠</div>
+            <div style={{ width: 60, height: 60, borderRadius: 10, flexShrink: 0, background: '#252533', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>🏠</div>
           )}
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -288,64 +281,29 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
             ) : (
               <div style={{ fontSize: 12, color: '#FB923C', fontWeight: 600, marginBottom: 4 }}>⚠️ Missing Location</div>
             )}
-            {/* FIX 5 — Health badge */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <div style={{ width: 7, height: 7, borderRadius: '50%', background: healthBadge.dotColor, flexShrink: 0 }} />
-              <span style={{ fontSize: 11, fontWeight: 600, color: healthBadge.textColor }}>{healthBadge.label}</span>
-            </div>
+            <Link href={`/p/${prop.id}`} target="_blank" style={{ fontSize: 12, fontWeight: 600, color: C.purpleL, textDecoration: 'none' }}>
+              Preview public page →
+            </Link>
           </div>
         </div>
         <StatusBadge active={!!prop.active} toggling={toggling} onToggle={onToggle} />
       </div>
 
-      {/* FIX 2 — Preview Public Page (prominent, above stats) */}
-      <Link
-        href={`/p/${prop.id}`}
-        target="_blank"
-        style={{
-          display: 'block', textAlign: 'center',
-          background: `${C.purple}14`, border: `1px solid ${C.purple}35`,
-          borderRadius: 9, padding: '9px 14px',
-          fontSize: 13, fontWeight: 700, color: C.purpleL, textDecoration: 'none',
-        }}
-      >
-        Preview Public Page →
-      </Link>
-
-      {/* Stats — FIX 4: QR Codes → Hot Buyers */}
-      <div style={{ display: 'flex', gap: 10 }}>
-        <div style={{ flex: 1, background: `${C.purple}14`, border: `1px solid ${C.purple}30`, borderRadius: 10, padding: '10px 14px', textAlign: 'center' }}>
-          <div style={{ fontSize: 22, fontWeight: 800, color: C.purpleL, lineHeight: 1 }}>{scanCount}</div>
-          <div style={{ fontSize: 10, color: C.muted, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Scans</div>
-        </div>
-        <div style={{ flex: 1, background: '#1A170D', border: '1px solid #3A3520', borderRadius: 10, padding: '10px 14px', textAlign: 'center' }}>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#FCD34D', lineHeight: 1 }}>{leadCount}</div>
-          <div style={{ fontSize: 10, color: C.muted, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Leads</div>
-        </div>
-        <div style={{ flex: 1, background: '#3B0D0D', border: '1px solid #EF444430', borderRadius: 10, padding: '10px 14px', textAlign: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, lineHeight: 1 }}>
-            <Flame size={15} color="#EF4444" />
-            <span style={{ fontSize: 22, fontWeight: 800, color: '#EF4444', lineHeight: 1 }}>{hotLeadCount}</span>
+      {/* Analytics strip — Scans · Leads · Buyer Interest */}
+      <div style={{ display: 'flex' }}>
+        {[
+          { label: 'Scans',          value: scanCount,    color: '#F1F5F9' },
+          { label: 'Leads',          value: leadCount,    color: '#F1F5F9' },
+          { label: 'Buyer Interest', value: hotLeadCount, color: '#8B5CF6' },
+        ].map((s, i) => (
+          <div key={s.label} style={{ flex: 1, textAlign: 'center', borderRight: i < 2 ? '1px solid #1E2340' : 'none' }}>
+            <div style={{ fontSize: 20, fontWeight: 700, color: s.color, lineHeight: 1 }}>{s.value}</div>
+            <div style={{ fontSize: 11, color: '#64748B', marginTop: 5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{s.label}</div>
           </div>
-          <div style={{ fontSize: 10, color: C.muted, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Hot Buyers</div>
-        </div>
+        ))}
       </div>
 
-      {/* Photos toggle */}
-      <button
-        onClick={() => setShowPhotos(v => !v)}
-        style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8,
-          padding: '8px 12px', cursor: 'pointer', width: '100%',
-          color: C.muted, fontSize: 12.5, fontWeight: 500,
-        }}
-      >
-        <span>📷 Manage Photos {photos.length > 0 && !showPhotos ? `(${photos.length})` : ''}</span>
-        <span style={{ fontSize: 10, transition: 'transform 0.15s', transform: showPhotos ? 'rotate(180deg)' : 'none', display: 'inline-block' }}>▾</span>
-      </button>
-
-      {/* Photos panel */}
+      {/* Photos panel (toggled via ··· → Manage Photos) */}
       {showPhotos && (
         <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 14 }}>
           {loadingPhotos ? (
@@ -425,44 +383,56 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
       )}
 
       {/* Actions */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 4, borderTop: `1px solid ${C.border}` }}>
-        {/* Row 1: View Details + Generate QR + ⋮ menu */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {/* Primary CTA */}
+        <Link
+          href={`/dashboard/properties/${prop.id}`}
+          style={{
+            display: 'block', textAlign: 'center',
+            background: '#7C3AED', color: '#fff',
+            borderRadius: 9, padding: '11px 14px',
+            fontSize: 13, fontWeight: 700, textDecoration: 'none',
+          }}
+        >
+          View Details →
+        </Link>
+
+        {/* Secondary actions: Open Report + Add QR + ··· overflow */}
         <div style={{ display: 'flex', gap: 8 }}>
-          <Link
-            href={`/dashboard/properties/${prop.id}`}
+          <a
+            href={`/report/${prop.id}`}
+            target="_blank"
+            rel="noreferrer"
             style={{
-              flex: 1, display: 'block', textAlign: 'center',
-              background: C.purple, color: '#fff',
-              borderRadius: 9, padding: '10px 14px',
-              fontSize: 13, fontWeight: 700, textDecoration: 'none',
+              flex: 1, textAlign: 'center',
+              background: 'transparent', color: '#8B5CF6',
+              border: '1px solid #7C3AED40', borderRadius: 8,
+              padding: '9px 12px', fontSize: 12, fontWeight: 600, textDecoration: 'none',
             }}
           >
-            View Details →
-          </Link>
+            Open Report
+          </a>
 
           <button
             onClick={openQrModal}
             style={{
-              display: 'inline-flex', alignItems: 'center', gap: 4,
-              background: 'transparent', color: C.purpleL,
-              border: `1px solid ${C.purple}50`,
-              borderRadius: 9, padding: '10px 12px',
-              fontSize: 12, fontWeight: 700, cursor: 'pointer',
-              whiteSpace: 'nowrap',
+              flex: 1, background: 'transparent', color: '#94A3B8',
+              border: '1px solid #1E2340', borderRadius: 8,
+              padding: '9px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
             }}
           >
             + Add QR
           </button>
 
-          <div ref={menuRef} style={{ position: 'relative' }}>
+          <div ref={menuRef} style={{ position: 'relative', flexShrink: 0 }}>
             <button
               onClick={() => setMenuOpen(v => !v)}
               style={{
-                fontSize: 18, color: C.muted, background: 'transparent',
-                border: `1px solid ${C.border}`, borderRadius: 9,
-                padding: '8px 13px', cursor: 'pointer', lineHeight: 1,
+                fontSize: 18, color: '#94A3B8', background: 'transparent',
+                border: '1px solid #1E2340', borderRadius: 8,
+                padding: '6px 13px', cursor: 'pointer', lineHeight: 1,
               }}
-            >⋮</button>
+            >···</button>
             {menuOpen && (
               <div style={{
                 position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 50,
@@ -470,15 +440,28 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
                 borderRadius: 10, padding: '6px 0', minWidth: 210,
                 boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
               }}>
+                <button onClick={() => { setMenuOpen(false); copyReportLink() }}
+                  style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: copiedReport ? '#4ade80' : C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
+                  {copiedReport ? '✓ Copied!' : '📋 Copy Shareable Link'}
+                </button>
+                <button onClick={() => { setMenuOpen(false); setShowPhotos(v => !v) }}
+                  style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
+                  📷 Manage Photos {photos.length > 0 ? `(${photos.length})` : ''}
+                </button>
+                <a href={`/report/${prop.id}?print=true`} target="_blank" rel="noreferrer"
+                  onClick={() => setMenuOpen(false)}
+                  style={{ display: 'block', width: '100%', boxSizing: 'border-box', textAlign: 'left', textDecoration: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
+                  📄 PDF
+                </a>
+                <div style={{ borderTop: `1px solid ${C.border}`, margin: '4px 0' }} />
                 <button onClick={() => { setMenuOpen(false); copyBuyerLink() }}
                   style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: copied ? '#4ade80' : C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
-                  {copied ? '✓ Copied!' : '📋 Copy Buyer Link'}
+                  {copied ? '✓ Copied!' : '🔗 Copy Buyer Link'}
                 </button>
                 <button onClick={() => { setMenuOpen(false); router.push('/dashboard/qr-codes') }}
                   style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
                   📱 QR Codes
                 </button>
-
                 <button onClick={() => { setMenuOpen(false); openEdit() }}
                   style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
                   ✏️ Edit Property
@@ -496,54 +479,6 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
               </div>
             )}
           </div>
-        </div>
-
-        {/* Copy Shareable Link + Open Report + PDF — normalized row */}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <button
-              onClick={copyReportLink}
-              style={{
-                width: '100%', fontSize: 12, fontWeight: 600,
-                background: copiedReport ? '#052e16' : `${C.purple}14`,
-                color: copiedReport ? '#4ade80' : C.purpleL,
-                border: `1px solid ${copiedReport ? '#166534' : C.purple + '40'}`,
-                borderRadius: 9, padding: '9px 10px', cursor: 'pointer',
-                transition: 'all 0.15s', textAlign: 'center',
-              }}
-            >
-              {copiedReport ? '✓ Copied' : '📋 Copy Shareable Link'}
-            </button>
-            <div style={{ fontSize: 11, color: C.muted, textAlign: 'center' }}>Send this link to your seller.</div>
-          </div>
-          <a
-            href={`/report/${prop.id}`}
-            target="_blank"
-            rel="noreferrer"
-            style={{
-              fontSize: 12, fontWeight: 600, flexShrink: 0,
-              background: `${C.purple}14`, color: C.purpleL,
-              border: `1px solid ${C.purple}40`,
-              borderRadius: 9, padding: '9px 12px',
-              textDecoration: 'none', display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap',
-            }}
-          >
-            Open Report →
-          </a>
-          <a
-            href={`/report/${prop.id}?print=true`}
-            target="_blank"
-            rel="noreferrer"
-            style={{
-              fontSize: 12, fontWeight: 600, flexShrink: 0,
-              background: 'transparent', color: C.purpleL,
-              border: `1px solid ${C.purple}40`,
-              borderRadius: 9, padding: '9px 12px',
-              textDecoration: 'none', display: 'inline-flex', alignItems: 'center',
-            }}
-          >
-            PDF
-          </a>
         </div>
       </div>
 

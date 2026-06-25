@@ -529,7 +529,7 @@ export default function PropertyPage() {
 
                   {/* Phone OR email — at least one is required */}
                   <div style={{ fontSize: 11, color: C.soft, marginTop: -2 }}>
-                    Add a phone number or email — at least one so the agent can reach you.
+                    Provide at least one — the agent will use this to follow up.
                   </div>
 
                   <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

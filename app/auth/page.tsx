@@ -22,6 +22,7 @@ export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [message, setMessage] = useState("");
   const [betaFull, setBetaFull] = useState(false);
   const [waitlistEmail, setWaitlistEmail] = useState("");
@@ -39,6 +40,18 @@ export default function AuthPage() {
     const supabase = createBrowserSupabase();
 
     if (mode === "signup") {
+      // Validate invite code before anything else
+      const codeRes = await fetch('/api/validate-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: inviteCode }),
+      })
+      const codeData = await codeRes.json()
+      if (!codeData.valid) {
+        setMessage(codeData.error ?? 'Invalid invite code.')
+        return
+      }
+
       // Enforce the hard cap before creating anything. signup_count() is a
       // SECURITY DEFINER RPC that counts profiles past the per-row RLS.
       const { data: count, error: countError } = await supabase.rpc("signup_count");
@@ -62,6 +75,12 @@ export default function AuthPage() {
     }
 
     if (mode === "signup") {
+      // Mark invite code as used now that the account exists
+      await fetch('/api/validate-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: inviteCode, claim: true, email }),
+      })
       setMessage("Account created. Check your email to confirm, then sign in.");
       return;
     }
@@ -187,6 +206,19 @@ export default function AuthPage() {
               <form onSubmit={submit} style={{ display: 'grid', gap: 16 }}>
                 {mode === "signup" && (
                   <div>
+                    <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: C.sub, marginBottom: 7 }}>Invite Code</label>
+                    <input
+                      style={{ ...inputStyle, textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                      value={inviteCode}
+                      onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                      placeholder="TQRB-000"
+                      required
+                      autoComplete="off"
+                    />
+                  </div>
+                )}
+                {mode === "signup" && (
+                  <div>
                     <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: C.sub, marginBottom: 7 }}>Name</label>
                     <input
                       style={inputStyle}
@@ -233,7 +265,7 @@ export default function AuthPage() {
                 <button
                   style={ghostBtn}
                   type="button"
-                  onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setMessage(""); }}
+                  onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setMessage(""); setInviteCode(""); }}
                 >
                   {mode === "signin"
                     ? <>Need an account? <span style={{ color: C.purpleL, fontWeight: 700 }}>Sign up free</span></>

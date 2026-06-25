@@ -180,7 +180,7 @@ export default function BillingPage() {
                 borderRadius: 14, padding: 24, marginBottom: 20,
               }}>
                 <div style={{ fontSize: 11, color: C.purpleL, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
-                  Your ROI Potential
+                  Your Plan
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, marginBottom: 16 }}>
                   {[
@@ -202,7 +202,7 @@ export default function BillingPage() {
                 <div style={row}>
                   <div>
                     <span style={label}>Current Plan</span>
-                    <span style={badge(plan)}>{plan === 'pro' ? 'Beta' : 'Free'}</span>
+                    <span style={badge(plan)}>{plan === 'pro' ? 'Beta' : 'Beta'}</span>
                   </div>
                   {subscription && (
                     <div style={{ textAlign: 'right' }}>
@@ -291,6 +291,7 @@ export default function BillingPage() {
                         : <>You're a <strong style={{ color: '#4ade80' }}>Beta Agent</strong>. You have free full platform access during the beta testing period. No charge and no payment method required while in beta.</>
                       }
                     </p>
+                    {(PAID_PLANS_ENABLED || !!subscription) && (<>
                     <button onClick={handlePortal} disabled={openingPortal}
                       style={{ ...btnOutline, opacity: openingPortal ? 0.7 : 1, cursor: openingPortal ? 'not-allowed' : 'pointer' }}>
                       {openingPortal ? 'Opening…' : 'Manage Subscription →'}
@@ -302,6 +303,7 @@ export default function BillingPage() {
                     <p style={{ fontSize: 12, color: '#4B5563', marginTop: 12, textAlign: 'center' }}>
                       Managed securely by Stripe · Cancel anytime from the portal
                     </p>
+                    </>)}
                   </>
                 )}
               </div>

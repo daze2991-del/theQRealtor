@@ -373,9 +373,9 @@ export default function SettingsPage() {
             {/* Lead Notifications */}
             <Section title="Lead Notifications" description="Choose which lead events text your phone. Alerts go to your SMS number above.">
               {[
-                { key: 'showing',  title: 'Showing requests',          hint: 'Recommended — high intent buyers',                    hintColor: C.purpleL, checked: notifyShowing,  set: setNotifyShowing },
-                { key: 'question', title: 'Questions / info requests',  hint: 'New buyer questions and info requests.',               hintColor: C.muted,   checked: notifyQuestion, set: setNotifyQuestion },
-                { key: 'hot',      title: 'Hot lead alerts',            hint: 'Fires once when a buyer first crosses the Hot tier.',  hintColor: C.muted,   checked: notifyHotLead,  set: setNotifyHotLead },
+                { key: 'showing',  title: 'Showing requests',          hint: "A buyer clicked 'Request a Showing' — your highest-intent signal. Recommended on.",                                                                                                             hintColor: C.purpleL, checked: notifyShowing,  set: setNotifyShowing },
+                { key: 'question', title: 'Questions / info requests',  hint: 'A buyer submitted a question or requested disclosures. Moderate intent. Recommended on for most agents.',                                                                                                   hintColor: C.muted,   checked: notifyQuestion, set: setNotifyQuestion },
+                { key: 'hot',      title: 'Hot lead alerts',            hint: "Fires once when a buyer's behavior crosses the Hot threshold — multiple scans, saved property, or showing request. If you have many active listings, consider turning this off to reduce noise.",  hintColor: C.muted,   checked: notifyHotLead,  set: setNotifyHotLead },
               ].map(row => (
                 <div key={row.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 16 }}>
                   <div style={{ flex: 1 }}>

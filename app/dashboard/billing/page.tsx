@@ -316,7 +316,7 @@ export default function BillingPage() {
                     { label: 'Properties',     value: propCount,    isHot: false },
                     { label: 'QR Codes',       value: qrCount,      isHot: false },
                     { label: 'Leads Captured', value: leadCount,    isHot: false },
-                    { label: 'Hot Leads',      value: hotLeadCount, isHot: true  },
+                    { label: 'Buyer Interest',  value: hotLeadCount, isHot: true  },
                   ].map(({ label: lbl, value, isHot }) => (
                     <div key={lbl} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 10px', textAlign: 'center' }}>
                       <div style={{ fontSize: 22, fontWeight: 800, color: C.purpleL, lineHeight: 1, marginBottom: 5 }}>{value}</div>

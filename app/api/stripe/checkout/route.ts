@@ -10,6 +10,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const STRIPE_CHARGES_ENABLED = process.env.STRIPE_CHARGES_ENABLED === 'true'
+  if (!STRIPE_CHARGES_ENABLED) {
+    return NextResponse.json({ error: 'Paid plans not yet available' }, { status: 403 })
+  }
+
   const { plan } = await request.json().catch(() => ({ plan: 'monthly' }))
   const priceId = plan === 'yearly'
     ? process.env.STRIPE_PRICE_ID_YEARLY

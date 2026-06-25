@@ -291,7 +291,7 @@ export default function BillingPage() {
                         : <>You're a <strong style={{ color: '#4ade80' }}>Beta Agent</strong>. You have free full platform access during the beta testing period. No charge and no payment method required while in beta.</>
                       }
                     </p>
-                    {(PAID_PLANS_ENABLED || !!subscription) && (<>
+                    {PAID_PLANS_ENABLED && (<>
                     <button onClick={handlePortal} disabled={openingPortal}
                       style={{ ...btnOutline, opacity: openingPortal ? 0.7 : 1, cursor: openingPortal ? 'not-allowed' : 'pointer' }}>
                       {openingPortal ? 'Opening…' : 'Manage Subscription →'}

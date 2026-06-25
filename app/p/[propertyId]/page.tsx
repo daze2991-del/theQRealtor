@@ -208,7 +208,7 @@ export default function PropertyPage() {
 
     if (!name.trim()) { setError('Please enter your name.'); return }
     if (!hasPhone && !hasEmail) {
-      setError('Add a phone number or email so the agent can reach you.')
+      setError('Provide at least one — the agent will use this to follow up.')
       return
     }
     const pErr = hasPhone && !isValidUSPhone(phone) ? 'Enter a valid US phone number.' : ''

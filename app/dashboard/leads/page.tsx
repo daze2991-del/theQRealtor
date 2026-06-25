@@ -780,15 +780,17 @@ function LeadsPageInner() {
                           <span style={{ fontSize: 11, fontWeight: 700, color: C.sub, background: 'rgba(255,255,255,0.05)', border: `1px solid ${C.border}`, borderRadius: 6, padding: '2px 8px', whiteSpace: 'nowrap' }}>
                             {reason}
                           </span>
-                          {/* Urgency tag — tiered off call_priority */}
-                          {urgency && (
+                          {/* Urgency tag — tiered off call_priority; only meaningful when a phone number exists */}
+                          {lead.phone && urgency && (
                             <span style={{ fontSize: 12, fontWeight: 700, color: urgency.color, whiteSpace: 'nowrap' }}>
                               {urgency.label}
                             </span>
                           )}
-                          <span title={`Call Priority: ${callPri}`} style={{ fontSize: 10, color: C.muted, background: `${C.purple}18`, border: `1px solid ${C.purple}30`, borderRadius: 6, padding: '2px 6px', fontWeight: 700 }}>
-                            P{callPri.toFixed(0)}
-                          </span>
+                          {lead.phone && (
+                            <span title={`Call Priority: ${callPri}`} style={{ fontSize: 10, color: C.muted, background: `${C.purple}18`, border: `1px solid ${C.purple}30`, borderRadius: 6, padding: '2px 6px', fontWeight: 700 }}>
+                              P{callPri.toFixed(0)}
+                            </span>
+                          )}
                           <div style={{ display: 'flex', gap: 5 }}>
                             {lead.phone && <ActionBtn href={`tel:${lead.phone}`}    title={`Call ${lead.name}`}  emoji="📞" bg="#062014"         border="#166534" />}
                             {lead.phone && <ActionBtn href={`sms:${lead.phone}`}    title={`Text ${lead.name}`}  emoji="💬" bg={`${C.purple}18`}  border={`${C.purple}40`} />}

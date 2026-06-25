@@ -189,7 +189,7 @@ export default function LandingPage() {
 
         <div className="nav-links" style={{ display: 'flex', gap: 32, alignItems: 'center' }}>
           <a href="#features" style={{ fontSize: 14, color: C.sub, textDecoration: 'none', fontWeight: 500 }}>Features</a>
-          <a href="#pricing" style={{ fontSize: 14, color: C.sub, textDecoration: 'none', fontWeight: 500 }}>Founding Agents</a>
+          <a href="#pricing" style={{ fontSize: 14, color: C.sub, textDecoration: 'none', fontWeight: 500 }}>Beta Agents</a>
           <Link href="/auth" style={{ fontSize: 14, color: C.sub, textDecoration: 'none', fontWeight: 500 }}>Sign In</Link>
         </div>
 
@@ -252,7 +252,7 @@ export default function LandingPage() {
                 textDecoration: 'none', letterSpacing: '-0.01em',
                 boxShadow: `0 4px 24px ${C.blue}60`,
               }}>
-                Apply for Founding Agent Access →
+                Apply for Beta Access →
               </Link>
               <a href="#how-it-works" style={{
                 background: 'transparent', color: C.sub,
@@ -358,7 +358,7 @@ export default function LandingPage() {
             fontSize: 15, fontWeight: 700, padding: '12px 28px', borderRadius: 11,
             textDecoration: 'none', boxShadow: `0 4px 20px ${C.blue}50`,
           }}>
-            Apply for Founding Agent Access →
+            Apply for Beta Access →
           </Link>
         </div>
       </section>
@@ -566,17 +566,17 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── FOUNDING AGENT PROGRAM ── */}
+      {/* ── BETA AGENT PROGRAM ── */}
       <section id="pricing" style={{ maxWidth: 820, margin: '0 auto', padding: '96px 32px' }}>
         <div style={{ textAlign: 'center', marginBottom: 52 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: C.blueXL, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>
             Early Access
           </div>
           <h2 style={{ fontSize: 38, fontWeight: 900, color: C.text, margin: '0 0 16px', letterSpacing: '-0.025em', lineHeight: 1.15 }}>
-            Founding Agent Program
+            Beta Agent Program
           </h2>
           <p style={{ fontSize: 17, color: C.sub, maxWidth: 560, margin: '0 auto', lineHeight: 1.65 }}>
-            Limited to the first 10 qualified agents. Help shape the future of theQRealtor and lock in your pricing for life.
+            Limited to the first 10 qualified agents. Help shape the future of theQRealtor during our free beta testing period.
           </p>
         </div>
 
@@ -601,18 +601,17 @@ export default function LandingPage() {
           {/* Scarcity */}
           <div style={{ textAlign: 'center', marginBottom: 28 }}>
             <span style={{ fontSize: 15, fontWeight: 800, color: '#F97316' }}>
-              🔥 Only 10 Founding Agent Spots Available
+              Limited beta — 10 agents
             </span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 36 }}>
             {[
-              { icon: '🚀', text: '90 days free · Full platform access · Unlimited listings' },
-              { icon: '💳', text: 'No credit card required during beta' },
-              { icon: '💬', text: 'Direct access to the founder — your feedback shapes the roadmap' },
-              { icon: '📧', text: 'At day 75, agents receive a reminder to activate their Founding Agent membership and keep their grandfathered pricing.' },
-              { icon: '🔒', text: 'Founding Agent Rate — $24.99/month for as long as your subscription remains continuously active. Future public pricing expected at $49+/month. Save 50% off future public pricing.' },
-              { icon: '✅', text: 'Pricing stays locked as long as account remains active' },
+              { icon: '🚀', text: 'Free full platform access during the beta — no charge' },
+              { icon: '📱', text: 'Up to 10 QR codes' },
+              { icon: '💳', text: 'No credit card required' },
+              { icon: '💬', text: 'Direct access to the founder — your feedback shapes the product' },
+              { icon: '⏱️', text: '60–90 day testing period' },
             ].map(({ icon, text }) => (
               <div key={text} style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
                 <div style={{
@@ -644,7 +643,7 @@ export default function LandingPage() {
             textDecoration: 'none', letterSpacing: '-0.01em',
             boxShadow: `0 4px 24px ${C.blue}50`,
           }}>
-            Lock In Founding Agent Pricing →
+            Apply for Beta Access →
           </Link>
           <p style={{ fontSize: 13, color: C.muted, textAlign: 'center', marginTop: 14, marginBottom: 0, lineHeight: 1.6 }}>
             Limited enrollment while we work directly with agents during beta.

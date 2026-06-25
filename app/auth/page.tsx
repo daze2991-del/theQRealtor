@@ -28,7 +28,7 @@ export default function AuthPage() {
   const [waitlistMessage, setWaitlistMessage] = useState("");
   const [waitlistDone, setWaitlistDone] = useState(false);
 
-  // Founding Agent beta is capped at this many accounts. Past the cap, signups
+  // Beta Agent program is capped at this many accounts. Past the cap, signups
   // are blocked and overflow emails are collected on the waitlist instead.
   const SIGNUP_CAP = 10;
 
@@ -140,7 +140,7 @@ export default function AuthPage() {
           {betaFull ? (
             <>
               <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, margin: '0 0 6px', letterSpacing: '-0.02em' }}>
-                Founding Agent beta is full
+                Beta Agent program is full
               </h1>
               {waitlistDone ? (
                 <p style={{ fontSize: 14, color: '#4ade80', margin: '12px 0 0', lineHeight: 1.6 }}>
@@ -149,7 +149,7 @@ export default function AuthPage() {
               ) : (
                 <>
                   <p style={{ fontSize: 13.5, color: C.muted, margin: '0 0 28px', lineHeight: 1.6 }}>
-                    Our Founding Agent beta is currently full. Drop your email below and we'll notify you when a spot opens.
+                    Our Beta Agent program is currently full. Drop your email below and we'll notify you when a spot opens.
                   </p>
                   <form onSubmit={joinWaitlist} style={{ display: 'grid', gap: 16 }}>
                     <div>

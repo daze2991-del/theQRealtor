@@ -21,7 +21,7 @@ const C = {
 type Plan = 'founding' | 'free' | 'starter' | 'pro' | 'elite'
 
 const PLAN_LABELS: Record<Plan, string> = {
-  founding: 'Founding Agent',
+  founding: 'Beta Agent',
   free:     'Free Plan',
   starter:  'Starter',
   pro:      'Pro',

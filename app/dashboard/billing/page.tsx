@@ -183,7 +183,7 @@ export default function BillingPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, marginBottom: 16 }}>
                   {[
                     { label: 'Leads Captured', value: leadCount.toString() },
-                    { label: 'Monthly Cost',   value: plan === 'pro' ? '$24.99/mo' : '$0' },
+                    { label: 'Monthly Cost',   value: '$0' },
                   ].map(({ label, value }) => (
                     <div key={label} style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`, borderRadius: 10, padding: '14px 12px', textAlign: 'center' }}>
                       <div style={{ fontSize: 22, fontWeight: 800, color: C.purpleL, lineHeight: 1, marginBottom: 6 }}>
@@ -200,7 +200,7 @@ export default function BillingPage() {
                 <div style={row}>
                   <div>
                     <span style={label}>Current Plan</span>
-                    <span style={badge(plan)}>{plan === 'pro' ? 'Founding Agent' : 'Free'}</span>
+                    <span style={badge(plan)}>{plan === 'pro' ? 'Beta' : 'Free'}</span>
                   </div>
                   {subscription && (
                     <div style={{ textAlign: 'right' }}>
@@ -280,7 +280,7 @@ export default function BillingPage() {
                     <p style={{ color: '#9CA3AF', fontSize: 14, marginBottom: 20 }}>
                       {subscription?.cancel_at_period_end
                         ? <>Your subscription is <strong style={{ color: '#FB923C' }}>scheduled to cancel</strong> on {formatDate(subscription.current_period_end)}. You can reactivate anytime from the portal.</>
-                        : <>You're a <strong style={{ color: '#4ade80' }}>Founding Agent</strong>. You have full platform access at $24.99/month locked in for as long as your subscription remains continuously active — this rate never increases as long as your account remains active.</>
+                        : <>You're a <strong style={{ color: '#4ade80' }}>Beta Agent</strong>. You have free full platform access during the beta testing period. No charge and no payment method required while in beta.</>
                       }
                     </p>
                     <button onClick={handlePortal} disabled={openingPortal}
@@ -319,7 +319,7 @@ export default function BillingPage() {
                 </div>
 
                 <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 16 }}>
-                  <div style={{ ...label, marginBottom: 14, display: 'block' }}>Your Founding Agent Plan</div>
+                  <div style={{ ...label, marginBottom: 14, display: 'block' }}>Your Beta Agent Plan</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
                     {[
                       'Unlimited properties',
@@ -331,31 +331,12 @@ export default function BillingPage() {
                       'Analytics dashboard',
                       'CSV export',
                       'Priority support',
-                      '$24.99/month locked forever',
                     ].map((feature, i) => (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: C.text }}>
                         <span style={{ color: '#4ade80', fontWeight: 700, fontSize: 15, flexShrink: 0 }}>✓</span>
                         {feature}
                       </div>
                     ))}
-                  </div>
-
-                  <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 16 }}>
-                    <div style={{ ...label, marginBottom: 14, display: 'block' }}>Future Public Pricing</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-                      {[
-                        { name: 'Starter', price: '$49/mo' },
-                        { name: 'Growth',  price: '$79/mo' },
-                      ].map(({ name, price }) => (
-                        <div key={name} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 12px', textAlign: 'center', opacity: 0.6 }}>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: C.sub, marginBottom: 2 }}>{name}</div>
-                          <div style={{ fontSize: 18, fontWeight: 800, color: C.muted }}>{price}</div>
-                        </div>
-                      ))}
-                    </div>
-                    <p style={{ fontSize: 12, color: C.muted, margin: 0, textAlign: 'center', fontStyle: 'italic' }}>
-                      Limited Founding Agent spots remaining. Your rate is locked for life.
-                    </p>
                   </div>
                 </div>
               </div>

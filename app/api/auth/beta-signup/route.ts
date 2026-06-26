@@ -35,6 +35,19 @@ export async function POST(req: Request) {
     )
   }
 
+  // Enforce hard cap on enrolled beta agents
+  const { count } = await supabase
+    .from('beta_allowlist')
+    .select('*', { count: 'exact', head: true })
+    .not('joined_at', 'is', null)
+
+  if (count !== null && count >= 25) {
+    return NextResponse.json(
+      { error: 'This is a private beta. Access is by invitation only.' },
+      { status: 403 }
+    )
+  }
+
   // Create user server-side with email pre-confirmed
   const { data: created, error: createError } = await supabase.auth.admin.createUser({
     email: e,

@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server'
-import { createAdminSupabase } from '../../../lib/supabase-admin'
+import { createClient } from '@supabase/supabase-js'
+
+const adminSupabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}))
@@ -10,7 +15,6 @@ export async function POST(request: Request) {
   }
 
   const normalizedCode = code.trim().toUpperCase()
-  const adminSupabase = createAdminSupabase()
 
   const { data, error } = await adminSupabase
     .from('invite_codes')

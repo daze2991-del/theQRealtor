@@ -114,10 +114,12 @@ function OnboardingWizard() {
       setUserId(session.user.id)
 
       const [{ data: profile }, { data: props }] = await Promise.all([
-        supabase.from('profiles').select('plan').eq('id', session.user.id).single(),
+        supabase.from('profiles').select('plan, account_status').eq('id', session.user.id).single(),
         supabase.from('properties').select('id, address').eq('user_id', session.user.id).order('created_at', { ascending: false }),
       ])
-      setPlan((profile?.plan as string) || 'free')
+      // Beta agents get the founding limit (10 QR codes) regardless of plan column
+      const effectivePlan = profile?.account_status === 'beta' ? 'founding' : ((profile?.plan as string) || 'free')
+      setPlan(effectivePlan)
 
       const properties = props || []
       let pid = '', addr = '', qrExists = false, qrCnt = 0
@@ -373,7 +375,7 @@ function OnboardingWizard() {
                 {[
                   { icon: '🏠', title: 'Add your property', desc: 'Address and a few details buyers want to see.' },
                   { icon: '🔳', title: 'Generate your QR code', desc: 'A scannable code that links straight to your listing.' },
-                  { icon: '🖨️', title: 'Download & print', desc: 'Put it on your sign and start capturing leads.' },
+                  { icon: '🖨️', title: 'Download, print or assign', desc: 'Put it on your sign or assign your QR code to any listing — reuse it forever.' },
                 ].map(({ icon, title, desc }) => (
                   <div key={title} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: C.input, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px' }}>
                     <span style={{ fontSize: 22, lineHeight: 1 }}>{icon}</span>
@@ -529,7 +531,7 @@ function OnboardingWizard() {
             </div>
           )}
 
-          {/* ─── STEP 4 — Download & print ─── */}
+          {/* ─── STEP 4 — Download, print or assign ─── */}
           {step === 4 && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <div style={{ background: `${C.purple}14`, border: `1px solid ${C.purple}35`, borderRadius: 12, padding: '14px 18px', width: '100%', display: 'flex', alignItems: 'center', gap: 14, marginBottom: 22 }}>

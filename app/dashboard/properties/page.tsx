@@ -249,14 +249,18 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
     if (!name) return
     setQrSaving(true); setQrError('')
     try {
-      const supabase = createBrowserSupabase()
-      const { error } = await supabase.from('qrcodes').insert({
-        property_id: prop.id,
-        label: name,
-        placement: qrFormat === 'outdoor' ? 'Yard Sign' : 'Window Sign',
-        scan_count: 0,
+      const res = await fetch('/api/qrcodes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          property_id: prop.id,
+          label: name,
+          placement: qrFormat === 'outdoor' ? 'Yard Sign' : 'Window Sign',
+          scan_count: 0,
+        }),
       })
-      if (error) { setQrError('Failed to create QR code. Please try again.') }
+      const body = await res.json()
+      if (!res.ok) { setQrError(body.error || 'Failed to create QR code. Please try again.') }
       else { setQrModalOpen(false); router.push('/dashboard/qr-codes') }
     } catch { setQrError('Something went wrong. Please try again.') }
     finally { setQrSaving(false) }

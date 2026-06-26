@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createBrowserSupabase } from '../lib/supabase-browser'
+import { getBetaStatus } from '../lib/beta'
 
 const C = {
   bg:      '#0F0F13',
@@ -299,6 +300,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [qrCount, setQrCount]           = useState(0)
   const [newLeadCount, setNewLeadCount] = useState(0)
   const [mobileOpen, setMobileOpen]     = useState(false)
+  const [betaJoinedAt, setBetaJoinedAt] = useState<string | null>(null)
+  const [warningDismissed, setWarningDismissed] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -309,7 +312,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setEmail(session.user.email || '')
 
         const [{ data: profile, error: profileErr }, { data: props }] = await Promise.all([
-          supabase.from('profiles').select('plan').eq('id', session.user.id).single(),
+          supabase.from('profiles').select('plan, beta_joined_at').eq('id', session.user.id).single(),
           supabase.from('properties').select('id').eq('user_id', session.user.id),
         ])
 
@@ -356,6 +359,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           }
         }
 
+        setBetaJoinedAt(profile?.beta_joined_at ?? null)
         setPlan(resolvedPlan)
         setPropertyCount(propertyIds.length)
         setQrCount(qrCnt)
@@ -402,6 +406,54 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <svg width="22" height="22" viewBox="0 0 28 28" fill="none"><path d="M14 4L3 13h3v10h6v-6h4v6h6V13h3L14 4z" fill={C.purple}/></svg>
             <span style={{ fontWeight: 800, fontSize: 15, color: C.text, letterSpacing: '-0.02em' }}>the<span style={{ color: C.purple }}>QR</span>ealtor.</span>
           </div>
+          {(() => {
+            const { expired, daysRemaining } = getBetaStatus(betaJoinedAt)
+            if (expired) {
+              return (
+                <div style={{
+                  background: '#1C0A0A', borderBottom: '1px solid #7F1D1D',
+                  padding: '12px 24px', display: 'flex', alignItems: 'center',
+                  justifyContent: 'space-between', gap: 16, flexShrink: 0,
+                  fontFamily: 'sans-serif',
+                }}>
+                  <span style={{ fontSize: 13.5, color: '#FCA5A5', fontWeight: 500 }}>
+                    Your beta has ended — reach out to continue.
+                  </span>
+                  <Link href="/dashboard/billing" style={{
+                    fontSize: 12.5, fontWeight: 700, color: '#F87171',
+                    textDecoration: 'none', whiteSpace: 'nowrap',
+                    border: '1px solid #7F1D1D', borderRadius: 6, padding: '4px 10px',
+                  }}>
+                    View billing →
+                  </Link>
+                </div>
+              )
+            }
+            if (!warningDismissed && daysRemaining > 0 && daysRemaining <= 14) {
+              return (
+                <div style={{
+                  background: '#1C1400', borderBottom: '1px solid #78350F',
+                  padding: '12px 24px', display: 'flex', alignItems: 'center',
+                  justifyContent: 'space-between', gap: 16, flexShrink: 0,
+                  fontFamily: 'sans-serif',
+                }}>
+                  <span style={{ fontSize: 13.5, color: '#FCD34D', fontWeight: 500 }}>
+                    Your beta ends in {daysRemaining} day{daysRemaining === 1 ? '' : 's'}.
+                  </span>
+                  <button
+                    onClick={() => setWarningDismissed(true)}
+                    style={{
+                      background: 'transparent', border: 'none', color: '#92400E',
+                      cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '2px 4px',
+                      flexShrink: 0,
+                    }}
+                    aria-label="Dismiss"
+                  >✕</button>
+                </div>
+              )
+            }
+            return null
+          })()}
           {children}
         </div>
       </div>

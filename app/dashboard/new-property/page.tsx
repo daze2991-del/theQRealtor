@@ -4,6 +4,7 @@ import { useCallback, useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserSupabase } from "@/lib/supabase-browser";
 import DashboardLayout from "@/components/DashboardLayout";
+import { getBetaStatus } from "@/lib/beta";
 
 const C = {
   bg:      '#0F0F13',
@@ -56,6 +57,7 @@ export default function NewPropertyPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [blocked, setBlocked] = useState(false);
+  const [betaExpired, setBetaExpired] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
 
   // Photo upload state
@@ -73,11 +75,14 @@ export default function NewPropertyPage() {
       if (!user) return;
       setUserId(user.id);
       const [{ data: profile }, { count }] = await Promise.all([
-        supabase.from('profiles').select('plan').eq('id', user.id).single(),
+        supabase.from('profiles').select('plan, beta_joined_at').eq('id', user.id).single(),
         supabase.from('properties').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
       ]);
       if ((profile?.plan || 'free') === 'free' && (count || 0) >= 1) {
         setBlocked(true);
+      }
+      if (getBetaStatus(profile?.beta_joined_at).expired) {
+        setBetaExpired(true);
       }
     };
     checkLimit();
@@ -100,36 +105,20 @@ export default function NewPropertyPage() {
     setLoading(true);
     setMessage("");
 
-    const supabase = createBrowserSupabase();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      setMessage("You must be signed in.");
+    const res = await fetch('/api/properties', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address, agent_name: agentName, agent_phone: agentPhone, city, state, price, beds, baths, description }),
+    });
+    const body = await res.json();
+    if (!res.ok) {
+      if (res.status === 403) { setBetaExpired(true); setLoading(false); return; }
+      setMessage(body.error || 'Failed to create property.');
       setLoading(false);
       return;
     }
 
-    const { data, error } = await supabase.from("properties").insert({
-      address,
-      agent_name: agentName,
-      agent_phone: agentPhone || null,
-      city,
-      state,
-      price: price ? Number(price) : null,
-      beds: beds ? Number(beds) : null,
-      baths: baths ? Number(baths) : null,
-      description,
-      user_id: user.id,
-      active: true,
-    }).select('id').single();
-
-    if (error || !data) {
-      setMessage(error?.message || 'Failed to create property.');
-      setLoading(false);
-      return;
-    }
-
-    setSavedPropertyId(data.id);
+    setSavedPropertyId(body.id);
     setStep('photos');
     setLoading(false);
   }
@@ -204,6 +193,26 @@ export default function NewPropertyPage() {
     setIsDragging(false);
     uploadFiles(e.dataTransfer.files);
   }, [uploadFiles]);
+
+  if (betaExpired) {
+    return (
+      <DashboardLayout>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+          <div style={{
+            background: C.card, border: `1px solid ${C.border}`,
+            borderRadius: 20, padding: '48px 40px', maxWidth: 480,
+            textAlign: 'center', fontFamily: 'sans-serif',
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
+            <h2 style={{ fontSize: 20, fontWeight: 800, color: C.text, marginBottom: 8 }}>Your beta has ended</h2>
+            <p style={{ color: C.muted, marginBottom: 28, fontSize: 14 }}>
+              Reach out to continue using theQRealtor.
+            </p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   if (blocked) {
     return (

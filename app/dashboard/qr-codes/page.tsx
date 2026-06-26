@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
+import { getBetaStatus } from '../../../lib/beta'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DashboardLayout from '../../../components/DashboardLayout'
@@ -135,6 +136,7 @@ export default function QRCodesPage() {
   const [createFormat, setCreateFormat] = useState<'outdoor' | 'indoor'>('outdoor')
   const [createSaving, setCreateSaving] = useState(false)
   const [createError,  setCreateError]  = useState('')
+  const [betaExpired,  setBetaExpired]  = useState(false)
 
   useEffect(() => { setOrigin(window.location.origin) }, [])
 
@@ -148,12 +150,13 @@ export default function QRCodesPage() {
 
         const [{ data: props }, { data: profile }] = await Promise.all([
           supabase.from('properties').select('id, address').eq('user_id', session.user.id).order('created_at', { ascending: false }),
-          supabase.from('profiles').select('full_name').eq('id', session.user.id).single(),
+          supabase.from('profiles').select('full_name, beta_joined_at').eq('id', session.user.id).single(),
         ])
 
         if (cancelled) return
         setProperties(props || [])
         setAgentFullName(profile?.full_name || '')
+        if (getBetaStatus(profile?.beta_joined_at).expired) setBetaExpired(true)
 
         if (props && props.length > 0) {
           const propIds = props.map((p: any) => p.id)
@@ -266,16 +269,20 @@ export default function QRCodesPage() {
     if (!createPropId || !name) return
     setCreateSaving(true); setCreateError('')
     try {
-      const supabase = createBrowserSupabase()
-      const { data, error } = await supabase.from('qrcodes').insert({
-        property_id: createPropId,
-        label: name,
-        placement: createFormat === 'outdoor' ? 'Yard Sign' : 'Window Sign',
-        type: createType,
-        scan_count: 0,
-      }).select().single()
-      if (error) { setCreateError('Failed to create QR code. Please try again.') }
-      else { setQrCodes(prev => [data, ...prev]); setCreateModal(false) }
+      const res = await fetch('/api/qrcodes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          property_id: createPropId,
+          label: name,
+          placement: createFormat === 'outdoor' ? 'Yard Sign' : 'Window Sign',
+          type: createType,
+          scan_count: 0,
+        }),
+      })
+      const body = await res.json()
+      if (!res.ok) { setCreateError(body.error || 'Failed to create QR code. Please try again.') }
+      else { setQrCodes(prev => [body, ...prev]); setCreateModal(false) }
     } catch { setCreateError('Something went wrong. Please try again.') }
     finally { setCreateSaving(false) }
   }
@@ -332,8 +339,9 @@ export default function QRCodesPage() {
                 </select>
               )}
               <button
-                onClick={openCreateModal}
-                style={{ background: C.purple, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                onClick={betaExpired ? undefined : openCreateModal}
+                disabled={betaExpired}
+                style={{ background: betaExpired ? C.border : C.purple, color: betaExpired ? C.muted : '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: betaExpired ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
               >
                 + Generate QR Code
               </button>

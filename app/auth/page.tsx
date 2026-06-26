@@ -78,12 +78,6 @@ function AuthForm() {
     }
 
     if (mode === "signup") {
-      // Mark invite code as used now that the account exists
-      await fetch('/api/validate-invite', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: inviteCode, claim: true, email }),
-      })
       setMessage("Account created. Check your email to confirm, then sign in.");
       return;
     }

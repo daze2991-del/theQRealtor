@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { type ReactElement, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
@@ -17,10 +17,21 @@ const C = {
   muted:   '#6B7280',
 } as const
 
-const NEXT_STEPS = [
-  { icon: '📍', title: 'Place it on the sign',   desc: 'Print and mount your QR code where buyers can scan it.' },
-  { icon: '🔗', title: 'Share the link',         desc: 'Drop it in listing sites, emails, and social posts too.' },
-  { icon: '📊', title: 'Watch leads roll in',    desc: 'Track every scan and contact in your dashboard.' },
+/* ─── line icons matching sidebar stroke style ─────────────────── */
+const iconProps = {
+  width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none',
+  stroke: C.purpleL, strokeWidth: '1.8',
+  strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const,
+}
+
+function PinIcon()   { return <svg {...iconProps}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg> }
+function LinkIcon()  { return <svg {...iconProps}><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg> }
+function ChartIcon() { return <svg {...iconProps}><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="3" y1="20" x2="21" y2="20"/></svg> }
+
+const NEXT_STEPS: Array<{ Icon: () => ReactElement; title: string; desc: string }> = [
+  { Icon: PinIcon,   title: 'Place it on the sign',   desc: 'Print and mount your QR code where buyers can scan it.' },
+  { Icon: LinkIcon,  title: 'Share the link',         desc: 'Drop it in listing sites, emails, and social posts too.' },
+  { Icon: ChartIcon, title: 'Watch leads roll in',    desc: 'Track every scan and contact in your dashboard.' },
 ]
 
 export default function WelcomePage() {
@@ -48,28 +59,29 @@ export default function WelcomePage() {
         @keyframes popIn  { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .wl-card { transition: border-color 0.15s, transform 0.15s; }
-        .wl-card:hover { border-color: ${C.purple}66; transform: translateY(-2px); }
+        .wl-card:hover { border-color: ${C.purple}55; transform: translateY(-2px); }
         @media (max-width: 560px) { .wl-steps { grid-template-columns: 1fr !important; } }
       `}</style>
 
       <div style={{ width: '100%', maxWidth: 560, textAlign: 'center' }}>
 
-        {/* Gradient success checkmark */}
+        {/* Frosted success checkmark */}
         <div style={{
           width: 88, height: 88, borderRadius: '50%', margin: '0 auto 26px',
-          background: `linear-gradient(135deg, ${C.purpleL}, ${C.purple})`,
+          background: 'rgba(124, 58, 237, 0.18)',
+          border: '1.5px solid rgba(139, 92, 246, 0.32)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: `0 0 0 8px ${C.purple}1A, 0 16px 50px ${C.purple}55`,
+          boxShadow: '0 0 0 8px rgba(124, 58, 237, 0.07), 0 8px 28px rgba(124, 58, 237, 0.22)',
           animation: 'popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
         }}>
-          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={C.purpleL} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="20 6 9 17 4 12" />
           </svg>
         </div>
 
         {/* Headline */}
         <h1 style={{ fontSize: 32, fontWeight: 800, color: C.text, margin: '0 0 12px', letterSpacing: '-0.02em', animation: 'fadeUp 0.4s ease 0.05s both' }}>
-          You&apos;re live! 🎉
+          You&apos;re live!
         </h1>
         <p style={{ fontSize: 16, color: C.sub, margin: '0 auto 36px', lineHeight: 1.6, maxWidth: 460, animation: 'fadeUp 0.4s ease 0.1s both' }}>
           Your QR code is active. Every scan from your yard sign now lands in your lead inbox.
@@ -81,14 +93,21 @@ export default function WelcomePage() {
             What&apos;s next
           </div>
           <div className="wl-steps" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 32 }}>
-            {NEXT_STEPS.map(({ icon, title, desc }) => (
+            {NEXT_STEPS.map(({ Icon, title, desc }) => (
               <div key={title} className="wl-card" style={{
-                background: C.card, border: `1px solid ${C.border}`,
-                borderRadius: 14, padding: '18px 16px',
+                background: C.card, border: `0.5px solid ${C.border}`,
+                borderRadius: 12, padding: '14px 14px',
               }}>
-                <div style={{ fontSize: 28, marginBottom: 10, lineHeight: 1 }}>{icon}</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 6 }}>{title}</div>
-                <div style={{ fontSize: 12.5, color: C.muted, lineHeight: 1.5 }}>{desc}</div>
+                <div style={{
+                  width: 36, height: 36, borderRadius: 8,
+                  background: 'rgba(124, 58, 237, 0.13)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  marginBottom: 10, flexShrink: 0,
+                }}>
+                  <Icon />
+                </div>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: C.text, marginBottom: 5 }}>{title}</div>
+                <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{desc}</div>
               </div>
             ))}
           </div>
@@ -103,7 +122,7 @@ export default function WelcomePage() {
               background: C.purple, color: '#fff', border: 'none',
               borderRadius: 12, fontSize: 15, fontWeight: 700,
               cursor: 'pointer', fontFamily: 'sans-serif', letterSpacing: '-0.01em',
-              boxShadow: `0 4px 20px ${C.purple}50`,
+              boxShadow: `0 4px 12px rgba(124, 58, 237, 0.28)`,
             }}
           >
             Go to Dashboard →

@@ -318,10 +318,7 @@ function OnboardingWizard() {
       `}</style>
 
       {/* Logo */}
-      <div style={{ marginBottom: 26, display: 'flex', alignItems: 'center', gap: 10 }}>
-        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-          <path d="M14 4L3 13h3v10h6v-6h4v6h6V13h3L14 4z" fill={C.purple}/>
-        </svg>
+      <div style={{ marginBottom: 26 }}>
         <span style={{ fontWeight: 800, fontSize: 20, color: C.text, letterSpacing: '-0.02em' }}>the<span style={{ color: C.purple }}>QR</span>ealtor.</span>
       </div>
 

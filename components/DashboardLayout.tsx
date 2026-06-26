@@ -56,6 +56,7 @@ function NavIcon({ name }: { name: string }) {
   if (name === 'billing')    return <svg {...p}><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
   if (name === 'settings')   return <svg {...p}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06-.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
   if (name === 'reports')    return <svg {...p}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="8" y2="17"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="16" y1="15" x2="16" y2="17"/></svg>
+  if (name === 'admin')      return <svg {...p}><path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V7L12 2z"/></svg>
   return null
 }
 
@@ -107,8 +108,8 @@ function NavItem({ label, icon, href, active, badge, onClose }: {
   )
 }
 
-function NavLinks({ pathname, onClose, newLeadCount }: {
-  pathname: string; onClose?: () => void; newLeadCount?: number
+function NavLinks({ pathname, onClose, newLeadCount, isAdmin }: {
+  pathname: string; onClose?: () => void; newLeadCount?: number; isAdmin?: boolean
 }) {
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname.startsWith(href)
@@ -142,14 +143,23 @@ function NavLinks({ pathname, onClose, newLeadCount }: {
           onClose={onClose}
         />
       ))}
+      {isAdmin && (
+        <NavItem
+          label="Admin"
+          icon="admin"
+          href="/dashboard/admin"
+          active={isActive('/dashboard/admin')}
+          onClose={onClose}
+        />
+      )}
     </>
   )
 }
 
-function NavLinksWithParams({ pathname, onClose, newLeadCount }: {
-  pathname: string; onClose?: () => void; newLeadCount?: number
+function NavLinksWithParams({ pathname, onClose, newLeadCount, isAdmin }: {
+  pathname: string; onClose?: () => void; newLeadCount?: number; isAdmin?: boolean
 }) {
-  return <NavLinks pathname={pathname} onClose={onClose} newLeadCount={newLeadCount} />
+  return <NavLinks pathname={pathname} onClose={onClose} newLeadCount={newLeadCount} isAdmin={isAdmin} />
 }
 
 function SignOutButton() {
@@ -185,9 +195,9 @@ function SignOutButton() {
   )
 }
 
-function Sidebar({ email, plan, propertyCount, qrCount, newLeadCount, onClose }: {
+function Sidebar({ email, plan, propertyCount, qrCount, newLeadCount, isAdmin, onClose }: {
   email: string; plan: Plan; propertyCount: number; qrCount: number;
-  newLeadCount: number; onClose?: () => void
+  newLeadCount: number; isAdmin?: boolean; onClose?: () => void
 }) {
   const pathname = usePathname()
   const usage = planUsage(plan, propertyCount, qrCount)
@@ -206,14 +216,9 @@ function Sidebar({ email, plan, propertyCount, qrCount, newLeadCount, onClose }:
         padding: '20px 18px 18px', borderBottom: `1px solid ${C.border}`,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-          <svg width="30" height="30" viewBox="0 0 28 28" fill="none">
-            <path d="M14 4L3 13h3v10h6v-6h4v6h6V13h3L14 4z" fill={C.purple}/>
-          </svg>
-          <span style={{ fontWeight: 800, fontSize: 17, color: C.text, letterSpacing: '-0.02em' }}>
-            the<span style={{ color: C.purple }}>QR</span>ealtor.
-          </span>
-        </div>
+        <span style={{ fontWeight: 800, fontSize: 17, color: C.text, letterSpacing: '-0.02em' }}>
+          the<span style={{ color: C.purple }}>QR</span>ealtor.
+        </span>
         {onClose && (
           <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '2px 4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
         )}
@@ -221,8 +226,8 @@ function Sidebar({ email, plan, propertyCount, qrCount, newLeadCount, onClose }:
 
       {/* Nav */}
       <nav style={{ flex: 1, padding: '10px 10px' }}>
-        <Suspense fallback={<NavLinks pathname={pathname} onClose={onClose} newLeadCount={newLeadCount} />}>
-          <NavLinksWithParams pathname={pathname} onClose={onClose} newLeadCount={newLeadCount} />
+        <Suspense fallback={<NavLinks pathname={pathname} onClose={onClose} newLeadCount={newLeadCount} isAdmin={isAdmin} />}>
+          <NavLinksWithParams pathname={pathname} onClose={onClose} newLeadCount={newLeadCount} isAdmin={isAdmin} />
         </Suspense>
       </nav>
 
@@ -302,6 +307,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [mobileOpen, setMobileOpen]     = useState(false)
   const [betaJoinedAt, setBetaJoinedAt] = useState<string | null>(null)
   const [warningDismissed, setWarningDismissed] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -312,7 +318,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setEmail(session.user.email || '')
 
         const [{ data: profile, error: profileErr }, { data: props }] = await Promise.all([
-          supabase.from('profiles').select('plan, beta_joined_at').eq('id', session.user.id).single(),
+          supabase.from('profiles').select('plan, beta_joined_at, role').eq('id', session.user.id).single(),
           supabase.from('properties').select('id').eq('user_id', session.user.id),
         ])
 
@@ -360,6 +366,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }
 
         setBetaJoinedAt(profile?.beta_joined_at ?? null)
+        setIsAdmin(profile?.role === 'admin')
         setPlan(resolvedPlan)
         setPropertyCount(propertyIds.length)
         setQrCount(qrCnt)
@@ -391,19 +398,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <>
           <div onClick={() => setMobileOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 40 }} />
           <div style={{ position: 'fixed', top: 0, left: 0, height: '100vh', zIndex: 50 }}>
-            <Sidebar email={email} plan={plan} propertyCount={propertyCount} qrCount={qrCount} newLeadCount={newLeadCount} onClose={() => setMobileOpen(false)} />
+            <Sidebar email={email} plan={plan} propertyCount={propertyCount} qrCount={qrCount} newLeadCount={newLeadCount} isAdmin={isAdmin} onClose={() => setMobileOpen(false)} />
           </div>
         </>
       )}
 
       <div style={{ display: 'flex', minHeight: '100vh', background: C.bg, fontFamily: 'sans-serif' }}>
         <div className="db-sidebar">
-          <Sidebar email={email} plan={plan} propertyCount={propertyCount} qrCount={qrCount} newLeadCount={newLeadCount} />
+          <Sidebar email={email} plan={plan} propertyCount={propertyCount} qrCount={qrCount} newLeadCount={newLeadCount} isAdmin={isAdmin} />
         </div>
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
           <div className="db-mobile-header" style={{ position: 'sticky', top: 0, zIndex: 20, height: 52, background: C.sidebar, borderBottom: `1px solid ${C.border}`, alignItems: 'center', gap: 12, padding: '0 16px', flexShrink: 0 }}>
             <button onClick={() => setMobileOpen(true)} aria-label="Open menu" style={{ background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, width: 34, height: 34, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.text, fontSize: 15, cursor: 'pointer' }}>☰</button>
-            <svg width="22" height="22" viewBox="0 0 28 28" fill="none"><path d="M14 4L3 13h3v10h6v-6h4v6h6V13h3L14 4z" fill={C.purple}/></svg>
             <span style={{ fontWeight: 800, fontSize: 15, color: C.text, letterSpacing: '-0.02em' }}>the<span style={{ color: C.purple }}>QR</span>ealtor.</span>
           </div>
           {(() => {

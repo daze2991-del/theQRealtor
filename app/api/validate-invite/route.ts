@@ -12,6 +12,10 @@ export async function POST(request: Request) {
   }
 
   const normalised = code.trim().toUpperCase()
+  console.log('[validate-invite] raw code:', JSON.stringify(code))
+  console.log('[validate-invite] normalised:', normalised)
+  console.log('[validate-invite] service role key present:', !!process.env.SUPABASE_SERVICE_ROLE_KEY)
+
   const supabase = createAdminSupabase()
 
   const { data, error } = await supabase
@@ -19,6 +23,8 @@ export async function POST(request: Request) {
     .select('code, redeemed')
     .eq('code', normalised)
     .single()
+
+  console.log('[validate-invite] query result:', JSON.stringify({ data, error }))
 
   if (error || !data) {
     return NextResponse.json({ valid: false, error: 'Invalid invite code.' })

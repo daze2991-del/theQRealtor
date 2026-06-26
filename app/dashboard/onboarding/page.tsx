@@ -103,12 +103,10 @@ function OnboardingWizard() {
       setUserId(session.user.id)
 
       const [{ data: profile }, { data: props }] = await Promise.all([
-        supabase.from('profiles').select('plan, account_status').eq('id', session.user.id).single(),
+        supabase.from('profiles').select('plan').eq('id', session.user.id).single(),
         supabase.from('properties').select('id, address').eq('user_id', session.user.id).order('created_at', { ascending: false }),
       ])
-      // Beta agents get the founding limit (10 QR codes) regardless of plan column
-      const effectivePlan = profile?.account_status === 'beta' ? 'founding' : ((profile?.plan as string) || 'free')
-      setPlan(effectivePlan)
+      setPlan((profile?.plan as string) || 'free')
 
       const properties = props || []
       let pid = '', addr = '', qrExists = false, qrCnt = 0
@@ -358,13 +356,24 @@ function OnboardingWizard() {
                 Three quick steps and your yard sign starts capturing buyer leads.
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
-                {[
-                  { icon: '🏠', title: 'Add your property', desc: 'Address and a few details buyers want to see.' },
-                  { icon: '🔳', title: 'Generate your QR code', desc: 'A scannable code that links straight to your listing.' },
-                  { icon: '🖨️', title: 'Download, print or assign', desc: 'Put it on your sign or assign your QR code to any listing — reuse it forever.' },
-                ].map(({ icon, title, desc }) => (
+                {([
+                  {
+                    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.purpleL} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10.5L12 3l9 7.5V21a1 1 0 01-1 1H4a1 1 0 01-1-1V10.5z"/><path d="M9 22V13h6v9"/></svg>,
+                    title: 'Add your property', desc: 'Address and a few details buyers want to see.',
+                  },
+                  {
+                    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.purpleL} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h2v2h-2zm4 0h2v2h-2zm-4 4h2v2h-2zm4 0h2v2h-2zm-4 4h2"/><path d="M20 18h2v4h-2"/></svg>,
+                    title: 'Generate your QR code', desc: 'A scannable code that links straight to your listing.',
+                  },
+                  {
+                    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.purpleL} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+                    title: 'Download, print or assign', desc: 'Put it on your sign or assign your QR code to any listing — reuse it forever.',
+                  },
+                ] as const).map(({ icon, title, desc }) => (
                   <div key={title} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: C.input, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px' }}>
-                    <span style={{ fontSize: 22, lineHeight: 1 }}>{icon}</span>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: `${C.purple}14`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {icon}
+                    </div>
                     <div>
                       <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{title}</div>
                       <div style={{ fontSize: 12.5, color: C.muted, marginTop: 2, lineHeight: 1.5 }}>{desc}</div>
@@ -521,7 +530,11 @@ function OnboardingWizard() {
           {step === 4 && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <div style={{ background: `${C.purple}14`, border: `1px solid ${C.purple}35`, borderRadius: 12, padding: '14px 18px', width: '100%', display: 'flex', alignItems: 'center', gap: 14, marginBottom: 22 }}>
-                <span style={{ fontSize: 26 }}>🎉</span>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: `${C.purple}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.purpleL} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </div>
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>Your QR code is ready!</div>
                   <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{qrLabel || 'Your sign'} · {propertyAddress}</div>

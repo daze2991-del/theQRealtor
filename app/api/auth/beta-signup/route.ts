@@ -71,10 +71,12 @@ export async function POST(req: Request) {
 
   const userId = created.user.id
 
-  // Stamp profile (auto-created by trigger); update beta fields
+  // Stamp profile (auto-created by trigger); update beta fields.
+  // plan='founding' ensures DB enforcement, sidebar, and onboarding all read
+  // the same value — profiles.plan is the single source of truth for limits.
   await supabase
     .from('profiles')
-    .update({ account_status: 'beta', beta_joined_at: new Date().toISOString() })
+    .update({ plan: 'founding', account_status: 'beta', beta_joined_at: new Date().toISOString() })
     .eq('id', userId)
 
   // Record when this allowlist slot was claimed

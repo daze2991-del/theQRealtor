@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createBrowserSupabase } from '../lib/supabase-browser'
 import { getBetaStatus } from '../lib/beta'
+import { qrLimitForPlan } from '../lib/plans'
 
 const C = {
   bg:      '#0F0F13',
@@ -32,14 +33,10 @@ const PLAN_LABELS: Record<Plan, string> = {
 // elite is unlimited (usage hidden — returns null).
 function planUsage(plan: Plan, propertyCount: number, qrCount: number):
   { used: number; limit: number; noun: string } | null {
-  switch (plan) {
-    case 'founding': return { used: qrCount, limit: 10, noun: 'QR codes' }
-    case 'starter':  return { used: qrCount, limit: 3,  noun: 'QR codes' }
-    case 'pro':      return { used: qrCount, limit: 10, noun: 'QR codes' }
-    case 'elite':    return null
-    case 'free':
-    default:         return { used: propertyCount, limit: 1, noun: 'properties' }
-  }
+  if (plan === 'elite') return null
+  if (plan === 'free')  return { used: propertyCount, limit: 1, noun: 'properties' }
+  const limit = qrLimitForPlan(plan)
+  return limit === null ? null : { used: qrCount, limit, noun: 'QR codes' }
 }
 
 function NavIcon({ name }: { name: string }) {

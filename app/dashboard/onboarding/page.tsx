@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { QRCodeSVG } from 'qrcode.react'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
+import { qrLimitForPlan } from '../../../lib/plans'
 
 /* ─── tokens ─────────────────────────────────────────────────── */
 const C = {
@@ -20,18 +21,6 @@ const C = {
 
 // 5-segment progress: Steps 1–4 + "You're Live"
 const SEGMENTS = ['Welcome', 'Property', 'QR Code', 'Print', "You're Live"]
-
-// Mirrors the server-side qr_limit_for_plan() in migration 024.
-// null = unlimited.
-function qrLimitForPlan(plan: string): number | null {
-  switch (plan) {
-    case 'founding': return 10
-    case 'starter':  return 3
-    case 'pro':      return 10
-    case 'elite':    return null
-    default:         return 3 // free / unknown
-  }
-}
 
 /* ─── shared styles ──────────────────────────────────────────── */
 const labelStyle: React.CSSProperties = {

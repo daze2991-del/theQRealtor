@@ -16,7 +16,7 @@ export async function POST(request: Request) {
 
   const { data, error } = await supabase
     .from('invite_codes')
-    .select('code, used')
+    .select('code, redeemed')
     .eq('code', normalised)
     .single()
 
@@ -24,15 +24,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ valid: false, error: 'Invalid invite code.' })
   }
 
-  if (data.used) {
+  if (data.redeemed) {
     return NextResponse.json({ valid: false, error: 'This invite code has already been used.' })
   }
 
   if (claim && email) {
     await supabase
       .from('invite_codes')
-      .update({ used: true, used_by_email: email.trim().toLowerCase(), used_at: new Date().toISOString() })
+      .update({ redeemed: true, redeemed_at: new Date().toISOString() })
       .eq('code', normalised)
+      .eq('redeemed', false)
   }
 
   return NextResponse.json({ valid: true })

@@ -55,13 +55,13 @@ export default async function AdminPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth')
 
-  const { data: selfProfile } = await supabase
+  const { data: selfProfile, error: roleError } = await supabase
     .from('profiles')
     .select('role')
     .eq('id', user.id)
     .single()
 
-  if (selfProfile?.role !== 'admin') redirect('/dashboard')
+  if (roleError || selfProfile?.role !== 'admin') redirect('/dashboard')
 
   // ── Service-role client ────────────────────────────────────────
   const admin = createClient(

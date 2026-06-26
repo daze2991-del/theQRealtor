@@ -18,14 +18,17 @@ export async function POST(request: Request) {
     .eq('code', normalizedCode)
     .eq('redeemed', false)
     .select('id')
-    .single()
 
-  if (error || !data) {
+  console.log('[validate-invite] code:', normalizedCode)
+  console.log('[validate-invite] data:', JSON.stringify(data))
+  console.log('[validate-invite] error:', JSON.stringify(error))
+
+  if (error || !data || data.length === 0) {
     return NextResponse.json(
       { error: 'Invalid or already-used invite code' },
       { status: 400 }
     )
   }
 
-  return NextResponse.json({ success: true, id: data.id })
+  return NextResponse.json({ success: true, id: data[0].id })
 }

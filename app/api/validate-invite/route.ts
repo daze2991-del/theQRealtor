@@ -1,46 +1,31 @@
 import { NextResponse } from 'next/server'
 import { createAdminSupabase } from '../../../lib/supabase-admin'
 
-// POST { code }                    → check only, returns { valid, error? }
-// POST { code, claim: true, email } → check + mark used atomically
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}))
-  const { code, claim, email } = body as { code?: string; claim?: boolean; email?: string }
+  const { code } = body as { code?: string }
 
   if (!code || typeof code !== 'string') {
     return NextResponse.json({ valid: false, error: 'Invite code is required.' }, { status: 400 })
   }
 
-  const normalised = code.trim().toUpperCase()
-  console.log('[validate-invite] raw code:', JSON.stringify(code))
-  console.log('[validate-invite] normalised:', normalised)
-  console.log('[validate-invite] service role key present:', !!process.env.SUPABASE_SERVICE_ROLE_KEY)
+  const normalizedCode = code.trim().toUpperCase()
+  const adminSupabase = createAdminSupabase()
 
-  const supabase = createAdminSupabase()
-
-  const { data, error } = await supabase
+  const { data, error } = await adminSupabase
     .from('invite_codes')
-    .select('code, redeemed')
-    .eq('code', normalised)
+    .update({ redeemed: true, redeemed_at: new Date().toISOString() })
+    .eq('code', normalizedCode)
+    .eq('redeemed', false)
+    .select('id')
     .single()
 
-  console.log('[validate-invite] query result:', JSON.stringify({ data, error }))
-
   if (error || !data) {
-    return NextResponse.json({ valid: false, error: 'Invalid invite code.' })
+    return NextResponse.json(
+      { error: 'Invalid or already-used invite code' },
+      { status: 400 }
+    )
   }
 
-  if (data.redeemed) {
-    return NextResponse.json({ valid: false, error: 'This invite code has already been used.' })
-  }
-
-  if (claim && email) {
-    await supabase
-      .from('invite_codes')
-      .update({ redeemed: true, redeemed_at: new Date().toISOString() })
-      .eq('code', normalised)
-      .eq('redeemed', false)
-  }
-
-  return NextResponse.json({ valid: true })
+  return NextResponse.json({ success: true, id: data.id })
 }

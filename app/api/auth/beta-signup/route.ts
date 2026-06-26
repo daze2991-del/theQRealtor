@@ -30,7 +30,7 @@ export async function POST(req: Request) {
 
   if (!allowRow || allowRow.approved !== true) {
     return NextResponse.json(
-      { error: 'Beta access is by invitation only. Contact us at support@theqrealtor.com to apply.' },
+      { error: 'This is a private beta. Access is by invitation only.' },
       { status: 403 }
     )
   }

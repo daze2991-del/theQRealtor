@@ -2,6 +2,7 @@
 
 import { FormEvent, Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { createBrowserClient } from "@supabase/ssr";
 import { createBrowserSupabase } from "@/lib/supabase-browser";
 
 const C = {
@@ -26,6 +27,7 @@ function AuthForm() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -54,8 +56,12 @@ function AuthForm() {
       return;
     }
 
-    // Sign-in flow — unchanged
-    const supabase = createBrowserSupabase();
+    // Sign-in flow
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { auth: { persistSession: rememberMe } }
+    );
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       setMessage(error.message);
@@ -156,6 +162,18 @@ function AuthForm() {
                 minLength={6}
               />
             </div>
+
+            {mode === "signin" && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  style={{ width: 14, height: 14, accentColor: C.purple, cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: 13, color: C.muted }}>Remember me</span>
+              </label>
+            )}
 
             {message && (
               <p style={{ color: '#F87171', fontSize: 13, margin: 0 }}>{message}</p>

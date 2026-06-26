@@ -210,7 +210,7 @@ export default function LandingPage() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <NavHamburger />
-          <Link href="/auth" className="nav-cta" style={{
+          <Link href="/auth?tab=signup" className="nav-cta" style={{
             background: C.purple, color: '#fff',
             fontSize: 13, fontWeight: 700,
             padding: '9px 20px', borderRadius: 10,
@@ -252,7 +252,7 @@ export default function LandingPage() {
             </p>
 
             <div className="hero-btns" style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
-              <Link href="/auth" style={{
+              <Link href="/auth?tab=signup" style={{
                 background: C.purple, color: '#fff',
                 fontSize: 16, fontWeight: 800,
                 padding: '14px 28px', borderRadius: 12,
@@ -358,7 +358,7 @@ export default function LandingPage() {
           <p style={{ fontSize: 15, color: C.sub, margin: '0 0 24px', lineHeight: 1.65 }}>
             Share this with your seller in one click. No extra work.
           </p>
-          <Link href="/auth" style={{
+          <Link href="/auth?tab=signup" style={{
             display: 'inline-block', background: C.purple, color: '#fff',
             fontSize: 15, fontWeight: 700, padding: '12px 28px', borderRadius: 10,
             textDecoration: 'none', boxShadow: `0 4px 20px ${C.purple}45`,
@@ -586,7 +586,7 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <Link href="/auth" style={{
+          <Link href="/auth?tab=signup" style={{
             display: 'block', textAlign: 'center',
             background: C.purple, color: '#fff',
             fontSize: 16, fontWeight: 800,

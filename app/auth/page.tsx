@@ -214,7 +214,7 @@ function AuthForm() {
                       style={{ ...inputStyle, textTransform: 'uppercase', letterSpacing: '0.05em' }}
                       value={inviteCode}
                       onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                      placeholder="TQRB-000"
+                      placeholder="Enter your invite code"
                       required
                       autoComplete="off"
                     />

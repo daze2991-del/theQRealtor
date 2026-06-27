@@ -164,8 +164,10 @@ export default function TermsPage() {
             <li>Attempt to reverse-engineer, scrape, or gain unauthorized access to any part of the Service</li>
             <li>Interfere with or disrupt the integrity or performance of the Service</li>
             <li>Use the Service to transmit spam or unsolicited communications</li>
-            <li>Ensure that all communications with buyers comply with applicable federal and state laws, including but not limited to the Telephone Consumer Protection Act (TCPA) and CAN-SPAM Act. Agents are solely responsible for their direct communications with buyers.</li>
           </ul>
+          <p style={{ margin: '0 0 12px' }}>
+            Additionally, agents are solely responsible for ensuring that all direct communications with buyers comply with applicable federal and state laws, including the Telephone Consumer Protection Act (TCPA) and CAN-SPAM Act.
+          </p>
           <p style={{ margin: 0 }}>
             We reserve the right to suspend or terminate any account found to be in violation of these terms.
           </p>

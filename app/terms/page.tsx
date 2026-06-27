@@ -166,10 +166,10 @@ export default function TermsPage() {
             <li>Use the Service to transmit spam or unsolicited communications</li>
           </ul>
           <p style={{ margin: '0 0 12px' }}>
-            Additionally, agents are solely responsible for ensuring that all direct communications with buyers comply with applicable federal and state laws, including the Telephone Consumer Protection Act (TCPA) and CAN-SPAM Act.
+            We reserve the right to suspend or terminate any account found to be in violation of these terms.
           </p>
           <p style={{ margin: 0 }}>
-            We reserve the right to suspend or terminate any account found to be in violation of these terms.
+            Additionally, agents are solely responsible for ensuring that all direct communications with buyers comply with applicable federal and state laws, including the Telephone Consumer Protection Act (TCPA) and CAN-SPAM Act.
           </p>
         </Section>
 

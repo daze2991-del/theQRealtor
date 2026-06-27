@@ -414,9 +414,6 @@ export default function PropertyPage() {
 
         {/* ── PHASE 2: CTA buttons ── */}
         <div style={{ padding: '0 18px 32px' }}>
-          <p style={{ fontSize: 12, color: C.muted, lineHeight: 1.55, margin: '0 0 18px' }}>
-            By connecting with the listing agent, you confirm you are not currently represented by a buyer&apos;s agent. If you are working with an agent, please have them contact the listing agent directly.
-          </p>
           <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
             Connect with the Agent
           </div>
@@ -439,6 +436,9 @@ export default function PropertyPage() {
               </button>
             ))}
           </div>
+          <p style={{ fontSize: 12, color: C.muted, lineHeight: 1.55, margin: '14px 0 0' }}>
+            * By connecting with the listing agent, you confirm you are not currently represented by a buyer&apos;s agent. If you are working with an agent, please have them contact the listing agent directly.
+          </p>
 
           {/* Packet CTA — only when agent has enabled it */}
           {property.packet_enabled && (

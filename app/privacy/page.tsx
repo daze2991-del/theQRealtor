@@ -93,7 +93,7 @@ export default function PrivacyPage() {
             <strong style={{ color: C.text }}>Usage data.</strong> We collect anonymous usage information such as QR code scan counts and page load events to help agents understand their listing performance.
           </p>
           <p style={{ margin: 0 }}>
-            When a buyer visits a property page, we also record visit timestamp, whether the visit is a return visit, and days since the buyer's first visit to the same listing. This data is used solely to help agents understand buyer engagement patterns and is never sold or shared with third parties.
+            When a buyer visits a property page, we also record visit timestamp, whether the visit is a return visit, and days since the buyer's first visit to the same listing. This data is used solely to help agents understand buyer engagement patterns and is never sold or shared with third parties. We also collect standard website analytics such as browser type, device type, and approximate location derived from IP address to improve the service and provide listing performance insights.
           </p>
         </Section>
 
@@ -143,7 +143,7 @@ export default function PrivacyPage() {
 
         <Section title="5. Data Retention">
           <p style={{ margin: 0 }}>
-            Lead data is retained for as long as the associated agent account is active. Agents may delete individual leads or their entire account at any time. Upon account deletion, all associated lead data is permanently removed from our systems within 30 days.
+            Lead data is retained for as long as the associated agent account is active. Agents may delete individual leads at any time. Upon account deletion, data retention will be handled in accordance with our data retention practices. Contact support@theqrealtor.com for data deletion requests.
           </p>
         </Section>
 

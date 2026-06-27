@@ -562,7 +562,7 @@ export default function PropertyPage() {
                   {/* Contact preference checkboxes */}
                   <div>
                     <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 8 }}>
-                      How would you like to be contacted?
+                      How may the listing agent contact you?
                     </span>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                       {[
@@ -614,7 +614,7 @@ export default function PropertyPage() {
 
                   {/* Consent line */}
                   <p style={{ fontSize: 11, color: C.muted, textAlign: 'center', margin: 0, lineHeight: 1.55 }}>
-                    By submitting, you agree to be contacted about this property. Reply STOP to opt out.
+                    By submitting, you authorize the listing agent to contact you using the methods you selected. Standard message and data rates may apply.
                   </p>
 
                   {/* Trust line */}

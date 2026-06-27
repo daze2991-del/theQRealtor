@@ -190,7 +190,7 @@ export default function TermsPage() {
 
         <Section title="11. Termination">
           <p style={{ margin: 0 }}>
-            Either party may terminate these Terms at any time. We may suspend or terminate your access to the Service without notice if we believe you have violated these Terms. Upon termination, your right to use the Service ceases and we may delete your data in accordance with our Privacy Policy.
+            Either party may terminate these Terms at any time. We may suspend or terminate your access to the Service without notice if we believe you have violated these Terms. Upon termination, access to the Service may be suspended. Data retention and deletion will be handled in accordance with our Privacy Policy.
           </p>
         </Section>
 

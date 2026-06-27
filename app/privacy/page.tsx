@@ -125,7 +125,7 @@ export default function PrivacyPage() {
 
         <Section title="4. Data Sharing and Third Parties">
           <p style={{ margin: '0 0 12px' }}>
-            <strong style={{ color: C.text }}>We do not sell personal data</strong> to third parties, period.
+            <strong style={{ color: C.text }}>We do not sell or rent buyer lead information to advertisers, lead marketplaces, or other third parties.</strong>
           </p>
           <p style={{ margin: '0 0 12px' }}>
             We work with the following service providers to operate the platform:
@@ -165,7 +165,16 @@ export default function PrivacyPage() {
           </p>
         </Section>
 
-        <Section title="9. Contact Us">
+        <Section title="9. Buyer Rights">
+          <p style={{ margin: 0 }}>
+            Buyers may request access to or deletion of personal information we maintain, subject to applicable law. Requests can be made by contacting{' '}
+            <a href="mailto:support@theqrealtor.com" style={{ color: C.purpleL, textDecoration: 'none' }}>
+              support@theqrealtor.com
+            </a>.
+          </p>
+        </Section>
+
+        <Section title="10. Contact Us">
           <p style={{ margin: 0 }}>
             If you have questions or concerns about this Privacy Policy, or to request deletion of your data, please contact us at{' '}
             <a href="mailto:support@theqrealtor.com" style={{ color: C.purpleL, textDecoration: 'none' }}>

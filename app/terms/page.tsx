@@ -76,6 +76,12 @@ export default function TermsPage() {
           By creating an account or using theQRealtor, you agree to these Terms of Service. Please read them carefully. If you do not agree, do not use the service.
         </div>
 
+        <Section title="About theQRealtor">
+          <p style={{ margin: 0 }}>
+            theQRealtor is a real estate engagement platform that helps buyers connect with listing agents through QR-powered property pages. The platform captures buyer-initiated inquiries, provides analytics to agents, and routes leads securely. It does not conduct automated marketing to buyers. Agents — not the platform — are responsible for all direct communication with buyers.
+          </p>
+        </Section>
+
         <Section title="1. Service Description">
           <p style={{ margin: '0 0 12px' }}>
             theQRealtor ("Service", "we", "us") provides a QR code lead capture platform for real estate agents. The Service allows agents to:

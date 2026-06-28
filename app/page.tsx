@@ -287,27 +287,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── SOCIAL PROOF BAR ── */}
-      <section style={{ borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, background: C.card }}>
-        <div style={{ maxWidth: 1140, margin: '0 auto', padding: '20px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20 }}>
-          <span style={{ fontSize: 13, color: C.muted, fontWeight: 500 }}>
-            Helping agents prove their marketing to sellers.
-          </span>
-          <div className="proof-grid" style={{ display: 'flex', gap: 40 }}>
-            {[
-              { stat: 'Minutes', label: 'Quick setup' },
-              { stat: 'Instant', label: 'SMS alerts' },
-              { stat: '0', label: 'Leads resold' },
-            ].map(({ stat, label }) => (
-              <div key={label} style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 18, fontWeight: 900, color: C.purpleL, letterSpacing: '-0.02em' }}>{stat}</div>
-                <div style={{ fontSize: 11, color: C.muted, marginTop: 2, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>{label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ── SELLER REPORTS HIGHLIGHT ── */}
       <section style={{ background: C.card2, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }}>
         <div style={{ maxWidth: 900, margin: '0 auto', padding: '72px 32px', textAlign: 'center' }}>

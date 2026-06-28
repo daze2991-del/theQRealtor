@@ -153,9 +153,9 @@ export default function PrivacyPage() {
           </p>
         </Section>
 
-        <Section title="7. Children's Privacy">
+        <Section title="7. Age and Eligibility">
           <p style={{ margin: 0 }}>
-            theQRealtor is not directed at children under 13. We do not knowingly collect personal information from children. If you believe a child has submitted information through our platform, please contact us and we will delete it promptly.
+            theQRealtor is intended for licensed real estate professionals and individuals of legal age to enter into contracts in their jurisdiction. We do not knowingly collect personal information from individuals under 18 unless they hold a valid real estate license issued by their state. If you believe an unlicensed minor has submitted information through our platform, please contact us at support@theqrealtor.com and we will delete it promptly.
           </p>
         </Section>
 

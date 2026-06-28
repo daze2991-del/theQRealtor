@@ -211,7 +211,7 @@ export default function TermsPage() {
 
         <Section title="13. Governing Law">
           <p style={{ margin: 0 }}>
-            These Terms are governed by the laws of the State of California, without regard to its conflict of law principles. Any disputes arising from these Terms or the Service shall be resolved exclusively in the courts located in California.
+            These Terms are governed by the laws of the State of California, without regard to its conflict of law principles. Any disputes arising from these Terms or the Service shall be resolved exclusively in the courts located in California. This Service is intended for use within the United States. Users outside the United States are responsible for ensuring compliance with their local laws and regulations.
           </p>
         </Section>
 

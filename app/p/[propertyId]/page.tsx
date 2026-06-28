@@ -23,14 +23,14 @@ const CTAS = [
     label: 'Request a Showing', sub: 'Schedule a private tour',
     motivation: 'hot',  btnLabel: 'Request Showing',
     needsPhone: true,
-    color: '#EF4444', colorBg: '#3B0D0D',
+    color: '#FFFFFF', colorBg: '#7C3AED',
   },
   {
     id: 'question', icon: '💬',
     label: 'Ask a Question',    sub: 'Ask a question or request info',
     motivation: 'warm', btnLabel: 'Send Message',
     needsPhone: true,
-    color: '#60A5FA', colorBg: '#0F2238',
+    color: '#8B5CF6', colorBg: '#1A1A2E',
   },
 ] as const
 
@@ -431,7 +431,7 @@ export default function PropertyPage() {
                 }}
               >
                 <span style={{ fontSize: 24, lineHeight: 1 }}>{cta.icon}</span>
-                <span style={{ fontSize: 14, fontWeight: 800, color: C.text, lineHeight: 1.2 }}>{cta.label}</span>
+                <span style={{ fontSize: 14, fontWeight: 800, color: cta.color, lineHeight: 1.2 }}>{cta.label}</span>
                 <span style={{ fontSize: 11, color: C.muted, lineHeight: 1.3 }}>{cta.sub}</span>
               </button>
             ))}

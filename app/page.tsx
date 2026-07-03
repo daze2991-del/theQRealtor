@@ -195,11 +195,11 @@ export default function LandingPage() {
         maxWidth: '100%',
       }}>
         <Link href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', flexShrink: 0, background: 'transparent' }}>
-          <div className="nav-logo-text" style={{ display: 'flex', alignItems: 'center', fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em' }}>
-            <span style={{ color: '#fff' }}>the</span>
-            <span style={{ color: C.purpleL }}>QR</span>
-            <span style={{ color: '#fff' }}>ealtor.</span>
-          </div>
+          <span style={{ fontFamily: "-apple-system, 'Helvetica Neue', Arial, sans-serif", fontSize: '22px', letterSpacing: '-0.5px', lineHeight: 1 }}>
+            <span style={{ fontWeight: 300, color: '#fff' }}>the</span>
+            <span style={{ fontWeight: 600, color: '#534AB7' }}>qr</span>
+            <span style={{ fontWeight: 300, color: '#fff' }}>ealtor</span>
+          </span>
         </Link>
 
         <div className="nav-links" style={{ display: 'flex', gap: 32, alignItems: 'center' }}>
@@ -619,8 +619,10 @@ export default function LandingPage() {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10 }}>
                 <Image src="/logo-icon.png" alt="theQRealtor" width={28} height={28} style={{ borderRadius: 6 }} />
-                <span style={{ fontSize: 15, fontWeight: 800, color: C.text, letterSpacing: '-0.02em' }}>
-                  the<span style={{ color: C.purpleL }}>QR</span>ealtor.
+                <span style={{ fontFamily: "-apple-system, 'Helvetica Neue', Arial, sans-serif", fontSize: '18px', letterSpacing: '-0.5px', lineHeight: 1 }}>
+                  <span style={{ fontWeight: 300, color: C.text }}>the</span>
+                  <span style={{ fontWeight: 600, color: '#534AB7' }}>qr</span>
+                  <span style={{ fontWeight: 300, color: C.text }}>ealtor</span>
                 </span>
               </div>
               <p style={{ fontSize: 13, color: C.muted, margin: 0, maxWidth: 220, lineHeight: 1.6 }}>

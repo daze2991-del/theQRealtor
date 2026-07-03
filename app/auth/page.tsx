@@ -104,8 +104,10 @@ function AuthForm() {
       <div style={{ width: '100%', maxWidth: 440 }}>
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
-          <span style={{ fontWeight: 800, fontSize: 20, color: C.text, letterSpacing: '-0.02em' }}>
-            the<span style={{ color: C.purple }}>QR</span>ealtor.
+          <span style={{ fontFamily: "-apple-system, 'Helvetica Neue', Arial, sans-serif", fontSize: '22px', letterSpacing: '-0.5px', lineHeight: 1 }}>
+            <span style={{ fontWeight: 300, color: C.text }}>the</span>
+            <span style={{ fontWeight: 600, color: '#534AB7' }}>qr</span>
+            <span style={{ fontWeight: 300, color: C.text }}>ealtor</span>
           </span>
         </div>
 

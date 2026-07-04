@@ -26,6 +26,8 @@ function AuthForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [dre, setDre] = useState("");
   const [message, setMessage] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
 
@@ -34,10 +36,14 @@ function AuthForm() {
     setMessage("");
 
     if (mode === "signup") {
+      if (!phone.trim()) {
+        setMessage('A phone number is required.');
+        return;
+      }
       const res = await fetch('/api/auth/beta-signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, phone, dre: dre.trim() || null }),
       });
       const body = await res.json();
       if (!res.ok) {
@@ -161,6 +167,38 @@ function AuthForm() {
                 minLength={6}
               />
             </div>
+
+            {mode === "signup" && (
+              <div>
+                <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: C.sub, marginBottom: 7 }}>Mobile phone number</label>
+                <input
+                  style={inputStyle}
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="(555) 555-5555"
+                />
+                <p style={{ margin: '7px 0 0', fontSize: 11.5, color: C.muted, lineHeight: 1.5 }}>
+                  Used to verify your identity and limit beta access to one account per agent. We won&apos;t text you unless you opt in from your account settings.
+                </p>
+              </div>
+            )}
+
+            {mode === "signup" && (
+              <div>
+                <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: C.sub, marginBottom: 7 }}>Real estate license number (optional)</label>
+                <input
+                  style={inputStyle}
+                  type="text"
+                  value={dre}
+                  onChange={(e) => setDre(e.target.value)}
+                  placeholder="DRE #01234567"
+                />
+                <p style={{ margin: '7px 0 0', fontSize: 11.5, color: C.muted, lineHeight: 1.5 }}>
+                  e.g., DRE #01234567. Not currently verified — we may use it in the future to confirm active licensure.
+                </p>
+              </div>
+            )}
 
             {mode === "signin" && (
               <label style={{ display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer' }}>

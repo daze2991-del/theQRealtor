@@ -66,7 +66,7 @@ export default function PrivacyPage() {
             Privacy Policy
           </h1>
           <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>
-            Last updated: June 27, 2026
+            Last updated: July 3, 2026
           </p>
         </div>
 
@@ -89,7 +89,7 @@ export default function PrivacyPage() {
             <li>Self-reported purchase intent / buying timeline</li>
           </ul>
           <p style={{ margin: '0 0 12px' }}>
-            <strong style={{ color: C.text }}>Agent account data.</strong> When a real estate agent creates an account, we collect their name, email address, and optionally a phone number for receiving SMS lead alerts.
+            <strong style={{ color: C.text }}>Agent account data.</strong> When a real estate agent creates an account, we collect their name, email address, and mobile phone number. We use your phone number for two purposes: (1) to prevent duplicate or fraudulent accounts — beta access is limited to one account per phone number — and (2) to deliver SMS lead alerts, if you separately opt in as described in our SMS Consent policy. Agents may also optionally provide a real estate license number (for example, a California DRE number). We store license numbers for profile completeness and may use them in the future to verify active licensure. We do not currently verify license numbers against any state licensing database, use them for account deduplication, or share them with third parties.
           </p>
           <p style={{ margin: '0 0 12px' }}>
             <strong style={{ color: C.text }}>Usage data.</strong> We collect anonymous usage information such as QR code scan counts and page load events to help agents understand their listing performance.
@@ -109,7 +109,7 @@ export default function PrivacyPage() {
             <li>Agents may export their leads in CSV format for use in their own CRM systems.</li>
           </ul>
           <p style={{ margin: 0 }}>
-            Agent account information is used to operate the service, process payments, and send lead alert notifications.
+            Agent account information is used to operate the service, prevent duplicate or fraudulent accounts, process payments, and send lead alert notifications.
           </p>
         </Section>
 

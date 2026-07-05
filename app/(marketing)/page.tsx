@@ -129,8 +129,7 @@ function Hero() {
           className="text-center text-4xl sm:text-5xl font-bold tracking-tight text-gray-900 leading-tight mb-5"
         >
           Every lead belongs to you.{' '}
-          <span className="text-[#534AB7]">Build your database</span>, not your
-          broker&apos;s.
+          <span className="text-[#534AB7]">Build your own database</span>, one buyer at a time.
         </motion.h1>
 
         <motion.p
@@ -275,7 +274,7 @@ function Features() {
     {
       icon: QrCode,
       title: 'Permanent QR codes',
-      body: 'One QR per sign. Reassign it to a new listing anytime — your sign, your data, forever.',
+      body: 'A dedicated QR code for every listing. Print it once, place it on your sign, and it keeps capturing buyers for as long as your listing is live.',
     },
     {
       icon: Flame,
@@ -289,8 +288,8 @@ function Features() {
     },
     {
       icon: Lock,
-      title: 'No brokerage visibility',
-      body: 'Your leads stay yours. No sharing, no broker dashboard access, no data handed off.',
+      title: 'Your leads, your data',
+      body: 'Every buyer you capture is stored in your dashboard, under your control — yours to keep and export anytime.',
     },
   ]
 
@@ -417,7 +416,7 @@ function BuyerExperience() {
     },
     {
       icon: Lock,
-      text: 'When a buyer requests a showing or asks a question, their contact details go straight to your dashboard — no brokerage access, ever',
+      text: 'When a buyer requests a showing or asks a question, their contact details go straight to your dashboard — captured under your account, owned by you.',
     },
     {
       icon: BarChart2,
@@ -491,7 +490,7 @@ function FinalCta() {
           Ready to own your leads?
         </h2>
         <p className="text-gray-500 leading-relaxed max-w-md mx-auto mb-8">
-          Join the free private beta. No credit card. No brokerage access. Just
+          Join the free private beta. No credit card required. Just
           your buyers, your data, your dashboard.
         </p>
         <Link

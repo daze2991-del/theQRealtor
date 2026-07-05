@@ -797,7 +797,7 @@ export default function PropertiesPage() {
   }
 
   const deleteProperty = async (prop: any) => {
-    if (!confirm(`Delete "${prop.address}"?\n\nThis will permanently remove the property, its photos, and leads. QR codes will be unlinked and available to reassign to a new listing.`)) return
+    if (!confirm(`Delete "${prop.address}"?\n\nThis will permanently remove the property, its photos, leads, and all linked QR codes. This cannot be undone.`)) return
     setDeletingId(prop.id)
     try {
       const supabase = createBrowserSupabase()

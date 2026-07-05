@@ -424,7 +424,7 @@ function OnboardingWizard() {
                   },
                   {
                     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.purpleL} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
-                    title: 'Download, print or assign', desc: 'Put it on your sign or assign your QR code to any listing — reuse it forever.',
+                    title: 'Download and print', desc: 'Print it out and place it on your yard sign. This QR code is permanently linked to this listing.',
                   },
                 ] as const).map(({ icon, title, desc }) => (
                   <div key={title} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: C.input, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px' }}>

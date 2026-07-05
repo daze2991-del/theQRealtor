@@ -257,19 +257,72 @@ function OnboardingWizard() {
   }
 
   /* ── Step 4: download PNG ── */
+  // Renders a branded card matching the on-screen preview (minus the address,
+  // which is redundant on a physical sign already placed at that address).
+  // Layout (top→bottom): instruction text → QR code → muted wordmark.
+  // All proportions derived from the on-screen card:
+  //   card width 260px, side padding 16px → content 228px, QR 212px (93%).
+  //   Canvas is 600px wide: side padding 40px → content 520px, QR 480px (92%).
+  //   Text sizes scale ~2.31× (600/260): 12px card text → 28px canvas.
   const downloadQR = () => {
     const svg = document.getElementById('wizard-qr-svg')
     if (!svg) return
     const svgStr = new XMLSerializer().serializeToString(svg)
+
+    const W = 600
+    const pad = 40           // side padding
+    const qrSize = 480       // ≈92% of content width, matches card's 212/228
+    const topPad = 46        // matches card's 20px top padding scaled
+    const instrY = topPad + 28  // baseline of instruction text
+    const qrTop  = instrY + 22  // gap below instruction text (card: ~14px gap to QR)
+    const qrBot  = qrTop + qrSize
+    const wmY    = qrBot + 38   // gap below QR (card: 14px marginTop scaled)
+    const H      = wmY + 30     // bottom padding
+
     const canvas = document.createElement('canvas')
-    canvas.width = 600; canvas.height = 600
+    canvas.width = W
+    canvas.height = H
     const img = new Image()
     img.onload = () => {
       const ctx = canvas.getContext('2d')
       if (!ctx) return
+
+      // White background
       ctx.fillStyle = '#ffffff'
-      ctx.fillRect(0, 0, 600, 600)
-      ctx.drawImage(img, 0, 0, 600, 600)
+      ctx.fillRect(0, 0, W, H)
+
+      // "Scan to view this home" — muted, matches card's #6B7280 at 12px
+      ctx.textAlign = 'center'
+      ctx.fillStyle = '#6B7280'
+      ctx.font = '300 28px system-ui, -apple-system, Arial, sans-serif'
+      ctx.fillText('Scan to view this home', W / 2, instrY)
+
+      // QR code — centred, dominant
+      ctx.drawImage(img, pad, qrTop, qrSize, qrSize)
+
+      // "Powered by theqrealtor" — three-weight wordmark, all muted.
+      // Draw each segment sequentially, measuring width to position the next.
+      const wmFontSize = 23  // matches card's 10px × 2.31 scale
+      const segments: [string, string, string][] = [
+        ['300', '#9CA3AF', 'Powered by the'],
+        ['700', '#8B8AC4', 'qr'],
+        ['500', '#9CA3AF', 'ealtor'],
+      ]
+      // Measure total width first so we can centre the whole wordmark.
+      let totalWidth = 0
+      for (const [weight, , text] of segments) {
+        ctx.font = `${weight} ${wmFontSize}px system-ui, -apple-system, Arial, sans-serif`
+        totalWidth += ctx.measureText(text).width
+      }
+      let x = (W - totalWidth) / 2
+      ctx.textAlign = 'left'
+      for (const [weight, color, text] of segments) {
+        ctx.font = `${weight} ${wmFontSize}px system-ui, -apple-system, Arial, sans-serif`
+        ctx.fillStyle = color
+        ctx.fillText(text, x, wmY)
+        x += ctx.measureText(text).width
+      }
+
       const a = document.createElement('a')
       a.download = `${(qrLabel || 'property').replace(/\s+/g, '-').toLowerCase()}-qr.png`
       a.href = canvas.toDataURL('image/png')
@@ -306,7 +359,11 @@ function OnboardingWizard() {
 
       {/* Logo */}
       <div style={{ marginBottom: 26 }}>
-        <span style={{ fontWeight: 800, fontSize: 20, color: C.text, letterSpacing: '-0.02em' }}>the<span style={{ color: C.purple }}>QR</span>ealtor.</span>
+        <span style={{ fontFamily: "-apple-system, 'Helvetica Neue', Arial, sans-serif", fontSize: '18px', letterSpacing: '-0.5px', lineHeight: 1 }}>
+          <span style={{ fontWeight: 300, color: C.text }}>the</span>
+          <span style={{ fontWeight: 700, color: '#534AB7' }}>qr</span>
+          <span style={{ fontWeight: 500, color: C.text }}>ealtor</span>
+        </span>
       </div>
 
       {/* Card */}
@@ -542,15 +599,20 @@ function OnboardingWizard() {
               </div>
 
               {/* Branded QR card */}
-              <div style={{ background: '#fff', borderRadius: 18, padding: '24px 24px 20px', width: 260, textAlign: 'center', boxShadow: `0 0 60px ${C.purple}35` }}>
-                <div style={{ fontSize: 13, fontWeight: 800, color: C.purple, letterSpacing: '-0.01em', marginBottom: 4 }}>theQRealtor.</div>
-                <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 14 }}>Scan to view this home</div>
-                {origin && propertyId && <QRCodeSVG id="wizard-qr-svg" value={buyerUrl} size={180} />}
-                <div style={{ fontSize: 11, color: '#374151', marginTop: 14, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{propertyAddress}</div>
+              <div style={{ background: '#fff', borderRadius: 18, padding: '20px 16px 16px', width: 260, textAlign: 'center', boxShadow: `0 0 60px ${C.purple}35` }}>
+                <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 14 }}>Scan to view this home</div>
+                {origin && propertyId && <QRCodeSVG id="wizard-qr-svg" value={buyerUrl} size={212} />}
+                <div style={{ marginTop: 14 }}>
+                  <span style={{ fontFamily: "-apple-system, 'Helvetica Neue', Arial, sans-serif", fontSize: '10px', letterSpacing: '-0.3px', lineHeight: 1 }}>
+                    <span style={{ fontWeight: 300, color: '#9CA3AF' }}>Powered by the</span>
+                    <span style={{ fontWeight: 700, color: '#8B8AC4' }}>qr</span>
+                    <span style={{ fontWeight: 500, color: '#9CA3AF' }}>ealtor</span>
+                  </span>
+                </div>
               </div>
 
               <p style={{ fontSize: 13, color: C.muted, textAlign: 'center', margin: '20px 0 0', lineHeight: 1.6 }}>
-                Print it and place it on your yard sign. Every scan captures the buyer&apos;s info.
+                Print it and place it on your yard sign. Every scan is tracked. You get the buyer&apos;s details when they request info or a showing.
               </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', marginTop: 22 }}>

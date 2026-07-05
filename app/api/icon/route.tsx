@@ -5,21 +5,21 @@ export const runtime = 'edge'
 
 function RealtQRIcon({ size }: { size: number }) {
   const radius = Math.round(size * 0.18)
-  const font = Math.round(size * 0.56)
+  const font = Math.round(size * 0.38)
   return (
     <div
       style={{
         width: size,
         height: size,
-        background: '#0f172a',
+        background: '#534AB7',
         borderRadius: radius,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
       }}
     >
-      <span style={{ color: '#8b5cf6', fontSize: font, fontWeight: 900, fontFamily: 'sans-serif', lineHeight: 1 }}>
-        Q
+      <span style={{ color: '#ffffff', fontSize: font, fontWeight: 700, fontFamily: 'sans-serif', lineHeight: 1, letterSpacing: '-0.04em' }}>
+        qr
       </span>
     </div>
   )

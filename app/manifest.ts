@@ -2,13 +2,13 @@ import { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'theQRealtor',
-    short_name: 'theQRealtor',
+    name: 'theqrealtor',
+    short_name: 'theqrealtor',
     description: 'QR sign tracking and lead capture for real estate agents.',
     start_url: '/dashboard',
     display: 'standalone',
-    background_color: '#0A0C10',
-    theme_color: '#00D4AA',
+    background_color: '#534AB7',
+    theme_color: '#534AB7',
     orientation: 'portrait',
     categories: ['business', 'productivity'],
     icons: [

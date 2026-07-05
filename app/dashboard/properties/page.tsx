@@ -21,7 +21,7 @@ function StatusBadge({ active, toggling, onToggle }: { active: boolean; toggling
   return (
     <button
       onClick={onToggle} disabled={toggling}
-      title={active ? 'Your buyer page is capturing leads 24/7 — buyers can scan anytime.' : 'Click to go live'}
+      title={active ? 'Live 24/7 — buyers can scan anytime; you get the lead when they request info or a showing.' : 'Click to go live'}
       style={{
         display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
         background: active ? '#062014' : '#18181F',

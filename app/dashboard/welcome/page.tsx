@@ -84,7 +84,7 @@ export default function WelcomePage() {
           You&apos;re live!
         </h1>
         <p style={{ fontSize: 16, color: C.sub, margin: '0 auto 36px', lineHeight: 1.6, maxWidth: 460, animation: 'fadeUp 0.4s ease 0.1s both' }}>
-          Your QR code is active. Every scan from your yard sign now lands in your lead inbox.
+          Your QR code is active. Every scan is tracked and scored — and buyers land in your lead inbox the moment they request a showing or more info.
         </p>
 
         {/* What's next */}

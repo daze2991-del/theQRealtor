@@ -355,7 +355,7 @@ export default function QRCodesPage() {
               Create QR codes for listings and open houses. Track scans, leads, and engagement from every property.
             </p>
             <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4, marginBottom: 24 }}>
-              {['📱 Buyer Scans Sign', '🏡 Property Page', '📋 Lead Capture', '📊 Your Dashboard'].map((s, i, arr) => (
+              {['📱 Buyer Scans Sign', '🏡 Property Page', '✍️ Buyer Requests Info', '📋 Lead Capture', '📊 Your Dashboard'].map((s, i, arr) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <span style={{ background: `${C.purple}18`, border: `1px solid ${C.purple}35`, borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 600, color: C.sub, whiteSpace: 'nowrap' }}>{s}</span>
                   {i < arr.length - 1 && <span style={{ color: C.muted, fontSize: 12 }}>→</span>}

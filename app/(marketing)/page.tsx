@@ -137,9 +137,9 @@ function Hero() {
           variants={fadeUp}
           className="text-center text-lg text-gray-500 leading-relaxed max-w-xl mx-auto mb-8"
         >
-          Place a QR code on your yard sign. Buyers scan it, you get their
-          contact info, their behavior score, and an instant SMS alert — all in
-          your private dashboard.
+          Place a QR code on your yard sign. Buyers scan it — you get an instant
+          SMS alert and a behavior score in real time. When they request a showing
+          or more info, their contact details are yours, in your private dashboard.
         </motion.p>
 
         <motion.div variants={fadeUp} className="flex items-center justify-center gap-3 mb-12">
@@ -203,7 +203,7 @@ function HowItWorks() {
     },
     {
       title: 'Call the right buyer first',
-      body: 'You get an instant SMS alert with the lead’s score. Your dashboard shows you exactly who to call.',
+      body: "You get an instant SMS alert with the lead’s score. Your dashboard shows you exactly which lead to call first.",
     },
   ]
 
@@ -417,7 +417,7 @@ function BuyerExperience() {
     },
     {
       icon: Lock,
-      text: 'Their contact info goes directly into your dashboard — no brokerage access, ever',
+      text: 'When a buyer requests a showing or asks a question, their contact details go straight to your dashboard — no brokerage access, ever',
     },
     {
       icon: BarChart2,

@@ -8,15 +8,15 @@ export default function AppleIcon() {
     <div
       style={{
         width: 180, height: 180,
-        background: '#00D4AA',
+        background: '#534AB7',
         borderRadius: 38,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
       }}
     >
-      <span style={{ color: '#00130F', fontSize: 96, fontWeight: 900, fontFamily: 'sans-serif', lineHeight: 1 }}>
-        R
+      <span style={{ color: '#ffffff', fontSize: 72, fontWeight: 700, fontFamily: 'sans-serif', lineHeight: 1, letterSpacing: '-2px' }}>
+        qr
       </span>
     </div>,
     { ...size },

@@ -315,7 +315,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setEmail(session.user.email || '')
 
         const [{ data: profile, error: profileErr }, { data: props }] = await Promise.all([
-          supabase.from('profiles').select('plan, beta_joined_at, role').eq('id', session.user.id).single(),
+          supabase.from('profiles').select('plan, beta_joined_at').eq('id', session.user.id).single(),
           supabase.from('properties').select('id').eq('user_id', session.user.id),
         ])
 
@@ -363,7 +363,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }
 
         setBetaJoinedAt(profile?.beta_joined_at ?? null)
-        setIsAdmin(profile?.role === 'admin')
+        setIsAdmin(false) // profiles.role column not in schema; admin nav hidden until proper role column is added
         setPlan(resolvedPlan)
         setPropertyCount(propertyIds.length)
         setQrCount(qrCnt)

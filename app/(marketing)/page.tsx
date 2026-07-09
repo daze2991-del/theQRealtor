@@ -75,61 +75,95 @@ function DashboardMockup() {
           theqrealtor.com/dashboard
         </span>
       </div>
-      {/* Leads */}
+      {/* Tabs */}
+      <div className="flex items-center gap-4 px-5 pt-3 pb-2 border-b border-solid border-gray-100">
+        <span className="text-[11px] font-semibold text-[#534AB7] pb-1" style={{ borderBottom: '2px solid #534AB7' }}>
+          All Activity
+        </span>
+        <span className="text-[11px] font-medium text-gray-400 pb-1">Hot</span>
+        <span className="text-[11px] font-medium text-gray-400 pb-1">Inquiries</span>
+      </div>
+      {/* Activity rows */}
       <div className="p-5">
-        <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-4">
-          Your leads
-        </div>
         <div className="flex flex-col gap-4">
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-medium text-gray-900">Visitor •••</span>
-              <span className="text-[11px] font-semibold text-red-600 bg-red-50 rounded-full px-2 py-0.5">Hot</span>
+          {/* Anonymous visitors */}
+          <div className="flex items-center gap-3">
+            <span className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 text-[11px] font-semibold flex items-center justify-center flex-shrink-0">JS</span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-sm font-medium text-gray-900">Anonymous visitor</span>
+                <span className="text-[11px] font-semibold rounded-full px-2 py-0.5" style={{ background: '#EEEDFE', color: '#534AB7' }}>Returning</span>
+              </div>
+              <div className="text-[11px] text-gray-400">123 Main St</div>
             </div>
-            <div className="text-[11px] text-gray-400 mb-2">123 Main St</div>
-            <ScoreBar pct={92} delay={0.8} />
+            <div className="flex flex-col items-center flex-shrink-0">
+              <span className="w-8 h-8 rounded-full bg-red-50 text-red-600 text-[11px] font-semibold flex items-center justify-center">92</span>
+              <span className="text-[11px] font-semibold text-red-600 mt-0.5">Hot</span>
+            </div>
           </div>
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-medium text-gray-900">Visitor •••</span>
-              <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 rounded-full px-2 py-0.5">Warm</span>
+          <div className="flex items-center gap-3">
+            <span className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 text-[11px] font-semibold flex items-center justify-center flex-shrink-0">AM</span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-sm font-medium text-gray-900">Anonymous visitor</span>
+              </div>
+              <div className="text-[11px] text-gray-400">456 Elm St</div>
             </div>
-            <div className="text-[11px] text-gray-400 mb-2">123 Main St</div>
-            <ScoreBar pct={61} delay={0.9} />
+            <div className="flex flex-col items-center flex-shrink-0">
+              <span className="w-8 h-8 rounded-full bg-amber-50 text-amber-600 text-[11px] font-semibold flex items-center justify-center">68</span>
+              <span className="text-[11px] font-semibold text-amber-600 mt-0.5">Warm</span>
+            </div>
           </div>
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-medium text-gray-900">Visitor •••</span>
-              <span className="text-[11px] font-semibold text-red-600 bg-red-50 rounded-full px-2 py-0.5">Hot</span>
+          <div className="flex items-center gap-3">
+            <span className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 text-[11px] font-semibold flex items-center justify-center flex-shrink-0">KL</span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-sm font-medium text-gray-900">Anonymous visitor</span>
+              </div>
+              <div className="text-[11px] text-gray-400">789 Oak Ave</div>
             </div>
-            <div className="text-[11px] text-gray-400 mb-2">456 Elm St</div>
-            <ScoreBar pct={88} delay={1.0} />
+            <div className="flex flex-col items-center flex-shrink-0">
+              <span className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 text-[11px] font-semibold flex items-center justify-center">32</span>
+              <span className="text-[11px] font-semibold text-gray-500 mt-0.5">Cold</span>
+            </div>
           </div>
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-medium text-gray-900">Visitor •••</span>
-              <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 rounded-full px-2 py-0.5">Warm</span>
+          {/* Named leads who inquired */}
+          <div className="flex items-center gap-3 border-t border-solid border-gray-100 pt-4">
+            <span className="w-8 h-8 rounded-full text-[11px] font-semibold flex items-center justify-center flex-shrink-0" style={{ background: '#16A34A', color: '#FFFFFF' }}>SM</span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-sm font-medium text-gray-900">Sarah M.</span>
+                <span className="text-[11px] font-semibold rounded-full px-2 py-0.5" style={{ background: '#16A34A', color: '#FFFFFF' }}>Inquired</span>
+              </div>
+              <div className="text-[11px] text-gray-400">321 Pine St</div>
+              <div className="text-[11px] font-medium text-[#534AB7]">View inquiry →</div>
             </div>
-            <div className="text-[11px] text-gray-400 mb-2">456 Elm St</div>
-            <ScoreBar pct={54} delay={1.1} />
+            <div className="flex flex-col items-center flex-shrink-0">
+              <span className="w-8 h-8 rounded-full bg-red-50 text-red-600 text-[11px] font-semibold flex items-center justify-center">85</span>
+              <span className="text-[11px] font-semibold text-red-600 mt-0.5">Hot</span>
+            </div>
           </div>
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-medium text-gray-900">Visitor •••</span>
-              <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 rounded-full px-2 py-0.5">Cold</span>
+          <div className="flex items-center gap-3">
+            <span className="w-8 h-8 rounded-full text-[11px] font-semibold flex items-center justify-center flex-shrink-0" style={{ background: '#16A34A', color: '#FFFFFF' }}>DC</span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-sm font-medium text-gray-900">David C.</span>
+                <span className="text-[11px] font-semibold rounded-full px-2 py-0.5" style={{ background: '#16A34A', color: '#FFFFFF' }}>Inquired</span>
+              </div>
+              <div className="text-[11px] text-gray-400">654 Cedar St</div>
+              <div className="text-[11px] font-medium text-[#534AB7]">View inquiry →</div>
             </div>
-            <div className="text-[11px] text-gray-400 mb-2">789 Oak Ave</div>
-            <ScoreBar pct={23} delay={1.2} />
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-medium text-gray-900">Visitor •••</span>
-              <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 rounded-full px-2 py-0.5">Warm</span>
+            <div className="flex flex-col items-center flex-shrink-0">
+              <span className="w-8 h-8 rounded-full bg-red-50 text-red-600 text-[11px] font-semibold flex items-center justify-center">90</span>
+              <span className="text-[11px] font-semibold text-red-600 mt-0.5">Hot</span>
             </div>
-            <div className="text-[11px] text-gray-400 mb-2">789 Oak Ave</div>
-            <ScoreBar pct={67} delay={1.3} />
           </div>
         </div>
+      </div>
+      {/* Footer */}
+      <div className="flex items-center justify-center gap-2 px-5 py-2.5 border-t border-solid border-gray-100 bg-gray-50">
+        <Lock size={12} className="text-gray-400" />
+        <span className="text-[11px] text-gray-400">Your leads. Your data. Never shared.</span>
       </div>
     </div>
   )

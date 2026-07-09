@@ -83,7 +83,7 @@ function DashboardMockup() {
         <div className="flex flex-col gap-4">
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-medium text-gray-900">Buyer •••</span>
+              <span className="text-sm font-medium text-gray-900">Visitor •••</span>
               <span className="text-[11px] font-semibold text-red-600 bg-red-50 rounded-full px-2 py-0.5">Hot</span>
             </div>
             <div className="text-[11px] text-gray-400 mb-2">123 Main St</div>
@@ -91,7 +91,7 @@ function DashboardMockup() {
           </div>
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-medium text-gray-900">Buyer •••</span>
+              <span className="text-sm font-medium text-gray-900">Visitor •••</span>
               <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 rounded-full px-2 py-0.5">Warm</span>
             </div>
             <div className="text-[11px] text-gray-400 mb-2">123 Main St</div>
@@ -99,7 +99,7 @@ function DashboardMockup() {
           </div>
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-medium text-gray-900">Buyer •••</span>
+              <span className="text-sm font-medium text-gray-900">Visitor •••</span>
               <span className="text-[11px] font-semibold text-red-600 bg-red-50 rounded-full px-2 py-0.5">Hot</span>
             </div>
             <div className="text-[11px] text-gray-400 mb-2">456 Elm St</div>
@@ -107,7 +107,7 @@ function DashboardMockup() {
           </div>
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-medium text-gray-900">Buyer •••</span>
+              <span className="text-sm font-medium text-gray-900">Visitor •••</span>
               <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 rounded-full px-2 py-0.5">Warm</span>
             </div>
             <div className="text-[11px] text-gray-400 mb-2">456 Elm St</div>
@@ -115,7 +115,7 @@ function DashboardMockup() {
           </div>
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-medium text-gray-900">Buyer •••</span>
+              <span className="text-sm font-medium text-gray-900">Visitor •••</span>
               <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 rounded-full px-2 py-0.5">Cold</span>
             </div>
             <div className="text-[11px] text-gray-400 mb-2">789 Oak Ave</div>
@@ -123,7 +123,7 @@ function DashboardMockup() {
           </div>
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-medium text-gray-900">Buyer •••</span>
+              <span className="text-sm font-medium text-gray-900">Visitor •••</span>
               <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 rounded-full px-2 py-0.5">Warm</span>
             </div>
             <div className="text-[11px] text-gray-400 mb-2">789 Oak Ave</div>
@@ -525,7 +525,7 @@ function CommonQuestion() {
           Do buyers actually scan QR codes?
         </h2>
         <p className="text-gray-500 leading-relaxed max-w-xl mx-auto">
-          Buyers already pull out their phones at yard signs. TheQRealtor gives them an instant reason to scan — photos, pricing, and property details load immediately. No app to download. No form to fill out just to browse. The experience is fast enough that curiosity becomes engagement before they walk away.
+          Buyers already pull out their phones at yard signs. theqrealtor gives them an instant reason to scan — photos, pricing, and property details load immediately. No app to download. No form to fill out just to browse. The experience is fast enough that curiosity becomes engagement before they walk away.
         </p>
       </motion.div>
     </section>

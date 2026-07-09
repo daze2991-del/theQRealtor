@@ -179,17 +179,7 @@ function Hero() {
           <style>{`@keyframes purple-shift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}`}</style>
           Buyer interest doesn&apos;t disappear.{' '}
           <span style={{ color: '#534AB7' }}>
-            It just goes{' '}
-            <span style={{ display: 'inline-block', overflow: 'hidden', verticalAlign: 'bottom' }}>
-              <motion.span
-                style={{ display: 'inline-block' }}
-                initial={{ x: '-101%' }}
-                animate={{ x: 0 }}
-                transition={{ duration: 0.7, ease: 'easeOut', delay: 0.4 }}
-              >
-                unseen
-              </motion.span>
-            </span>.
+            It just goes unseen.
           </span>
         </motion.h1>
 

@@ -352,10 +352,10 @@ function Features() {
             <motion.div
               key={f.title}
               className="bg-gray-50 rounded-xl p-5 border border-solid border-transparent hover:border-gray-300 transition-colors"
-              initial={{ opacity: 0, y: 18 }}
-              whileInView={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, scale: 0.95, y: 8 }}
+              whileInView={{ opacity: 1, scale: 1, y: 0 }}
               viewport={viewportOnce}
-              transition={{ duration: 0.5, ease: 'easeOut', delay: i * 0.1 }}
+              transition={{ duration: 0.4, ease: 'easeOut', delay: i * 0.15 }}
             >
               <f.icon size={20} className="text-[#534AB7] mb-3" />
               <div className="text-sm font-semibold text-gray-900 mb-2">{f.title}</div>

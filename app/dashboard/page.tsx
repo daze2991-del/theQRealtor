@@ -103,7 +103,7 @@ function KpiCard({ icon, label, value, change, accent, sparkData, caption, toolt
       onClick={href ? () => router.push(href) : undefined}
       style={{ background: C.card, border: `1px solid #7C3AED60`, borderRadius: 16, padding: '18px 20px 14px', display: 'flex', flexDirection: 'column', gap: 10, position: 'relative', overflow: 'hidden', cursor: href ? 'pointer' : undefined }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ width: 36, height: 36, borderRadius: 10, background: accent.bg, border: `1px solid ${accent.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>{icon}</div>
+        <div style={{ width: 36, height: 36, borderRadius: 10, background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>{icon}</div>
         <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
@@ -465,8 +465,8 @@ export default function Dashboard() {
           {/* ── SECTION 2: KPI Cards ── */}
           <div className="db-kpi4">
             <KpiCard href="/dashboard/leads?tier=hot"                  icon={<Flame         size={18} color={ACCENT.red.color}    />} label="Buyer Interest"   value={buyerInterestCount} change={null}   accent={ACCENT.red}   caption={buyerInterestCount === 0 ? 'Place your first QR sign to start capturing buyers' : undefined} />
-            <KpiCard href="/dashboard/leads?tier=all&sort=newest"      icon={<Users         size={18} color={ACCENT.green.color}  />} label="New Leads"        value={totalLeads}     change={leadChange} accent={ACCENT.green} sparkData={leadSparkline} caption="Last 30 days" />
-            <KpiCard href="/dashboard/leads?motivation=showing"        icon={<CalendarCheck size={18} color={ACCENT.blue.color}   />} label="Showing Requests" value={hotCount}       change={null}       accent={ACCENT.blue}  sparkData={scanSparkline.map((_, i) => i % 3 === 0 ? 1 : 0)} caption={hotCount === 0 ? "Appears when buyers click 'Request a Showing'" : undefined} />
+            <KpiCard href="/dashboard/leads?tier=all&sort=newest"      icon={<Users         size={18} color={ACCENT.green.color}  />} label="New Leads"        value={totalLeads}     change={leadChange} accent={ACCENT.green} caption="Last 30 days" />
+            <KpiCard href="/dashboard/leads?motivation=showing"        icon={<CalendarCheck size={18} color={ACCENT.blue.color}   />} label="Showing Requests" value={hotCount}       change={null}       accent={ACCENT.blue}  caption={hotCount === 0 ? "Appears when buyers click 'Request a Showing'" : undefined} />
             <KpiCard href="/dashboard/leads?status=not_contacted"      icon={<AlertCircle   size={18} color={ACCENT.amber.color}  />} label="Needs Follow-Up"  value={needsFollowUp}  change={null}       accent={ACCENT.amber} caption={needsFollowUp === 0 ? "You're all caught up" : 'High-interest buyers awaiting contact'} />
           </div>
 
@@ -582,7 +582,7 @@ export default function Dashboard() {
               <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {[
                   { label: 'Hot',  color: '#EF4444', count: pipelineCounts.hot || 0,                                           uncontacted: hotNotCalled  },
-                  { label: 'Warm', color: '#60A5FA', count: (pipelineCounts.motivated || 0) + (pipelineCounts.warm || 0),       uncontacted: warmNotCalled },
+                  { label: 'Warm', color: '#F59E0B', count: (pipelineCounts.motivated || 0) + (pipelineCounts.warm || 0),       uncontacted: warmNotCalled },
                   { label: 'Cold', color: '#6B7280', count: pipelineCounts.cold || 0,                                           uncontacted: null          },
                 ].map(({ label, color, count, uncontacted }) => (
                   <div key={label} style={{ borderLeft: `3px solid ${color}`, paddingLeft: 10, paddingTop: 5, paddingBottom: 5 }}>

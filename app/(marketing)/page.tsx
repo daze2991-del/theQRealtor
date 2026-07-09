@@ -128,17 +128,14 @@ function Hero() {
           variants={fadeUp}
           className="text-center text-4xl sm:text-5xl font-bold tracking-tight text-gray-900 leading-tight mb-5"
         >
-          Every lead belongs to you.{' '}
-          <span className="text-[#534AB7]">Build your own database</span>, one buyer at a time.
+          Your next client may already be walking past your listings.
         </motion.h1>
 
         <motion.p
           variants={fadeUp}
           className="text-center text-lg text-gray-500 leading-relaxed max-w-xl mx-auto mb-8"
         >
-          Place a QR code on your yard sign. Buyers scan it — you get an instant
-          SMS alert and a behavior score in real time. When they request a showing
-          or more info, their contact details are yours, in your private dashboard.
+          Place a QR code on your yard signs. Buyers scan and explore the property. When they choose to reach out, you get an instant text alert — and their contact details come directly to you.
         </motion.p>
 
         <motion.div variants={fadeUp} className="flex items-center justify-center gap-3 mb-12">

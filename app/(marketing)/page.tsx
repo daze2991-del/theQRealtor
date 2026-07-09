@@ -97,7 +97,6 @@ function DashboardMockup() {
               <div className="text-[11px] text-gray-400">123 Main St</div>
             </div>
             <div className="flex flex-col items-center flex-shrink-0">
-              <span className="w-8 h-8 rounded-full bg-red-50 text-red-600 text-[11px] font-semibold flex items-center justify-center">92</span>
               <span className="text-[11px] font-semibold text-red-600 mt-0.5">Hot</span>
             </div>
           </div>
@@ -110,7 +109,6 @@ function DashboardMockup() {
               <div className="text-[11px] text-gray-400">456 Elm St</div>
             </div>
             <div className="flex flex-col items-center flex-shrink-0">
-              <span className="w-8 h-8 rounded-full bg-amber-50 text-amber-600 text-[11px] font-semibold flex items-center justify-center">68</span>
               <span className="text-[11px] font-semibold text-amber-600 mt-0.5">Warm</span>
             </div>
           </div>
@@ -123,7 +121,6 @@ function DashboardMockup() {
               <div className="text-[11px] text-gray-400">789 Oak Ave</div>
             </div>
             <div className="flex flex-col items-center flex-shrink-0">
-              <span className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 text-[11px] font-semibold flex items-center justify-center">32</span>
               <span className="text-[11px] font-semibold text-gray-500 mt-0.5">Cold</span>
             </div>
           </div>
@@ -139,7 +136,6 @@ function DashboardMockup() {
               <div className="text-[11px] font-medium text-[#534AB7]">View inquiry →</div>
             </div>
             <div className="flex flex-col items-center flex-shrink-0">
-              <span className="w-8 h-8 rounded-full bg-red-50 text-red-600 text-[11px] font-semibold flex items-center justify-center">85</span>
               <span className="text-[11px] font-semibold text-red-600 mt-0.5">Hot</span>
             </div>
           </div>
@@ -154,7 +150,6 @@ function DashboardMockup() {
               <div className="text-[11px] font-medium text-[#534AB7]">View inquiry →</div>
             </div>
             <div className="flex flex-col items-center flex-shrink-0">
-              <span className="w-8 h-8 rounded-full bg-red-50 text-red-600 text-[11px] font-semibold flex items-center justify-center">90</span>
               <span className="text-[11px] font-semibold text-red-600 mt-0.5">Hot</span>
             </div>
           </div>

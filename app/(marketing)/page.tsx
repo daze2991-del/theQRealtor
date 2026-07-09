@@ -187,9 +187,9 @@ function Hero() {
           variants={fadeUp}
           className="text-center text-lg text-gray-500 leading-relaxed max-w-xl mx-auto mb-8"
         >
-          Until now.
-          <br />
-          Place a QR code on your yard sign — buyers instantly access your listing, you see who&apos;s hot, and when they&apos;re ready, their details land straight in your dashboard.
+          Buyers already stop at your signs. They scan, browse photos, check the price, return a second time — and walk away without a word.
+          <br /><br />
+          theqrealtor makes that interest visible. And when they&apos;re ready to reach out, their inquiry comes directly to you.
         </motion.p>
 
         <motion.div variants={fadeUp} className="flex items-center justify-center gap-3 mb-12">
@@ -218,8 +218,8 @@ function Hero() {
 function StatsBar() {
   const stats = [
     { value: 'No app required', label: 'Buyers browse instantly' },
-    { value: '100%', label: 'Your inquiries, never shared' },
-    { value: 'Real-time', label: 'Engagement as it happens' },
+    { value: 'Yours alone', label: 'Inquiries never shared or resold' },
+    { value: 'Every listing', label: 'Yard signs, A-frames, flyers' },
   ]
   return (
     <section className="border-b border-solid border-gray-100">

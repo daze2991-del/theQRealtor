@@ -179,7 +179,17 @@ function Hero() {
           <style>{`@keyframes purple-shift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}`}</style>
           Buyer interest doesn&apos;t disappear.{' '}
           <span style={{ color: '#534AB7' }}>
-            It just goes unseen.
+            It just goes{' '}
+            <span style={{ display: 'inline-block', overflow: 'hidden', verticalAlign: 'bottom' }}>
+              <motion.span
+                style={{ display: 'inline-block' }}
+                initial={{ x: '-101%' }}
+                animate={{ x: 0 }}
+                transition={{ duration: 0.7, ease: 'easeOut', delay: 0.4 }}
+              >
+                unseen
+              </motion.span>
+            </span>.
           </span>
         </motion.h1>
 
@@ -187,7 +197,7 @@ function Hero() {
           variants={fadeUp}
           className="text-center text-lg text-gray-500 leading-relaxed max-w-xl mx-auto mb-8"
         >
-          theqrealtor changes that.
+          Until now.
           <br />
           Place a QR code on your yard sign — buyers instantly access your listing, you see who&apos;s hot, and when they&apos;re ready, their details land straight in your dashboard.
         </motion.p>

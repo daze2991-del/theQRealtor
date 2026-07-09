@@ -199,7 +199,11 @@ function Hero() {
           variants={fadeUp}
           className="text-center text-lg text-gray-500 leading-relaxed max-w-xl mx-auto mb-8"
         >
-          Buyers scan your yard sign to explore photos, pricing, and property details — no app required. As they browse, you gain real-time visibility into their engagement. When they&apos;re ready to reach out, their inquiry comes directly to you.
+          Every day, buyers walk past your listings and disappear from your pipeline.
+          <br />
+          theqrealtor changes that.
+          <br />
+          Place a QR code on your yard sign — buyers instantly access your listing, you see who&apos;s hot, and when they&apos;re ready, their details land straight in your dashboard.
         </motion.p>
 
         <motion.div variants={fadeUp} className="flex items-center justify-center gap-3 mb-12">

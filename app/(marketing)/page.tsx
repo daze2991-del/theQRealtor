@@ -161,15 +161,7 @@ function Hero() {
         >
           <style>{`@keyframes purple-shift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}`}</style>
           Know when buyers are interested —{' '}
-          <span style={{
-            background: 'linear-gradient(90deg,#534AB7,#8B5CF6,#534AB7)',
-            backgroundSize: '200% auto',
-            backgroundClip: 'text',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            color: 'transparent',
-            animation: 'purple-shift 3s ease infinite',
-          }}>
+          <span style={{ color: '#534AB7' }}>
             not just when they call.
           </span>
         </motion.h1>

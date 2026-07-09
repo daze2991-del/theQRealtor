@@ -606,7 +606,10 @@ function CommonQuestion() {
           Do buyers actually scan QR codes?
         </h2>
         <p className="text-gray-500 leading-relaxed max-w-xl mx-auto">
-          Buyers already pull out their phones at yard signs. theqrealtor gives them an instant reason to scan — photos, pricing, and property details load immediately. No app to download. No form to fill out just to browse. The experience is fast enough that curiosity becomes engagement before they walk away.
+          Buyers already pull out their phones at yard signs. Give them an instant reason — photos, pricing, property details, no download required. The experience loads fast enough that curiosity becomes engagement before they walk away.
+        </p>
+        <p className="text-gray-500 leading-relaxed max-w-xl mx-auto mt-4">
+          Most agents assume buyers won&apos;t scan. That assumption is costing them pipeline.
         </p>
       </motion.div>
     </section>

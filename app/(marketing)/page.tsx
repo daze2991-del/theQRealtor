@@ -525,15 +525,15 @@ function BuyerExperience() {
   const captions = [
     {
       icon: BarChart2,
-      text: ‘A buyer browses for four minutes and views 18 photos. You know before they call.’,
+      text: 'A buyer browses for four minutes and views 18 photos. You know before they call.',
     },
     {
       icon: Bell,
-      text: ‘They request a showing. Their name, number, and intent score arrive in your dashboard instantly.’,
+      text: 'They request a showing. Their name, number, and intent score arrive in your dashboard instantly.',
     },
     {
       icon: Lock,
-      text: ‘They return two days later. You already know they’re serious.’,
+      text: "They return two days later. You already know they're serious.",
     },
   ]
 

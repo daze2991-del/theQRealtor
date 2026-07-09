@@ -112,18 +112,6 @@ function DashboardMockup() {
               <span className="text-[11px] font-semibold text-amber-600 mt-0.5">Warm</span>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 text-[11px] font-semibold flex items-center justify-center flex-shrink-0">KL</span>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-0.5">
-                <span className="text-sm font-medium text-gray-900">Anonymous visitor</span>
-              </div>
-              <div className="text-[11px] text-gray-400">789 Oak Ave</div>
-            </div>
-            <div className="flex flex-col items-center flex-shrink-0">
-              <span className="text-[11px] font-semibold text-gray-500 mt-0.5">Cold</span>
-            </div>
-          </div>
           {/* Named leads who inquired */}
           <div className="flex items-center gap-3 border-t border-solid border-gray-100 pt-4">
             <span className="w-8 h-8 rounded-full text-[11px] font-semibold flex items-center justify-center flex-shrink-0" style={{ background: '#16A34A', color: '#FFFFFF' }}>SM</span>
@@ -199,8 +187,6 @@ function Hero() {
           variants={fadeUp}
           className="text-center text-lg text-gray-500 leading-relaxed max-w-xl mx-auto mb-8"
         >
-          Every day, buyers walk past your listings and disappear from your pipeline.
-          <br />
           theqrealtor changes that.
           <br />
           Place a QR code on your yard sign — buyers instantly access your listing, you see who&apos;s hot, and when they&apos;re ready, their details land straight in your dashboard.
@@ -259,15 +245,15 @@ function HowItWorks() {
   const steps = [
     {
       title: 'Place your sign',
-      body: 'Print your unique QR code and place it on your yard sign or open house A-frame. One sign. Every opportunity.',
+      body: 'Print your QR code and place it on your yard sign or A-frame. One sign. Every listing.',
     },
     {
       title: 'Buyers engage, you learn',
-      body: 'Buyers scan to instantly view photos, pricing, and property details. Their behavior — time on page, photos viewed, return visits — is scored in real time.',
+      body: 'Buyers scan to view photos, pricing, and details. Their behavior — time on page, photos viewed, return visits — is scored instantly.',
     },
     {
       title: 'Follow up at the right moment',
-      body: 'When a buyer requests a showing or asks a question, you get an instant SMS alert and their contact details go straight to your dashboard.',
+      body: 'When a buyer requests a showing or asks a question, you get an instant SMS alert and their details go straight to your dashboard.',
     },
   ]
 
@@ -298,11 +284,11 @@ function HowItWorks() {
               whileInView="show"
               viewport={viewportOnce}
               variants={{
-                hidden: { opacity: 0, y: 18 },
+                hidden: { opacity: 0, y: 16 },
                 show: {
                   opacity: 1,
                   y: 0,
-                  transition: { duration: 0.5, ease: 'easeOut', delay: i * 0.15 },
+                  transition: { duration: 0.5, ease: 'easeOut', delay: i * 0.4 },
                 },
               }}
             >
@@ -321,7 +307,7 @@ function HowItWorks() {
                     hidden: { width: 0 },
                     show: {
                       width: '100%',
-                      transition: { duration: 0.6, ease: 'easeOut', delay: 0.3 + i * 0.15 },
+                      transition: { duration: 0.6, ease: 'easeOut', delay: 0.3 + i * 0.4 },
                     },
                   }}
                 />
@@ -576,7 +562,7 @@ function FinalCta() {
         transition={{ duration: 0.5, ease: 'easeOut' }}
       >
         <h2 className="text-3xl font-bold tracking-tight text-gray-900 mb-4">
-          Start seeing the buyer interest you&apos;ve been missing.
+          Start seeing the <span style={{ color: '#534AB7' }}>buyer interest</span> you&apos;ve been missing.
         </h2>
         <p className="text-gray-500 leading-relaxed max-w-md mx-auto mb-8">
           Join the free private beta. No credit card required. Up to 10 QR codes. Your inquiries, always yours.

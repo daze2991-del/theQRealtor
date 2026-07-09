@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { motion, type Variants } from 'framer-motion'
 import {
@@ -85,7 +86,7 @@ function DashboardMockup() {
               <span className="text-sm font-medium text-gray-900">Sarah M.</span>
               <span className="text-[11px] font-semibold text-red-600 bg-red-50 rounded-full px-2 py-0.5">Hot</span>
             </div>
-            <div className="text-[11px] text-gray-400 mb-2">4444 Culver Blvs</div>
+            <div className="text-[11px] text-gray-400 mb-2">123 Main St</div>
             <ScoreBar pct={92} delay={0.8} />
           </div>
           <div>
@@ -93,7 +94,7 @@ function DashboardMockup() {
               <span className="text-sm font-medium text-gray-900">James T.</span>
               <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 rounded-full px-2 py-0.5">Warm</span>
             </div>
-            <div className="text-[11px] text-gray-400 mb-2">4444 Culver Blvs</div>
+            <div className="text-[11px] text-gray-400 mb-2">123 Main St</div>
             <ScoreBar pct={61} delay={0.9} />
           </div>
           <div>
@@ -101,7 +102,7 @@ function DashboardMockup() {
               <span className="text-sm font-medium text-gray-900">Marcus R.</span>
               <span className="text-[11px] font-semibold text-red-600 bg-red-50 rounded-full px-2 py-0.5">Hot</span>
             </div>
-            <div className="text-[11px] text-gray-400 mb-2">812 Elm St</div>
+            <div className="text-[11px] text-gray-400 mb-2">456 Elm St</div>
             <ScoreBar pct={88} delay={1.0} />
           </div>
           <div>
@@ -109,7 +110,7 @@ function DashboardMockup() {
               <span className="text-sm font-medium text-gray-900">Priya K.</span>
               <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 rounded-full px-2 py-0.5">Warm</span>
             </div>
-            <div className="text-[11px] text-gray-400 mb-2">812 Elm St</div>
+            <div className="text-[11px] text-gray-400 mb-2">456 Elm St</div>
             <ScoreBar pct={54} delay={1.1} />
           </div>
           <div>
@@ -117,7 +118,7 @@ function DashboardMockup() {
               <span className="text-sm font-medium text-gray-900">David L.</span>
               <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 rounded-full px-2 py-0.5">Cold</span>
             </div>
-            <div className="text-[11px] text-gray-400 mb-2">4444 Culver Blvs</div>
+            <div className="text-[11px] text-gray-400 mb-2">789 Oak Ave</div>
             <ScoreBar pct={23} delay={1.2} />
           </div>
           <div>
@@ -125,7 +126,7 @@ function DashboardMockup() {
               <span className="text-sm font-medium text-gray-900">Ashley W.</span>
               <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 rounded-full px-2 py-0.5">Warm</span>
             </div>
-            <div className="text-[11px] text-gray-400 mb-2">301 Ocean Ave</div>
+            <div className="text-[11px] text-gray-400 mb-2">789 Oak Ave</div>
             <ScoreBar pct={67} delay={1.3} />
           </div>
         </div>
@@ -556,6 +557,35 @@ function Footer() {
   )
 }
 
+function RevealSection({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => { setVisible(entry.isIntersecting) },
+      { threshold: 0.15 }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: visible ? 'translateY(0)' : 'translateY(20px)',
+        transition: 'opacity 0.7s ease, transform 0.7s ease',
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
 export default function MarketingPage() {
   return (
     <div
@@ -568,11 +598,11 @@ export default function MarketingPage() {
       <Nav />
       <main>
         <Hero />
-        <StatsBar />
-        <HowItWorks />
-        <Features />
-        <BuyerExperience />
-        <FinalCta />
+        <RevealSection><StatsBar /></RevealSection>
+        <RevealSection><HowItWorks /></RevealSection>
+        <RevealSection><Features /></RevealSection>
+        <RevealSection><BuyerExperience /></RevealSection>
+        <RevealSection><FinalCta /></RevealSection>
       </main>
       <Footer />
     </div>

@@ -524,16 +524,16 @@ function PhoneMockup() {
 function BuyerExperience() {
   const captions = [
     {
+      icon: BarChart2,
+      text: ‘A buyer browses for four minutes and views 18 photos. You know before they call.’,
+    },
+    {
       icon: Bell,
-      text: 'The moment a buyer submits an inquiry, you get an instant SMS alert — with their engagement score.',
+      text: ‘They request a showing. Their name, number, and intent score arrive in your dashboard instantly.’,
     },
     {
       icon: Lock,
-      text: 'Their contact details go straight to your dashboard — captured under your account, owned by you.',
-    },
-    {
-      icon: BarChart2,
-      text: 'Every photo viewed, every return visit, every minute on page — scored and waiting for you.',
+      text: ‘They return two days later. You already know they’re serious.’,
     },
   ]
 

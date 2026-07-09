@@ -326,7 +326,7 @@ async function downloadTraffic(
     // watermark bottom-left
     ctx.fillStyle = '#333333'
     ctx.font = `${Math.floor(H * 0.022)}px sans-serif`
-    ctx.fillText('theQRealtor.com', textX, H - Math.floor(H * 0.025))
+    ctx.fillText('theqrealtor.com', textX, H - Math.floor(H * 0.025))
   } else {
     // portrait: stacked
     ctx.fillStyle = '#FFFFFF'
@@ -378,11 +378,11 @@ async function downloadTraffic(
       ctx.fillText(branding.agentPhone, W / 2, bottomY)
     }
 
-    // theQRealtor watermark at very bottom
+    // theqrealtor watermark at very bottom
     ctx.fillStyle = '#333333'
     ctx.font = `${Math.floor(W * 0.025)}px sans-serif`
     ctx.textAlign = 'center'
-    ctx.fillText('theQRealtor.com', W / 2, H - Math.floor(W * 0.03))
+    ctx.fillText('theqrealtor.com', W / 2, H - Math.floor(W * 0.03))
   }
 
   const a = document.createElement('a')
@@ -859,7 +859,7 @@ function TrafficPreview({ qrUrl, branding, address }: { qrUrl: string; branding:
         {branding.agentPhone && (
           <div style={{ fontSize: 11, fontWeight: 600, color: '#8B5CF6', marginBottom: 6 }}>{branding.agentPhone}</div>
         )}
-        <div style={{ fontSize: 8, color: '#444', marginTop: 4 }}>theQRealtor.com</div>
+        <div style={{ fontSize: 8, color: '#444', marginTop: 4 }}>theqrealtor.com</div>
       </div>
       <div style={{ fontSize: 10, color: '#6B7280', textAlign: 'center', marginTop: 6, fontFamily: 'sans-serif' }}>8.5×11 in / 11×8.5 in</div>
     </div>

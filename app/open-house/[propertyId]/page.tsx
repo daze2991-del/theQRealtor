@@ -342,7 +342,7 @@ export default function OpenHouseCheckInPage() {
 
         {/* Footer — non-removable */}
         <div style={{ textAlign: 'center', padding: '0 20px 32px', fontSize: 11, color: '#4B5563' }}>
-          Powered by theQRealtor
+          Powered by theqrealtor
         </div>
       </div>
     </main>

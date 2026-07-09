@@ -206,7 +206,7 @@ export default function NewPropertyPage() {
             <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
             <h2 style={{ fontSize: 20, fontWeight: 800, color: C.text, marginBottom: 8 }}>Your beta has ended</h2>
             <p style={{ color: C.muted, marginBottom: 28, fontSize: 14 }}>
-              Reach out to continue using theQRealtor.
+              Reach out to continue using theqrealtor.
             </p>
           </div>
         </div>

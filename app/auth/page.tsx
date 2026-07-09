@@ -127,7 +127,7 @@ function AuthForm() {
           </h1>
           <p style={{ fontSize: 13.5, color: C.muted, margin: '0 0 28px' }}>
             {mode === "signin"
-              ? "Sign in to your theQRealtor account."
+              ? "Sign in to your theqrealtor account."
               : "Start capturing buyer leads for free."}
           </p>
 

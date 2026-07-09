@@ -2,7 +2,7 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy — theQRealtor',
+  title: 'Privacy Policy — theqrealtor',
 }
 
 const C = {
@@ -75,7 +75,7 @@ export default function PrivacyPage() {
           borderRadius: 12, padding: '16px 20px', marginBottom: 44,
           fontSize: 14, color: C.sub, lineHeight: 1.65,
         }}>
-          theQRealtor is a lead capture platform for real estate agents. This policy explains what information we collect, how we use it, and how we protect it.
+          theqrealtor is a lead capture platform for real estate agents. This policy explains what information we collect, how we use it, and how we protect it.
         </div>
 
         <Section title="1. Information We Collect">
@@ -121,7 +121,7 @@ export default function PrivacyPage() {
             To stop receiving SMS notifications, text <strong style={{ color: C.text }}>STOP</strong> to the number from which you received the message, or disable SMS alerts in your account Settings. For help, text <strong style={{ color: C.text }}>HELP</strong>.
           </p>
           <p style={{ margin: 0 }}>
-            Buyer phone numbers are shared with the listing agent only, and are not used by theQRealtor to send marketing messages to buyers.
+            Buyer phone numbers are shared with the listing agent only, and are not used by theqrealtor to send marketing messages to buyers.
           </p>
         </Section>
 
@@ -157,7 +157,7 @@ export default function PrivacyPage() {
 
         <Section title="7. Age and Eligibility">
           <p style={{ margin: 0 }}>
-            theQRealtor is intended for licensed real estate professionals and individuals of legal age to enter into contracts in their jurisdiction. We do not knowingly collect personal information from individuals under 18 unless they hold a valid real estate license issued by their state. If you believe an unlicensed minor has submitted information through our platform, please contact us at support@theqrealtor.com and we will delete it promptly.
+            theqrealtor is intended for licensed real estate professionals and individuals of legal age to enter into contracts in their jurisdiction. We do not knowingly collect personal information from individuals under 18 unless they hold a valid real estate license issued by their state. If you believe an unlicensed minor has submitted information through our platform, please contact us at support@theqrealtor.com and we will delete it promptly.
           </p>
         </Section>
 

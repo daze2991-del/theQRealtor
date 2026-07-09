@@ -31,7 +31,7 @@ export async function POST() {
   try {
     const client = twilio(accountSid, authToken)
     await client.messages.create({
-      body: '✅ theQRealtor test — your SMS lead alerts are working correctly!',
+      body: '✅ theqrealtor test — your SMS lead alerts are working correctly!',
       from: fromNumber,
       to: phone,
     })

@@ -2,7 +2,7 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Terms of Service — theQRealtor',
+  title: 'Terms of Service — theqrealtor',
 }
 
 const C = {
@@ -75,18 +75,18 @@ export default function TermsPage() {
           borderRadius: 12, padding: '16px 20px', marginBottom: 44,
           fontSize: 14, color: C.sub, lineHeight: 1.65,
         }}>
-          By creating an account or using theQRealtor, you agree to these Terms of Service. Please read them carefully. If you do not agree, do not use the service.
+          By creating an account or using theqrealtor, you agree to these Terms of Service. Please read them carefully. If you do not agree, do not use the service.
         </div>
 
-        <Section title="About theQRealtor">
+        <Section title="About theqrealtor">
           <p style={{ margin: 0 }}>
-            theQRealtor is a real estate engagement platform that helps buyers connect with listing agents through QR-powered property pages. The platform captures buyer-initiated inquiries, provides analytics to agents, and routes leads securely. It does not conduct automated marketing to buyers. Agents — not the platform — are responsible for all direct communication with buyers.
+            theqrealtor is a real estate engagement platform that helps buyers connect with listing agents through QR-powered property pages. The platform captures buyer-initiated inquiries, provides analytics to agents, and routes leads securely. It does not conduct automated marketing to buyers. Agents — not the platform — are responsible for all direct communication with buyers.
           </p>
         </Section>
 
         <Section title="1. Service Description">
           <p style={{ margin: '0 0 12px' }}>
-            theQRealtor ("Service", "we", "us") provides a QR code lead capture platform for real estate agents. The Service allows agents to:
+            theqrealtor ("Service", "we", "us") provides a QR code lead capture platform for real estate agents. The Service allows agents to:
           </p>
           <ul style={{ margin: '0 0 16px', paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <li>Generate property-specific QR codes for placement on yard signs and marketing materials</li>
@@ -112,7 +112,7 @@ export default function TermsPage() {
 
         <Section title="3. Subscription and Billing">
           <p style={{ margin: '0 0 12px' }}>
-            theQRealtor offers free and paid subscription plans. Paid subscriptions are billed in advance on a monthly or annual basis through Stripe. All fees are non-refundable except as required by law or as explicitly stated in a refund policy.
+            theqrealtor offers free and paid subscription plans. Paid subscriptions are billed in advance on a monthly or annual basis through Stripe. All fees are non-refundable except as required by law or as explicitly stated in a refund policy.
           </p>
           <p style={{ margin: '0 0 12px' }}>
             You may cancel your subscription at any time. Cancellation takes effect at the end of the current billing period. Downgrading to the free plan may restrict access to features and properties beyond the free plan limits.
@@ -127,10 +127,10 @@ export default function TermsPage() {
 
         <Section title="4. SMS Messaging — Agent Lead Alerts">
           <p style={{ margin: '0 0 14px' }}>
-            <strong style={{ color: C.text }}>Program name:</strong> theQRealtor SMS Lead Alerts
+            <strong style={{ color: C.text }}>Program name:</strong> theqrealtor SMS Lead Alerts
           </p>
           <p style={{ margin: '0 0 12px' }}>
-            By providing a mobile phone number and enabling SMS Lead Alerts in your account Settings, you consent to receive automated text messages from theQRealtor notifying you of new buyer leads. These messages are sent when a buyer scans one of your property QR codes and submits their contact information.
+            By providing a mobile phone number and enabling SMS Lead Alerts in your account Settings, you consent to receive automated text messages from theqrealtor notifying you of new buyer leads. These messages are sent when a buyer scans one of your property QR codes and submits their contact information.
           </p>
           <p style={{ margin: '0 0 12px' }}>
             <strong style={{ color: C.text }}>Message frequency:</strong> Message frequency varies based on buyer activity. Agents typically receive 1–10 messages per day during active listing periods. No messages are sent when there is no buyer activity.
@@ -139,7 +139,7 @@ export default function TermsPage() {
             <strong style={{ color: C.text }}>Msg &amp; data rates may apply</strong> depending on your mobile carrier plan.
           </p>
           <p style={{ margin: '0 0 12px' }}>
-            <strong style={{ color: C.text }}>To opt out:</strong> Reply <strong style={{ color: C.text }}>STOP</strong> to any message from theQRealtor to unsubscribe at any time. You will receive a confirmation that you have been unsubscribed. You may also disable SMS alerts in your account Settings at any time.
+            <strong style={{ color: C.text }}>To opt out:</strong> Reply <strong style={{ color: C.text }}>STOP</strong> to any message from theqrealtor to unsubscribe at any time. You will receive a confirmation that you have been unsubscribed. You may also disable SMS alerts in your account Settings at any time.
           </p>
           <p style={{ margin: '0 0 12px' }}>
             <strong style={{ color: C.text }}>For help:</strong> Reply <strong style={{ color: C.text }}>HELP</strong> to any message, or contact us at{' '}
@@ -153,7 +153,7 @@ export default function TermsPage() {
 
         <Section title="5. SMS Messaging — Buyer Data">
           <p style={{ margin: 0 }}>
-            When a buyer scans a QR code and submits the lead form, they are providing their contact information voluntarily to be shared with the listing agent. The buyer's submission constitutes consent to be contacted by the agent regarding the property. theQRealtor does not initiate SMS contact with buyers; only the agent receives SMS notifications.
+            When a buyer scans a QR code and submits the lead form, they are providing their contact information voluntarily to be shared with the listing agent. The buyer's submission constitutes consent to be contacted by the agent regarding the property. theqrealtor does not initiate SMS contact with buyers; only the agent receives SMS notifications.
           </p>
         </Section>
 
@@ -177,7 +177,7 @@ export default function TermsPage() {
 
         <Section title="7. Intellectual Property">
           <p style={{ margin: 0 }}>
-            The Service, including its design, code, and content, is owned by theQRealtor and protected by applicable intellectual property laws. Your subscription grants you a limited, non-exclusive, non-transferable license to use the Service. You retain ownership of the data you upload or collect through the Service (e.g., property photos, lead information).
+            The Service, including its design, code, and content, is owned by theqrealtor and protected by applicable intellectual property laws. Your subscription grants you a limited, non-exclusive, non-transferable license to use the Service. You retain ownership of the data you upload or collect through the Service (e.g., property photos, lead information).
           </p>
         </Section>
 
@@ -195,7 +195,7 @@ export default function TermsPage() {
 
         <Section title="10. Indemnification">
           <p style={{ margin: 0 }}>
-            You agree to indemnify and hold harmless theQRealtor and its officers, directors, employees, and agents from any claims, damages, losses, or expenses (including reasonable attorney's fees) arising from your use of the Service, your violation of these Terms, or your violation of any third-party rights.
+            You agree to indemnify and hold harmless theqrealtor and its officers, directors, employees, and agents from any claims, damages, losses, or expenses (including reasonable attorney's fees) arising from your use of the Service, your violation of these Terms, or your violation of any third-party rights.
           </p>
         </Section>
 

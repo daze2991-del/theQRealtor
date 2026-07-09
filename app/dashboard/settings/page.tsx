@@ -328,7 +328,7 @@ export default function SettingsPage() {
               {(smsEnabled || !!phone.trim()) && (
                 <p style={{ margin: '14px 0 0', fontSize: 11, color: C.muted, lineHeight: 1.65 }}>
                   By enabling SMS alerts, you consent to receive automated lead notification text messages
-                  from theQRealtor at the number provided. Message frequency varies. Msg &amp; Data rates
+                  from theqrealtor at the number provided. Message frequency varies. Msg &amp; Data rates
                   may apply. Reply STOP to unsubscribe at any time or HELP for help. View our{' '}
                   <a href="https://theqrealtor.com/privacy" target="_blank" rel="noopener noreferrer" style={{ color: C.purpleL, textDecoration: 'none' }}>Privacy Policy</a>
                   {' '}and{' '}
@@ -405,7 +405,7 @@ export default function SettingsPage() {
             </Section>
 
             {/* Appearance */}
-            <Section title="Appearance" description="Choose how theQRealtor looks to you.">
+            <Section title="Appearance" description="Choose how theqrealtor looks to you.">
               <div style={{ display: 'flex', gap: 8 }}>
                 {(['dark', 'light', 'system'] as const).map(t => (
                   <button key={t} onClick={() => handleTheme(t)} style={themeBtn(t, t)}>

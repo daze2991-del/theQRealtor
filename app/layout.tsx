@@ -4,7 +4,7 @@ import ServiceWorkerRegistrar from '../components/ServiceWorkerRegistrar'
 import InstallPrompt from '../components/InstallPrompt'
 
 export const metadata: Metadata = {
-  title: 'theQRealtor',
+  title: 'theqrealtor',
   description: 'QR sign tracking and lead capture for real estate agents.',
   manifest: '/manifest.webmanifest',
   icons: {
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'theQRealtor',
+    title: 'theqrealtor',
   },
 }
 

@@ -562,7 +562,7 @@ export default function SellerReportPage() {
             borderRadius: 20, padding: '5px 13px',
           }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#4ade80', boxShadow: '0 0 0 3px rgba(74,222,128,0.25)' }} />
-            Powered by theQRealtor · Live data
+            Powered by theqrealtor · Live data
           </span>
           <span style={{ fontSize: 12, color: C.muted }}>
             Last updated {now.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
@@ -863,7 +863,7 @@ export default function SellerReportPage() {
               </div>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{agentName}</div>
-                <div style={{ fontSize: 11, color: C.muted }}>Listing Agent · theQRealtor</div>
+                <div style={{ fontSize: 11, color: C.muted }}>Listing Agent · theqrealtor</div>
               </div>
             </div>
           </div>
@@ -941,13 +941,13 @@ export default function SellerReportPage() {
             the<span style={{ color: C.purpleL }}>QR</span>ealtor.
           </div>
           <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.65 }}>
-            Data collected via theQRealtor QR tracking — live, verifiable, tamper-proof.
+            Data collected via theqrealtor QR tracking — live, verifiable, tamper-proof.
           </div>
           <div style={{ fontSize: 12, color: C.sub, marginTop: 10, fontWeight: 600 }}>
             {agentName}{agentPhone ? ` · ${agentPhone}` : ''}
           </div>
           <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
-            © 2026 theQRealtor. All rights reserved.
+            © 2026 theqrealtor. All rights reserved.
           </div>
           <div style={{ fontSize: 11, color: C.muted, marginTop: 12, fontStyle: 'italic', maxWidth: 560, margin: '12px auto 0' }}>
             Reflects buyer engagement activity only. Not a valuation, appraisal, or guarantee of sale.

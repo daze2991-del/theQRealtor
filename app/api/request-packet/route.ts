@@ -51,7 +51,7 @@ export async function POST(request: Request) {
       await twilio(accountSid, authToken).messages.create({
         to:   property.agent_phone,
         from,
-        body: `📄 Packet request from ${senderLine} for ${property.address}. They want the flyer and disclosures. Log in to theQRealtor to view. Reply STOP to opt out.`,
+        body: `📄 Packet request from ${senderLine} for ${property.address}. They want the flyer and disclosures. Log in to theqrealtor to view. Reply STOP to opt out.`,
       })
     } catch (smsErr: any) {
       console.error('[request-packet] SMS error:', smsErr?.message)

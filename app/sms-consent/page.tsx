@@ -2,8 +2,8 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'SMS Opt-In Consent — theQRealtor',
-  description: 'How real estate agents opt in to receive SMS lead alerts from theQRealtor. Provided for carrier and campaign registry verification.',
+  title: 'SMS Opt-In Consent — theqrealtor',
+  description: 'How real estate agents opt in to receive SMS lead alerts from theqrealtor. Provided for carrier and campaign registry verification.',
 }
 
 const L = {
@@ -64,7 +64,7 @@ export default function SmsConsentPage() {
         {/* 1. Header */}
         <div style={{ marginBottom: 48 }}>
           <h1 style={{ fontSize: 34, fontWeight: 900, color: L.text, margin: '0 0 12px', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
-            SMS Opt-In Consent — theQRealtor
+            SMS Opt-In Consent — theqrealtor
           </h1>
           <p style={{ fontSize: 17, color: L.sub, margin: '0 0 12px', lineHeight: 1.65, fontWeight: 500 }}>
             How real estate agents opt in to receive SMS lead alerts
@@ -79,7 +79,7 @@ export default function SmsConsentPage() {
           <h2 style={{ fontSize: 17, fontWeight: 700, color: L.text, margin: '0 0 24px' }}>How Opt-In Works</h2>
 
           <Step n={1}>
-            Agent creates a theQRealtor account at{' '}
+            Agent creates a theqrealtor account at{' '}
             <a href="https://theqrealtor.com" style={{ color: L.purple, textDecoration: 'none', fontWeight: 600 }}>theqrealtor.com</a>.
           </Step>
 
@@ -119,7 +119,7 @@ export default function SmsConsentPage() {
             color: L.sub,
             lineHeight: 1.75,
           }}>
-            By enabling SMS Lead Alerts, you agree to receive text message notifications from theQRealtor
+            By enabling SMS Lead Alerts, you agree to receive text message notifications from theqrealtor
             when new buyer leads are captured for your listings. Message frequency varies based on lead
             activity. Msg &amp; Data rates may apply. Reply STOP at any time to opt out. Reply HELP for help.
           </div>
@@ -129,7 +129,7 @@ export default function SmsConsentPage() {
         <div style={{ background: L.card, border: `1px solid ${L.border}`, borderRadius: 16, padding: '24px 28px', marginBottom: 28 }}>
           <h2 style={{ fontSize: 17, fontWeight: 700, color: L.text, margin: '0 0 8px' }}>Opt-In Flow Screenshots</h2>
           <p style={{ fontSize: 14, color: L.muted, margin: '0 0 28px', lineHeight: 1.6 }}>
-            The following screenshots show the actual opt-in interface within the theQRealtor dashboard.
+            The following screenshots show the actual opt-in interface within the theqrealtor dashboard.
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24, alignItems: 'center' }}>
@@ -161,7 +161,7 @@ export default function SmsConsentPage() {
             lineHeight: 1.65,
             maxWidth: '80%',
           }}>
-            theQRealtor Alert: New buyer lead for 123 Main St. Name: Mike Davis | Phone: (310) 555-0789 |
+            theqrealtor Alert: New buyer lead for 123 Main St. Name: Mike Davis | Phone: (310) 555-0789 |
             Email: mike@email.com. Log in to your dashboard to view full lead details.
             Reply STOP to opt out.
           </div>

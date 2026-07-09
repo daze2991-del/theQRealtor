@@ -68,7 +68,7 @@ export default function InstallPrompt() {
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontWeight: 700, fontSize: 15, color: '#F0F2F5', marginBottom: 4 }}>
-          Add theQRealtor to Home Screen
+          Add theqrealtor to Home Screen
         </div>
 
         {mode === 'ios' ? (

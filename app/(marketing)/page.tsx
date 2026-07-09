@@ -81,22 +81,52 @@ function DashboardMockup() {
         </div>
         <div className="flex flex-col gap-4">
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-1">
               <span className="text-sm font-medium text-gray-900">Sarah M.</span>
-              <span className="text-[11px] font-semibold text-red-600 bg-red-50 rounded-full px-2 py-0.5">
-                Hot
-              </span>
+              <span className="text-[11px] font-semibold text-red-600 bg-red-50 rounded-full px-2 py-0.5">Hot</span>
             </div>
-            <ScoreBar pct={85} delay={0.8} />
+            <div className="text-[11px] text-gray-400 mb-2">4444 Culver Blvs</div>
+            <ScoreBar pct={92} delay={0.8} />
           </div>
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-1">
               <span className="text-sm font-medium text-gray-900">James T.</span>
-              <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 rounded-full px-2 py-0.5">
-                Warm
-              </span>
+              <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 rounded-full px-2 py-0.5">Warm</span>
             </div>
-            <ScoreBar pct={55} delay={0.8} />
+            <div className="text-[11px] text-gray-400 mb-2">4444 Culver Blvs</div>
+            <ScoreBar pct={61} delay={0.9} />
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm font-medium text-gray-900">Marcus R.</span>
+              <span className="text-[11px] font-semibold text-red-600 bg-red-50 rounded-full px-2 py-0.5">Hot</span>
+            </div>
+            <div className="text-[11px] text-gray-400 mb-2">812 Elm St</div>
+            <ScoreBar pct={88} delay={1.0} />
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm font-medium text-gray-900">Priya K.</span>
+              <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 rounded-full px-2 py-0.5">Warm</span>
+            </div>
+            <div className="text-[11px] text-gray-400 mb-2">812 Elm St</div>
+            <ScoreBar pct={54} delay={1.1} />
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm font-medium text-gray-900">David L.</span>
+              <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 rounded-full px-2 py-0.5">Cold</span>
+            </div>
+            <div className="text-[11px] text-gray-400 mb-2">4444 Culver Blvs</div>
+            <ScoreBar pct={23} delay={1.2} />
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm font-medium text-gray-900">Ashley W.</span>
+              <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 rounded-full px-2 py-0.5">Warm</span>
+            </div>
+            <div className="text-[11px] text-gray-400 mb-2">301 Ocean Ave</div>
+            <ScoreBar pct={67} delay={1.3} />
           </div>
         </div>
       </div>

@@ -217,9 +217,9 @@ function Sidebar({ email, plan, propertyCount, qrCount, newLeadCount, isAdmin, o
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
         <span style={{ fontFamily: "-apple-system, 'Helvetica Neue', Arial, sans-serif", letterSpacing: '-0.5px' }}>
-          <span style={{ fontSize: '18px', fontWeight: 300, color: '#1a1a1a' }}>the</span>
+          <span style={{ fontSize: '18px', fontWeight: 300, color: '#ffffff' }}>the</span>
           <span style={{ fontSize: '18px', fontWeight: 700, color: '#534AB7' }}>qr</span>
-          <span style={{ fontSize: '18px', fontWeight: 500, color: '#1a1a1a' }}>ealtor</span>
+          <span style={{ fontSize: '18px', fontWeight: 500, color: '#ffffff' }}>ealtor</span>
         </span>
         {onClose && (
           <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '2px 4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
@@ -413,9 +413,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="db-mobile-header" style={{ position: 'sticky', top: 0, zIndex: 20, height: 52, background: C.sidebar, borderBottom: `1px solid ${C.border}`, alignItems: 'center', gap: 12, padding: '0 16px', flexShrink: 0 }}>
             <button onClick={() => setMobileOpen(true)} aria-label="Open menu" style={{ background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, width: 34, height: 34, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.text, fontSize: 15, cursor: 'pointer' }}>☰</button>
             <span style={{ fontFamily: "-apple-system, 'Helvetica Neue', Arial, sans-serif", letterSpacing: '-0.5px' }}>
-              <span style={{ fontSize: '18px', fontWeight: 300, color: '#1a1a1a' }}>the</span>
+              <span style={{ fontSize: '18px', fontWeight: 300, color: '#ffffff' }}>the</span>
               <span style={{ fontSize: '18px', fontWeight: 700, color: '#534AB7' }}>qr</span>
-              <span style={{ fontSize: '18px', fontWeight: 500, color: '#1a1a1a' }}>ealtor</span>
+              <span style={{ fontSize: '18px', fontWeight: 500, color: '#ffffff' }}>ealtor</span>
             </span>
           </div>
           {(() => {

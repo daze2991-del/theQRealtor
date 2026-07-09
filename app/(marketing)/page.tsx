@@ -386,23 +386,23 @@ function Features() {
   const features = [
     {
       icon: QrCode,
-      title: 'One sign. Every opportunity.',
-      body: 'Print once, place it on your sign, and it captures buyer engagement for as long as your listing is live.',
+      title: 'One sign. Every listing.',
+      body: 'Print once and place it on your sign. When the listing sells, reassign it to your next property. Reuse the same QR code across every listing.',
     },
     {
       icon: Flame,
-      title: "Know who's most engaged.",
-      body: 'Cold, warm, or hot — scored by time on page, photos viewed, and return visits.',
+      title: "Know who's worth calling.",
+      body: 'Hot, warm, or cold — scored by time on page, photos viewed, and return visits. Call the right buyer first, every time.',
     },
     {
       icon: MessageSquare,
-      title: 'Know exactly when to follow up.',
-      body: 'Get an instant SMS alert when a buyer submits an inquiry — with their intent score included.',
+      title: 'Never miss the moment.',
+      body: 'Instant SMS when a buyer inquires — with their engagement history included. You always know context before you call.',
     },
     {
       icon: Lock,
-      title: 'Your data. Never shared.',
-      body: 'Every inquiry is stored in your dashboard, under your control — yours to keep and export anytime.',
+      title: 'Your data. Full stop.',
+      body: 'Every inquiry lives in your dashboard. Export anytime. It follows you.',
     },
   ]
 

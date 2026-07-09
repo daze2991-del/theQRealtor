@@ -1,5 +1,6 @@
 import { ImageResponse } from 'next/og'
 import { NextRequest } from 'next/server'
+import { ReactElement } from 'react'
 
 export const runtime = 'edge'
 
@@ -24,7 +25,7 @@ export function GET(request: NextRequest) {
           qr
         </span>
       </div>
-    ),
+    ) as ReactElement,
     { width: size, height: size },
   )
 }

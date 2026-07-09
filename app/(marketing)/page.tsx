@@ -160,9 +160,9 @@ function Hero() {
           className="text-center text-4xl sm:text-5xl font-bold tracking-tight text-gray-900 leading-tight mb-5"
         >
           <style>{`@keyframes purple-shift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}`}</style>
-          Know when buyers are interested —{' '}
+          Buyer interest doesn&apos;t disappear.{' '}
           <span style={{ color: '#534AB7' }}>
-            not just when they call.
+            It just goes unseen.
           </span>
         </motion.h1>
 
@@ -170,7 +170,7 @@ function Hero() {
           variants={fadeUp}
           className="text-center text-lg text-gray-500 leading-relaxed max-w-xl mx-auto mb-8"
         >
-          Place a QR code on your yard signs. Buyers scan and explore the property. When they choose to reach out, you get an instant text alert — and their contact details come directly to you.
+          Buyers scan your yard sign to explore photos, pricing, and property details — no app required. As they browse, you gain real-time visibility into their engagement. When they&apos;re ready to reach out, their inquiry comes directly to you.
         </motion.p>
 
         <motion.div variants={fadeUp} className="flex items-center justify-center gap-3 mb-12">
@@ -198,9 +198,9 @@ function Hero() {
 
 function StatsBar() {
   const stats = [
-    { value: '100%', label: 'Your leads, no sharing' },
-    { value: '< 30s', label: 'SMS alert on scan' },
-    { value: '10', label: 'QR codes in beta' },
+    { value: 'No app required', label: 'Buyers browse instantly' },
+    { value: '100%', label: 'Your inquiries, never shared' },
+    { value: 'Real-time', label: 'Engagement as it happens' },
   ]
   return (
     <section className="border-b border-solid border-gray-100">
@@ -225,16 +225,16 @@ function StatsBar() {
 function HowItWorks() {
   const steps = [
     {
-      title: 'Place your QR sign',
-      body: 'Print your unique QR code and put it on your yard sign or open house A-frame.',
+      title: 'Place your sign',
+      body: 'Print your unique QR code and place it on your yard sign or open house A-frame. One sign. Every opportunity.',
     },
     {
-      title: 'Buyer scans, you learn',
-      body: 'Buyers land on your property page. Their behavior — photos viewed, time on page, return visits — is scored.',
+      title: 'Buyers engage, you learn',
+      body: 'Buyers scan to instantly view photos, pricing, and property details. Their behavior — time on page, photos viewed, return visits — is scored in real time.',
     },
     {
-      title: 'Call the right buyer first',
-      body: "You get an instant SMS alert with the lead’s score. Your dashboard shows you exactly which lead to call first.",
+      title: 'Follow up at the right moment',
+      body: 'When a buyer requests a showing or asks a question, you get an instant SMS alert and their contact details go straight to your dashboard.',
     },
   ]
 
@@ -252,7 +252,7 @@ function HowItWorks() {
             How it works
           </div>
           <h2 className="text-3xl font-bold tracking-tight text-gray-900">
-            Three steps to buyer intent data
+            How buyer interest becomes a conversation.
           </h2>
         </motion.div>
 
@@ -305,23 +305,23 @@ function Features() {
   const features = [
     {
       icon: QrCode,
-      title: 'Permanent QR codes',
-      body: 'A dedicated QR code for every listing. Print it once, place it on your sign, and it keeps capturing buyers for as long as your listing is live.',
+      title: 'One sign. Every opportunity.',
+      body: 'Print once, place it on your sign, and it captures buyer engagement for as long as your listing is live.',
     },
     {
       icon: Flame,
-      title: 'Behavior-based scoring',
+      title: "Know who's most engaged.",
       body: 'Cold, warm, or hot — scored by time on page, photos viewed, and return visits.',
     },
     {
       icon: MessageSquare,
-      title: 'Instant SMS alerts',
-      body: 'Text notification the moment a buyer scans your sign, with their lead score included.',
+      title: 'Know exactly when to follow up.',
+      body: 'Get an instant SMS alert when a buyer submits an inquiry — with their intent score included.',
     },
     {
       icon: Lock,
-      title: 'Your leads, your data',
-      body: 'Every buyer you capture is stored in your dashboard, under your control — yours to keep and export anytime.',
+      title: 'Your data. Never shared.',
+      body: 'Every inquiry is stored in your dashboard, under your control — yours to keep and export anytime.',
     },
   ]
 
@@ -444,15 +444,15 @@ function BuyerExperience() {
   const captions = [
     {
       icon: Bell,
-      text: 'You get an instant SMS alert the moment they scan — with their lead score',
+      text: 'The moment a buyer submits an inquiry, you get an instant SMS alert — with their engagement score.',
     },
     {
       icon: Lock,
-      text: 'When a buyer requests a showing or asks a question, their contact details go straight to your dashboard — captured under your account, owned by you.',
+      text: 'Their contact details go straight to your dashboard — captured under your account, owned by you.',
     },
     {
       icon: BarChart2,
-      text: 'Every photo viewed, every return visit, every minute on page — scored and waiting for you',
+      text: 'Every photo viewed, every return visit, every minute on page — scored and waiting for you.',
     },
   ]
 
@@ -470,7 +470,7 @@ function BuyerExperience() {
             How buyers experience it
           </div>
           <h2 className="text-3xl font-bold tracking-tight text-gray-900">
-            From sidewalk to your inbox in seconds
+            What buyers see. What you see.
           </h2>
         </motion.div>
 
@@ -508,6 +508,30 @@ function BuyerExperience() {
   )
 }
 
+function CommonQuestion() {
+  return (
+    <section className="border-b border-solid border-gray-100">
+      <motion.div
+        className="max-w-3xl mx-auto py-16 px-8 text-center"
+        initial={{ opacity: 0, y: 18 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={viewportOnce}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+      >
+        <div className="text-xs font-semibold uppercase tracking-widest text-[#534AB7] mb-3">
+          A common question
+        </div>
+        <h2 className="text-3xl font-bold tracking-tight text-gray-900 mb-4">
+          Do buyers actually scan QR codes?
+        </h2>
+        <p className="text-gray-500 leading-relaxed max-w-xl mx-auto">
+          Buyers already pull out their phones at yard signs. TheQRealtor gives them an instant reason to scan — photos, pricing, and property details load immediately. No app to download. No form to fill out just to browse. The experience is fast enough that curiosity becomes engagement before they walk away.
+        </p>
+      </motion.div>
+    </section>
+  )
+}
+
 function FinalCta() {
   return (
     <section className="border-b border-solid border-gray-100">
@@ -519,11 +543,10 @@ function FinalCta() {
         transition={{ duration: 0.5, ease: 'easeOut' }}
       >
         <h2 className="text-3xl font-bold tracking-tight text-gray-900 mb-4">
-          Ready to own your leads?
+          Start seeing the buyer interest you&apos;ve been missing.
         </h2>
         <p className="text-gray-500 leading-relaxed max-w-md mx-auto mb-8">
-          Join the free private beta. No credit card required. Just
-          your buyers, your data, your dashboard.
+          Join the free private beta. No credit card required. Up to 10 QR codes. Your inquiries, always yours.
         </p>
         <Link
           href="/auth?tab=signup"
@@ -606,6 +629,7 @@ export default function MarketingPage() {
         <RevealSection><HowItWorks /></RevealSection>
         <RevealSection><Features /></RevealSection>
         <RevealSection><BuyerExperience /></RevealSection>
+        <RevealSection><CommonQuestion /></RevealSection>
         <RevealSection><FinalCta /></RevealSection>
       </main>
       <Footer />

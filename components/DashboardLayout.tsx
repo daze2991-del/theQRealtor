@@ -48,6 +48,7 @@ function NavIcon({ name }: { name: string }) {
   if (name === 'dashboard')  return <svg {...p}><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
   if (name === 'properties') return <svg {...p}><path d="M3 10.5L12 3l9 7.5V21a1 1 0 01-1 1H4a1 1 0 01-1-1V10.5z"/><path d="M9 22V13h6v9"/></svg>
   if (name === 'qrcodes')    return <svg {...p}><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h2v2h-2zm4 0h2v2h-2zm-4 4h2v2h-2zm4 0h2v2h-2zm-4 4h2"/><path d="M20 18h2v4h-2"/></svg>
+  if (name === 'signs')      return <svg {...p}><rect x="4" y="4" width="16" height="10" rx="1.5"/><line x1="12" y1="14" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/></svg>
   if (name === 'leads')      return <svg {...p}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
   if (name === 'analytics')  return <svg {...p}><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="3" y1="20" x2="21" y2="20"/></svg>
   if (name === 'billing')    return <svg {...p}><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
@@ -62,6 +63,7 @@ const WORKSPACE_NAV: Array<{ label: string; icon: string; href: string; exact?: 
   { label: 'Properties',    icon: 'properties', href: '/dashboard/properties' },
   { label: 'Seller Reports',icon: 'reports',    href: '/dashboard/seller-reports' },
   { label: 'QR Codes',      icon: 'qrcodes',    href: '/dashboard/qr-codes' },
+  { label: 'Signs',         icon: 'signs',      href: '/dashboard/signs' },
   { label: 'Leads',         icon: 'leads',      href: '/dashboard/leads',          hasBadge: true },
   { label: 'Analytics',     icon: 'analytics',  href: '/dashboard/analytics' },
 ]

@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
   }
 
-  const { propertyId, qrId, name, phone, email, motivation, questionText, contactPreference, scanEventId, engagement } =
+  const { propertyId, qrId, signId, name, phone, email, motivation, questionText, contactPreference, scanEventId, engagement } =
     body as Record<string, unknown>
 
   const ctaMotivation = motivation as string | undefined
@@ -116,6 +116,7 @@ export async function POST(request: Request) {
   const { data: insertedLead, error: insertError } = await supabase.from('leads').insert({
     property_id:        propertyId,
     qr_id:              (qrId as string) || null,
+    sign_id:            (signId as string) || null,
     name:               (name as string).trim(),
     phone:              trimmedPhone,
     email:              trimmedEmail,

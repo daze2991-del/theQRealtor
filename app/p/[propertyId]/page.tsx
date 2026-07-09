@@ -65,8 +65,16 @@ const isValidEmail = (v: string) => EMAIL_RE.test(v.trim())
 export default function PropertyPage() {
   const params = useParams()
   const searchParams = useSearchParams()
-  const propertyId = params.propertyId as string
+  // The URL id is either a property id (legacy QR codes / shared links) or a
+  // sign id (reusable-sign QR codes going forward). Both are UUIDs, so the id
+  // is resolved server-side first — signs and sign_assignments are owner-only
+  // under RLS and unreadable from the anon client.
+  const urlId = params.propertyId as string
   const qrId = searchParams.get('qr')
+
+  const [propertyId, setPropertyId] = useState<string | null>(null)
+  const [signId, setSignId]         = useState<string | null>(null)
+  const [signUnassigned, setSignUnassigned] = useState(false)
 
   const [property,  setProperty]  = useState<any>(null)
   const [photos,    setPhotos]    = useState<any[]>([])
@@ -105,6 +113,40 @@ export default function PropertyPage() {
   const [packetSubmitting, setPacketSubmitting] = useState(false)
   const [packetSubmitted,  setPacketSubmitted]  = useState(false)
   const [packetError,      setPacketError]      = useState('')
+
+  // Resolve the URL id: sign with an active assignment → its property; sign
+  // without one → branded "not assigned" state; anything else → treat the id
+  // as a property id (existing behavior, unchanged).
+  useEffect(() => {
+    if (!urlId) return
+    let cancelled = false
+    const resolve = async () => {
+      try {
+        const res = await fetch('/api/signs/resolve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: urlId }),
+        })
+        if (res.ok) {
+          const data = await res.json() as { sign: boolean; propertyId?: string | null }
+          if (cancelled) return
+          if (data.sign) {
+            if (data.propertyId) {
+              setSignId(urlId)
+              setPropertyId(data.propertyId)
+            } else {
+              setSignUnassigned(true)
+              setLoading(false)
+            }
+            return
+          }
+        }
+      } catch { /* resolution unavailable — fall through to property routing */ }
+      if (!cancelled) setPropertyId(urlId)
+    }
+    resolve()
+    return () => { cancelled = true }
+  }, [urlId])
 
   // Load property
   useEffect(() => {
@@ -146,20 +188,23 @@ export default function PropertyPage() {
       localStorage.setItem(key, JSON.stringify({ firstVisit: Date.now(), count: 1 }))
     }
 
-    // Create a scan_event for every page visit; only include qr_id when QR-originated
+    // Create a scan_event for every page visit; only include qr_id when
+    // QR-originated. Sign-routed visits stamp BOTH sign_id and property_id on
+    // insert — property_id is a write-once snapshot and is never updated after.
     const scanRow: Record<string, unknown> = {
       property_id:            propertyId,
       return_visit:           visitCount.current > 1,
       days_since_first_visit: daysSinceFirst.current,
     }
     if (qrId) scanRow.qr_id = qrId
+    if (signId) scanRow.sign_id = signId
     createBrowserSupabase()
       .from('scan_events')
       .insert([scanRow])
       .select('id')
       .single()
       .then(({ data }) => { if (data?.id) scanEventId.current = data.id })
-  }, [propertyId, qrId])
+  }, [propertyId, qrId, signId])
 
   // Flush engagement data on page-unload (non-converting visits)
   useEffect(() => {
@@ -226,6 +271,7 @@ export default function PropertyPage() {
         body: JSON.stringify({
           propertyId,
           qrId:       qrId || null,
+          signId:     signId || null,
           name:              name.trim(),
           phone:             phone.trim() || undefined,
           email:             email.trim() || undefined,
@@ -285,6 +331,31 @@ export default function PropertyPage() {
       <div style={{ width: 32, height: 32, border: `2px solid ${C.purple}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
+  )
+
+  // Sign scanned before the agent assigned it to a listing — a normal state
+  // (agents scan-test fresh signs), not an error.
+  if (signUnassigned) return (
+    <main style={{ minHeight: '100vh', background: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: "-apple-system, 'Helvetica Neue', Arial, sans-serif" }}>
+      <div style={{ maxWidth: 440, width: '100%', textAlign: 'center' }}>
+        <div style={{ marginBottom: 28 }}>
+          <span style={{ fontFamily: "-apple-system, 'Helvetica Neue', Arial, sans-serif", letterSpacing: '-0.5px' }}>
+            <span style={{ fontSize: '18px', fontWeight: 300, color: '#1a1a1a' }}>the</span>
+            <span style={{ fontSize: '18px', fontWeight: 700, color: '#534AB7' }}>qr</span>
+            <span style={{ fontSize: '18px', fontWeight: 500, color: '#1a1a1a' }}>ealtor</span>
+          </span>
+        </div>
+        <div style={{ background: '#EEEDFE', borderRadius: 20, padding: '44px 28px' }}>
+          <div style={{ fontSize: 40, marginBottom: 16 }}>🪧</div>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: '#1a1a1a', margin: '0 0 10px', lineHeight: 1.3 }}>
+            This sign hasn&apos;t been assigned to a listing yet
+          </h1>
+          <p style={{ fontSize: 14, color: '#4B5563', margin: 0, lineHeight: 1.6 }}>
+            Check back soon — once the agent connects this sign to a listing, you&apos;ll see the property here.
+          </p>
+        </div>
+      </div>
+    </main>
   )
 
   if (!property) return (

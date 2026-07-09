@@ -241,6 +241,68 @@ function StatsBar() {
   )
 }
 
+function TwoMoments() {
+  return (
+    <section className="border-b border-solid border-gray-100">
+      <div className="max-w-3xl mx-auto py-16 px-8">
+        <motion.div
+          initial={{ opacity: 0, y: 18 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={viewportOnce}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+          className="text-center mb-10"
+        >
+          <div className="text-xs font-semibold uppercase tracking-widest text-[#534AB7] mb-3">
+            The difference
+          </div>
+          <h2 className="text-3xl font-bold tracking-tight text-gray-900">
+            Two moments. Both yours.
+          </h2>
+        </motion.div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+          <motion.div
+            className="bg-gray-50 rounded-xl p-6"
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={viewportOnce}
+            transition={{ duration: 0.5, ease: 'easeOut', delay: 0 }}
+          >
+            <div className="text-sm font-semibold text-gray-900 mb-3">Before they reach out</div>
+            <p className="text-sm text-gray-500 leading-relaxed">
+              Every scan, every photo viewed, every return visit builds a silent intent profile. You see engagement in real time. No name. No contact. Just signal.
+            </p>
+          </motion.div>
+
+          <motion.div
+            className="rounded-xl p-6"
+            style={{ background: '#534AB7' }}
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={viewportOnce}
+            transition={{ duration: 0.5, ease: 'easeOut', delay: 0.15 }}
+          >
+            <div className="text-sm font-semibold text-white mb-3">When they decide</div>
+            <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.8)' }}>
+              The moment a buyer requests a showing or asks a question, their details land in your dashboard. No marketplace. No middleman. Directly to you.
+            </p>
+          </motion.div>
+        </div>
+
+        <motion.p
+          className="text-center text-sm text-gray-400"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={viewportOnce}
+          transition={{ duration: 0.5, ease: 'easeOut', delay: 0.3 }}
+        >
+          Most agents only hear from buyers who call. You see every buyer who was ever interested.
+        </motion.p>
+      </div>
+    </section>
+  )
+}
+
 function HowItWorks() {
   const steps = [
     {
@@ -645,6 +707,7 @@ export default function MarketingPage() {
       <main>
         <Hero />
         <RevealSection><StatsBar /></RevealSection>
+        <RevealSection><TwoMoments /></RevealSection>
         <RevealSection><HowItWorks /></RevealSection>
         <RevealSection><Features /></RevealSection>
         <RevealSection><BuyerExperience /></RevealSection>

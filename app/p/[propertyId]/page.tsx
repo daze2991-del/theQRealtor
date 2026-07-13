@@ -445,7 +445,7 @@ export default function PropertyPage() {
 
         {/* ── Property info ── */}
         <div style={{ padding: '22px 18px 0' }}>
-          {price && <div style={{ color: C.purpleL, fontSize: 28, fontWeight: 900, marginBottom: 6, letterSpacing: '-0.02em' }}>{price}</div>}
+          {price && <div style={{ color: '#ffffff', fontSize: 28, fontWeight: 900, marginBottom: 6, letterSpacing: '-0.02em' }}>{price}</div>}
           <h1 style={{ fontSize: 24, fontWeight: 900, margin: '0 0 4px', lineHeight: 1.15, color: C.text }}>{property.address}</h1>
           {location && <p style={{ color: C.muted, fontSize: 14, margin: '0 0 14px' }}>{location}</p>}
 
@@ -591,7 +591,7 @@ export default function PropertyPage() {
                         value={question}
                         onChange={e => setQuestion(e.target.value)}
                         rows={3}
-                        style={{ ...inp, resize: 'none', lineHeight: 1.55 }}
+                        style={{ ...inp, resize: 'none', lineHeight: 1.55, background: '#0F0A1A', color: C.text, WebkitAppearance: 'none' }}
                       />
                     </label>
                   )}

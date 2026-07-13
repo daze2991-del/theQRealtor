@@ -414,7 +414,7 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
               padding: '9px 12px', fontSize: 12, fontWeight: 600, textDecoration: 'none',
             }}
           >
-            Open Report
+            Open Seller Report
           </a>
 
           <button

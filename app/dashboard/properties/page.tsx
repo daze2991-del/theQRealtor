@@ -723,6 +723,8 @@ export default function PropertiesPage() {
   const [origin, setOrigin]               = useState('')
   const [search, setSearch]               = useState('')
   const [sortMode, setSortMode]           = useState<'recent' | 'leads' | 'active'>('recent')
+  const [deleteTarget, setDeleteTarget]   = useState<any | null>(null)
+  const [deleteModal, setDeleteModal]     = useState<'blocked' | 'confirm' | null>(null)
 
   useEffect(() => { setOrigin(window.location.origin) }, [])
 
@@ -796,8 +798,27 @@ export default function PropertiesPage() {
     }
   }
 
-  const deleteProperty = async (prop: any) => {
-    if (!confirm(`Delete "${prop.address}"?\n\nThis will permanently remove the property, its photos, leads, and all linked QR codes. This cannot be undone.`)) return
+  const handleDeleteClick = async (prop: any) => {
+    const supabase = createBrowserSupabase()
+    const { count: leadsCount } = await supabase
+      .from('leads').select('*', { count: 'exact', head: true }).eq('property_id', prop.id)
+    const { data: qrData } = await supabase.from('qrcodes').select('id').eq('property_id', prop.id)
+    const qrIds = (qrData || []).map((q: any) => q.id)
+    let scansCount = 0
+    if (qrIds.length > 0) {
+      const { count } = await supabase
+        .from('scan_events').select('*', { count: 'exact', head: true }).in('qr_id', qrIds)
+      scansCount = count || 0
+    }
+    setDeleteTarget(prop)
+    setDeleteModal((leadsCount || 0) > 0 || scansCount > 0 ? 'blocked' : 'confirm')
+  }
+
+  const deleteProperty = async () => {
+    if (!deleteTarget) return
+    const prop = deleteTarget
+    setDeleteModal(null)
+    setDeleteTarget(null)
     setDeletingId(prop.id)
     try {
       const supabase = createBrowserSupabase()
@@ -932,7 +953,7 @@ export default function PropertiesPage() {
                     hotLeadCount={hotLeadCounts[prop.id] || 0}
                     toggling={togglingId === prop.id}
                     onToggle={() => toggleActive(prop)}
-                    onDelete={() => deleteProperty(prop)}
+                    onDelete={() => handleDeleteClick(prop)}
                     onEdit={updated => setProperties(prev => prev.map(p => p.id === updated.id ? updated : p))}
                     deleting={deletingId === prop.id}
                     userId={userId}
@@ -944,6 +965,63 @@ export default function PropertiesPage() {
             )}
           </div>
         </>
+      )}
+      {/* Delete blocked modal — property has leads or scan data */}
+      {deleteModal === 'blocked' && deleteTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: '#1A1A24', border: '1px solid #252533', borderRadius: 16, padding: 28, maxWidth: 420, width: '100%' }}>
+            <div style={{ fontSize: 24, marginBottom: 12 }}>🔒</div>
+            <h2 style={{ fontSize: 17, fontWeight: 700, color: '#FFFFFF', margin: '0 0 12px' }}>Cannot Delete This Property</h2>
+            <p style={{ fontSize: 14, color: '#C4C4D4', lineHeight: 1.6, margin: '0 0 20px' }}>
+              This property has active data and cannot be deleted. To remove it from your active listings, use <strong style={{ color: '#FFFFFF' }}>Take Offline</strong> instead. Your leads and scan history will be preserved.
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => { toggleActive(deleteTarget); setDeleteModal(null); setDeleteTarget(null) }}
+                style={{ flex: 1, background: C.purple, color: '#fff', border: 'none', borderRadius: 9, padding: '10px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}
+              >
+                Take Offline
+              </button>
+              <button
+                onClick={() => { setDeleteModal(null); setDeleteTarget(null) }}
+                style={{ flex: 1, background: 'transparent', color: C.muted, border: `1px solid ${C.border}`, borderRadius: 9, padding: '10px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirm modal — property has no leads or scan data */}
+      {deleteModal === 'confirm' && deleteTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: '#1A1A24', border: '1px solid #252533', borderRadius: 16, padding: 28, maxWidth: 420, width: '100%' }}>
+            <div style={{ fontSize: 24, marginBottom: 12 }}>🗑️</div>
+            <h2 style={{ fontSize: 17, fontWeight: 700, color: '#FFFFFF', margin: '0 0 12px' }}>Delete &ldquo;{deleteTarget.address}&rdquo;?</h2>
+            <p style={{ fontSize: 14, color: '#C4C4D4', lineHeight: 1.6, margin: '0 0 10px' }}>
+              This will permanently delete the property and all associated QR codes. This cannot be undone.
+            </p>
+            <p style={{ fontSize: 13, color: '#EF4444', lineHeight: 1.5, margin: '0 0 20px' }}>
+              ⚠️ This cannot be undone. Use &lsquo;Take Offline&rsquo; to preserve your data.
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={deleteProperty}
+                disabled={!!deletingId}
+                style={{ flex: 1, background: '#EF4444', color: '#fff', border: 'none', borderRadius: 9, padding: '10px 16px', fontSize: 13, fontWeight: 700, cursor: deletingId ? 'not-allowed' : 'pointer', opacity: deletingId ? 0.7 : 1, fontFamily: 'sans-serif' }}
+              >
+                {deletingId ? 'Deleting…' : 'Delete Permanently'}
+              </button>
+              <button
+                onClick={() => { setDeleteModal(null); setDeleteTarget(null) }}
+                style={{ flex: 1, background: 'transparent', color: C.muted, border: `1px solid ${C.border}`, borderRadius: 9, padding: '10px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </DashboardLayout>
   )

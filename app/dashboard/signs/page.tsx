@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import DashboardLayout from '../../../components/DashboardLayout'
 
 const C = {
@@ -223,6 +223,8 @@ export default function SignsPage() {
   const router = useRouter()
   const routerRef = useRef(router)
   routerRef.current = router
+  const searchParams = useSearchParams()
+  const preselectedPropertyId = searchParams.get('propertyId')
 
   const [signs, setSigns]                       = useState<Sign[]>([])
   const [activeProperties, setActiveProperties] = useState<ActiveProperty[]>([])
@@ -233,6 +235,7 @@ export default function SignsPage() {
   const [createLabel, setCreateLabel] = useState('')
   const [creating, setCreating]       = useState(false)
   const [createError, setCreateError] = useState('')
+  const createLabelRef = useRef<HTMLInputElement>(null)
 
   const [assignSign, setAssignSign]                 = useState<Sign | null>(null)
   const [selectedPropertyId, setSelectedPropertyId] = useState('')
@@ -279,6 +282,20 @@ export default function SignsPage() {
     load()
     return () => { cancelled = true }
   }, [])
+
+  // When arriving with a preselected property: open assign modal if signs exist,
+  // otherwise focus the create input so the agent can make their first sign.
+  useEffect(() => {
+    if (loading || !preselectedPropertyId) return
+    if (signs.length > 0) {
+      const firstUnassigned = signs.find(s => !s.current_assignment) ?? signs[0]
+      setAssignSign(firstUnassigned)
+      setSelectedPropertyId(preselectedPropertyId)
+      setAssignError('')
+    } else {
+      createLabelRef.current?.focus()
+    }
+  }, [loading])
 
   const createSign = async () => {
     const label = createLabel.trim()
@@ -417,8 +434,9 @@ export default function SignsPage() {
             )}
 
             {/* Create sign */}
-            <div style={{ display: 'flex', gap: 10, marginBottom: createError ? 8 : 20 }}>
+            <div style={{ display: 'flex', gap: 10, marginBottom: createError ? 8 : preselectedPropertyId && signs.length === 0 ? 6 : 20 }}>
               <input
+                ref={createLabelRef}
                 type="text"
                 placeholder="Sign label, e.g. Front yard sign #1"
                 value={createLabel}
@@ -434,6 +452,11 @@ export default function SignsPage() {
                 {creating ? 'Creating…' : 'Create sign'}
               </button>
             </div>
+            {preselectedPropertyId && signs.length === 0 && !createError && (
+              <p style={{ fontSize: 12, color: C.purpleL, margin: '0 0 16px' }}>
+                Create your first sign to assign it to this listing.
+              </p>
+            )}
             {createError && <p style={{ color: '#F87171', fontSize: 12, margin: '0 0 20px' }}>{createError}</p>}
 
             {signs.length === 0 ? (
@@ -441,7 +464,9 @@ export default function SignsPage() {
                 <div style={{ fontSize: 48, marginBottom: 16 }}>🪧</div>
                 <div style={{ fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 8 }}>You haven&apos;t created any signs yet</div>
                 <p style={{ fontSize: 14, color: C.muted, maxWidth: 400, margin: '0 auto' }}>
-                  Create your first sign to get a permanent QR code URL that you can reuse across listings.
+                  {preselectedPropertyId
+                    ? 'Create your first sign below to get a permanent QR code for this listing.'
+                    : 'Create your first sign to get a permanent QR code URL that you can reuse across listings.'}
                 </p>
               </div>
             ) : (

@@ -418,14 +418,14 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
           </a>
 
           <button
-            onClick={openQrModal}
+            onClick={() => router.push(`/dashboard/signs?propertyId=${prop.id}`)}
             style={{
               flex: 1, background: 'transparent', color: '#94A3B8',
               border: '1px solid #1E2340', borderRadius: 8,
               padding: '9px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
             }}
           >
-            + Add QR
+            + Add Sign
           </button>
 
           <div ref={menuRef} style={{ position: 'relative', flexShrink: 0 }}>

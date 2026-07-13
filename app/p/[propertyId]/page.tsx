@@ -587,7 +587,7 @@ export default function PropertyPage() {
                   {intent === 'showing' && (
                     <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Notes <span style={{ opacity: 0.6 }}>(optional)</span></span>
-                      <div style={{ background: '#534AB7', border: `1px solid ${C.border}`, borderRadius: 10 }}>
+                      <div style={{ background: '#0F0A1A', border: `1px solid ${C.border}`, borderRadius: 10 }}>
                         <textarea
                           className="field"
                           placeholder="e.g. Preferred dates/times, questions for the agent…"
@@ -689,9 +689,9 @@ export default function PropertyPage() {
                     type="submit"
                     disabled={submitting}
                     style={{
-                      background: activeCta?.color ?? C.purple, color: '#fff', border: 'none',
+                      background: '#534AB7', color: '#ffffff', border: 'none',
                       borderRadius: 12, padding: '15px 18px', fontSize: 16, fontWeight: 900,
-                      cursor: submitting ? 'not-allowed' : 'pointer',
+                      width: '100%', cursor: submitting ? 'not-allowed' : 'pointer',
                       opacity: submitting ? 0.7 : 1, fontFamily: 'sans-serif', marginTop: 4,
                     }}
                   >

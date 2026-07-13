@@ -446,6 +446,7 @@ export default function PropertyPage() {
         {/* ── Property info ── */}
         <div style={{ padding: '22px 18px 0' }}>
           {price && <div style={{ color: '#ffffff', fontSize: 28, fontWeight: 900, marginBottom: 6, letterSpacing: '-0.02em' }}>{price}</div>}
+          {price && <span style={{ display: 'block', width: 48, height: 2, background: '#534AB7', margin: '8px 0' }} />}
           <h1 style={{ fontSize: 24, fontWeight: 900, margin: '0 0 4px', lineHeight: 1.15, color: C.text }}>{property.address}</h1>
           {location && <p style={{ color: C.muted, fontSize: 14, margin: '0 0 14px' }}>{location}</p>}
 
@@ -585,14 +586,16 @@ export default function PropertyPage() {
                   {intent === 'question' && (
                     <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Your Message <span style={{ opacity: 0.6 }}>(optional)</span></span>
-                      <textarea
-                        className="field"
-                        placeholder="e.g. When is the next open house? What are the parking options? Is the price negotiable?"
-                        value={question}
-                        onChange={e => setQuestion(e.target.value)}
-                        rows={3}
-                        style={{ ...inp, resize: 'none', lineHeight: 1.55, background: '#0F0A1A', color: C.text, WebkitAppearance: 'none' }}
-                      />
+                      <div style={{ background: '#0F0A1A', border: `1px solid ${C.border}`, borderRadius: 10 }}>
+                        <textarea
+                          className="field"
+                          placeholder="e.g. When is the next open house? What are the parking options? Is the price negotiable?"
+                          value={question}
+                          onChange={e => setQuestion(e.target.value)}
+                          rows={3}
+                          style={{ background: 'transparent', color: '#ffffff', width: '100%', border: 'none', outline: 'none', resize: 'none', padding: '12px', fontSize: 16, fontFamily: 'sans-serif', lineHeight: 1.55 }}
+                        />
+                      </div>
                     </label>
                   )}
 

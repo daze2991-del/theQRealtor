@@ -385,6 +385,7 @@ export default function PropertyPage() {
         .photo-img { animation: fadeIn 0.22s ease; }
         .sheet     { animation: slideUp 0.3s cubic-bezier(0.32,0.72,0,1); }
         .field:focus { border-color: ${C.purple} !important; box-shadow: 0 0 0 3px rgba(124,58,237,0.2); }
+        .field::placeholder { color: rgba(255,255,255,0.6); }
         .cta-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(0,0,0,0.35); }
         .cta-btn { transition: transform 0.12s, box-shadow 0.12s; }
         @media (min-width: 640px) {
@@ -586,7 +587,7 @@ export default function PropertyPage() {
                   {intent === 'question' && (
                     <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Your Message <span style={{ opacity: 0.6 }}>(optional)</span></span>
-                      <div style={{ background: '#0F0A1A', border: `1px solid ${C.border}`, borderRadius: 10 }}>
+                      <div style={{ background: '#534AB7', border: `1px solid ${C.border}`, borderRadius: 10 }}>
                         <textarea
                           className="field"
                           placeholder="e.g. When is the next open house? What are the parking options? Is the price negotiable?"

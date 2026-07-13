@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import { useRouter, useSearchParams } from 'next/navigation'
 import DashboardLayout from '../../../components/DashboardLayout'
@@ -219,7 +219,7 @@ function SignCard({ sign, origin, onRename, onOpenAssign, onUnassign, unassignin
   )
 }
 
-export default function SignsPage() {
+function SignsPageInner() {
   const router = useRouter()
   const routerRef = useRef(router)
   routerRef.current = router
@@ -546,5 +546,13 @@ export default function SignsPage() {
         </>
       )}
     </DashboardLayout>
+  )
+}
+
+export default function SignsPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignsPageInner />
+    </Suspense>
   )
 }

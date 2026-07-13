@@ -447,7 +447,7 @@ export default function PropertyPage() {
         {/* ── Property info ── */}
         <div style={{ padding: '22px 18px 0' }}>
           {price && <div style={{ color: '#ffffff', fontSize: 28, fontWeight: 900, marginBottom: 6, letterSpacing: '-0.02em' }}>{price}</div>}
-          {price && <span style={{ display: 'block', width: 48, height: 2, background: '#534AB7', margin: '8px 0' }} />}
+          {price && <span style={{ display: 'block', width: 64, height: 3, background: 'linear-gradient(to right, #534AB7, #7C6FE0)', borderRadius: 2, margin: '10px 0' }} />}
           <h1 style={{ fontSize: 24, fontWeight: 900, margin: '0 0 4px', lineHeight: 1.15, color: C.text }}>{property.address}</h1>
           {location && <p style={{ color: C.muted, fontSize: 14, margin: '0 0 14px' }}>{location}</p>}
 

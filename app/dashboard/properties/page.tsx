@@ -878,15 +878,14 @@ export default function PropertiesPage() {
                 {properties.length}
               </span>
             </div>
-            {canAddProperty ? (
+            {canAddProperty && (
               <Link href="/dashboard/new-property" style={{ background: C.purple, color: '#fff', fontSize: 13, fontWeight: 700, padding: '8px 18px', borderRadius: 9, textDecoration: 'none' }}>
                 + Add Property
               </Link>
-            ) : (
-              <Link href="/dashboard/billing" style={{ background: C.purple, color: '#fff', fontSize: 13, fontWeight: 700, padding: '8px 18px', borderRadius: 9, textDecoration: 'none' }}>
-                ⚡ Upgrade for More
-              </Link>
             )}
+            {/* TODO: Restore "Upgrade for More" button here when Stripe is live.
+                Was: <button onClick={() => router.push('/dashboard/billing')}>
+                ⚡ Upgrade for More</button> with purple styling */}
           </div>
 
           <div style={{ padding: '24px 28px' }}>

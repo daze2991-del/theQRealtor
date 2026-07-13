@@ -276,7 +276,7 @@ export default function PropertyPage() {
           phone:             phone.trim() || undefined,
           email:             email.trim() || undefined,
           motivation:        CTAS.find(c => c.id === intent)!.motivation,
-          questionText:      intent === 'question' ? question.trim() : undefined,
+          questionText:      question.trim() || undefined,
           contactPreference: contactPref.length > 0 ? contactPref.join(', ') : undefined,
           scanEventId: scanEventId.current,
           engagement: {
@@ -583,11 +583,28 @@ export default function PropertyPage() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {/* Showing notes textarea — Request a Showing CTA only (optional) */}
+                  {intent === 'showing' && (
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Notes <span style={{ opacity: 0.6 }}>(optional)</span></span>
+                      <div style={{ background: '#534AB7', border: `1px solid ${C.border}`, borderRadius: 10 }}>
+                        <textarea
+                          className="field"
+                          placeholder="e.g. Preferred dates/times, questions for the agent…"
+                          value={question}
+                          onChange={e => setQuestion(e.target.value)}
+                          rows={3}
+                          style={{ background: 'transparent', color: '#ffffff', width: '100%', border: 'none', outline: 'none', resize: 'none', padding: '12px', fontSize: 16, fontFamily: 'sans-serif', lineHeight: 1.55 }}
+                        />
+                      </div>
+                    </label>
+                  )}
+
                   {/* Question textarea — Ask a Question CTA only (optional) */}
                   {intent === 'question' && (
                     <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Your Message <span style={{ opacity: 0.6 }}>(optional)</span></span>
-                      <div style={{ background: '#534AB7', border: `1px solid ${C.border}`, borderRadius: 10 }}>
+                      <div style={{ background: '#0F0A1A', border: `1px solid ${C.border}`, borderRadius: 10 }}>
                         <textarea
                           className="field"
                           placeholder="e.g. When is the next open house? What are the parking options? Is the price negotiable?"

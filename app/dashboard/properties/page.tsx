@@ -226,7 +226,7 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
 
   const copyBuyerLink = async () => {
     try {
-      await navigator.clipboard.writeText(`${origin}/p/${prop.id}`)
+      await navigator.clipboard.writeText(`https://theqrealtor.com/p/${prop.id}`)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch { /* clipboard unavailable */ }
@@ -444,32 +444,27 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
                 borderRadius: 10, padding: '6px 0', minWidth: 210,
                 boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
               }}>
-                <button onClick={() => { setMenuOpen(false); copyReportLink() }}
-                  style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: copiedReport ? '#4ade80' : C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
-                  {copiedReport ? '✓ Copied!' : '📋 Copy Shareable Link'}
+                <button onClick={() => { setMenuOpen(false); copyBuyerLink() }}
+                  style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: copied ? '#4ade80' : C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
+                  {copied ? '✓ Copied!' : '🔗 Copy Buyer Link'}
                 </button>
                 <button onClick={() => { setMenuOpen(false); setShowPhotos(v => !v) }}
                   style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
                   📷 Manage Photos {photos.length > 0 ? `(${photos.length})` : ''}
+                </button>
+                <button onClick={() => { setMenuOpen(false); router.push('/dashboard/signs') }}
+                  style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
+                  📱 Manage Signs
+                </button>
+                <button onClick={() => { setMenuOpen(false); openEdit() }}
+                  style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
+                  ✏️ Edit Property
                 </button>
                 <a href={`/report/${prop.id}?print=true`} target="_blank" rel="noreferrer"
                   onClick={() => setMenuOpen(false)}
                   style={{ display: 'block', width: '100%', boxSizing: 'border-box', textAlign: 'left', textDecoration: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
                   📄 PDF
                 </a>
-                <div style={{ borderTop: `1px solid ${C.border}`, margin: '4px 0' }} />
-                <button onClick={() => { setMenuOpen(false); copyBuyerLink() }}
-                  style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: copied ? '#4ade80' : C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
-                  {copied ? '✓ Copied!' : '🔗 Copy Buyer Link'}
-                </button>
-                <button onClick={() => { setMenuOpen(false); router.push('/dashboard/qr-codes') }}
-                  style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
-                  📱 QR Codes
-                </button>
-                <button onClick={() => { setMenuOpen(false); openEdit() }}
-                  style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
-                  ✏️ Edit Property
-                </button>
                 <button onClick={() => { setMenuOpen(false); onToggle() }}
                   style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
                   {prop.active ? '🔴 Take Offline' : '🟢 Go Live'}
@@ -567,19 +562,7 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
                 style={{ width: '100%', background: '#0F0F13', border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 12px', color: C.text, fontSize: 13, boxSizing: 'border-box' }} />
             </label>
 
-            {/* Packet toggle */}
-            <div
-              onClick={() => setEditForm((f: any) => ({ ...f, packet_enabled: !f.packet_enabled }))}
-              style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, cursor: 'pointer', userSelect: 'none' }}
-            >
-              <div style={{ width: 40, height: 22, borderRadius: 11, background: editForm.packet_enabled ? C.purple : C.border, position: 'relative', flexShrink: 0, transition: 'background 0.15s' }}>
-                <div style={{ position: 'absolute', top: 3, left: editForm.packet_enabled ? 21 : 3, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 0.15s' }} />
-              </div>
-              <div>
-                <span style={{ fontSize: 13, color: C.sub, fontWeight: 600 }}>📄 Enable Property Packet</span>
-                <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Buyers see a "Get Property Packet" CTA on the listing page</div>
-              </div>
-            </div>
+            {/* TODO: Restore Property Packet toggle when V2 is built with proper file upload and delivery flow */}
 
             {/* Active toggle */}
             <div

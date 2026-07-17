@@ -176,10 +176,9 @@ function Hero() {
           variants={fadeUp}
           className="text-center text-4xl sm:text-5xl font-bold tracking-tight text-gray-900 leading-tight mb-5"
         >
-          <style>{`@keyframes purple-shift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}`}</style>
-          Buyer interest doesn&apos;t disappear.{' '}
+          Every sign attracts buyers.{' '}
           <span style={{ color: '#534AB7' }}>
-            It just goes unseen.
+            Now you&apos;ll know who&apos;s simply curious — and who&apos;s ready to act.
           </span>
         </motion.h1>
 
@@ -217,9 +216,9 @@ function Hero() {
 
 function StatsBar() {
   const stats = [
-    { value: 'No app required', label: 'Buyers browse instantly' },
-    { value: 'Yours alone', label: 'Inquiries never shared or resold' },
-    { value: 'Every listing', label: 'Yard signs, A-frames, flyers' },
+    { value: 'Measure Interest', label: 'Scans, return visits, engagement trends' },
+    { value: 'Recognize Intent', label: 'Curiosity vs. stronger buying signals' },
+    { value: 'Stay Available 24/7', label: "Buyers connect whenever they're ready" },
   ]
   return (
     <section className="border-b border-solid border-gray-100">
@@ -387,22 +386,22 @@ function Features() {
     {
       icon: QrCode,
       title: 'One sign. Every listing.',
-      body: 'Print once and place it on your sign. When the listing sells, reassign it to your next property. Reuse the same QR code across every listing.',
+      body: "Print once, place it on your sign. Every scan reveals how buyers engage with your listing — long after you've left the property.",
     },
     {
       icon: Flame,
-      title: "Know who's worth calling.",
-      body: 'Hot, warm, or cold — scored by time on page, photos viewed, and return visits. Call the right buyer first, every time.',
+      title: 'Surface stronger buying signals.',
+      body: 'Cold, warm, or hot — scored by time on page, photos viewed, and return visits. Identify meaningful interest, not just a single scan.',
     },
     {
       icon: MessageSquare,
-      title: 'Never miss the moment.',
-      body: 'Instant SMS when a buyer inquires — with their engagement history included. You always know context before you call.',
+      title: 'Know exactly when to follow up.',
+      body: 'When a buyer submits an inquiry, you get an instant SMS alert with their engagement history. You always know context before you call.',
     },
     {
       icon: Lock,
-      title: 'Your data. Full stop.',
-      body: 'Every inquiry lives in your dashboard. Export anytime. It follows you.',
+      title: 'Your data. Never shared.',
+      body: 'Every inquiry is stored in your dashboard, under your control — yours to keep and export anytime.',
     },
   ]
 

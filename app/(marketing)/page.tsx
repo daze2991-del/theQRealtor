@@ -615,17 +615,18 @@ function BuyerExperience() {
           </h2>
         </motion.div>
 
-        {/* Three columns: sign → flow → phone + analytics */}
-        <div className="flex flex-col sm:flex-row items-center sm:items-start justify-center gap-8 mb-12">
-          <SmartQrSign />
-          <div className="self-center">
-            <FlowLabels />
-          </div>
-          <div className="w-60 flex-shrink-0 flex flex-col gap-4">
-            <BuyerPhoneCard />
-            <AnalyticsCard />
-          </div>
-        </div>
+        <img
+          src="/buyer-experience-mockup.png"
+          alt="What buyers see and what agents see — smart QR signs reveal buyer engagement"
+          style={{
+            width: '100%',
+            maxWidth: 1100,
+            height: 'auto',
+            display: 'block',
+            margin: '40px auto 0',
+            borderRadius: 16,
+          }}
+        />
 
         {/* Four feature cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -9,9 +9,8 @@ import {
   Flame,
   MessageSquare,
   Lock,
-  Bell,
-  BarChart2,
 } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 
 const PURPLE = '#534AB7'
 
@@ -429,90 +428,91 @@ function Features() {
   )
 }
 
-const QR_PATTERN = [
-  [1, 1, 1, 0, 1, 1, 1],
-  [1, 0, 1, 0, 1, 0, 1],
-  [1, 1, 1, 0, 1, 1, 1],
-  [0, 0, 0, 1, 0, 0, 0],
-  [1, 1, 1, 0, 1, 0, 1],
-  [1, 0, 0, 1, 0, 1, 0],
-  [1, 1, 1, 0, 1, 0, 1],
-]
-
-function MiniQr() {
+function SmartQrSign() {
   return (
-    <div className="inline-grid grid-cols-7 border border-solid border-gray-200 p-1 bg-white">
-      {QR_PATTERN.flatMap((row, r) =>
-        row.map((cell, c) => (
-          <span
-            key={`${r}-${c}`}
-            className={`w-2 h-2 ${cell ? 'bg-black' : 'bg-white'}`}
-          />
-        ))
-      )}
-    </div>
-  )
-}
-
-function AFrameSign() {
-  return (
-    <div className="w-48 flex-shrink-0">
-      <div className="bg-white border border-solid border-gray-200 rounded-lg p-4 text-center">
+    <div className="w-60 flex-shrink-0 flex flex-col items-center">
+      <div
+        className="bg-white border border-solid border-gray-200 p-5 text-center w-full"
+        style={{ borderRadius: 18, boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}
+      >
         <div className="text-[10px] font-bold uppercase tracking-widest text-[#534AB7] mb-1.5">
           Open House
         </div>
-        <div className="text-sm font-semibold text-gray-900 mb-3">123 Maple St</div>
-        <MiniQr />
-        <p className="text-[10px] text-gray-500 leading-snug mt-3 mb-3">
-          Scan to request a showing or ask a question
-        </p>
+        <div className="text-xl font-bold text-gray-900 mb-4">123 Maple St</div>
+        <div className="flex justify-center mb-4">
+          <QRCodeSVG value="https://theqrealtor.com" size={120} />
+        </div>
+        <div className="text-[11px] text-gray-500 leading-relaxed mb-4">
+          <div>· View photos &amp; details</div>
+          <div>· Request a showing</div>
+          <div>· Ask a question</div>
+        </div>
         <div className="text-[9px] text-gray-400">Powered by theqrealtor</div>
       </div>
-      {/* A-frame legs */}
-      <div className="flex justify-between px-8">
-        <span className="w-1 h-8 bg-gray-200 rounded-b" />
-        <span className="w-1 h-8 bg-gray-200 rounded-b" />
+      {/* Sign post */}
+      <div className="flex justify-center gap-8">
+        <span className="w-0.5 bg-[#D1D5DB]" style={{ height: 40 }} />
+        <span className="w-0.5 bg-[#D1D5DB]" style={{ height: 40 }} />
       </div>
     </div>
   )
 }
 
-function PhoneMockup() {
+function FlowLabels() {
+  const steps = ['Scan', 'Browse', 'Engage', 'Insights']
   return (
-    <div className="w-56 flex-shrink-0 bg-white border border-solid border-gray-200 rounded-3xl shadow-sm p-2.5">
-      {/* Notch */}
-      <div className="flex justify-center mb-2">
-        <span className="w-16 h-1.5 rounded-full bg-gray-200" />
-      </div>
-      {/* URL bar */}
-      <div className="rounded-full bg-gray-100 px-3 py-1 text-center text-[10px] text-gray-400 mb-2">
+    <div className="flex flex-col items-center justify-center flex-shrink-0">
+      {steps.map((step, i) => (
+        <div key={step} className="flex flex-col items-center">
+          {i > 0 && (
+            <span className="text-sm leading-none my-2" style={{ color: '#534AB7' }}>↓</span>
+          )}
+          <span
+            style={{
+              background: '#EEEDFE',
+              color: '#534AB7',
+              borderRadius: 20,
+              padding: '4px 12px',
+              fontSize: 12,
+              fontWeight: 600,
+            }}
+          >
+            {step}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function BuyerPhoneCard() {
+  return (
+    <div
+      className="bg-white border border-solid border-[#E5E7EB] p-3 w-full"
+      style={{ borderRadius: 20, boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}
+    >
+      {/* Browser bar */}
+      <div className="rounded-full bg-gray-100 px-3 py-1 text-center text-[10px] text-gray-400 mb-2.5">
         theqrealtor.com/p/...
       </div>
-      {/* Property image placeholder */}
-      <div className="h-20 rounded-lg bg-[#EEEDFE] mb-2.5" />
-      <div className="text-xs font-semibold text-gray-900 mb-0.5">
-        123 Maple St, San Diego
+      {/* Hero image */}
+      <div
+        className="rounded-lg flex items-center justify-center mb-2.5"
+        style={{ background: 'linear-gradient(135deg, #EEEDFE 0%, #C4B5FD 100%)', height: 100 }}
+      >
+        <span className="text-3xl" role="img" aria-label="Property">🏡</span>
       </div>
-      <div className="text-[10px] text-gray-400 mb-2">3 bed · 2 bath · 1,820 sqft</div>
-      <p className="text-[9px] text-gray-400 leading-snug mb-2.5">
-        By contacting the agent you authorize the listing agent to contact you.
-      </p>
-      {/* Contact preference toggle */}
-      <div className="flex gap-1.5 mb-2.5">
-        <span className="flex-1 text-center text-[10px] font-medium rounded-md py-1 bg-[#534AB7] text-white">
-          Phone
-        </span>
-        <span className="flex-1 text-center text-[10px] font-medium rounded-md py-1 bg-gray-100 text-gray-500">
-          Email
-        </span>
-      </div>
+      {/* Property details */}
+      <div className="text-base font-bold text-gray-900 mb-0.5">$950,000</div>
+      <div className="text-xs font-medium text-gray-700 mb-0.5">123 Maple St, San Diego</div>
+      <div className="text-[10px] text-gray-400 mb-3">3 bed · 2 bath · 1,820 sqft</div>
       {/* CTAs */}
       <div className="flex flex-col gap-1.5 mb-2.5">
         <span className="block w-full text-center text-[11px] font-semibold rounded-lg py-2 bg-[#534AB7] text-white">
-          Request a showing
+          Request a Showing
         </span>
         <span className="block w-full text-center text-[11px] font-semibold rounded-lg py-2 bg-white border border-solid border-[#534AB7] text-[#534AB7]">
-          Ask a question
+          Ask a Question
         </span>
       </div>
       <div className="text-center text-[8px] text-gray-400">Powered by theqrealtor</div>
@@ -520,19 +520,59 @@ function PhoneMockup() {
   )
 }
 
+function AnalyticsCard() {
+  const metrics = [
+    { label: 'Scans', value: '14' },
+    { label: 'Repeat Visits', value: '3' },
+    { label: 'Avg Time', value: '4m 12s' },
+    { label: 'Photos Viewed', value: '18' },
+  ]
+  return (
+    <div className="w-full" style={{ background: '#0F0F13', borderRadius: 16, padding: 16 }}>
+      <div className="text-xs font-bold text-white mb-3">Buyer Activity</div>
+      <div className="grid grid-cols-2 gap-2.5 mb-3">
+        {metrics.map(m => (
+          <div key={m.label}>
+            <div className="text-[10px] text-gray-500">{m.label}</div>
+            <div className="text-sm font-semibold text-white">{m.value}</div>
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center justify-between border-t border-solid border-gray-800 pt-3 mb-2">
+        <span className="text-[11px] text-gray-400">Intent Score</span>
+        <span
+          className="text-[11px] font-semibold text-white"
+          style={{ background: '#EF4444', borderRadius: 20, padding: '2px 10px' }}
+        >
+          Hot 🔥
+        </span>
+      </div>
+      <div className="text-[10px] text-gray-500">Last active: 2 minutes ago</div>
+    </div>
+  )
+}
+
 function BuyerExperience() {
-  const captions = [
+  const featureCards = [
     {
-      icon: BarChart2,
-      text: 'See how buyers engage — from time on page to repeat visits and property views.',
+      icon: '📊',
+      title: 'Engagement Analytics',
+      body: 'Track scans, repeat visits, time on page, and photo views in real time.',
     },
     {
-      icon: Bell,
-      text: 'When buyers reach out, their contact details and engagement history appear in your dashboard instantly.',
+      icon: '🎯',
+      title: 'Buyer Intent',
+      body: 'Surface stronger buying signals from engagement patterns before buyers reach out.',
     },
     {
-      icon: Lock,
-      text: 'One scan is curiosity. Multiple visits tell a story.',
+      icon: '💬',
+      title: 'Direct Connection',
+      body: 'Buyers can request a showing or ask a question instantly — no friction.',
+    },
+    {
+      icon: '🕒',
+      title: 'Works 24/7',
+      body: 'Every active QR sign keeps working after the open house ends.',
     },
   ]
 
@@ -554,33 +594,30 @@ function BuyerExperience() {
           </h2>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 18 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={viewportOnce}
-          transition={{ duration: 0.5, ease: 'easeOut', delay: 0.1 }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-12 min-h-[320px]"
-        >
-          <AFrameSign />
-          <div className="text-xs font-medium text-[#534AB7] whitespace-nowrap">
-            Scan → Browse → Connect
+        {/* Three columns: sign → flow → phone + analytics */}
+        <div className="flex flex-col sm:flex-row items-center sm:items-start justify-center gap-8 mb-12">
+          <SmartQrSign />
+          <div className="self-center">
+            <FlowLabels />
           </div>
-          <PhoneMockup />
-        </motion.div>
+          <div className="w-60 flex-shrink-0 flex flex-col gap-4">
+            <BuyerPhoneCard />
+            <AnalyticsCard />
+          </div>
+        </div>
 
-        <div className="flex flex-col gap-4 max-w-xl mx-auto">
-          {captions.map((c, i) => (
-            <motion.div
-              key={c.text}
-              className="flex items-start gap-3"
-              initial={{ opacity: 0, y: 18 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={viewportOnce}
-              transition={{ duration: 0.5, ease: 'easeOut', delay: i * 0.1 }}
+        {/* Four feature cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {featureCards.map(card => (
+            <div
+              key={card.title}
+              className="bg-white border border-solid border-[#E5E7EB]"
+              style={{ borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}
             >
-              <c.icon size={16} className="text-[#534AB7] mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-gray-600 leading-relaxed">{c.text}</p>
-            </motion.div>
+              <div className="text-xl mb-3" role="img" aria-label={card.title}>{card.icon}</div>
+              <div className="text-sm font-semibold text-gray-900 mb-2">{card.title}</div>
+              <p className="text-sm text-gray-500 leading-relaxed">{card.body}</p>
+            </div>
           ))}
         </div>
       </div>

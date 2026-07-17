@@ -555,22 +555,43 @@ function AnalyticsCard() {
 function BuyerExperience() {
   const featureCards = [
     {
-      icon: '📊',
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#534AB7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="4" y1="20" x2="20" y2="20" />
+          <line x1="7" y1="20" x2="7" y2="13" />
+          <line x1="12" y1="20" x2="12" y2="8" />
+          <line x1="17" y1="20" x2="17" y2="4" />
+        </svg>
+      ),
       title: 'Engagement Analytics',
       body: 'Track scans, repeat visits, time on page, and photo views in real time.',
     },
     {
-      icon: '🎯',
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#534AB7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="3 17 9 11 13 15 21 7" />
+          <polyline points="15 7 21 7 21 13" />
+        </svg>
+      ),
       title: 'Buyer Intent',
       body: 'Surface stronger buying signals from engagement patterns before buyers reach out.',
     },
     {
-      icon: '💬',
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#534AB7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+      ),
       title: 'Direct Connection',
       body: 'Buyers can request a showing or ask a question instantly — no friction.',
     },
     {
-      icon: '🕒',
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#534AB7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="9" />
+          <polyline points="12 7 12 12 15.5 14" />
+        </svg>
+      ),
       title: 'Works 24/7',
       body: 'Every active QR sign keeps working after the open house ends.',
     },
@@ -614,7 +635,7 @@ function BuyerExperience() {
               className="bg-white border border-solid border-[#E5E7EB]"
               style={{ borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}
             >
-              <div className="text-xl mb-3" role="img" aria-label={card.title}>{card.icon}</div>
+              <div className="mb-3">{card.icon}</div>
               <div className="text-sm font-semibold text-gray-900 mb-2">{card.title}</div>
               <p className="text-sm text-gray-500 leading-relaxed">{card.body}</p>
             </div>

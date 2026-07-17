@@ -178,7 +178,7 @@ function Hero() {
         >
           Every sign attracts buyers.{' '}
           <span style={{ color: '#534AB7' }}>
-            Now you&apos;ll know who&apos;s simply curious — and who&apos;s ready to act.
+            Know who&apos;s exploring — and who&apos;s showing stronger buying intent.
           </span>
         </motion.h1>
 
@@ -186,9 +186,9 @@ function Hero() {
           variants={fadeUp}
           className="text-center text-lg text-gray-500 leading-relaxed max-w-xl mx-auto mb-8"
         >
-          Buyers already stop at your signs. They scan, browse photos, check the price, return a second time — and walk away without a word.
+          Buyers already stop at your signs. They scan, browse the property, compare details, and often return later.
           <br /><br />
-          theqrealtor makes that interest visible. And when they&apos;re ready to reach out, their inquiry comes directly to you.
+          theqrealtor turns every scan into actionable engagement insights, helping you understand buyer interest while every active QR sign works 24/7 to keep buyers connected to the property — and to you.
         </motion.p>
 
         <motion.div variants={fadeUp} className="flex items-center justify-center gap-3 mb-12">

@@ -10,7 +10,6 @@ import {
   MessageSquare,
   Lock,
 } from 'lucide-react'
-import { QRCodeSVG } from 'qrcode.react'
 
 const PURPLE = '#534AB7'
 
@@ -428,193 +427,11 @@ function Features() {
   )
 }
 
-function SmartQrSign() {
-  return (
-    <div className="w-60 flex-shrink-0 flex flex-col items-center">
-      <div
-        className="bg-white border border-solid border-gray-200 p-5 text-center w-full"
-        style={{ borderRadius: 18, boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}
-      >
-        <div className="text-[10px] font-bold uppercase tracking-widest text-[#534AB7] mb-1.5">
-          Open House
-        </div>
-        <div className="text-xl font-bold text-gray-900 mb-4">123 Maple St</div>
-        <div className="flex justify-center mb-4">
-          <QRCodeSVG value="https://theqrealtor.com" size={120} />
-        </div>
-        <div className="text-[11px] text-gray-500 leading-relaxed mb-4">
-          <div>· View photos &amp; details</div>
-          <div>· Request a showing</div>
-          <div>· Ask a question</div>
-        </div>
-        <div className="text-[9px] text-gray-400">Powered by theqrealtor</div>
-      </div>
-      {/* Sign post */}
-      <div className="flex justify-center gap-8">
-        <span className="w-0.5 bg-[#D1D5DB]" style={{ height: 40 }} />
-        <span className="w-0.5 bg-[#D1D5DB]" style={{ height: 40 }} />
-      </div>
-    </div>
-  )
-}
-
-function FlowLabels() {
-  const steps = ['Scan', 'Browse', 'Engage', 'Insights']
-  return (
-    <div className="flex flex-col items-center justify-center flex-shrink-0">
-      {steps.map((step, i) => (
-        <div key={step} className="flex flex-col items-center">
-          {i > 0 && (
-            <span className="text-sm leading-none my-2" style={{ color: '#534AB7' }}>↓</span>
-          )}
-          <span
-            style={{
-              background: '#EEEDFE',
-              color: '#534AB7',
-              borderRadius: 20,
-              padding: '4px 12px',
-              fontSize: 12,
-              fontWeight: 600,
-            }}
-          >
-            {step}
-          </span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function BuyerPhoneCard() {
-  return (
-    <div
-      className="bg-white border border-solid border-[#E5E7EB] p-3 w-full"
-      style={{ borderRadius: 20, boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}
-    >
-      {/* Browser bar */}
-      <div className="rounded-full bg-gray-100 px-3 py-1 text-center text-[10px] text-gray-400 mb-2.5">
-        theqrealtor.com/p/...
-      </div>
-      {/* Hero image */}
-      <div
-        className="rounded-lg flex items-center justify-center mb-2.5"
-        style={{ background: 'linear-gradient(135deg, #EEEDFE 0%, #C4B5FD 100%)', height: 100 }}
-      >
-        <span className="text-3xl" role="img" aria-label="Property">🏡</span>
-      </div>
-      {/* Property details */}
-      <div className="text-base font-bold text-gray-900 mb-0.5">$950,000</div>
-      <div className="text-xs font-medium text-gray-700 mb-0.5">123 Maple St, San Diego</div>
-      <div className="text-[10px] text-gray-400 mb-3">3 bed · 2 bath · 1,820 sqft</div>
-      {/* CTAs */}
-      <div className="flex flex-col gap-1.5 mb-2.5">
-        <span className="block w-full text-center text-[11px] font-semibold rounded-lg py-2 bg-[#534AB7] text-white">
-          Request a Showing
-        </span>
-        <span className="block w-full text-center text-[11px] font-semibold rounded-lg py-2 bg-white border border-solid border-[#534AB7] text-[#534AB7]">
-          Ask a Question
-        </span>
-      </div>
-      <div className="text-center text-[8px] text-gray-400">Powered by theqrealtor</div>
-    </div>
-  )
-}
-
-function AnalyticsCard() {
-  const metrics = [
-    { label: 'Scans', value: '14' },
-    { label: 'Repeat Visits', value: '3' },
-    { label: 'Avg Time', value: '4m 12s' },
-    { label: 'Photos Viewed', value: '18' },
-  ]
-  return (
-    <div className="w-full" style={{ background: '#0F0F13', borderRadius: 16, padding: 16 }}>
-      <div className="text-xs font-bold text-white mb-3">Buyer Activity</div>
-      <div className="grid grid-cols-2 gap-2.5 mb-3">
-        {metrics.map(m => (
-          <div key={m.label}>
-            <div className="text-[10px] text-gray-500">{m.label}</div>
-            <div className="text-sm font-semibold text-white">{m.value}</div>
-          </div>
-        ))}
-      </div>
-      <div className="flex items-center justify-between border-t border-solid border-gray-800 pt-3 mb-2">
-        <span className="text-[11px] text-gray-400">Intent Score</span>
-        <span
-          className="text-[11px] font-semibold text-white"
-          style={{ background: '#EF4444', borderRadius: 20, padding: '2px 10px' }}
-        >
-          Hot 🔥
-        </span>
-      </div>
-      <div className="text-[10px] text-gray-500">Last active: 2 minutes ago</div>
-    </div>
-  )
-}
 
 function BuyerExperience() {
-  const featureCards = [
-    {
-      icon: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#534AB7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="4" y1="20" x2="20" y2="20" />
-          <line x1="7" y1="20" x2="7" y2="13" />
-          <line x1="12" y1="20" x2="12" y2="8" />
-          <line x1="17" y1="20" x2="17" y2="4" />
-        </svg>
-      ),
-      title: 'Engagement Analytics',
-      body: 'Track scans, repeat visits, time on page, and photo views in real time.',
-    },
-    {
-      icon: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#534AB7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="3 17 9 11 13 15 21 7" />
-          <polyline points="15 7 21 7 21 13" />
-        </svg>
-      ),
-      title: 'Buyer Intent',
-      body: 'Surface stronger buying signals from engagement patterns before buyers reach out.',
-    },
-    {
-      icon: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#534AB7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-        </svg>
-      ),
-      title: 'Direct Connection',
-      body: 'Buyers can request a showing or ask a question instantly — no friction.',
-    },
-    {
-      icon: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#534AB7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="9" />
-          <polyline points="12 7 12 12 15.5 14" />
-        </svg>
-      ),
-      title: 'Works 24/7',
-      body: 'Every active QR sign keeps working after the open house ends.',
-    },
-  ]
-
   return (
     <section className="border-b border-solid border-gray-100">
       <div className="max-w-3xl mx-auto py-16 px-8">
-        <motion.div
-          initial={{ opacity: 0, y: 18 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={viewportOnce}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
-          className="text-center mb-10"
-        >
-          <div className="text-xs font-semibold uppercase tracking-widest text-[#534AB7] mb-3">
-            How buyers experience it
-          </div>
-          <h2 className="text-3xl font-bold tracking-tight text-gray-900">
-            What buyers see. What you see.
-          </h2>
-        </motion.div>
-
         <img
           src="/buyer-experience-mockup.png"
           alt="What buyers see and what agents see — smart QR signs reveal buyer engagement"
@@ -623,25 +440,10 @@ function BuyerExperience() {
             maxWidth: 1100,
             height: 'auto',
             display: 'block',
-            margin: '40px auto 0',
+            margin: '0 auto',
             borderRadius: 16,
           }}
         />
-
-        {/* Four feature cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {featureCards.map(card => (
-            <div
-              key={card.title}
-              className="bg-white border border-solid border-[#E5E7EB]"
-              style={{ borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}
-            >
-              <div className="mb-3">{card.icon}</div>
-              <div className="text-sm font-semibold text-gray-900 mb-2">{card.title}</div>
-              <p className="text-sm text-gray-500 leading-relaxed">{card.body}</p>
-            </div>
-          ))}
-        </div>
       </div>
     </section>
   )

@@ -524,15 +524,15 @@ function BuyerExperience() {
   const captions = [
     {
       icon: BarChart2,
-      text: 'A buyer browses for four minutes and views 18 photos. You know before they call.',
+      text: 'See how buyers engage — from time on page to repeat visits and property views.',
     },
     {
       icon: Bell,
-      text: 'They request a showing. Their name, number, and intent score arrive in your dashboard instantly.',
+      text: 'When buyers reach out, their contact details and engagement history appear in your dashboard instantly.',
     },
     {
       icon: Lock,
-      text: "They return two days later. You already know they're serious.",
+      text: 'One scan is curiosity. Multiple visits tell a story.',
     },
   ]
 
@@ -563,7 +563,7 @@ function BuyerExperience() {
         >
           <AFrameSign />
           <div className="text-xs font-medium text-[#534AB7] whitespace-nowrap">
-            buyer scans →
+            Scan → Browse → Connect
           </div>
           <PhoneMockup />
         </motion.div>

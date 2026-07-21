@@ -9,12 +9,6 @@ import {
   Flame,
   MessageSquare,
   Lock,
-  BarChart2,
-  Target,
-  Users,
-  Clock,
-  ChevronRight,
-  User,
 } from 'lucide-react'
 
 const PURPLE = '#534AB7'
@@ -434,222 +428,22 @@ function Features() {
 }
 
 
-const QR_MINI = [
-  [1, 1, 1, 0, 1, 1, 1],
-  [1, 0, 1, 0, 1, 0, 1],
-  [1, 1, 1, 0, 1, 1, 1],
-  [0, 0, 0, 1, 0, 0, 0],
-  [1, 1, 1, 0, 1, 0, 1],
-  [1, 0, 0, 1, 0, 1, 0],
-  [1, 1, 1, 0, 1, 0, 1],
-]
-
-function MiniSparkline() {
-  return (
-    <svg width="56" height="14" viewBox="0 0 56 14" fill="none">
-      <polyline
-        points="0,12 8,9 18,11 28,5 38,7 48,3 56,1"
-        stroke="#534AB7"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function YardSignPanel() {
-  return (
-    <div className="flex flex-col items-center flex-1">
-      <div className="flex items-center gap-1.5 mb-4">
-        <QrCode size={13} color="#534AB7" />
-        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7' }}>What Buyers See</span>
-      </div>
-      <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 4px 24px rgba(0,0,0,0.10)', overflow: 'hidden', width: '100%', maxWidth: 200 }}>
-        <div style={{ background: '#534AB7', padding: '9px 16px', textAlign: 'center' }}>
-          <span style={{ color: '#fff', fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Open House</span>
-        </div>
-        <div style={{ padding: '14px 16px', textAlign: 'center' }}>
-          <div style={{ fontSize: 17, fontWeight: 800, color: '#111', lineHeight: 1.2, marginBottom: 3 }}>123 Maple St</div>
-          <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 12 }}>San Diego, CA 92103</div>
-          <div className="flex justify-center mb-3">
-            <div className="inline-grid grid-cols-7 p-1 bg-white" style={{ border: '2px solid #111' }}>
-              {QR_MINI.flatMap((row, r) =>
-                row.map((cell, c) => (
-                  <span key={`${r}-${c}`} style={{ width: 7, height: 7, background: cell ? '#111' : '#fff', display: 'block' }} />
-                ))
-              )}
-            </div>
-          </div>
-          <div style={{ fontSize: 9, color: '#9CA3AF' }}>Scan for photos &amp; details</div>
-        </div>
-        <div style={{ background: '#534AB7', padding: '6px 16px', textAlign: 'center' }}>
-          <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 9, fontWeight: 500 }}>Powered by theqrealtor</span>
-        </div>
-      </div>
-      <div className="flex justify-center gap-6 mt-0">
-        <div style={{ width: 4, height: 44, background: '#D1D5DB', borderRadius: 2 }} />
-        <div style={{ width: 4, height: 44, background: '#D1D5DB', borderRadius: 2 }} />
-      </div>
-    </div>
-  )
-}
-
-function PhonePanel() {
-  return (
-    <div className="flex flex-col items-center flex-1">
-      <div className="flex items-center gap-1.5 mb-4">
-        <MessageSquare size={13} color="#534AB7" />
-        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7' }}>Buyer Experience</span>
-      </div>
-      <div style={{ background: '#111', borderRadius: 26, padding: '10px 7px 14px', boxShadow: '0 8px 32px rgba(0,0,0,0.18)', width: '100%', maxWidth: 190 }}>
-        <div className="flex items-center justify-between px-3 pb-2">
-          <span style={{ fontSize: 10, fontWeight: 600, color: '#fff' }}>9:41</span>
-          <div style={{ width: 36, height: 5, background: '#333', borderRadius: 3 }} />
-          <div style={{ width: 16 }} />
-        </div>
-        <div style={{ background: '#fff', borderRadius: 18, overflow: 'hidden' }}>
-          <div style={{ height: 84, overflow: 'hidden' }}>
-            <img
-              src="https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=400"
-              alt="Property exterior"
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            />
-          </div>
-          <div style={{ padding: '10px 11px 0' }}>
-            <div style={{ fontSize: 15, fontWeight: 800, color: '#111', marginBottom: 2 }}>$950,000</div>
-            <div style={{ fontSize: 9, color: '#374151', fontWeight: 500, marginBottom: 2 }}>123 Maple St, San Diego, CA 92103</div>
-            <div style={{ fontSize: 9, color: '#9CA3AF', marginBottom: 9 }}>3 bed · 2 bath · 1,820 sqft</div>
-            <div className="flex gap-1 mb-2.5">
-              {[0, 1].map(i => (
-                <div key={i} style={{ flex: 1, height: 34, borderRadius: 5, overflow: 'hidden', background: '#F3F4F6' }}>
-                  <img
-                    src="https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=100"
-                    alt=""
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
-                </div>
-              ))}
-              <div style={{ flex: 1, height: 34, borderRadius: 5, background: '#1F2937', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ color: '#fff', fontSize: 9, fontWeight: 600 }}>+21</span>
-              </div>
-            </div>
-            <div className="flex flex-col gap-1.5 mb-2.5">
-              <div style={{ background: '#534AB7', borderRadius: 7, padding: '7px 0', textAlign: 'center' }}>
-                <span style={{ color: '#fff', fontSize: 9, fontWeight: 600 }}>Request a Showing</span>
-              </div>
-              <div style={{ border: '1.5px solid #534AB7', borderRadius: 7, padding: '6px 0', textAlign: 'center' }}>
-                <span style={{ color: '#534AB7', fontSize: 9, fontWeight: 600 }}>Ask a Question</span>
-              </div>
-            </div>
-            <div style={{ textAlign: 'center', fontSize: 8, color: '#D1D5DB', paddingBottom: 8 }}>Powered by theqrealtor</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function DashboardPanel() {
-  const stats = [
-    { label: 'Total Scans', value: '24' },
-    { label: 'Photos Viewed', value: '36' },
-    { label: 'Leads Captured', value: '3' },
-  ]
-  return (
-    <div className="flex flex-col items-center flex-1">
-      <div className="flex items-center gap-1.5 mb-4">
-        <BarChart2 size={13} color="#534AB7" />
-        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7' }}>What You See</span>
-      </div>
-      <div style={{ background: '#0f172a', borderRadius: 16, padding: 16, width: '100%', maxWidth: 260 }}>
-        <div className="flex items-center justify-between mb-4">
-          <span style={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>Buyer Insights</span>
-          <span style={{ background: 'rgba(83,74,183,0.25)', color: '#A5B4FC', fontSize: 10, borderRadius: 6, padding: '3px 8px', fontWeight: 500 }}>
-            123 Maple St ↓
-          </span>
-        </div>
-        <div className="grid grid-cols-2 gap-2.5 mb-4">
-          {stats.map(s => (
-            <div key={s.label} style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 10, padding: '10px 12px' }}>
-              <div style={{ fontSize: 8, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>{s.label}</div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: '#fff', lineHeight: 1, marginBottom: 4 }}>{s.value}</div>
-              <MiniSparkline />
-            </div>
-          ))}
-        </div>
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 12 }}>
-          <div className="flex justify-between mb-2.5">
-            <span style={{ fontSize: 9, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Recent Activity</span>
-            <span style={{ fontSize: 9, color: '#64748B' }}>2m ago</span>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#534AB7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <User size={14} color="#fff" />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: '#fff', marginBottom: 2 }}>Requested a showing</div>
-              <div style={{ fontSize: 9, color: '#64748B' }}>Name, phone, and details captured</div>
-            </div>
-            <ChevronRight size={13} color="#64748B" />
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function PanelArrow() {
-  return (
-    <div className="hidden sm:flex items-center self-center" style={{ paddingBottom: 44, color: '#534AB7', fontSize: 20, opacity: 0.5 }}>
-      →
-    </div>
-  )
-}
-
 function BuyerExperience() {
-  const featureCards: Array<{ Icon: React.ComponentType<{ size: number; className?: string }>, title: string, body: string }> = [
-    { Icon: BarChart2, title: 'Engagement Analytics', body: 'Track scans, repeat visits, photo views, and time spent in real time.' },
-    { Icon: Target, title: 'Intent Insights', body: 'Engagement signals help identify buyers showing stronger interest.' },
-    { Icon: Users, title: 'Lead Capture', body: 'Buyers can request showings or ask questions instantly — you get the details.' },
-    { Icon: Clock, title: 'Works 24/7', body: 'Every active QR sign continues generating engagement after the open house ends.' },
-  ]
-
   return (
     <section className="border-b border-solid border-gray-100">
-      <div style={{ maxWidth: 960, margin: '0 auto', padding: '64px 32px' }}>
-        <div className="text-center mb-10">
-          <h2 className="text-3xl font-bold tracking-tight text-gray-900 mb-2">
-            What buyers see. What you see.
-          </h2>
-          <p className="text-gray-500 text-sm">
-            Smart QR signs turn real-world interest into real-time insights.
-          </p>
-        </div>
-
-        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8 sm:gap-3 mb-12">
-          <YardSignPanel />
-          <PanelArrow />
-          <PhonePanel />
-          <PanelArrow />
-          <DashboardPanel />
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {featureCards.map(({ Icon, title, body }) => (
-            <div
-              key={title}
-              className="bg-white border border-solid border-gray-200 rounded-xl p-5"
-              style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}
-            >
-              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#EEEDFE', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-                <Icon size={18} className="text-[#534AB7]" />
-              </div>
-              <div className="text-sm font-semibold text-gray-900 mb-1.5">{title}</div>
-              <p className="text-xs text-gray-500 leading-relaxed">{body}</p>
-            </div>
-          ))}
-        </div>
+      <div className="max-w-3xl mx-auto py-16 px-8">
+        <img
+          src="/buyer-experience-mockup.png"
+          alt="What buyers see and what agents see — smart QR signs reveal buyer engagement"
+          style={{
+            width: '100%',
+            maxWidth: 1100,
+            height: 'auto',
+            display: 'block',
+            margin: '0 auto',
+            borderRadius: 16,
+          }}
+        />
       </div>
     </section>
   )

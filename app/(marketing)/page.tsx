@@ -204,8 +204,8 @@ function Hero() {
           </button>
         </motion.div>
 
-        <motion.div variants={fadeUp} className="max-w-xl mx-auto">
-          <DashboardMockup />
+        <motion.div variants={fadeUp}>
+          <div className="w-full max-w-3xl mx-auto px-4"><img src="/lead-feed-desktop.png" alt="Lead activity feed" className="w-full" /></div>
         </motion.div>
       </motion.div>
     </section>

@@ -208,7 +208,7 @@ function Hero() {
           <div className="w-full max-w-3xl mx-auto px-4">
             <div className="relative">
               <div className="absolute -inset-4 bg-[#534AB7] opacity-10 blur-3xl rounded-3xl" />
-              <img src="/lead-feed-desktop.png" alt="Lead activity feed" className="relative w-full rounded-2xl shadow-2xl" />
+              <img src="/lead-feed-desktop-v2.png" alt="Lead activity feed" className="relative w-full rounded-2xl shadow-2xl" />
             </div>
           </div>
         </motion.div>

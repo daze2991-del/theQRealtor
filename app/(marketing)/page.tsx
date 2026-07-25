@@ -205,7 +205,7 @@ function Hero() {
         </motion.div>
 
         <motion.div variants={fadeUp}>
-          <div className="w-full max-w-3xl mx-auto px-4"><img src="/lead-feed-desktop.png" alt="Lead activity feed" className="w-full" /></div>
+          <div className="w-full max-w-3xl mx-auto px-4"><img src="/lead-feed-desktop.png" alt="Lead activity feed" className="w-full rounded-2xl shadow-2xl" /></div>
         </motion.div>
       </motion.div>
     </section>

@@ -9,6 +9,10 @@ import {
   Flame,
   MessageSquare,
   Lock,
+  BarChart2,
+  Target,
+  Users,
+  Clock,
 } from 'lucide-react'
 
 const PURPLE = '#534AB7'
@@ -434,21 +438,75 @@ function Features() {
 
 
 function BuyerExperience() {
+  type FeatureCard = { Icon: React.ComponentType<{ size: number; className?: string }>; title: string; body: string }
+  const featureCards: FeatureCard[] = [
+    { Icon: BarChart2, title: 'Engagement Analytics', body: 'Track scans, repeat visits, photo views, and time spent in real time.' },
+    { Icon: Target, title: 'Intent Insights', body: 'Engagement signals help identify buyers showing stronger interest.' },
+    { Icon: Users, title: 'Lead Capture', body: 'Buyers can request showings or ask questions instantly — you get the details.' },
+    { Icon: Clock, title: 'Works 24/7', body: 'Every active QR sign continues generating engagement after the open house ends.' },
+  ]
+
+  const panelImgClass = 'w-full rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.12)]'
+
   return (
     <section className="border-b border-solid border-gray-100">
-      <div className="max-w-3xl mx-auto py-16 px-8">
-        <img
-          src="/buyer-experience-mockup.png"
-          alt="What buyers see and what agents see — smart QR signs reveal buyer engagement"
-          style={{
-            width: '100%',
-            maxWidth: 1100,
-            height: 'auto',
-            display: 'block',
-            margin: '0 auto',
-            borderRadius: 16,
-          }}
-        />
+      <div style={{ maxWidth: 960, margin: '0 auto', padding: '64px 32px' }}>
+        <div className="text-center mb-10">
+          <h2 className="text-3xl font-bold tracking-tight text-gray-900 mb-2">
+            What buyers see. What you see.
+          </h2>
+          <p className="text-gray-500 text-sm">
+            Smart QR signs turn real-world interest into real-time insights.
+          </p>
+        </div>
+
+        {/* Three panels */}
+        <div className="flex flex-col sm:flex-row gap-6 mb-4">
+          <div className="flex-1 flex flex-col gap-3">
+            <div className="flex items-center gap-1.5">
+              <QrCode size={13} color="#534AB7" />
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7' }}>What Buyers See</span>
+            </div>
+            <img src="/aframe.png" alt="Smart QR yard sign" className={panelImgClass} />
+          </div>
+
+          <div className="flex-1 flex flex-col gap-3">
+            <div className="flex items-center gap-1.5">
+              <MessageSquare size={13} color="#534AB7" />
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7' }}>Buyer Experience</span>
+            </div>
+            <img src="/iphone-mockup.png" alt="Buyer property page on mobile" className={panelImgClass} />
+          </div>
+
+          <div className="flex-1 flex flex-col gap-3">
+            <div className="flex items-center gap-1.5">
+              <BarChart2 size={13} color="#534AB7" />
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7' }}>What You See</span>
+            </div>
+            <img src="/dashboard-view.png" alt="Agent dashboard with buyer insights" className={panelImgClass} />
+          </div>
+        </div>
+
+        <p className="text-center text-xs text-gray-400 italic mb-12">
+          Sample data shown for demonstration purposes only.
+        </p>
+
+        {/* Four feature cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {featureCards.map(({ Icon, title, body }) => (
+            <div
+              key={title}
+              className="bg-white border border-solid border-gray-200 rounded-xl p-5"
+              style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}
+            >
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#EEEDFE', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                <Icon size={18} className="text-[#534AB7]" />
+              </div>
+              <div className="text-sm font-semibold text-gray-900 mb-1.5">{title}</div>
+              <p className="text-xs text-gray-500 leading-relaxed">{body}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   )

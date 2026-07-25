@@ -156,7 +156,7 @@ function Hero() {
   }
 
   return (
-    <section className="border-b border-solid border-gray-100">
+    <section className="border-b border-solid border-gray-100 bg-[#f8f7fc]">
       <motion.div
         className="max-w-3xl mx-auto py-16 px-8"
         initial="hidden"

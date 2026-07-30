@@ -513,7 +513,7 @@ function BuyerExperience() {
             <div className="flex-1 transition-transform duration-200 group-hover:scale-[1.02]" style={{ padding: '0 16px 16px', overflow: 'hidden' }}>
               <div style={{ borderRadius: 12, overflow: 'hidden', height: 300 }}>
                 <img
-                  src="/dashboardmock.png"
+                  src="/dashboardmock-v2.png"
                   alt="Agent dashboard showing buyer interest and new leads"
                   style={{ width: '100%', display: 'block', objectFit: 'cover', objectPosition: 'top', height: '100%' }}
                 />

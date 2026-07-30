@@ -510,42 +510,13 @@ function BuyerExperience() {
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7', marginBottom: 4 }}>03 See Buyer Activity</div>
               <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>Track interest, leads, and engagement in real time.</div>
             </div>
-            <div className="flex-1 transition-transform duration-200 group-hover:scale-[1.02]" style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ background: '#0F0F13', borderRadius: 14, padding: 16, flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {/* Today's Focus header */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>Today&apos;s Focus</span>
-                  <span style={{ fontSize: 10, color: '#6B7280' }}>123 Maple St ↓</span>
-                </div>
-                {/* 2-stat grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  {[
-                    { label: 'Buyer Interest', value: '14', sub: 'scans this week', color: '#534AB7' },
-                    { label: 'New Leads', value: '3', sub: 'inquiries', color: '#10B981' },
-                  ].map(s => (
-                    <div key={s.label} style={{ background: 'rgba(255,255,255,0.07)', borderRadius: 12, padding: '14px 14px' }}>
-                      <div style={{ fontSize: 10, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{s.label}</div>
-                      <div style={{ fontSize: 30, fontWeight: 800, color: s.color, lineHeight: 1, marginBottom: 4 }}>{s.value}</div>
-                      <div style={{ fontSize: 10, color: '#4B5563' }}>{s.sub}</div>
-                    </div>
-                  ))}
-                </div>
-                {/* Hot leads */}
-                <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 12, padding: '12px 14px' }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#EF4444', marginBottom: 10 }}>🔥 Hot Leads Need Attention</div>
-                  {['Sarah M.', 'David C.'].map(name => (
-                    <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 8 }}>
-                      <div style={{ width: 26, height: 26, borderRadius: '50%', background: '#534AB7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: '#fff' }}>{name[0]}</span>
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: '#fff' }}>{name}</div>
-                        <div style={{ fontSize: 10, color: '#6B7280' }}>Requested a showing</div>
-                      </div>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: '#EF4444' }}>Hot</span>
-                    </div>
-                  ))}
-                </div>
+            <div className="flex-1 transition-transform duration-200 group-hover:scale-[1.02]" style={{ padding: '0 16px 16px', overflow: 'hidden' }}>
+              <div style={{ borderRadius: 12, overflow: 'hidden', height: 300 }}>
+                <img
+                  src="/dashboardmock.png"
+                  alt="Agent dashboard showing buyer interest and new leads"
+                  style={{ width: '100%', display: 'block', objectFit: 'cover', objectPosition: 'top', height: '100%' }}
+                />
               </div>
             </div>
           </div>

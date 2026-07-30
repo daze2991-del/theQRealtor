@@ -492,18 +492,18 @@ function BuyerExperience() {
               <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>Track interest, leads, and engagement in real time.</div>
             </div>
             {/* Cropped browser frame so dashboard reads large */}
-            <div className="flex-1" style={{ position: 'relative', minHeight: 320, overflow: 'hidden' }}>
+            <div className="flex-1" style={{ position: 'relative', minHeight: 380, overflow: 'hidden' }}>
               <div style={{ background: '#F3F4F6', borderTop: '1px solid #E5E7EB', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#D1D5DB', display: 'inline-block' }} />
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#D1D5DB', display: 'inline-block' }} />
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#D1D5DB', display: 'inline-block' }} />
                 <span style={{ flex: 1, maxWidth: 140, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, padding: '2px 8px', fontSize: 9, color: '#9CA3AF' }}>theqrealtor.com/dashboard</span>
               </div>
-              <div style={{ overflow: 'hidden', height: 300 }}>
+              <div style={{ overflow: 'hidden', height: 380 }}>
                 <img
                   src="/dashboard-view.png"
                   alt="Agent dashboard with buyer insights"
-                  style={{ width: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' }}
+                  style={{ width: '150%', objectFit: 'cover', objectPosition: 'top left', display: 'block' }}
                 />
               </div>
             </div>

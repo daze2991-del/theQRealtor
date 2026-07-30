@@ -413,6 +413,27 @@ function SignsPageInner() {
     }
   }
 
+  const { groupedSections, unassignedSigns } = (() => {
+    const byProp = new Map<string, { key: string; label: string; signs: Sign[]; lastAssigned: number }>()
+    const unassigned: Sign[] = []
+    for (const sign of signs) {
+      if (!sign.current_assignment) { unassigned.push(sign); continue }
+      const prop = sign.current_assignment.properties
+      const key = prop?.id ?? '__deleted__'
+      const label = prop
+        ? [prop.address, [prop.city, prop.state].filter(Boolean).join(', ')].filter(Boolean).join(' — ')
+        : 'Deleted Property'
+      const existing = byProp.get(key)
+      const at = new Date(sign.current_assignment.assigned_at).getTime()
+      if (existing) { existing.signs.push(sign); existing.lastAssigned = Math.max(existing.lastAssigned, at) }
+      else byProp.set(key, { key, label, signs: [sign], lastAssigned: at })
+    }
+    return {
+      groupedSections: [...byProp.values()].sort((a, b) => b.lastAssigned - a.lastAssigned),
+      unassignedSigns: unassigned,
+    }
+  })()
+
   return (
     <DashboardLayout>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -481,18 +502,49 @@ function SignsPageInner() {
                 </p>
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
-                {signs.map(sign => (
-                  <SignCard
-                    key={sign.id}
-                    sign={sign}
-                    origin={origin}
-                    onRename={label => renameSign(sign.id, label)}
-                    onOpenAssign={() => openAssign(sign)}
-                    onUnassign={() => unassignSign(sign)}
-                    unassigning={unassigningId === sign.id}
-                  />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+                {groupedSections.map(section => (
+                  <div key={section.key}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 14, paddingBottom: 10, borderBottom: `1px solid ${C.border}` }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{section.label}</span>
+                      <span style={{ fontSize: 11, color: C.muted }}>({section.signs.length} {section.signs.length === 1 ? 'sign' : 'signs'})</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
+                      {section.signs.map(sign => (
+                        <SignCard
+                          key={sign.id}
+                          sign={sign}
+                          origin={origin}
+                          onRename={label => renameSign(sign.id, label)}
+                          onOpenAssign={() => openAssign(sign)}
+                          onUnassign={() => unassignSign(sign)}
+                          unassigning={unassigningId === sign.id}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 ))}
+                {unassignedSigns.length > 0 && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 14, paddingBottom: 10, borderBottom: `1px solid ${C.border}` }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: C.muted }}>Unassigned</span>
+                      <span style={{ fontSize: 11, color: C.muted }}>({unassignedSigns.length} {unassignedSigns.length === 1 ? 'sign' : 'signs'})</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
+                      {unassignedSigns.map(sign => (
+                        <SignCard
+                          key={sign.id}
+                          sign={sign}
+                          origin={origin}
+                          onRename={label => renameSign(sign.id, label)}
+                          onOpenAssign={() => openAssign(sign)}
+                          onUnassign={() => unassignSign(sign)}
+                          unassigning={unassigningId === sign.id}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

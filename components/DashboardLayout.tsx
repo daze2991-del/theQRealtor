@@ -62,7 +62,6 @@ const WORKSPACE_NAV: Array<{ label: string; icon: string; href: string; exact?: 
   { label: 'Dashboard',     icon: 'dashboard',  href: '/dashboard',               exact: true },
   { label: 'Properties',    icon: 'properties', href: '/dashboard/properties' },
   { label: 'Seller Reports',icon: 'reports',    href: '/dashboard/seller-reports' },
-  { label: 'QR Codes',      icon: 'qrcodes',    href: '/dashboard/qr-codes' },
   { label: 'Signs',         icon: 'signs',      href: '/dashboard/signs' },
   { label: 'Leads',         icon: 'leads',      href: '/dashboard/leads',          hasBadge: true },
   { label: 'Analytics',     icon: 'analytics',  href: '/dashboard/analytics' },

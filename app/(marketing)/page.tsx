@@ -474,7 +474,7 @@ function BuyerExperience() {
             </div>
             <div className="flex items-center justify-center flex-1" style={{ padding: '0 12px 16px' }}>
               <img
-                src="/pubrider.png"
+                src="/pubrider-v2.png"
                 alt="Smart QR yard sign"
                 className="transition-transform duration-200 group-hover:scale-[1.02]"
                 style={{ maxHeight: 370, width: 'auto', maxWidth: '100%', objectFit: 'contain', borderRadius: 12 }}

@@ -511,11 +511,11 @@ function BuyerExperience() {
               <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>Track interest, leads, and engagement in real time.</div>
             </div>
             <div className="flex-1 transition-transform duration-200 group-hover:scale-[1.02]" style={{ padding: '0 8px 12px', overflow: 'hidden' }}>
-              <div style={{ borderRadius: 12, overflow: 'hidden', height: 490 }}>
+              <div style={{ borderRadius: 12, overflow: 'hidden' }}>
                 <img
                   src="/dashboardmock-v2.png"
                   alt="Agent dashboard showing buyer interest and new leads"
-                  style={{ width: '100%', display: 'block', objectFit: 'cover', objectPosition: 'top', height: '100%' }}
+                  style={{ width: '100%', display: 'block', objectFit: 'contain', maxHeight: 430 }}
                 />
               </div>
             </div>

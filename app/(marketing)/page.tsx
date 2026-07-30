@@ -472,12 +472,12 @@ function BuyerExperience() {
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7', marginBottom: 4 }}>01 Place Your QR Sign</div>
               <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>Capture real-world buyer interest.</div>
             </div>
-            <div className="flex items-center justify-center flex-1" style={{ padding: '0 24px 24px' }}>
+            <div className="flex items-center justify-center flex-1" style={{ padding: '0 12px 16px' }}>
               <img
                 src="/pubrider.png"
                 alt="Smart QR yard sign"
                 className="transition-transform duration-200 group-hover:scale-[1.02]"
-                style={{ maxHeight: 300, width: 'auto', maxWidth: '100%', objectFit: 'contain', borderRadius: 12 }}
+                style={{ maxHeight: 370, width: 'auto', maxWidth: '100%', objectFit: 'contain', borderRadius: 12 }}
               />
             </div>
           </div>
@@ -491,17 +491,17 @@ function BuyerExperience() {
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7', marginBottom: 4 }}>02 Buyers Explore Instantly</div>
               <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>Photos, pricing, and details load immediately.</div>
             </div>
-            <div className="flex items-center justify-center flex-1" style={{ padding: '0 24px 24px' }}>
+            <div className="flex items-center justify-center flex-1" style={{ padding: '0 12px 16px' }}>
               <img
                 src="/iphone-mockup.png"
                 alt="Buyer property page on mobile"
                 className="transition-transform duration-200 group-hover:scale-[1.02]"
-                style={{ maxHeight: 300, width: 'auto', maxWidth: '100%', objectFit: 'contain', borderRadius: 12 }}
+                style={{ maxHeight: 370, width: 'auto', maxWidth: '100%', objectFit: 'contain', borderRadius: 12 }}
               />
             </div>
           </div>
 
-          {/* Panel 3 — Coded dashboard mockup */}
+          {/* Panel 3 — Dashboard image */}
           <div
             className="flex-1 flex flex-col group transition-all duration-200 hover:-translate-y-1"
             style={{ border: '1px solid #E5E7EB', borderRadius: 20, boxShadow: '0 4px 24px rgba(0,0,0,0.06)', overflow: 'hidden', background: '#fff', minHeight: 460 }}
@@ -510,8 +510,8 @@ function BuyerExperience() {
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7', marginBottom: 4 }}>03 See Buyer Activity</div>
               <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>Track interest, leads, and engagement in real time.</div>
             </div>
-            <div className="flex-1 transition-transform duration-200 group-hover:scale-[1.02]" style={{ padding: '0 16px 16px', overflow: 'hidden' }}>
-              <div style={{ borderRadius: 12, overflow: 'hidden', height: 300 }}>
+            <div className="flex-1 transition-transform duration-200 group-hover:scale-[1.02]" style={{ padding: '0 12px 16px', overflow: 'hidden' }}>
+              <div style={{ borderRadius: 12, overflow: 'hidden', height: 390 }}>
                 <img
                   src="/dashboardmock-v2.png"
                   alt="Agent dashboard showing buyer interest and new leads"

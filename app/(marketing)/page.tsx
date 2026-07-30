@@ -446,7 +446,7 @@ function BuyerExperience() {
     { Icon: Clock, title: 'Works 24/7', body: 'Every active QR sign continues generating engagement after the open house ends.' },
   ]
 
-  const panelImgClass = 'w-full rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.12)]'
+  const panelImgClass = 'w-full h-full object-contain rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.12)]'
 
   return (
     <section className="border-b border-solid border-gray-100">
@@ -467,7 +467,9 @@ function BuyerExperience() {
               <QrCode size={13} color="#534AB7" />
               <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7' }}>What Buyers See</span>
             </div>
-            <img src="/aframe.png" alt="Smart QR yard sign" className={panelImgClass} />
+            <div className="flex items-center justify-center sm:h-[500px]">
+              <img src="/aframe.png" alt="Smart QR yard sign" className={panelImgClass} />
+            </div>
           </div>
 
           <div className="flex-1 flex flex-col gap-3">
@@ -475,7 +477,9 @@ function BuyerExperience() {
               <MessageSquare size={13} color="#534AB7" />
               <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7' }}>Buyer Experience</span>
             </div>
-            <img src="/iphone-mockup.png" alt="Buyer property page on mobile" className={panelImgClass} />
+            <div className="flex items-center justify-center sm:h-[500px]">
+              <img src="/iphone-mockup.png" alt="Buyer property page on mobile" className={panelImgClass} />
+            </div>
           </div>
 
           <div className="flex-1 flex flex-col gap-3">
@@ -483,7 +487,9 @@ function BuyerExperience() {
               <BarChart2 size={13} color="#534AB7" />
               <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7' }}>What You See</span>
             </div>
-            <img src="/dashboard-view.png" alt="Agent dashboard with buyer insights" className={panelImgClass} />
+            <div className="flex items-center justify-center sm:h-[500px]">
+              <img src="/dashboard-view.png" alt="Agent dashboard with buyer insights" className={panelImgClass} />
+            </div>
           </div>
         </div>
 

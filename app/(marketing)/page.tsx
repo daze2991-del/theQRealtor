@@ -481,7 +481,7 @@ function BuyerExperience() {
               <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>Photos, pricing, and details load immediately.</div>
             </div>
             <div className="flex items-center justify-center flex-1" style={{ padding: '0 20px 20px', minHeight: 320 }}>
-              <img src="/iphone-mockup.png" alt="Buyer property page on mobile" style={{ maxHeight: 300, width: 'auto', maxWidth: '100%', objectFit: 'contain' }} />
+              <img src="/iphone-mockup.png" alt="Buyer property page on mobile" style={{ maxHeight: 400, width: 'auto', maxWidth: '100%', objectFit: 'contain' }} />
             </div>
           </div>
 
@@ -503,7 +503,7 @@ function BuyerExperience() {
                 <img
                   src="/dashboard-view.png"
                   alt="Agent dashboard with buyer insights"
-                  style={{ width: '150%', objectFit: 'cover', objectPosition: 'top left', display: 'block' }}
+                  style={{ width: '200%', objectFit: 'cover', objectPosition: 'top left', display: 'block' }}
                 />
               </div>
             </div>

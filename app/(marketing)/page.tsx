@@ -461,36 +461,54 @@ function BuyerExperience() {
         </div>
 
         {/* Three panels */}
-        <div className="flex flex-col sm:flex-row gap-6 mb-4">
-          <div className="flex-1 flex flex-col gap-3">
-            <div className="flex items-center gap-1.5">
-              <QrCode size={13} color="#534AB7" />
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7' }}>What Buyers See</span>
+        <div className="flex flex-col md:flex-row gap-5 mb-4 items-stretch">
+
+          {/* Panel 1 — QR Sign */}
+          <div className="flex-1 flex flex-col" style={{ border: '1px solid #E5E7EB', borderRadius: 20, boxShadow: '0 4px 24px rgba(0,0,0,0.06)', overflow: 'hidden', background: '#fff' }}>
+            <div style={{ padding: '20px 20px 0' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7', marginBottom: 4 }}>01 Place Your QR Sign</div>
+              <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>Capture real-world buyer interest.</div>
             </div>
-            <div className="flex items-center justify-center sm:h-[500px]">
-              <img src="/pubrider.png" alt="Smart QR yard sign" className={panelImgClass} />
+            <div className="flex items-center justify-center flex-1" style={{ padding: '0 20px 20px', minHeight: 320 }}>
+              <img src="/pubrider.png" alt="Smart QR yard sign" style={{ maxHeight: 340, width: 'auto', maxWidth: '100%', objectFit: 'contain' }} />
             </div>
           </div>
 
-          <div className="flex-1 flex flex-col gap-3">
-            <div className="flex items-center gap-1.5">
-              <MessageSquare size={13} color="#534AB7" />
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7' }}>Buyer Experience</span>
+          {/* Panel 2 — Phone */}
+          <div className="flex-1 flex flex-col" style={{ border: '1px solid #E5E7EB', borderRadius: 20, boxShadow: '0 4px 24px rgba(0,0,0,0.06)', overflow: 'hidden', background: '#fff' }}>
+            <div style={{ padding: '20px 20px 0' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7', marginBottom: 4 }}>02 Buyers Explore Instantly</div>
+              <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>Photos, pricing, and details load immediately.</div>
             </div>
-            <div className="flex items-center justify-center sm:h-[500px]">
-              <img src="/iphone-mockup.png" alt="Buyer property page on mobile" className={panelImgClass} />
+            <div className="flex items-center justify-center flex-1" style={{ padding: '0 20px 20px', minHeight: 320 }}>
+              <img src="/iphone-mockup.png" alt="Buyer property page on mobile" style={{ maxHeight: 300, width: 'auto', maxWidth: '100%', objectFit: 'contain' }} />
             </div>
           </div>
 
-          <div className="flex-1 flex flex-col gap-3">
-            <div className="flex items-center gap-1.5">
-              <BarChart2 size={13} color="#534AB7" />
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7' }}>What You See</span>
+          {/* Panel 3 — Dashboard (cropped viewport) */}
+          <div className="flex-1 flex flex-col" style={{ border: '1px solid #E5E7EB', borderRadius: 20, boxShadow: '0 4px 24px rgba(0,0,0,0.06)', overflow: 'hidden', background: '#fff' }}>
+            <div style={{ padding: '20px 20px 0' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7', marginBottom: 4 }}>03 See Buyer Activity</div>
+              <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>Track interest, leads, and engagement in real time.</div>
             </div>
-            <div className="flex items-center justify-center sm:h-[500px]">
-              <img src="/dashboard-view.png" alt="Agent dashboard with buyer insights" className={panelImgClass} />
+            {/* Cropped browser frame so dashboard reads large */}
+            <div className="flex-1" style={{ position: 'relative', minHeight: 320, overflow: 'hidden' }}>
+              <div style={{ background: '#F3F4F6', borderTop: '1px solid #E5E7EB', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#D1D5DB', display: 'inline-block' }} />
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#D1D5DB', display: 'inline-block' }} />
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#D1D5DB', display: 'inline-block' }} />
+                <span style={{ flex: 1, maxWidth: 140, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, padding: '2px 8px', fontSize: 9, color: '#9CA3AF' }}>theqrealtor.com/dashboard</span>
+              </div>
+              <div style={{ overflow: 'hidden', height: 300 }}>
+                <img
+                  src="/dashboard-view.png"
+                  alt="Agent dashboard with buyer insights"
+                  style={{ width: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' }}
+                />
+              </div>
             </div>
           </div>
+
         </div>
 
         <p className="text-center text-xs text-gray-400 italic mb-12">

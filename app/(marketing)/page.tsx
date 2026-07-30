@@ -178,9 +178,9 @@ function Hero() {
           variants={fadeUp}
           className="text-center text-4xl sm:text-5xl font-bold tracking-tight text-gray-900 leading-tight mb-5"
         >
-          Every sign attracts buyers.{' '}
+          Turn every real estate sign into{' '}
           <span style={{ color: '#534AB7' }}>
-            Know who&apos;s exploring — and who&apos;s showing stronger buying intent.
+            buyer intelligence.
           </span>
         </motion.h1>
 
@@ -190,7 +190,7 @@ function Hero() {
         >
           Buyers already stop at your signs. They scan, browse the property, compare details, and often return later.
           <br /><br />
-          theqrealtor turns every scan into actionable engagement insights, helping you understand buyer interest while every active QR sign works 24/7 to keep buyers connected to the property — and to you.
+          theqrealtor turns every scan into actionable engagement insights — so you know who&apos;s interested, how strong that interest is, and when to follow up.
         </motion.p>
 
         <motion.div variants={fadeUp} className="flex items-center justify-center gap-3 mb-12">

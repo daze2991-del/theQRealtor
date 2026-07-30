@@ -468,7 +468,7 @@ function BuyerExperience() {
               <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7' }}>What Buyers See</span>
             </div>
             <div className="flex items-center justify-center sm:h-[500px]">
-              <img src="/aframe.png" alt="Smart QR yard sign" className={panelImgClass} />
+              <img src="/pubrider.png" alt="Smart QR yard sign" className={panelImgClass} />
             </div>
           </div>
 

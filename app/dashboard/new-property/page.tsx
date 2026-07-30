@@ -76,7 +76,7 @@ export default function NewPropertyPage() {
       setUserId(user.id);
       const [{ data: profile }, { count }] = await Promise.all([
         supabase.from('profiles').select('plan, beta_joined_at').eq('id', user.id).single(),
-        supabase.from('properties').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+        supabase.from('properties').select('id', { count: 'exact', head: true }).eq('user_id', user.id).is('deleted_at', null),
       ]);
       if ((profile?.plan || 'free') === 'free' && (count || 0) >= 1) {
         setBlocked(true);

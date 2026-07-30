@@ -37,6 +37,7 @@ export default function SellerReportsPage() {
         .from('properties')
         .select('id, address, city, state, active, created_at')
         .eq('user_id', session.user.id)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
       setProperties(props || [])
 

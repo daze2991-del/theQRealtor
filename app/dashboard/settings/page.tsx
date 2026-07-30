@@ -131,7 +131,7 @@ export default function SettingsPage() {
           supabase.from('profiles')
             .select('name, plan, phone, notify_showing, notify_question, notify_hot_lead, quiet_hours_start, quiet_hours_end')
             .eq('id', uid).single(),
-          supabase.from('properties').select('id').eq('user_id', uid),
+          supabase.from('properties').select('id').eq('user_id', uid).is('deleted_at', null),
         ])
 
         if (cancelled) return

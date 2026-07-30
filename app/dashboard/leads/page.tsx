@@ -215,15 +215,22 @@ function LeadsPageInner() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.push('/auth'); return }
 
+      // Active (non-archived) properties — powers the property filter dropdown
+      // and the address map. Archived (soft-deleted) properties are excluded so
+      // their leads fall through to the "Deleted Property" label below.
       const { data: props } = await supabase
         .from('properties').select('id, address')
-        .eq('user_id', session.user.id).order('created_at', { ascending: false })
+        .eq('user_id', session.user.id)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
       setProperties(props || [])
-      if (!props || props.length === 0) { setLoading(false); return }
 
+      // Read leads by agent ownership, NOT by current property membership: a lead
+      // whose property was archived or hard-deleted (property_id nulled) must still
+      // appear. agent_id is stamped on every lead at capture time (migration 006).
       const { data: leads } = await supabase
         .from('leads').select('*')
-        .in('property_id', props.map((p: any) => p.id))
+        .eq('agent_id', session.user.id)
         .order('created_at', { ascending: false })
       setAllLeads(leads || [])
 
@@ -752,12 +759,12 @@ function LeadsPageInner() {
                       {/* Row 2: property info + last contacted + action buttons */}
                       <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0, flex: 1 }}>
-                          {address && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.muted }}>
-                              <span>📍</span>
-                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{address}</span>
-                            </div>
-                          )}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.muted }}>
+                            <span>📍</span>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontStyle: address ? undefined : 'italic', opacity: address ? 1 : 0.75 }}>
+                              {address || 'Deleted Property'}
+                            </span>
+                          </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.purpleL }}>
                             <span>⚡</span>
                             <span>{lastActiveText(lastScan, lead.created_at)}</span>

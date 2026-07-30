@@ -54,7 +54,7 @@ export default function BillingPage() {
       setPlan(currentPlan)
 
       const { data: props } = await supabase
-        .from('properties').select('id').eq('user_id', session.user.id)
+        .from('properties').select('id').eq('user_id', session.user.id).is('deleted_at', null)
       const propIds = (props || []).map((p: any) => p.id)
       setPropCount(propIds.length)
 

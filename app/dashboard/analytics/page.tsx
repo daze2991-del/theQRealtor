@@ -92,6 +92,7 @@ export default function AnalyticsPage() {
         .from('properties')
         .select('id, address')
         .eq('user_id', session.user.id)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
 
       const propertyIds = (props || []).map((p: any) => p.id)

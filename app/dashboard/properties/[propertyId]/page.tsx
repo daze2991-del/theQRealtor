@@ -163,7 +163,7 @@ export default function PropertyIntelligencePage() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.push('/auth'); return }
 
-      const { data: prop } = await supabase.from('properties').select('*').eq('id', propertyId).single()
+      const { data: prop } = await supabase.from('properties').select('*').eq('id', propertyId).is('deleted_at', null).single()
       if (!prop || prop.user_id !== session.user.id) { router.push('/dashboard/properties'); return }
       setProperty(prop)
 
@@ -248,15 +248,12 @@ export default function PropertyIntelligencePage() {
   }
 
   const deleteProp = async () => {
-    if (!confirm(`Delete "${property?.address}"?\n\nThis will permanently remove the property and all associated data.`)) return
+    if (!confirm(`Delete "${property?.address}"?\n\nThis removes the property from your dashboard. Its leads and scan history are preserved.`)) return
     setDeleting(true)
     const supabase = createBrowserSupabase()
-    const { data: qrData } = await supabase.from('qrcodes').select('id').eq('property_id', propertyId)
-    const qrIds = (qrData ?? []).map((q: any) => q.id)
-    if (qrIds.length > 0) await supabase.from('scan_events').delete().in('qr_id', qrIds)
-    await supabase.from('leads').delete().eq('property_id', propertyId)
-    await supabase.from('property_photos').delete().eq('property_id', propertyId)
-    await supabase.from('properties').delete().eq('id', propertyId)
+    // Soft delete: archive by stamping deleted_at. History rows are preserved.
+    const { error } = await supabase.from('properties').update({ deleted_at: new Date().toISOString() }).eq('id', propertyId)
+    if (error) { console.error('[deleteProp] soft-delete failed:', error); setDeleting(false); return }
     router.push('/dashboard/properties')
   }
 

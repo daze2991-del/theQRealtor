@@ -321,7 +321,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         const [{ data: profile, error: profileErr }, { data: props }] = await Promise.all([
           supabase.from('profiles').select('plan, beta_joined_at').eq('id', session.user.id).single(),
-          supabase.from('properties').select('id').eq('user_id', session.user.id),
+          supabase.from('properties').select('id').eq('user_id', session.user.id).is('deleted_at', null),
         ])
 
         if (profileErr) console.error('[DashboardLayout] profile query error:', profileErr)

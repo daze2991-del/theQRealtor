@@ -63,12 +63,6 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
   const [editForm, setEditForm]           = useState<any>({})
   const [editSaving, setEditSaving]       = useState(false)
   const [editError, setEditError]         = useState('')
-  const [qrModalOpen, setQrModalOpen]   = useState(false)
-  const [qrName, setQrName]             = useState('')
-  const [qrType, setQrType]             = useState<'property' | 'openhouse'>('property')
-  const [qrFormat, setQrFormat]         = useState<'outdoor' | 'indoor'>('outdoor')
-  const [qrSaving, setQrSaving]         = useState(false)
-  const [qrError, setQrError]           = useState('')
   const fileInputRef  = useRef<HTMLInputElement>(null)
   const menuRef       = useRef<HTMLDivElement>(null)
   const photoGridRef  = useRef<HTMLDivElement>(null)
@@ -238,32 +232,6 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
       setCopiedReport(true)
       setTimeout(() => setCopiedReport(false), 2000)
     } catch { /* clipboard unavailable */ }
-  }
-
-  const openQrModal = () => {
-    setQrName(''); setQrType('property'); setQrFormat('outdoor'); setQrError(''); setQrModalOpen(true)
-  }
-
-  const submitQR = async () => {
-    const name = qrName.trim()
-    if (!name) return
-    setQrSaving(true); setQrError('')
-    try {
-      const res = await fetch('/api/qrcodes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          property_id: prop.id,
-          label: name,
-          placement: qrFormat === 'outdoor' ? 'Yard Sign' : 'Window Sign',
-          scan_count: 0,
-        }),
-      })
-      const body = await res.json()
-      if (!res.ok) { setQrError(body.error || 'Failed to create QR code. Please try again.') }
-      else { setQrModalOpen(false); router.push('/dashboard/qr-codes') }
-    } catch { setQrError('Something went wrong. Please try again.') }
-    finally { setQrSaving(false) }
   }
 
   return (
@@ -452,7 +420,7 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
                   style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
                   📷 Manage Photos {photos.length > 0 ? `(${photos.length})` : ''}
                 </button>
-                <button onClick={() => { setMenuOpen(false); router.push('/dashboard/signs') }}
+                <button onClick={() => { setMenuOpen(false); router.push(`/dashboard/signs?propertyId=${prop.id}`) }}
                   style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
                   📱 Manage Signs
                 </button>
@@ -591,98 +559,6 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
         </div>
       )}
 
-      {/* ── Generate QR Modal ── */}
-      {qrModalOpen && (
-        <div
-          onClick={e => { if (e.target === e.currentTarget) setQrModalOpen(false) }}
-          style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
-        >
-          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 28, width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
-              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: C.text }}>Generate New QR Code</h2>
-              <button onClick={() => setQrModalOpen(false)} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 18, cursor: 'pointer', padding: 4, lineHeight: 1 }}>✕</button>
-            </div>
-
-            {/* Field 1 — Sign Name */}
-            <label style={{ display: 'block', marginBottom: 20 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Sign Name</div>
-              <input
-                value={qrName}
-                onChange={e => setQrName(e.target.value)}
-                placeholder="e.g. Front Lawn, Street Corner, Backyard, A-Frame"
-                style={{ width: '100%', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 9, padding: '10px 13px', color: C.text, fontSize: 13, boxSizing: 'border-box', outline: 'none' }}
-              />
-              <div style={{ fontSize: 11, color: C.muted, marginTop: 5 }}>Name this sign so you can identify it later.</div>
-            </label>
-
-            {/* Field 2 — QR Type */}
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>QR Type</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                {([
-                  { id: 'property'  as const, icon: '🏡', title: 'Property QR',    desc: 'For active listings. Buyers scan and see property details, photos, and contact options.', features: ['Lead Capture', 'Photo Gallery', 'Request Showing', 'Analytics'] },
-                  { id: 'openhouse' as const, icon: '🏠', title: 'Open House QR',  desc: 'Capture visitor info before, during, and after an open house.',                         features: ['Visitor Check-In', 'Contact Capture', 'Follow-Up', 'Analytics'] },
-                ]).map(qt => (
-                  <button
-                    key={qt.id}
-                    onClick={() => setQrType(qt.id)}
-                    style={{
-                      padding: '14px 12px', borderRadius: 12, cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s',
-                      border: `2px solid ${qrType === qt.id ? C.purple : C.border}`,
-                      background: qrType === qt.id ? `${C.purple}14` : C.bg,
-                    }}
-                  >
-                    <div style={{ fontSize: 22, marginBottom: 6 }}>{qt.icon}</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 5 }}>{qt.title}</div>
-                    <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4, marginBottom: 8 }}>{qt.desc}</div>
-                    {qt.features.map(f => (
-                      <div key={f} style={{ fontSize: 11, color: C.sub, display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
-                        <span style={{ color: '#4ade80', fontSize: 10 }}>✓</span> {f}
-                      </div>
-                    ))}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Field 3 — Sign Format */}
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Sign Format</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                {([
-                  { id: 'outdoor' as const, label: 'Outdoor Sign',  desc: 'Standard QR for yard signs and riders' },
-                  { id: 'indoor'  as const, label: 'Indoor Sheet',   desc: 'QR formatted for printed indoor sign sheets' },
-                ]).map(fmt => (
-                  <label key={fmt.id} style={{ cursor: 'pointer' }}>
-                    <input type="radio" name={`qrFmt-${prop.id}`} checked={qrFormat === fmt.id} onChange={() => setQrFormat(fmt.id)} style={{ display: 'none' }} />
-                    <div style={{
-                      padding: '12px 14px', borderRadius: 10, transition: 'all 0.15s',
-                      border: `2px solid ${qrFormat === fmt.id ? C.purple : C.border}`,
-                      background: qrFormat === fmt.id ? `${C.purple}12` : C.bg,
-                    }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 3 }}>{fmt.label}</div>
-                      <div style={{ fontSize: 11, color: C.muted }}>{fmt.desc}</div>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {qrError && <p style={{ color: '#F87171', fontSize: 12, marginBottom: 14 }}>{qrError}</p>}
-
-            <button
-              onClick={submitQR}
-              disabled={qrSaving || !qrName.trim()}
-              style={{ width: '100%', background: qrSaving || !qrName.trim() ? `${C.purple}60` : C.purple, border: 'none', borderRadius: 10, padding: '13px', color: '#fff', fontSize: 14, fontWeight: 700, cursor: qrSaving || !qrName.trim() ? 'not-allowed' : 'pointer', marginBottom: 12 }}
-            >
-              {qrSaving ? 'Generating…' : 'Generate QR Code'}
-            </button>
-            <div style={{ textAlign: 'center' }}>
-              <button onClick={() => setQrModalOpen(false)} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}>Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
@@ -707,7 +583,7 @@ export default function PropertiesPage() {
   const [search, setSearch]               = useState('')
   const [sortMode, setSortMode]           = useState<'recent' | 'leads' | 'active'>('recent')
   const [deleteTarget, setDeleteTarget]   = useState<any | null>(null)
-  const [deleteModal, setDeleteModal]     = useState<'blocked' | 'confirm' | null>(null)
+  const [deleteModal, setDeleteModal]     = useState<'confirm' | null>(null)
 
   useEffect(() => { setOrigin(window.location.origin) }, [])
 
@@ -722,7 +598,7 @@ export default function PropertiesPage() {
 
         const [{ data: profile }, { data: props }] = await Promise.all([
           supabase.from('profiles').select('plan').eq('id', session.user.id).single(),
-          supabase.from('properties').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false }),
+          supabase.from('properties').select('*').eq('user_id', session.user.id).is('deleted_at', null).order('created_at', { ascending: false }),
         ])
 
         if (cancelled) return
@@ -781,20 +657,11 @@ export default function PropertiesPage() {
     }
   }
 
-  const handleDeleteClick = async (prop: any) => {
-    const supabase = createBrowserSupabase()
-    const { count: leadsCount } = await supabase
-      .from('leads').select('*', { count: 'exact', head: true }).eq('property_id', prop.id)
-    const { data: qrData } = await supabase.from('qrcodes').select('id').eq('property_id', prop.id)
-    const qrIds = (qrData || []).map((q: any) => q.id)
-    let scansCount = 0
-    if (qrIds.length > 0) {
-      const { count } = await supabase
-        .from('scan_events').select('*', { count: 'exact', head: true }).in('qr_id', qrIds)
-      scansCount = count || 0
-    }
+  const handleDeleteClick = (prop: any) => {
+    // Soft-delete preserves leads and scan history, so deletion is always safe —
+    // no need to inspect data or block properties that have leads/scans.
     setDeleteTarget(prop)
-    setDeleteModal((leadsCount || 0) > 0 || scansCount > 0 ? 'blocked' : 'confirm')
+    setDeleteModal('confirm')
   }
 
   const deleteProperty = async () => {
@@ -805,46 +672,17 @@ export default function PropertiesPage() {
     setDeletingId(prop.id)
     try {
       const supabase = createBrowserSupabase()
-      console.log('[deleteProperty] start', prop.id)
 
-      // Fetch QR IDs before any deletes — needed for step 1
-      const { data: qrData, error: qrFetchErr } = await supabase
-        .from('qrcodes').select('id').eq('property_id', prop.id)
-      console.log('[deleteProperty] qr fetch:', qrData?.length ?? 0, 'ids', qrFetchErr ?? '')
-      if (qrFetchErr) { console.error('[deleteProperty] BAIL: qr fetch', qrFetchErr); return }
-      const qrIds = (qrData || []).map((q: any) => q.id)
-
-      // 1. scan_events — delete before property so qr_id → property chain is still valid
-      if (qrIds.length > 0) {
-        const { error } = await supabase.from('scan_events').delete().in('qr_id', qrIds)
-        console.log('[deleteProperty] 1. scan_events:', error ?? 'OK')
-        if (error) { console.error('[deleteProperty] BAIL: scan_events', error); return }
-      } else {
-        console.log('[deleteProperty] 1. scan_events: skipped (no qr codes)')
-      }
-
-      // 2. leads
-      const { error: lErr } = await supabase.from('leads').delete().eq('property_id', prop.id)
-      console.log('[deleteProperty] 2. leads:', lErr ?? 'OK')
-      if (lErr) { console.error('[deleteProperty] BAIL: leads', lErr); return }
-
-      // 3. property_photos
-      const { error: phErr } = await supabase.from('property_photos').delete().eq('property_id', prop.id)
-      console.log('[deleteProperty] 3. photos:', phErr ?? 'OK')
-      if (phErr) { console.error('[deleteProperty] BAIL: photos', phErr); return }
-
-      // 4. delete property — ON DELETE SET NULL fires automatically on qrcodes.property_id
-      //    (no manual unlink needed; Postgres handles it within the same transaction)
-      const { error: propErr } = await supabase.from('properties').delete().eq('id', prop.id)
-      console.log('[deleteProperty] 4. property:', propErr ?? 'OK')
-      if (propErr) { console.error('[deleteProperty] BAIL: property', propErr); return }
-
-      // Verify qrcodes were unlinked (property_id should now be NULL)
-      const { data: remaining } = await supabase.from('qrcodes').select('id').eq('property_id', prop.id)
-      console.log('[deleteProperty] qr verify: remaining with old property_id =', remaining?.length ?? 0)
+      // Soft delete: archive the property by stamping deleted_at. Leads, scan
+      // events, QR codes, and photos are all preserved and keep pointing at this
+      // (still-present) property row. Active views filter on deleted_at IS NULL.
+      const { error } = await supabase
+        .from('properties')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', prop.id)
+      if (error) { console.error('[deleteProperty] soft-delete failed:', error); return }
 
       setProperties(prev => prev.filter(p => p.id !== prop.id))
-      console.log('[deleteProperty] done ✓')
     } finally {
       setDeletingId(null)
     }
@@ -949,44 +787,14 @@ export default function PropertiesPage() {
           </div>
         </>
       )}
-      {/* Delete blocked modal — property has leads or scan data */}
-      {deleteModal === 'blocked' && deleteTarget && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div style={{ background: '#1A1A24', border: '1px solid #252533', borderRadius: 16, padding: 28, maxWidth: 420, width: '100%' }}>
-            <div style={{ fontSize: 24, marginBottom: 12 }}>🔒</div>
-            <h2 style={{ fontSize: 17, fontWeight: 700, color: '#FFFFFF', margin: '0 0 12px' }}>Cannot Delete This Property</h2>
-            <p style={{ fontSize: 14, color: '#C4C4D4', lineHeight: 1.6, margin: '0 0 20px' }}>
-              This property has active data and cannot be deleted. To remove it from your active listings, use <strong style={{ color: '#FFFFFF' }}>Take Offline</strong> instead. Your leads and scan history will be preserved.
-            </p>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                onClick={() => { toggleActive(deleteTarget); setDeleteModal(null); setDeleteTarget(null) }}
-                style={{ flex: 1, background: C.purple, color: '#fff', border: 'none', borderRadius: 9, padding: '10px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}
-              >
-                Take Offline
-              </button>
-              <button
-                onClick={() => { setDeleteModal(null); setDeleteTarget(null) }}
-                style={{ flex: 1, background: 'transparent', color: C.muted, border: `1px solid ${C.border}`, borderRadius: 9, padding: '10px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif' }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete confirm modal — property has no leads or scan data */}
+      {/* Delete confirm modal — soft-delete (archive); history is preserved */}
       {deleteModal === 'confirm' && deleteTarget && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div style={{ background: '#1A1A24', border: '1px solid #252533', borderRadius: 16, padding: 28, maxWidth: 420, width: '100%' }}>
             <div style={{ fontSize: 24, marginBottom: 12 }}>🗑️</div>
             <h2 style={{ fontSize: 17, fontWeight: 700, color: '#FFFFFF', margin: '0 0 12px' }}>Delete &ldquo;{deleteTarget.address}&rdquo;?</h2>
-            <p style={{ fontSize: 14, color: '#C4C4D4', lineHeight: 1.6, margin: '0 0 10px' }}>
-              This will permanently delete the property and all associated QR codes. This cannot be undone.
-            </p>
-            <p style={{ fontSize: 13, color: '#EF4444', lineHeight: 1.5, margin: '0 0 20px' }}>
-              ⚠️ This cannot be undone. Use &lsquo;Take Offline&rsquo; to preserve your data.
+            <p style={{ fontSize: 14, color: '#C4C4D4', lineHeight: 1.6, margin: '0 0 20px' }}>
+              This removes the property from your dashboard. Its leads and scan history are <strong style={{ color: '#FFFFFF' }}>preserved</strong> and stay in your Leads list.
             </p>
             <div style={{ display: 'flex', gap: 10 }}>
               <button
@@ -994,7 +802,7 @@ export default function PropertiesPage() {
                 disabled={!!deletingId}
                 style={{ flex: 1, background: '#EF4444', color: '#fff', border: 'none', borderRadius: 9, padding: '10px 16px', fontSize: 13, fontWeight: 700, cursor: deletingId ? 'not-allowed' : 'pointer', opacity: deletingId ? 0.7 : 1, fontFamily: 'sans-serif' }}
               >
-                {deletingId ? 'Deleting…' : 'Delete Permanently'}
+                {deletingId ? 'Deleting…' : 'Delete Property'}
               </button>
               <button
                 onClick={() => { setDeleteModal(null); setDeleteTarget(null) }}

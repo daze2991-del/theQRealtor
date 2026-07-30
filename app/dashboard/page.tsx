@@ -233,6 +233,7 @@ export default function Dashboard() {
         .from('properties')
         .select('id, address, city, state, price, beds, baths, description, active, agent_name, agent_phone, user_id, created_at')
         .eq('user_id', session.user.id)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
       if (propsError) { console.error('[dashboard] properties query error:', propsError); return }
       if (!props) return

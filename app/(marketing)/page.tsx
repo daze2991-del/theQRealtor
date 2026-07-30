@@ -491,8 +491,8 @@ function BuyerExperience() {
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7', marginBottom: 4 }}>03 See Buyer Activity</div>
               <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>Track interest, leads, and engagement in real time.</div>
             </div>
-            {/* Cropped browser frame so dashboard reads large */}
-            <div className="flex-1" style={{ position: 'relative', minHeight: 380, overflow: 'hidden' }}>
+            {/* Dashboard image with browser chrome */}
+            <div className="flex-1" style={{ position: 'relative', overflow: 'hidden' }}>
               <div style={{ background: '#F3F4F6', borderTop: '1px solid #E5E7EB', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#D1D5DB', display: 'inline-block' }} />
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#D1D5DB', display: 'inline-block' }} />
@@ -501,9 +501,9 @@ function BuyerExperience() {
               </div>
               <div style={{ padding: '0 16px 16px' }}>
                 <img
-                  src="/lead-feed-desktop-v2.png"
+                  src="/dashboardmock.png"
                   alt="Agent dashboard with buyer insights"
-                  style={{ width: '100%', display: 'block', borderRadius: 8 }}
+                  style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 8 }}
                 />
               </div>
             </div>

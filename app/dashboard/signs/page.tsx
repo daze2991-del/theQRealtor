@@ -271,6 +271,7 @@ function SignsPageInner() {
             .select('id, address, city, state')
             .eq('user_id', session.user.id)
             .eq('active', true)
+            .is('deleted_at', null)
             .order('created_at', { ascending: false }),
         ])
 

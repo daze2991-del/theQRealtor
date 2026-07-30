@@ -470,7 +470,7 @@ function BuyerExperience() {
               <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>Capture real-world buyer interest.</div>
             </div>
             <div className="flex items-center justify-center flex-1" style={{ padding: '0 20px 20px', minHeight: 320 }}>
-              <img src="/pubrider.png" alt="Smart QR yard sign" style={{ maxHeight: 340, width: 'auto', maxWidth: '100%', objectFit: 'contain' }} />
+              <img src="/pubrider.png" alt="Smart QR yard sign" style={{ maxHeight: 260, width: 'auto', maxWidth: '100%', objectFit: 'contain', borderRadius: 12 }} />
             </div>
           </div>
 
@@ -481,7 +481,7 @@ function BuyerExperience() {
               <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>Photos, pricing, and details load immediately.</div>
             </div>
             <div className="flex items-center justify-center flex-1" style={{ padding: '0 20px 20px', minHeight: 320 }}>
-              <img src="/iphone-mockup.png" alt="Buyer property page on mobile" style={{ maxHeight: 400, width: 'auto', maxWidth: '100%', objectFit: 'contain' }} />
+              <img src="/iphone-mockup.png" alt="Buyer property page on mobile" style={{ maxHeight: 340, width: 'auto', maxWidth: '100%', objectFit: 'contain', borderRadius: 12 }} />
             </div>
           </div>
 
@@ -503,7 +503,7 @@ function BuyerExperience() {
                 <img
                   src="/dashboardmock.png"
                   alt="Agent dashboard with buyer insights"
-                  style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 8 }}
+                  style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 12 }}
                 />
               </div>
             </div>

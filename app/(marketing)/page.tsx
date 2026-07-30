@@ -460,51 +460,112 @@ function BuyerExperience() {
           </p>
         </div>
 
-        {/* Three panels */}
-        <div className="flex flex-col md:flex-row gap-5 mb-4 items-stretch">
+        {/* Three panels — equal height row */}
+        <div className="flex flex-col md:flex-row gap-5 mb-4" style={{ alignItems: 'stretch' }}>
 
           {/* Panel 1 — QR Sign */}
-          <div className="flex-1 flex flex-col" style={{ border: '1px solid #E5E7EB', borderRadius: 20, boxShadow: '0 4px 24px rgba(0,0,0,0.06)', overflow: 'hidden', background: '#fff' }}>
+          <div
+            className="flex-1 flex flex-col group transition-all duration-200 hover:-translate-y-1"
+            style={{ border: '1px solid #E5E7EB', borderRadius: 20, boxShadow: '0 4px 24px rgba(0,0,0,0.06)', overflow: 'hidden', background: '#fff', minHeight: 460 }}
+          >
             <div style={{ padding: '20px 20px 0' }}>
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7', marginBottom: 4 }}>01 Place Your QR Sign</div>
               <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>Capture real-world buyer interest.</div>
             </div>
-            <div className="flex items-center justify-center flex-1" style={{ padding: '0 20px 20px', minHeight: 320 }}>
-              <img src="/pubrider.png" alt="Smart QR yard sign" style={{ maxHeight: 260, width: 'auto', maxWidth: '100%', objectFit: 'contain', borderRadius: 12 }} />
+            <div className="flex items-center justify-center flex-1" style={{ padding: '0 24px 24px' }}>
+              <img
+                src="/pubrider.png"
+                alt="Smart QR yard sign"
+                className="transition-transform duration-200 group-hover:scale-[1.02]"
+                style={{ maxHeight: 300, width: 'auto', maxWidth: '100%', objectFit: 'contain', borderRadius: 12 }}
+              />
             </div>
           </div>
 
           {/* Panel 2 — Phone */}
-          <div className="flex-1 flex flex-col" style={{ border: '1px solid #E5E7EB', borderRadius: 20, boxShadow: '0 4px 24px rgba(0,0,0,0.06)', overflow: 'hidden', background: '#fff' }}>
+          <div
+            className="flex-1 flex flex-col group transition-all duration-200 hover:-translate-y-1"
+            style={{ border: '1px solid #E5E7EB', borderRadius: 20, boxShadow: '0 4px 24px rgba(0,0,0,0.06)', overflow: 'hidden', background: '#fff', minHeight: 460 }}
+          >
             <div style={{ padding: '20px 20px 0' }}>
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7', marginBottom: 4 }}>02 Buyers Explore Instantly</div>
               <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>Photos, pricing, and details load immediately.</div>
             </div>
-            <div className="flex items-center justify-center flex-1" style={{ padding: '0 20px 20px', minHeight: 320 }}>
-              <img src="/iphone-mockup.png" alt="Buyer property page on mobile" style={{ maxHeight: 340, width: 'auto', maxWidth: '100%', objectFit: 'contain', borderRadius: 12 }} />
+            <div className="flex items-center justify-center flex-1" style={{ padding: '0 24px 24px' }}>
+              <img
+                src="/iphone-mockup.png"
+                alt="Buyer property page on mobile"
+                className="transition-transform duration-200 group-hover:scale-[1.02]"
+                style={{ maxHeight: 300, width: 'auto', maxWidth: '100%', objectFit: 'contain', borderRadius: 12 }}
+              />
             </div>
           </div>
 
-          {/* Panel 3 — Dashboard (cropped viewport) */}
-          <div className="flex-1 flex flex-col" style={{ border: '1px solid #E5E7EB', borderRadius: 20, boxShadow: '0 4px 24px rgba(0,0,0,0.06)', overflow: 'hidden', background: '#fff' }}>
+          {/* Panel 3 — Coded dashboard mockup */}
+          <div
+            className="flex-1 flex flex-col group transition-all duration-200 hover:-translate-y-1"
+            style={{ border: '1px solid #E5E7EB', borderRadius: 20, boxShadow: '0 4px 24px rgba(0,0,0,0.06)', overflow: 'hidden', background: '#fff', minHeight: 460 }}
+          >
             <div style={{ padding: '20px 20px 0' }}>
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7', marginBottom: 4 }}>03 See Buyer Activity</div>
               <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>Track interest, leads, and engagement in real time.</div>
             </div>
-            {/* Dashboard image with browser chrome */}
-            <div className="flex-1" style={{ position: 'relative', overflow: 'hidden' }}>
-              <div style={{ background: '#F3F4F6', borderTop: '1px solid #E5E7EB', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#D1D5DB', display: 'inline-block' }} />
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#D1D5DB', display: 'inline-block' }} />
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#D1D5DB', display: 'inline-block' }} />
-                <span style={{ flex: 1, maxWidth: 140, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, padding: '2px 8px', fontSize: 9, color: '#9CA3AF' }}>theqrealtor.com/dashboard</span>
-              </div>
-              <div style={{ padding: '0 16px 16px' }}>
-                <img
-                  src="/dashboardmock.png"
-                  alt="Agent dashboard with buyer insights"
-                  style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 12 }}
-                />
+            <div className="flex-1 transition-transform duration-200 group-hover:scale-[1.02]" style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column' }}>
+              {/* Dark dashboard mockup */}
+              <div style={{ background: '#0F0F13', borderRadius: 14, padding: 14, flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {/* Today's Focus header */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>Today&apos;s Focus</span>
+                  <span style={{ fontSize: 9, color: '#6B7280' }}>123 Maple St ↓</span>
+                </div>
+                {/* Stat grid — 2×2 */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {[
+                    { label: 'Buyer Interest', value: '14', sub: 'scans this week', color: '#534AB7' },
+                    { label: 'New Leads', value: '3', sub: 'inquiries', color: '#10B981' },
+                    { label: 'Showing Requests', value: '2', sub: 'pending', color: '#F59E0B' },
+                    { label: 'Needs Follow-up', value: '5', sub: 'warm leads', color: '#EF4444' },
+                  ].map(s => (
+                    <div key={s.label} style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 10, padding: '10px 11px' }}>
+                      <div style={{ fontSize: 8, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{s.label}</div>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: s.color, lineHeight: 1, marginBottom: 2 }}>{s.value}</div>
+                      <div style={{ fontSize: 8, color: '#4B5563' }}>{s.sub}</div>
+                    </div>
+                  ))}
+                </div>
+                {/* Hot leads */}
+                <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, padding: '10px 12px' }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: '#EF4444', marginBottom: 6 }}>🔥 Hot Leads Need Attention</div>
+                  {['Sarah M.', 'David C.'].map(name => (
+                    <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
+                      <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#534AB7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <span style={{ fontSize: 8, fontWeight: 700, color: '#fff' }}>{name[0]}</span>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 9, fontWeight: 600, color: '#fff' }}>{name}</div>
+                        <div style={{ fontSize: 8, color: '#6B7280' }}>Requested a showing</div>
+                      </div>
+                      <span style={{ fontSize: 8, fontWeight: 600, color: '#EF4444' }}>Hot</span>
+                    </div>
+                  ))}
+                </div>
+                {/* Lead Health */}
+                <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '10px 12px' }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: '#9CA3AF', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Lead Health</div>
+                  {[
+                    { label: 'Hot', pct: 20, color: '#EF4444' },
+                    { label: 'Warm', pct: 45, color: '#F59E0B' },
+                    { label: 'Cold', pct: 35, color: '#374151' },
+                  ].map(h => (
+                    <div key={h.label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+                      <div style={{ fontSize: 8, color: '#6B7280', width: 28 }}>{h.label}</div>
+                      <div style={{ flex: 1, height: 5, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{ width: `${h.pct}%`, height: '100%', background: h.color, borderRadius: 3 }} />
+                      </div>
+                      <div style={{ fontSize: 8, color: '#6B7280', width: 20, textAlign: 'right' }}>{h.pct}%</div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>

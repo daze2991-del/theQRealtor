@@ -499,11 +499,11 @@ function BuyerExperience() {
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#D1D5DB', display: 'inline-block' }} />
                 <span style={{ flex: 1, maxWidth: 140, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 4, padding: '2px 8px', fontSize: 9, color: '#9CA3AF' }}>theqrealtor.com/dashboard</span>
               </div>
-              <div style={{ overflow: 'hidden', height: 380 }}>
+              <div style={{ padding: '0 16px 16px' }}>
                 <img
-                  src="/dashboard-view.png"
+                  src="/lead-feed-desktop-v2.png"
                   alt="Agent dashboard with buyer insights"
-                  style={{ width: '200%', objectFit: 'cover', objectPosition: 'top left', display: 'block' }}
+                  style={{ width: '100%', display: 'block', borderRadius: 8 }}
                 />
               </div>
             </div>

@@ -491,12 +491,12 @@ function BuyerExperience() {
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7', marginBottom: 4 }}>02 Buyers Explore Instantly</div>
               <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>Photos, pricing, and details load immediately.</div>
             </div>
-            <div className="flex items-center justify-center flex-1" style={{ padding: '0 12px 16px' }}>
+            <div className="flex items-center justify-center flex-1" style={{ padding: '0 8px 12px' }}>
               <img
                 src="/iphone-mockup.png"
                 alt="Buyer property page on mobile"
                 className="transition-transform duration-200 group-hover:scale-[1.02]"
-                style={{ maxHeight: 370, width: 'auto', maxWidth: '100%', objectFit: 'contain', borderRadius: 12 }}
+                style={{ maxHeight: 480, width: 'auto', maxWidth: '100%', objectFit: 'contain', borderRadius: 12 }}
               />
             </div>
           </div>
@@ -510,8 +510,8 @@ function BuyerExperience() {
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7', marginBottom: 4 }}>03 See Buyer Activity</div>
               <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>Track interest, leads, and engagement in real time.</div>
             </div>
-            <div className="flex-1 transition-transform duration-200 group-hover:scale-[1.02]" style={{ padding: '0 12px 16px', overflow: 'hidden' }}>
-              <div style={{ borderRadius: 12, overflow: 'hidden', height: 390 }}>
+            <div className="flex-1 transition-transform duration-200 group-hover:scale-[1.02]" style={{ padding: '0 8px 12px', overflow: 'hidden' }}>
+              <div style={{ borderRadius: 12, overflow: 'hidden', height: 490 }}>
                 <img
                   src="/dashboardmock-v2.png"
                   alt="Agent dashboard showing buyer interest and new leads"

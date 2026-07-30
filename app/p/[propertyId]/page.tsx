@@ -116,19 +116,25 @@ export default function PropertyPage() {
 
   // Resolve the URL id: sign with an active assignment → its property; sign
   // without one → branded "not assigned" state; anything else → treat the id
-  // as a property id (existing behavior, unchanged).
+  // as a property id (existing behavior, unchanged). One retry before falling
+  // through: for a sign id, property routing ends in "Property not found", so
+  // a transient resolve failure shouldn't send buyers there.
   useEffect(() => {
     if (!urlId) return
     let cancelled = false
+    const resolveOnce = async () => {
+      const res = await fetch('/api/signs/resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: urlId }),
+      })
+      if (!res.ok) throw new Error(`resolve failed: ${res.status}`)
+      return await res.json() as { sign: boolean; propertyId?: string | null }
+    }
     const resolve = async () => {
-      try {
-        const res = await fetch('/api/signs/resolve', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: urlId }),
-        })
-        if (res.ok) {
-          const data = await res.json() as { sign: boolean; propertyId?: string | null }
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const data = await resolveOnce()
           if (cancelled) return
           if (data.sign) {
             if (data.propertyId) {
@@ -140,8 +146,9 @@ export default function PropertyPage() {
             }
             return
           }
-        }
-      } catch { /* resolution unavailable — fall through to property routing */ }
+          break // definitively not a sign — property routing below
+        } catch { /* retry once, then fall through to property routing */ }
+      }
       if (!cancelled) setPropertyId(urlId)
     }
     resolve()

@@ -1,6 +1,7 @@
 'use client'
 
 import { Suspense, useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import { useRouter, useSearchParams } from 'next/navigation'
 import DashboardLayout from '../../../components/DashboardLayout'
@@ -168,28 +169,38 @@ function SignCard({ sign, origin, onRename, onOpenAssign, onUnassign, unassignin
       </div>
 
       {/* Actions */}
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button
-          onClick={onOpenAssign}
-          style={{ flex: 1, background: C.purple, color: '#fff', border: 'none', borderRadius: 9, padding: '10px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
-        >
-          {assigned ? 'Reassign' : 'Assign'}
-        </button>
-        {assigned && (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
           <button
-            onClick={onUnassign}
-            disabled={unassigning}
-            style={{ flex: 1, background: 'transparent', color: '#94A3B8', border: '1px solid #1E2340', borderRadius: 9, padding: '10px 14px', fontSize: 13, fontWeight: 600, cursor: unassigning ? 'not-allowed' : 'pointer', opacity: unassigning ? 0.5 : 1 }}
+            onClick={onOpenAssign}
+            style={{ flex: 1, background: C.purple, color: '#fff', border: 'none', borderRadius: 9, padding: '10px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
           >
-            {unassigning ? '…' : 'Unassign'}
+            {assigned ? 'Reassign' : 'Assign'}
           </button>
-        )}
-        <button
-          onClick={() => setShowHistory(v => !v)}
-          style={{ flex: 1, background: 'transparent', color: '#94A3B8', border: '1px solid #1E2340', borderRadius: 9, padding: '10px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-        >
-          {showHistory ? 'Hide history' : 'View history'}
-        </button>
+          <Link
+            href={`/dashboard/sign-studio/${sign.id}`}
+            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: C.purpleL, border: `1px solid ${C.purple}60`, borderRadius: 9, padding: '10px 14px', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}
+          >
+            🖨 Sign Studio
+          </Link>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {assigned && (
+            <button
+              onClick={onUnassign}
+              disabled={unassigning}
+              style={{ flex: 1, background: 'transparent', color: '#94A3B8', border: '1px solid #1E2340', borderRadius: 9, padding: '10px 14px', fontSize: 13, fontWeight: 600, cursor: unassigning ? 'not-allowed' : 'pointer', opacity: unassigning ? 0.5 : 1 }}
+            >
+              {unassigning ? '…' : 'Unassign'}
+            </button>
+          )}
+          <button
+            onClick={() => setShowHistory(v => !v)}
+            style={{ flex: 1, background: 'transparent', color: '#94A3B8', border: '1px solid #1E2340', borderRadius: 9, padding: '10px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+          >
+            {showHistory ? 'Hide history' : 'View history'}
+          </button>
+        </div>
       </div>
 
       {/* Assignment history */}

@@ -99,7 +99,7 @@ async function drawCircularPhoto(
 // ── download functions ────────────────────────────────────────────────────────
 
 async function downloadCorner(
-  qrId: string, origin: string, branding: BrandingState,
+  signId: string, origin: string, branding: BrandingState,
   address: string, svgRef: SVGSVGElement
 ) {
   const W = 1200, H = 1200
@@ -146,13 +146,13 @@ async function downloadCorner(
   }
 
   const a = document.createElement('a')
-  a.download = `corner-qr-${qrId}.png`
+  a.download = `corner-qr-${signId}.png`
   a.href = canvas.toDataURL('image/png')
   a.click()
 }
 
 async function downloadRider(
-  qrId: string, origin: string, branding: BrandingState,
+  signId: string, origin: string, branding: BrandingState,
   address: string, svgRef: SVGSVGElement
 ) {
   // 4x12 inch at 300dpi = 1200x3600
@@ -254,13 +254,13 @@ async function downloadRider(
   ctx.fillRect(0, H - 16, W, 16)
 
   const a = document.createElement('a')
-  a.download = `rider-${qrId}.png`
+  a.download = `rider-${signId}.png`
   a.href = canvas.toDataURL('image/png')
   a.click()
 }
 
 async function downloadTraffic(
-  qrId: string, origin: string, branding: BrandingState,
+  signId: string, origin: string, branding: BrandingState,
   address: string, svgRef: SVGSVGElement, landscape: boolean
 ) {
   // 8.5x11 at 300dpi = 2550x3300 (portrait), 3300x2550 (landscape)
@@ -386,7 +386,7 @@ async function downloadTraffic(
   }
 
   const a = document.createElement('a')
-  a.download = `traffic-${landscape ? 'landscape' : 'portrait'}-${qrId}.png`
+  a.download = `traffic-${landscape ? 'landscape' : 'portrait'}-${signId}.png`
   a.href = canvas.toDataURL('image/png')
   a.click()
 }
@@ -410,11 +410,12 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 export default function SignStudioPage() {
   const params = useParams()
   const router = useRouter()
-  const qrId = params.qrId as string
+  const signId = params.signId as string
 
   const [origin, setOrigin] = useState('')
   const [loading, setLoading] = useState(true)
-  const [qrCode, setQrCode] = useState<any>(null)
+  const [sign, setSign] = useState<any>(null)
+  const [scanCount, setScanCount] = useState(0)
   const [property, setProperty] = useState<any>(null)
   const [template, setTemplate] = useState<Template>('rider')
   const [downloading, setDownloading] = useState<string | null>(null)
@@ -460,12 +461,24 @@ export default function SignStudioPage() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.push('/auth'); return }
 
-      const { data: qr } = await supabase.from('qrcodes').select('*').eq('id', qrId).single()
-      if (!qr) { router.push('/dashboard/qr-codes'); return }
-      setQrCode(qr)
+      // Owner RLS covers signs, sign_assignments, and the agent's own
+      // properties, so no server round-trip is needed here.
+      const { data: signRow } = await supabase
+        .from('signs')
+        .select('id, label, created_at, sign_assignments(property_id, unassigned_at, properties(id, address, city, state))')
+        .eq('id', signId)
+        .single()
+      if (!signRow) { router.push('/dashboard/signs'); return }
+      setSign(signRow)
 
-      const { data: prop } = await supabase.from('properties').select('*').eq('id', qr.property_id).single()
-      setProperty(prop)
+      const current = (signRow.sign_assignments ?? []).find((a: any) => a.unassigned_at === null)
+      setProperty(current?.properties ?? null)
+
+      const { count } = await supabase
+        .from('scan_events')
+        .select('id', { count: 'exact', head: true })
+        .eq('sign_id', signId)
+      setScanCount(count ?? 0)
 
       // pre-fill branding from profile
       const { data: profile } = await supabase
@@ -487,9 +500,12 @@ export default function SignStudioPage() {
       setLoading(false)
     }
     load()
-  }, [qrId])
+  }, [signId])
 
-  const qrUrl = origin ? `${origin}/q/${qrId}` : ''
+  // The QR encodes the SIGN, not a property: /p/{signId} resolves through the
+  // sign's current assignment at scan time, so a printed sign survives
+  // reassignment without reprinting.
+  const qrUrl = origin ? `${origin}/p/${signId}` : ''
   const address = property?.address || ''
 
   const handleDownload = async (type: string) => {
@@ -497,10 +513,10 @@ export default function SignStudioPage() {
     if (!svgEl || !origin) return
     setDownloading(type)
     try {
-      if (type === 'corner') await downloadCorner(qrId, origin, branding, address, svgEl)
-      else if (type === 'rider') await downloadRider(qrId, origin, branding, address, svgEl)
-      else if (type === 'traffic-p') await downloadTraffic(qrId, origin, branding, address, svgEl, false)
-      else if (type === 'traffic-l') await downloadTraffic(qrId, origin, branding, address, svgEl, true)
+      if (type === 'corner') await downloadCorner(signId, origin, branding, address, svgEl)
+      else if (type === 'rider') await downloadRider(signId, origin, branding, address, svgEl)
+      else if (type === 'traffic-p') await downloadTraffic(signId, origin, branding, address, svgEl, false)
+      else if (type === 'traffic-l') await downloadTraffic(signId, origin, branding, address, svgEl, true)
     } finally {
       setDownloading(null)
     }
@@ -580,16 +596,16 @@ export default function SignStudioPage() {
             background: C.bg, position: 'sticky', top: 0, zIndex: 10,
             fontFamily: 'sans-serif',
           }}>
-            <Link href="/dashboard/qr-codes" style={{ color: C.muted, fontSize: 13, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5 }}>
-              ← QR Codes
+            <Link href="/dashboard/signs" style={{ color: C.muted, fontSize: 13, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5 }}>
+              ← Signs
             </Link>
             <span style={{ color: C.border }}>|</span>
             <div>
               <h1 style={{ fontSize: 18, fontWeight: 800, color: C.text, margin: 0, letterSpacing: '-0.01em' }}>
                 Sign Studio
               </h1>
-              {qrCode && (
-                <p style={{ fontSize: 11, color: C.muted, margin: '1px 0 0' }}>{qrCode.label}</p>
+              {sign && (
+                <p style={{ fontSize: 11, color: C.muted, margin: '1px 0 0' }}>{sign.label}</p>
               )}
             </div>
           </div>
@@ -652,16 +668,23 @@ export default function SignStudioPage() {
                 {/* QR info */}
                 <div style={card}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
-                    QR Code Info
+                    Sign Info
                   </div>
-                  <div style={{ fontSize: 13, color: C.text, fontWeight: 600, marginBottom: 4 }}>{qrCode?.label}</div>
-                  <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>{address}</div>
-                  <div style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ fontSize: 13, color: C.text, fontWeight: 600, marginBottom: 4 }}>{sign?.label}</div>
+                  <div style={{ fontSize: 12, color: property ? C.muted : '#FB923C', marginBottom: 12 }}>
+                    {property ? address : 'Not assigned to a listing yet'}
+                  </div>
+                  <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
                     <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: 22, fontWeight: 800, color: C.purpleL }}>{qrCode?.scan_count || 0}</div>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: C.purpleL }}>{scanCount}</div>
                       <div style={{ fontSize: 10, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Scans</div>
                     </div>
                   </div>
+                  <p style={{ fontSize: 11, color: C.muted, margin: 0, lineHeight: 1.55 }}>
+                    This QR is permanent to the sign — reassign the sign and the same
+                    printed code points to the new listing. Any address text printed on
+                    the artwork won&apos;t update, though.
+                  </p>
                 </div>
 
               </div>

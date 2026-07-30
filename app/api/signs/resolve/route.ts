@@ -36,9 +36,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ sign: false })
   }
 
+  // Join the assigned property so an assignment the buyer page cannot
+  // actually display resolves to the graceful "unassigned" state instead of
+  // falling through to "Property not found". That covers: no active
+  // assignment, property hard-deleted (property_id SET NULL per 029), and
+  // property deactivated (anon RLS only exposes active listings).
   const { data: assignment, error: assignmentError } = await admin
     .from('sign_assignments')
-    .select('property_id')
+    .select('property_id, properties(id, active)')
     .eq('sign_id', id)
     .is('unassigned_at', null)
     .maybeSingle()
@@ -47,5 +52,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Failed to resolve the sign.' }, { status: 500 })
   }
 
-  return NextResponse.json({ sign: true, propertyId: assignment?.property_id ?? null })
+  const property = (assignment?.properties ?? null) as { id: string; active: boolean | null } | null
+  const propertyId = assignment?.property_id && property?.active ? assignment.property_id : null
+
+  return NextResponse.json({ sign: true, propertyId })
 }

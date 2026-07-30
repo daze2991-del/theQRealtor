@@ -472,7 +472,7 @@ function BuyerExperience() {
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7', marginBottom: 4 }}>01 Place Your QR Sign</div>
               <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>Capture real-world buyer interest.</div>
             </div>
-            <div className="flex items-center justify-center flex-1" style={{ padding: '0 12px 16px' }}>
+            <div className="flex items-start justify-center flex-1" style={{ padding: '0 12px 16px' }}>
               <img
                 src="/pubrider-v2.png"
                 alt="Smart QR yard sign"
@@ -492,12 +492,14 @@ function BuyerExperience() {
               <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>Photos, pricing, and details load immediately.</div>
             </div>
             <div className="flex items-center justify-center flex-1" style={{ padding: '0 8px 12px' }}>
-              <img
-                src="/iphone-mockup.png"
-                alt="Buyer property page on mobile"
-                className="transition-transform duration-200 group-hover:scale-[1.02]"
-                style={{ maxHeight: 480, width: 'auto', maxWidth: '100%', objectFit: 'contain', borderRadius: 12 }}
-              />
+              <div style={{ borderRadius: 36, overflow: 'hidden', display: 'inline-flex' }}>
+                <img
+                  src="/iphone-mockup.png"
+                  alt="Buyer property page on mobile"
+                  className="transition-transform duration-200 group-hover:scale-[1.02]"
+                  style={{ maxHeight: 480, width: 'auto', maxWidth: '100%', objectFit: 'contain', display: 'block' }}
+                />
+              </div>
             </div>
           </div>
 

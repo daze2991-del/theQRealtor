@@ -209,7 +209,7 @@ function Hero() {
         </motion.div>
 
         <motion.div variants={fadeUp}>
-          <div className="w-full max-w-3xl mx-auto">
+          <div className="-mx-8 px-4 sm:mx-auto sm:px-0 sm:max-w-3xl">
             <div className="relative">
               <div className="absolute -inset-4 bg-[#534AB7] opacity-10 blur-3xl rounded-3xl" />
               <img src="/lead-feed-desktop-v3.png" alt="Lead activity feed" className="relative w-full rounded-2xl shadow-[0_25px_60px_-15px_rgba(83,74,183,0.35)]" />
@@ -480,7 +480,7 @@ function BuyerExperience() {
                 src="/pubrider-v2.png"
                 alt="Smart QR yard sign"
                 className="transition-transform duration-200 group-hover:scale-[1.02]"
-                style={{ maxHeight: 370, width: 'auto', maxWidth: '100%', objectFit: 'contain', borderRadius: 12 }}
+                style={{ maxHeight: 420, width: 'auto', maxWidth: '100%', objectFit: 'contain', borderRadius: 12 }}
               />
             </div>
           </div>
@@ -499,7 +499,7 @@ function BuyerExperience() {
                 src="/iphone-mockup.png"
                 alt="Buyer property page on mobile"
                 className="transition-transform duration-200 group-hover:scale-[1.02]"
-                style={{ maxHeight: 480, width: 'auto', maxWidth: '100%', objectFit: 'contain', display: 'block', borderRadius: 36 }}
+                style={{ maxHeight: 370, width: 'auto', maxWidth: '100%', objectFit: 'contain', display: 'block', borderRadius: 36 }}
               />
             </div>
           </div>
@@ -518,7 +518,7 @@ function BuyerExperience() {
                 <img
                   src="/dashboardmock-v2.png"
                   alt="Agent dashboard showing buyer interest and new leads"
-                  style={{ width: '100%', display: 'block', objectFit: 'contain', maxHeight: 430 }}
+                  style={{ width: 'auto', maxWidth: '100%', display: 'block', objectFit: 'contain', maxHeight: 420 }}
                 />
               </div>
             </div>

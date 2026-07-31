@@ -209,7 +209,7 @@ function Hero() {
         </motion.div>
 
         <motion.div variants={fadeUp}>
-          <div className="w-full max-w-3xl mx-auto px-4">
+          <div className="w-full max-w-3xl mx-auto">
             <div className="relative">
               <div className="absolute -inset-4 bg-[#534AB7] opacity-10 blur-3xl rounded-3xl" />
               <img src="/lead-feed-desktop-v3.png" alt="Lead activity feed" className="relative w-full rounded-2xl shadow-[0_25px_60px_-15px_rgba(83,74,183,0.35)]" />
@@ -495,14 +495,12 @@ function BuyerExperience() {
               <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>Photos, pricing, and details load immediately.</div>
             </div>
             <div className="flex items-center justify-center flex-1" style={{ padding: '0 8px 12px' }}>
-              <div style={{ borderRadius: 36, overflow: 'hidden', display: 'inline-flex' }}>
-                <img
-                  src="/iphone-mockup.png"
-                  alt="Buyer property page on mobile"
-                  className="transition-transform duration-200 group-hover:scale-[1.02]"
-                  style={{ maxHeight: 480, width: 'auto', maxWidth: '100%', objectFit: 'contain', display: 'block' }}
-                />
-              </div>
+              <img
+                src="/iphone-mockup.png"
+                alt="Buyer property page on mobile"
+                className="transition-transform duration-200 group-hover:scale-[1.02]"
+                style={{ maxHeight: 480, width: 'auto', maxWidth: '100%', objectFit: 'contain', display: 'block', borderRadius: 36 }}
+              />
             </div>
           </div>
 

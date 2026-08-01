@@ -188,9 +188,14 @@ function Hero() {
           variants={fadeUp}
           className="text-center text-lg text-gray-500 leading-relaxed max-w-xl mx-auto mb-8"
         >
-          Buyers already stop at your signs. They scan, browse the listing, compare details — and often come back for a second look.
+          Your signs are already generating buyer traffic.
           <br /><br />
-          theqrealtor shows you who&apos;s interested, how strong that interest is, and exactly when to follow up.
+          <span style={{ letterSpacing: '-0.5px' }}>
+            <span style={{ fontWeight: 300 }}>the</span>
+            <span style={{ fontWeight: 700, color: '#534AB7' }}>qr</span>
+            <span style={{ fontWeight: 500 }}>ealtor</span>
+          </span>
+          {' '}turns every anonymous scan into a signal — so you know who&apos;s interested, how strong that interest is, and exactly when to follow up.
         </motion.p>
 
         <motion.div variants={fadeUp} className="flex items-center justify-center gap-3 mb-12">

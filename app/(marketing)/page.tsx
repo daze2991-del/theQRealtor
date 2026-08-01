@@ -188,9 +188,9 @@ function Hero() {
           variants={fadeUp}
           className="text-center text-lg text-gray-500 leading-relaxed max-w-xl mx-auto mb-8"
         >
-          Buyers already stop at your signs. They scan, browse the property, compare details, and often return later.
+          Buyers already stop at your signs. They scan, browse the listing, compare details — and often come back for a second look.
           <br /><br />
-          theqrealtor turns every scan into actionable engagement insights — so you know who&apos;s interested, how strong that interest is, and when to follow up.
+          theqrealtor shows you who&apos;s interested, how strong that interest is, and exactly when to follow up.
         </motion.p>
 
         <motion.div variants={fadeUp} className="flex items-center justify-center gap-3 mb-12">
@@ -315,8 +315,8 @@ function TwoMoments() {
 function HowItWorks() {
   const steps = [
     {
-      title: 'Place your sign',
-      body: 'Print your QR code and place it on your yard sign or A-frame. One sign. Every listing.',
+      title: 'Print your QR code',
+      body: 'Print it and attach it to your existing yard sign or A-frame. One code. Every listing.',
     },
     {
       title: 'Buyers engage, you learn',

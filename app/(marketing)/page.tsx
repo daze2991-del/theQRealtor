@@ -504,7 +504,7 @@ function BuyerExperience() {
                 src="/iphone-mockup.png"
                 alt="Buyer property page on mobile"
                 className="transition-transform duration-200 group-hover:scale-[1.02]"
-                style={{ maxHeight: 370, width: 'auto', maxWidth: '100%', objectFit: 'contain', display: 'block', borderRadius: 36 }}
+                style={{ maxHeight: 420, width: 'auto', maxWidth: '100%', objectFit: 'contain', display: 'block', borderRadius: 36 }}
               />
             </div>
           </div>

@@ -284,7 +284,7 @@ function TwoMoments() {
           >
             <div className="text-sm font-semibold text-gray-900 mb-3">Before they reach out</div>
             <p className="text-sm text-gray-500 leading-relaxed">
-              Every scan, every photo viewed, every return visit builds a silent intent profile. You see engagement in real time. No name. No contact. Just signal.
+              Every scan, every photo viewed, every return visit builds an activity history. You see engagement in real time. No name. No contact. Just signal.
             </p>
           </motion.div>
 

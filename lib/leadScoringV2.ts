@@ -195,7 +195,7 @@ export function topSignalLabel(
     if ((bd.photos?.points ?? 0) > 0)         return 'Viewed photos'
     if ((bd.first_scan ?? 0) > 0)             return 'New scan'
   }
-  return tier === 'hot' ? 'Hot lead' : tier === 'warm' ? 'Warm lead' : 'Cold lead'
+  return tier === 'hot' ? 'Hot engagement' : tier === 'warm' ? 'Warm engagement' : 'Cold engagement'
 }
 
 // ── Tier derivation (fallback for V1 rows without tier field) ────────────────
@@ -209,15 +209,15 @@ export function motivationToTierV2(motivation: string | null | undefined): LeadT
 export const TIER_V2_CFG = {
   hot:  { label: '🔥 Hot',  color: '#EF4444', bg: '#3B0D0D', border: '#EF4444',
           action: 'Call Today',            actionIcon: '📞',
-          summary: 'This buyer is highly engaged and showing strong purchase intent.',
+          summary: 'Engagement is strong — showing high purchase intent.',
           advice:  'Call within 30 minutes. Strike while intent is highest.' },
   warm: { label: '👍 Warm', color: '#60A5FA', bg: '#0F2238', border: '#60A5FA',
           action: 'Follow Up This Week',   actionIcon: '📅',
-          summary: 'This buyer is considering this property and may need a nudge.',
+          summary: 'Engagement is moderate — this lead may need a nudge.',
           advice:  'Send a friendly follow-up text or email within 24 hours.' },
   cold: { label: '❄️ Cold', color: '#6B7280', bg: '#1F2937', border: '#6B7280',
           action: 'Add to Drip',           actionIcon: '📧',
-          summary: 'This buyer is early in their search. Stay on their radar.',
+          summary: 'Engagement is low — likely early in their search. Stay on their radar.',
           advice:  'Add to your follow-up list. Check in every 2–3 weeks.' },
 } as const
 

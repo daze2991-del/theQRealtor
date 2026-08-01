@@ -18,27 +18,6 @@ const C = {
   text: '#FFFFFF', sub: '#C4C4D4', muted: '#6B7280',
 } as const
 
-const TIER = {
-  hot:       { label: '🔥 Hot Buyer',       color: '#EF4444', bg: '#3B0D0D', border: '#EF4444', intent: 'Very High Intent' },
-  motivated: { label: '⚡ Motivated Buyer', color: '#F97316', bg: '#3B1F0D', border: '#F97316', intent: 'High Intent' },
-  warm:      { label: '👍 Warm Buyer',      color: '#60A5FA', bg: '#0F2238', border: '#60A5FA', intent: 'Moderate Intent' },
-  cold:      { label: '❄️ Cold Buyer',      color: '#6B7280', bg: '#1F2937', border: '#6B7280', intent: 'Low Intent' },
-} as const
-
-const INTEL_SUMMARY: Record<string, string> = {
-  hot:       'This buyer is highly engaged and showing strong purchase intent.',
-  motivated: 'This buyer is actively interested and worth following up with today.',
-  warm:      'This buyer is considering this property and may need a nudge.',
-  cold:      'This buyer is early in their search. Stay on their radar.',
-}
-
-const INTEL_ACTION: Record<string, string> = {
-  hot:       'Call within 30 minutes. This buyer requested a showing and is highly engaged. Strike while intent is highest.',
-  motivated: 'Follow up today via their preferred contact method. This buyer is actively searching.',
-  warm:      'Send a friendly follow-up text or email within 24 hours. Keep them engaged.',
-  cold:      'Add to your follow-up list. Check in every 2-3 weeks as they continue their search.',
-}
-
 // SCORE_GUIDE is now sourced from leadScoringV2 (SCORE_GUIDE_V2) — V2 tiers only
 
 function timeAgo(iso: string) {

@@ -173,7 +173,7 @@ export const msg = {
   questionAlert: (buyer: string, address: string, leadId: string) =>
     `💬 New question from ${buyer} re: ${address}. View lead: ${leadUrl(leadId)}. Reply STOP to opt out.`,
   hotAlert: (buyer: string, address: string, leadId: string, contactPreference?: string | null, buyerPhone?: string | null) =>
-    `🔥 ${buyer} just went Hot on ${address}. Phone: ${(buyerPhone || '').trim() || 'n/a'}. Preferred contact: ${contactVerb(contactPreference)}. View lead: ${leadUrl(leadId)}. Reply STOP to opt out.`,
+    `🔥 ${buyer} just hit Hot engagement on ${address}. Phone: ${(buyerPhone || '').trim() || 'n/a'}. Preferred contact: ${contactVerb(contactPreference)}. View lead: ${leadUrl(leadId)}. Reply STOP to opt out.`,
   buyerConfirmation: (buyerName: string, address: string, agentName?: string | null) => {
     const who = firstName(agentName) || 'The agent'
     return `Hi ${firstName(buyerName) || 'there'}, thanks for your interest in ${address}. ${who} will reach out shortly. Reply STOP to opt out.`

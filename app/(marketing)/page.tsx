@@ -480,7 +480,7 @@ function BuyerExperience() {
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7', marginBottom: 4 }}>01 Place Your QR Sign</div>
               <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>Capture real-world buyer interest.</div>
             </div>
-            <div className="flex items-start justify-center flex-1" style={{ padding: '18px 12px 16px' }}>
+            <div className="flex items-center justify-center flex-1" style={{ padding: '18px 12px 16px' }}>
               <img
                 src="/pubrider-v2.png"
                 alt="Smart QR yard sign"
@@ -518,8 +518,8 @@ function BuyerExperience() {
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#534AB7', marginBottom: 4 }}>03 See Buyer Activity</div>
               <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>Track interest, leads, and engagement in real time.</div>
             </div>
-            <div className="flex-1 transition-transform duration-200 group-hover:scale-[1.02]" style={{ padding: '0 8px 12px', overflow: 'hidden' }}>
-              <div style={{ borderRadius: 12, overflow: 'hidden' }}>
+            <div className="flex-1 flex items-center justify-center" style={{ padding: '0 8px 12px', overflow: 'hidden' }}>
+              <div className="transition-transform duration-200 group-hover:scale-[1.02]" style={{ borderRadius: 12, overflow: 'hidden' }}>
                 <img
                   src="/dashboardmock-v2.png"
                   alt="Agent dashboard showing buyer interest and new leads"

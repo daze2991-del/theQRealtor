@@ -144,13 +144,34 @@ function NavLinks({ pathname, onClose, newLeadCount, isAdmin }: {
         />
       ))}
       {isAdmin && (
-        <NavItem
-          label="Admin"
-          icon="admin"
-          href="/dashboard/admin"
-          active={isActive('/dashboard/admin')}
-          onClose={onClose}
-        />
+        <>
+          <hr style={{ border: 'none', borderTop: '1px solid rgba(245,158,11,0.22)', margin: '12px 0', width: '100%' }} />
+          <Link
+            href="/admin"
+            onClick={onClose}
+            onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = 'rgba(245,158,11,0.14)' }}
+            onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = isActive('/admin') ? 'rgba(245,158,11,0.16)' : 'rgba(245,158,11,0.06)' }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: '9px 12px', borderRadius: 8, marginBottom: 2, minHeight: 38,
+              background: isActive('/admin') ? 'rgba(245,158,11,0.16)' : 'rgba(245,158,11,0.06)',
+              border: '1px solid rgba(245,158,11,0.30)',
+              color: isActive('/admin') ? '#FCD34D' : '#F59E0B',
+              textDecoration: 'none', fontSize: 13.5, fontWeight: 600,
+              transition: 'background 0.12s',
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+              <NavIcon name="admin" />
+            </span>
+            <span style={{ flex: 1 }}>Beta Overview</span>
+            <span style={{
+              fontSize: 9, fontWeight: 800, lineHeight: 1, letterSpacing: '0.06em',
+              textTransform: 'uppercase', color: '#78350F', background: '#F59E0B',
+              borderRadius: 20, padding: '3px 7px', flexShrink: 0,
+            }}>Founder</span>
+          </Link>
+        </>
       )}
     </>
   )
@@ -368,7 +389,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }
 
         setBetaJoinedAt(profile?.beta_joined_at ?? null)
-        setIsAdmin(false) // profiles.role column not in schema; admin nav hidden until proper role column is added
+        // Server-authoritative admin check: /api/admin/whoami runs the same
+        // adminGate() against the server-only ADMIN_USER_ID and returns just a
+        // boolean. This only decides whether to render the founder link — the
+        // /admin route re-gates on its own, so a spoofed true still 404s.
+        try {
+          const res = await fetch('/api/admin/whoami')
+          if (res.ok) {
+            const { isAdmin: ok } = await res.json()
+            setIsAdmin(!!ok)
+          }
+        } catch { /* default: non-admin, link stays hidden */ }
         setPlan(resolvedPlan)
         setPropertyCount(propertyIds.length)
         setQrCount(qrCnt)

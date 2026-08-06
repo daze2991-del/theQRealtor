@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import Link from 'next/link'
 // Type-only import — erased at compile time, so the 'server-only' guarded module
 // is never pulled into the client bundle.
 import type { BetaOverview, AgentSummary, HealthLabel } from '../../lib/admin/overview'
@@ -121,6 +122,12 @@ export default function AdminOverviewClient({ initial }: { initial: BetaOverview
     <div style={{ padding: 28, fontFamily: 'sans-serif', maxWidth: 1320, margin: '0 auto' }}>
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
+        <Link href="/dashboard" style={{
+          display: 'inline-flex', alignItems: 'center', gap: 5, marginBottom: 12,
+          fontSize: 12.5, color: C.sub, textDecoration: 'none', fontWeight: 500,
+        }}>
+          <span style={{ fontSize: 15, lineHeight: 1 }}>←</span> Dashboard
+        </Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, margin: 0, letterSpacing: '-0.02em' }}>
             Beta Overview

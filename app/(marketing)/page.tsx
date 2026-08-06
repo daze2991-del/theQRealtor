@@ -41,12 +41,20 @@ function Nav() {
         <Link href="/" aria-label="theqrealtor home">
           <Wordmark />
         </Link>
-        <Link
-          href="/auth?tab=signup"
-          className="bg-[#534AB7] hover:bg-[#3C3489] text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-        >
-          Join beta
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/auth"
+            className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            Log in
+          </Link>
+          <Link
+            href="/auth?tab=signup"
+            className="bg-[#534AB7] hover:bg-[#3C3489] text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+          >
+            Join beta
+          </Link>
+        </div>
       </div>
     </nav>
   )

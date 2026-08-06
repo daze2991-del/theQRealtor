@@ -43,7 +43,8 @@ grant insert on public.feedback_responses to authenticated;
 -- last_shown_at    — last time the card was actually rendered to this agent
 -- next_eligible_at — the agent is not prompted again until now() >= this. NULL
 --                    means "no cooldown set yet" (eligible once the account is
---                    old enough). Set by dismiss (~14d) and submit (~30d).
+--                    old enough). Set by shown (~3d), dismiss (~14d), and
+--                    submit (~30d); a later action overwrites the shorter window.
 create table if not exists public.feedback_prompt_state (
   agent_id         uuid primary key references auth.users(id) on delete cascade,
   last_shown_at    timestamptz,

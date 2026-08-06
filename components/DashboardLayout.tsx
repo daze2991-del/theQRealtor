@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createBrowserSupabase } from '../lib/supabase-browser'
 import { getBetaStatus } from '../lib/beta'
 import { qrLimitForPlan } from '../lib/plans'
+import FeedbackPrompt from './FeedbackPrompt'
 
 const C = {
   bg:      '#0F0F13',
@@ -468,6 +469,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </div>
       </div>
+
+      <FeedbackPrompt />
     </>
   )
 }

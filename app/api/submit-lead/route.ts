@@ -176,16 +176,16 @@ export async function POST(request: Request) {
         quiet_hours_start: (agentProfile.quiet_hours_start as string) ?? '21:00',
         quiet_hours_end:   (agentProfile.quiet_hours_end as string)   ?? '08:00',
       }
-      const dispatch = (message: string) =>
-        queueOrSendAgentSms({ admin: supabase, agent, agentPhone, leadId, message })
+      const dispatch = (message: string, alertType: string) =>
+        queueOrSendAgentSms({ admin: supabase, agent, agentPhone, leadId, message, alertType })
 
       // Showing request
       if (cta === 'showing' && agentProfile.notify_showing !== false) {
-        await dispatch(msg.showingAlert(trimName, address, leadId, trimmedPhone, trimmedEmail, (contactPreference as string)?.trim() || null))
+        await dispatch(msg.showingAlert(trimName, address, leadId, trimmedPhone, trimmedEmail, (contactPreference as string)?.trim() || null), 'showingAlert')
       }
       // Question / info request
       if (cta === 'question' && agentProfile.notify_question !== false) {
-        await dispatch(msg.questionAlert(trimName, address, leadId))
+        await dispatch(msg.questionAlert(trimName, address, leadId), 'questionAlert')
       }
       // Hot tier crossed — fire once per lead (guarded by hot_notified_at)
       if (v2Score.tier === 'hot' && agentProfile.notify_hot_lead !== false) {
@@ -195,7 +195,7 @@ export async function POST(request: Request) {
           .eq('id', leadId).is('hot_notified_at', null)
           .select('id')
         if (hotRows && hotRows.length > 0) {
-          await dispatch(msg.hotAlert(trimName, address, leadId, (contactPreference as string)?.trim() || null, trimmedPhone))
+          await dispatch(msg.hotAlert(trimName, address, leadId, (contactPreference as string)?.trim() || null, trimmedPhone), 'hotAlert')
         }
       }
     } else {

@@ -118,6 +118,47 @@ export interface AgentNotifyProfile {
   quiet_hours_end: string
 }
 
+// Logs each dispatched agent alert and fires a one-time founder alarm at 100/day.
+// Non-blocking on failures — SMS delivery must never depend on this path.
+async function logAndMaybeAlarm(admin: Admin, agentId: string, alertType: string): Promise<void> {
+  const { error: insertError } = await admin
+    .from('sms_send_log')
+    .insert({ agent_id: agentId, alert_type: alertType })
+  if (insertError) {
+    console.error('[twilio] sms_send_log insert failed:', insertError.message)
+    return
+  }
+
+  const todayStart = new Date()
+  todayStart.setUTCHours(0, 0, 0, 0)
+  const { count, error: countError } = await admin
+    .from('sms_send_log')
+    .select('*', { count: 'exact', head: true })
+    .eq('agent_id', agentId)
+    .gte('created_at', todayStart.toISOString())
+  if (countError) {
+    console.error('[twilio] sms_send_log count failed:', countError.message)
+    return
+  }
+
+  // Fire once at exactly 100. Minor race: two concurrent requests could both see
+  // count 100 and both fire — acceptable for a monitoring-only tool.
+  if (count === 100) {
+    const adminPhone = process.env.ADMIN_PHONE_NUMBER
+    if (!adminPhone) {
+      console.warn('[twilio] ADMIN_PHONE_NUMBER not set — skipping founder alarm')
+      return
+    }
+    const { data: prof } = await admin
+      .from('profiles')
+      .select('name')
+      .eq('id', agentId)
+      .maybeSingle()
+    const agentLabel = (prof?.name as string | null)?.trim() || agentId
+    await sendSms(adminPhone, `⚠️ Agent ${agentLabel} has sent 100+ SMS alerts today — check for a viral listing or anomaly.`)
+  }
+}
+
 // Sends immediately, or queues into pending_notifications when inside quiet hours
 // (held, not dropped — the cron flush sends it at quiet_hours_end).
 export async function queueOrSendAgentSms(opts: {
@@ -126,6 +167,7 @@ export async function queueOrSendAgentSms(opts: {
   agentPhone: string | null
   leadId: string
   message: string
+  alertType: string
   now?: Date
 }): Promise<'sent' | 'queued' | 'skipped'> {
   const { admin, agent, agentPhone, leadId, message } = opts
@@ -140,10 +182,12 @@ export async function queueOrSendAgentSms(opts: {
     })
     if (error) console.error('[twilio] queue error:', error.message)
     console.log('[twilio] queued for', scheduledFor.toISOString(), '(quiet hours)')
+    await logAndMaybeAlarm(admin, agent.id, opts.alertType)
     return 'queued'
   }
 
   await sendSms(agentPhone, message)
+  await logAndMaybeAlarm(admin, agent.id, opts.alertType)
   return 'sent'
 }
 

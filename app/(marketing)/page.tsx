@@ -583,6 +583,95 @@ function CommonQuestion() {
   )
 }
 
+function Pricing() {
+  return (
+    <section className="border-b border-solid border-gray-100">
+      <div className="max-w-3xl mx-auto py-16 px-8">
+        <motion.div
+          className="text-center mb-10"
+          initial={{ opacity: 0, y: 18 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={viewportOnce}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+        >
+          <div className="text-xs font-semibold uppercase tracking-widest text-[#534AB7] mb-3">
+            Pricing
+          </div>
+          <h2 className="text-3xl font-bold tracking-tight text-gray-900 mb-3">
+            Simple, predictable pricing.
+          </h2>
+          <p className="text-sm text-gray-500 max-w-md mx-auto">
+            Beta access is free while we&apos;re in early testing.
+          </p>
+        </motion.div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+          {/* Starter */}
+          <motion.div
+            className="relative bg-white rounded-[20px] p-7"
+            style={{ border: '1px solid #E5E7EB', boxShadow: '0 4px 16px rgba(0,0,0,0.05)' }}
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={viewportOnce}
+            transition={{ duration: 0.5, ease: 'easeOut', delay: 0 }}
+          >
+            <div className="text-sm font-semibold text-gray-400 mb-2">Starter</div>
+            <div className="flex items-baseline gap-1 mb-5">
+              <span className="text-4xl font-bold tracking-tight text-gray-900">$39</span>
+              <span className="text-sm text-gray-400">/mo</span>
+            </div>
+            <p className="text-sm font-semibold text-gray-900 mb-1">
+              Know which buyers are engaged on your active listings.
+            </p>
+            <p className="text-sm text-gray-500 leading-relaxed mb-6">
+              Up to 3 active listings at a time. Every scan, return visit, and inquiry lands in your dashboard with a Hot / Warm / Cold engagement score — so you know who to call before you pick up the phone.
+            </p>
+            <Link
+              href="/auth?tab=signup"
+              className="block text-center border border-solid border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg px-5 py-2.5 text-sm font-medium transition-colors"
+            >
+              Request beta access
+            </Link>
+          </motion.div>
+
+          {/* Pro */}
+          <motion.div
+            className="relative bg-white rounded-[20px] p-7"
+            style={{ border: '2px solid #534AB7', boxShadow: '0 8px 32px rgba(83,74,183,0.12)' }}
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={viewportOnce}
+            transition={{ duration: 0.5, ease: 'easeOut', delay: 0.15 }}
+          >
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#534AB7] text-white text-[11px] font-bold tracking-wide rounded-full px-4 py-1">
+              Most popular
+            </div>
+            <div className="text-sm font-semibold text-gray-400 mb-2">Pro</div>
+            <div className="flex items-baseline gap-1 mb-5">
+              <span className="text-4xl font-bold tracking-tight text-gray-900">$79</span>
+              <span className="text-sm text-gray-400">/mo</span>
+            </div>
+            <p className="text-sm font-semibold text-gray-900 mb-1">
+              See buyer interest across your entire pipeline.
+            </p>
+            <p className="text-sm text-gray-500 leading-relaxed mb-6">
+              Everything in Starter, with unlimited active listings. Add engagement trends over time and multi-listing comparison — so you always know which properties are heating up and where your follow-up energy belongs.
+            </p>
+            <Link
+              href="/auth?tab=signup"
+              className="block text-center bg-[#534AB7] hover:bg-[#3C3489] text-white rounded-lg px-5 py-2.5 text-sm font-medium transition-colors"
+            >
+              Request beta access
+            </Link>
+          </motion.div>
+
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function FinalCta() {
   return (
     <section className="border-b border-solid border-gray-100">
@@ -682,6 +771,7 @@ export default function MarketingPage() {
         <RevealSection><Features /></RevealSection>
         <RevealSection><BuyerExperience /></RevealSection>
         <RevealSection><CommonQuestion /></RevealSection>
+        <RevealSection><Pricing /></RevealSection>
         <RevealSection><FinalCta /></RevealSection>
       </main>
       <Footer />

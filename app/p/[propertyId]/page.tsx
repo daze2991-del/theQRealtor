@@ -27,7 +27,7 @@ const CTAS = [
   },
   {
     id: 'question', icon: '💬',
-    label: 'Ask a Question',    sub: 'Ask a question or request info',
+    label: 'Ask the Listing Agent',    sub: 'Ask a question or request info',
     motivation: 'warm', btnLabel: 'Send Message',
     needsPhone: true,
     color: '#8B5CF6', colorBg: '#1A1A2E',

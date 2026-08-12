@@ -24,6 +24,11 @@ const C = {
 type Template = 'corner' | 'rider' | 'aframe'
 type Goal = 'openhouse' | 'yardsign' | 'flyer'
 
+// Corner Overlay's draggable/scalable preview (photo backdrop + badge) is
+// temporarily hidden while it's not ready to ship. CornerPreview itself is
+// untouched — flip this to true to re-enable it.
+const SHOW_CORNER_OVERLAY_PREVIEW = false
+
 interface BrandingState {
   agentName: string
   agentPhone: string
@@ -678,21 +683,23 @@ export default function SignStudioPage() {
                 </div>
 
                 {/* Preview */}
-                <div style={card}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>
-                    Preview
-                  </div>
+                {(template !== 'corner' || SHOW_CORNER_OVERLAY_PREVIEW) && (
+                  <div style={card}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>
+                      Preview
+                    </div>
 
-                  {template === 'corner' && (
-                    <CornerPreview qrUrl={qrUrl} />
-                  )}
-                  {template === 'rider' && (
-                    <RiderPreview qrUrl={qrUrl} branding={branding} address={address} />
-                  )}
-                  {template === 'aframe' && (
-                    <AFramePreview qrUrl={qrUrl} />
-                  )}
-                </div>
+                    {template === 'corner' && (
+                      <CornerPreview qrUrl={qrUrl} />
+                    )}
+                    {template === 'rider' && (
+                      <RiderPreview qrUrl={qrUrl} branding={branding} address={address} />
+                    )}
+                    {template === 'aframe' && (
+                      <AFramePreview qrUrl={qrUrl} />
+                    )}
+                  </div>
+                )}
 
                 {/* Download buttons */}
                 <div style={card}>

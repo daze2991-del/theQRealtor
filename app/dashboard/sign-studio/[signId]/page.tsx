@@ -24,10 +24,12 @@ const C = {
 type Template = 'corner' | 'rider' | 'aframe'
 type Goal = 'openhouse' | 'yardsign' | 'flyer'
 
-// Corner Overlay's draggable/scalable preview (photo backdrop + badge) is
-// temporarily hidden while it's not ready to ship. CornerPreview itself is
-// untouched — flip this to true to re-enable it.
+// Preview panels are temporarily hidden across the board while they're not
+// ready to ship. The preview components/logic are untouched — flip the
+// relevant flag to re-enable a given template's preview independently.
 const SHOW_CORNER_OVERLAY_PREVIEW = false
+const SHOW_RIDER_PREVIEW = false
+const SHOW_AFRAME_PREVIEW = false
 
 interface BrandingState {
   agentName: string
@@ -446,6 +448,11 @@ export default function SignStudioPage() {
   const qrUrl = origin ? `${origin}/p/${signId}` : ''
   const address = property?.address || ''
 
+  const showPreview =
+    (template === 'corner' && SHOW_CORNER_OVERLAY_PREVIEW) ||
+    (template === 'rider' && SHOW_RIDER_PREVIEW) ||
+    (template === 'aframe' && SHOW_AFRAME_PREVIEW)
+
   const handleDownload = async (type: string) => {
     const svgEl = document.getElementById(`ss-qr-large`) as unknown as SVGSVGElement
     if (!svgEl || !origin) return
@@ -683,7 +690,7 @@ export default function SignStudioPage() {
                 </div>
 
                 {/* Preview */}
-                {(template !== 'corner' || SHOW_CORNER_OVERLAY_PREVIEW) && (
+                {showPreview && (
                   <div style={card}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>
                       Preview

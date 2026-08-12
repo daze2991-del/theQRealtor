@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { QRCodeSVG } from 'qrcode.react'
+import NextImage from 'next/image'
+import { Tag, Clipboard, type LucideIcon } from 'lucide-react'
 import { createBrowserSupabase } from '../../../../lib/supabase-browser'
 import DashboardLayout from '../../../../components/DashboardLayout'
 import Link from 'next/link'
@@ -18,8 +20,8 @@ const C = {
   muted:   '#6B7280',
 } as const
 
-type Template = 'corner' | 'rider' | 'traffic'
-type Goal = 'traffic' | 'openhouse' | 'yardsign' | 'flyer'
+type Template = 'corner' | 'rider'
+type Goal = 'openhouse' | 'yardsign' | 'flyer'
 
 interface BrandingState {
   agentName: string
@@ -259,138 +261,6 @@ async function downloadRider(
   a.click()
 }
 
-async function downloadTraffic(
-  signId: string, origin: string, branding: BrandingState,
-  address: string, svgRef: SVGSVGElement, landscape: boolean
-) {
-  // 8.5x11 at 300dpi = 2550x3300 (portrait), 3300x2550 (landscape)
-  const W = landscape ? 3300 : 2550
-  const H = landscape ? 2550 : 3300
-  const canvas = document.createElement('canvas')
-  canvas.width = W; canvas.height = H
-  const ctx = canvas.getContext('2d')!
-
-  // pure black bg
-  ctx.fillStyle = '#000000'
-  ctx.fillRect(0, 0, W, H)
-
-  if (landscape) {
-    // left side: text, right side: QR
-    const qrSize = H - 240
-    const qrX = W - qrSize - 120
-    const qrY = 120
-
-    ctx.fillStyle = '#FFFFFF'
-    roundRect(ctx, qrX - 20, qrY - 20, qrSize + 40, qrSize + 40, 24)
-    ctx.fill()
-    const qrImg = await svgToImage(svgRef, qrSize)
-    ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize)
-
-    // left text
-    const textX = 120
-    ctx.fillStyle = '#FFFFFF'
-    ctx.font = `bold ${Math.floor(H * 0.13)}px sans-serif`
-    ctx.textAlign = 'left'
-    ctx.fillText('SCAN', textX, H * 0.26)
-    ctx.fillText('FOR', textX, H * 0.26 + H * 0.15)
-    ctx.fillText('HOME', textX, H * 0.26 + H * 0.30)
-    ctx.fillText('INFO', textX, H * 0.26 + H * 0.45)
-
-    // NO APP NEEDED
-    ctx.fillStyle = '#CCCCCC'
-    ctx.font = `bold ${Math.floor(H * 0.048)}px sans-serif`
-    ctx.fillText('NO APP NEEDED', textX, H * 0.26 + H * 0.56)
-
-    let agentY = H * 0.26 + H * 0.66
-
-    // agent photo: inline to the left of name (landscape has no vertical room)
-    const photoR = Math.floor(H * 0.045)
-    const hasPhoto = !!branding.agentPhotoUrl
-    if (hasPhoto) {
-      await drawCircularPhoto(ctx, branding.agentPhotoUrl, textX + photoR, agentY - photoR * 0.4, photoR)
-    }
-    const nameX = hasPhoto ? textX + photoR * 2 + 24 : textX
-    if (branding.agentName) {
-      ctx.fillStyle = '#FFFFFF'
-      ctx.font = `bold ${Math.floor(H * 0.065)}px sans-serif`
-      ctx.textAlign = 'left'
-      ctx.fillText(branding.agentName, nameX, agentY)
-      agentY += H * 0.08
-    }
-    if (branding.agentPhone) {
-      ctx.fillStyle = C.purpleL
-      ctx.font = `bold ${Math.floor(H * 0.054)}px sans-serif`
-      ctx.fillText(branding.agentPhone, nameX, agentY)
-    }
-
-    // watermark bottom-left
-    ctx.fillStyle = '#333333'
-    ctx.font = `${Math.floor(H * 0.022)}px sans-serif`
-    ctx.fillText('theqrealtor.com', textX, H - Math.floor(H * 0.025))
-  } else {
-    // portrait: stacked
-    ctx.fillStyle = '#FFFFFF'
-    const fontSize = Math.floor(W * 0.14)
-    ctx.font = `bold ${fontSize}px sans-serif`
-    ctx.textAlign = 'center'
-    ctx.fillText('SCAN FOR', W / 2, fontSize * 1.1)
-    ctx.fillText('HOME INFO', W / 2, fontSize * 2.15)
-
-    // massive QR in center (65% of width)
-    const qrSize = Math.floor(W * 0.65)
-    const qrX = (W - qrSize) / 2
-    const qrY = Math.floor(fontSize * 2.6)
-
-    ctx.fillStyle = '#FFFFFF'
-    roundRect(ctx, qrX - 20, qrY - 20, qrSize + 40, qrSize + 40, 24)
-    ctx.fill()
-    const qrImg = await svgToImage(svgRef, qrSize)
-    ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize)
-
-    // "NO APP NEEDED" below QR
-    const noAppY = qrY + qrSize + Math.floor(W * 0.07)
-    ctx.fillStyle = '#FFFFFF'
-    ctx.font = `bold ${Math.floor(W * 0.055)}px sans-serif`
-    ctx.textAlign = 'center'
-    ctx.fillText('NO APP NEEDED', W / 2, noAppY)
-
-    // agent info — bold, prominent
-    let bottomY = noAppY + Math.floor(W * 0.08)
-
-    // agent photo: circular, centered above agent name
-    if (branding.agentPhotoUrl) {
-      const photoR = Math.floor(W * 0.05)
-      await drawCircularPhoto(ctx, branding.agentPhotoUrl, W / 2, bottomY + photoR, photoR)
-      bottomY += photoR * 2 + Math.floor(W * 0.04)
-    }
-
-    if (branding.agentName) {
-      ctx.fillStyle = '#FFFFFF'
-      ctx.font = `bold ${Math.floor(W * 0.065)}px sans-serif`
-      ctx.textAlign = 'center'
-      ctx.fillText(branding.agentName, W / 2, bottomY)
-      bottomY += Math.floor(W * 0.08)
-    }
-    if (branding.agentPhone) {
-      ctx.fillStyle = C.purpleL
-      ctx.font = `bold ${Math.floor(W * 0.054)}px sans-serif`
-      ctx.textAlign = 'center'
-      ctx.fillText(branding.agentPhone, W / 2, bottomY)
-    }
-
-    // theqrealtor watermark at very bottom
-    ctx.fillStyle = '#333333'
-    ctx.font = `${Math.floor(W * 0.025)}px sans-serif`
-    ctx.textAlign = 'center'
-    ctx.fillText('theqrealtor.com', W / 2, H - Math.floor(W * 0.03))
-  }
-
-  const a = document.createElement('a')
-  a.download = `traffic-${landscape ? 'landscape' : 'portrait'}-${signId}.png`
-  a.href = canvas.toDataURL('image/png')
-  a.click()
-}
-
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath()
   ctx.moveTo(x + r, y)
@@ -515,8 +385,6 @@ export default function SignStudioPage() {
     try {
       if (type === 'corner') await downloadCorner(signId, origin, branding, address, svgEl)
       else if (type === 'rider') await downloadRider(signId, origin, branding, address, svgEl)
-      else if (type === 'traffic-p') await downloadTraffic(signId, origin, branding, address, svgEl, false)
-      else if (type === 'traffic-l') await downloadTraffic(signId, origin, branding, address, svgEl, true)
     } finally {
       setDownloading(null)
     }
@@ -541,17 +409,15 @@ export default function SignStudioPage() {
     </div>
   )
 
-  const TEMPLATES: { id: Template; label: string; desc: string; icon: string; dims: string }[] = [
-    { id: 'corner', label: 'Corner Overlay', desc: 'Print-ready QR overlay for yard sign photos. Print on standard paper and trim.', icon: '🏷️', dims: '1200×1200' },
-    { id: 'rider', label: 'Sign Rider', desc: 'Print-ready rider for yard signs. Print on cardstock or heavy paper (60-120lb).', icon: '📋', dims: '1200×3600 (4×12 in)' },
-    { id: 'traffic', label: 'Traffic Sign', desc: 'Bold print-ready sign for open houses and intersections. Print on 8.5x11 cardstock or heavy paper.', icon: '🚗', dims: '2550×3300 (8.5×11 in)' },
+  const TEMPLATES: { id: Template; label: string; desc: string; icon: LucideIcon; dims: string }[] = [
+    { id: 'corner', label: 'Corner Overlay', desc: 'Print-ready QR overlay for yard sign photos. Print on standard paper and trim.', icon: Tag, dims: '1200×1200' },
+    { id: 'rider', label: 'Sign Rider', desc: 'Print-ready rider for yard signs. Print on cardstock or heavy paper (60-120lb).', icon: Clipboard, dims: '1200×3600 (4×12 in)' },
   ]
 
-  const GOALS: { id: Goal; icon: string; label: string; template: Template }[] = [
-    { id: 'traffic',   icon: '🚗', label: 'Drive-by traffic',     template: 'traffic' },
-    { id: 'openhouse', icon: '🏡', label: 'Open house visitors',   template: 'corner'  },
-    { id: 'yardsign',  icon: '🪧', label: 'Yard sign',             template: 'rider'   },
-    { id: 'flyer',     icon: '📄', label: 'Flyer / mailer',        template: 'corner'  },
+  const GOALS: { id: Goal; label: string; template: Template; image: string }[] = [
+    { id: 'yardsign',  label: 'Yard sign',             template: 'rider',  image: '/sign-studio/card_yard_sign_FINAL.png' },
+    { id: 'openhouse', label: 'Open house visitors',   template: 'corner', image: '/sign-studio/card_open_house_FINAL.png' },
+    { id: 'flyer',     label: 'Flyer / mailer',        template: 'corner', image: '/sign-studio/card_flyer_mailer_FINAL.png' },
   ]
 
   // shared card style
@@ -698,7 +564,7 @@ export default function SignStudioPage() {
                     Where are you capturing buyers?
                   </div>
                   <div style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>Select your use case — we'll pick the best template.</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 10 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
                     {GOALS.map(g => {
                       const active = goal === g.id
                       const tmpl = TEMPLATES.find(t => t.id === g.template)!
@@ -708,15 +574,26 @@ export default function SignStudioPage() {
                           onClick={() => { setGoal(g.id); setTemplate(g.template) }}
                           style={{
                             ...btnStyle(active),
-                            display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
-                            padding: '14px', gap: 5, textAlign: 'left',
+                            display: 'flex', flexDirection: 'column', alignItems: 'stretch',
+                            padding: 0, gap: 0, textAlign: 'left', overflow: 'hidden',
                           }}
                         >
-                          <span style={{ fontSize: 28, lineHeight: 1 }}>{g.icon}</span>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: active ? '#fff' : C.text, lineHeight: 1.2 }}>{g.label}</span>
-                          <span style={{ fontSize: 10, color: active ? 'rgba(255,255,255,0.55)' : C.muted, marginTop: 1 }}>
-                            {tmpl.icon} {tmpl.label} · {tmpl.dims}
-                          </span>
+                          <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9' }}>
+                            <NextImage
+                              src={g.image}
+                              alt={g.label}
+                              width={480}
+                              height={270}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                            />
+                          </div>
+                          <div style={{ padding: '10px 12px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: active ? '#fff' : C.text, lineHeight: 1.2 }}>{g.label}</span>
+                            <span style={{ fontSize: 10, color: active ? 'rgba(255,255,255,0.55)' : C.muted, display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <tmpl.icon size={12} strokeWidth={1.8} />
+                              {tmpl.label} · {tmpl.dims}
+                            </span>
+                          </div>
                         </button>
                       )
                     })}
@@ -724,9 +601,12 @@ export default function SignStudioPage() {
                   {goal && (() => {
                     const tmpl = TEMPLATES.find(t => t.id === template)!
                     return (
-                      <div style={{ marginTop: 12, padding: '10px 14px', background: `${C.purple}18`, borderRadius: 8, border: `1px solid ${C.purple}35`, fontSize: 12 }}>
-                        <span style={{ color: C.purpleL, fontWeight: 700 }}>{tmpl.icon} {tmpl.label}</span>
-                        <span style={{ color: C.muted }}> — {tmpl.desc}</span>
+                      <div style={{ marginTop: 12, padding: '10px 14px', background: `${C.purple}18`, borderRadius: 8, border: `1px solid ${C.purple}35`, fontSize: 12, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                        <tmpl.icon size={14} strokeWidth={1.8} style={{ flexShrink: 0, marginTop: 1, color: C.purpleL }} />
+                        <span>
+                          <span style={{ color: C.purpleL, fontWeight: 700 }}>{tmpl.label}</span>
+                          <span style={{ color: C.muted }}> — {tmpl.desc}</span>
+                        </span>
                       </div>
                     )
                   })()}
@@ -739,13 +619,10 @@ export default function SignStudioPage() {
                   </div>
 
                   {template === 'corner' && (
-                    <CornerPreview qrUrl={qrUrl} branding={branding} />
+                    <CornerPreview qrUrl={qrUrl} />
                   )}
                   {template === 'rider' && (
                     <RiderPreview qrUrl={qrUrl} branding={branding} address={address} />
-                  )}
-                  {template === 'traffic' && (
-                    <TrafficPreview qrUrl={qrUrl} branding={branding} address={address} />
                   )}
                 </div>
 
@@ -764,16 +641,6 @@ export default function SignStudioPage() {
                       <button style={dlBtn('rider', '')} onClick={() => handleDownload('rider')} disabled={!!downloading}>
                         {downloading === 'rider' ? '⏳ Generating…' : '⬇ Download Print-Ready PNG'}
                       </button>
-                    )}
-                    {template === 'traffic' && (
-                      <>
-                        <button style={dlBtn('traffic-p', '')} onClick={() => handleDownload('traffic-p')} disabled={!!downloading}>
-                          {downloading === 'traffic-p' ? '⏳ Generating…' : '⬇ Print-Ready PNG (Portrait 8.5×11)'}
-                        </button>
-                        <button style={{ ...dlBtn('traffic-l', ''), background: downloading === 'traffic-l' ? '#0055A460' : '#0055A4' }} onClick={() => handleDownload('traffic-l')} disabled={!!downloading}>
-                          {downloading === 'traffic-l' ? '⏳ Generating…' : '⬇ Print-Ready PNG (Landscape 11×8.5)'}
-                        </button>
-                      </>
                     )}
                   </div>
                   <p style={{ fontSize: 12, color: C.sub, marginTop: 12, lineHeight: 1.6 }}>
@@ -799,7 +666,8 @@ export default function SignStudioPage() {
 
 // ── preview components ────────────────────────────────────────────────────────
 
-function CornerPreview({ qrUrl, branding }: { qrUrl: string; branding: BrandingState }) {
+function CornerPreview({ qrUrl }: { qrUrl: string }) {
+  const badgePurple = '#534AB7'
   return (
     <div style={{ position: 'relative', width: '100%', paddingBottom: '100%', background: '#6B7280', borderRadius: 10, overflow: 'hidden' }}>
       {/* simulated yard sign background */}
@@ -808,19 +676,40 @@ function CornerPreview({ qrUrl, branding }: { qrUrl: string; branding: BrandingS
           FOR SALE
         </div>
       </div>
-      {/* QR sticker in bottom-right */}
+      {/* QR badge in bottom-right */}
       <div style={{
         position: 'absolute', bottom: 16, right: 16,
-        background: 'rgba(255,255,255,0.97)', borderRadius: 10, padding: '8px 8px 4px',
+        background: '#fff', borderRadius: 14,
         boxShadow: '0 4px 20px rgba(0,0,0,0.35)',
+        display: 'flex', alignItems: 'stretch', gap: 10,
+        padding: '10px 14px 10px 10px',
+        overflow: 'hidden',
       }}>
-        {qrUrl ? <QRCodeSVG value={qrUrl} size={80} /> : <div style={{ width: 80, height: 80, background: '#eee' }} />}
-        <div style={{ fontSize: 9, color: '#374151', textAlign: 'center', fontWeight: 700, marginTop: 3, fontFamily: 'sans-serif' }}>
-          Scan Me
+        {/* diagonal peel / corner-flag detail */}
+        <div style={{
+          position: 'absolute', top: 0, right: 0, width: 0, height: 0,
+          borderStyle: 'solid', borderWidth: '0 18px 18px 0',
+          borderColor: `transparent ${badgePurple} transparent transparent`,
+          opacity: 0.85,
+        }} />
+
+        {qrUrl ? <QRCodeSVG value={qrUrl} size={68} /> : <div style={{ width: 68, height: 68, background: '#eee' }} />}
+
+        {/* thin vertical divider */}
+        <div style={{ width: 1, background: '#E5E7EB', alignSelf: 'stretch' }} />
+
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5, fontFamily: 'sans-serif' }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: '#111827', lineHeight: 1.1 }}>Scan For</div>
+          <div style={{
+            background: badgePurple, color: '#fff', fontSize: 9, fontWeight: 700,
+            borderRadius: 999, padding: '3px 8px', width: 'fit-content', letterSpacing: 0.2,
+          }}>
+            Price + Photos
+          </div>
+          <div style={{ fontSize: 8, fontWeight: 700, color: badgePurple, letterSpacing: 0.3, marginTop: 2 }}>
+            theqrealtor
+          </div>
         </div>
-        {branding.agentName && (
-          <div style={{ fontSize: 8, color: '#6B7280', textAlign: 'center', fontFamily: 'sans-serif' }}>{branding.agentName}</div>
-        )}
       </div>
     </div>
   )
@@ -857,34 +746,6 @@ function RiderPreview({ qrUrl, branding, address }: { qrUrl: string; branding: B
         <div style={{ height: 5, background: C2.purple }} />
       </div>
       <div style={{ fontSize: 10, color: '#6B7280', textAlign: 'center', marginTop: 6, fontFamily: 'sans-serif' }}>4×12 in print size</div>
-    </div>
-  )
-}
-
-function TrafficPreview({ qrUrl, branding, address }: { qrUrl: string; branding: BrandingState; address: string }) {
-  return (
-    <div style={{ maxWidth: 260, margin: '0 auto' }}>
-      <div style={{
-        background: '#000', borderRadius: 10, overflow: 'hidden',
-        border: '1px solid #252533', padding: '16px', fontFamily: 'sans-serif',
-        textAlign: 'center',
-      }}>
-        <div style={{ fontSize: 22, fontWeight: 900, color: '#fff', letterSpacing: 3, lineHeight: 1.2, marginBottom: 12 }}>
-          SCAN FOR<br />HOME INFO
-        </div>
-        <div style={{ background: '#fff', borderRadius: 8, padding: 8, display: 'inline-block', marginBottom: 8 }}>
-          {qrUrl ? <QRCodeSVG value={qrUrl} size={140} /> : <div style={{ width: 140, height: 140, background: '#eee' }} />}
-        </div>
-        <div style={{ fontSize: 11, fontWeight: 700, color: '#ccc', marginBottom: 10, letterSpacing: 1 }}>NO APP NEEDED</div>
-        {branding.agentName && (
-          <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', marginBottom: 2 }}>{branding.agentName}</div>
-        )}
-        {branding.agentPhone && (
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#8B5CF6', marginBottom: 6 }}>{branding.agentPhone}</div>
-        )}
-        <div style={{ fontSize: 8, color: '#444', marginTop: 4 }}>theqrealtor.com</div>
-      </div>
-      <div style={{ fontSize: 10, color: '#6B7280', textAlign: 'center', marginTop: 6, fontFamily: 'sans-serif' }}>8.5×11 in / 11×8.5 in</div>
     </div>
   )
 }

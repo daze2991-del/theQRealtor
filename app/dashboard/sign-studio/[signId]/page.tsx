@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { QRCodeSVG } from 'qrcode.react'
 import NextImage from 'next/image'
+import { Rnd } from 'react-rnd'
 import { Tag, Clipboard, Signpost, type LucideIcon } from 'lucide-react'
 import { createBrowserSupabase } from '../../../../lib/supabase-browser'
 import DashboardLayout from '../../../../components/DashboardLayout'
@@ -740,51 +741,108 @@ export default function SignStudioPage() {
 
 // ── preview components ────────────────────────────────────────────────────────
 
+// Natural (unscaled) badge footprint — the resize handle scales visual
+// content via CSS transform rather than reflowing it, so this stays fixed.
+const CORNER_BADGE_W = 180
+const CORNER_BADGE_H = 96
+
 function CornerPreview({ qrUrl }: { qrUrl: string }) {
   const badgePurple = '#534AB7'
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [box, setBox] = useState<{ x: number; y: number; width: number; height: number } | null>(null)
+
+  // Default to the bottom-right corner at natural size, matching the old
+  // fixed placement — measured (not hardcoded) since the container is a
+  // responsive square. Session-only: nothing here is persisted, so it
+  // resets to this default on every mount/page load.
+  useLayoutEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const { width, height } = el.getBoundingClientRect()
+    setBox({
+      x: Math.max(0, width - CORNER_BADGE_W - 16),
+      y: Math.max(0, height - CORNER_BADGE_H - 16),
+      width: CORNER_BADGE_W,
+      height: CORNER_BADGE_H,
+    })
+  }, [])
+
+  const scale = box ? box.width / CORNER_BADGE_W : 1
+
   return (
-    <div style={{ position: 'relative', width: '100%', paddingBottom: '100%', background: '#6B7280', borderRadius: 10, overflow: 'hidden' }}>
-      {/* simulated yard sign background */}
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, #1a3a6a 0%, #2e6fcc 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 18, fontWeight: 700, fontFamily: 'sans-serif', letterSpacing: 2 }}>
-          FOR SALE
-        </div>
-      </div>
-      {/* QR badge in bottom-right */}
-      <div style={{
-        position: 'absolute', bottom: 16, right: 16,
-        background: '#fff', borderRadius: 14,
-        boxShadow: '0 4px 20px rgba(0,0,0,0.35)',
-        display: 'flex', alignItems: 'stretch', gap: 10,
-        padding: '10px 14px 10px 10px',
-        overflow: 'hidden',
-      }}>
-        {/* diagonal peel / corner-flag detail */}
-        <div style={{
-          position: 'absolute', top: 0, right: 0, width: 0, height: 0,
-          borderStyle: 'solid', borderWidth: '0 18px 18px 0',
-          borderColor: `transparent ${badgePurple} transparent transparent`,
-          opacity: 0.85,
-        }} />
+    <div ref={containerRef} style={{ position: 'relative', width: '100%', paddingBottom: '100%', background: '#6B7280', borderRadius: 10, overflow: 'hidden' }}>
+      {/* real flyer photo backdrop — preview only, for placement context */}
+      <NextImage
+        src="/sign-studio/card_flyer_mailer_FINAL.png"
+        alt="Flyer preview"
+        fill
+        sizes="(max-width: 768px) 100vw, 400px"
+        style={{ objectFit: 'cover' }}
+      />
 
-        {qrUrl ? <QRCodeSVG value={qrUrl} size={68} /> : <div style={{ width: 68, height: 68, background: '#eee' }} />}
-
-        {/* thin vertical divider */}
-        <div style={{ width: 1, background: '#E5E7EB', alignSelf: 'stretch' }} />
-
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5, fontFamily: 'sans-serif' }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: '#111827', lineHeight: 1.1 }}>Scan For</div>
+      {/* draggable / resizable QR badge — position & scale are session-only, never persisted */}
+      {box && (
+        <Rnd
+          bounds="parent"
+          lockAspectRatio
+          size={{ width: box.width, height: box.height }}
+          position={{ x: box.x, y: box.y }}
+          minWidth={CORNER_BADGE_W * 0.6}
+          maxWidth={CORNER_BADGE_W * 2.2}
+          enableResizing={{
+            top: false, right: false, bottom: false, left: false,
+            topRight: false, bottomLeft: false, topLeft: false, bottomRight: true,
+          }}
+          resizeHandleStyles={{
+            bottomRight: {
+              width: 14, height: 14, borderRadius: '50%',
+              background: '#fff', border: `2px solid ${badgePurple}`,
+              boxShadow: '0 1px 4px rgba(0,0,0,0.4)', right: -6, bottom: -6,
+            },
+          }}
+          onDragStop={(_e, d) => setBox(prev => (prev ? { ...prev, x: d.x, y: d.y } : prev))}
+          onResizeStop={(_e, _dir, ref, _delta, position) => {
+            setBox({ width: ref.offsetWidth, height: ref.offsetHeight, ...position })
+          }}
+          style={{ cursor: 'move' }}
+        >
           <div style={{
-            background: badgePurple, color: '#fff', fontSize: 9, fontWeight: 700,
-            borderRadius: 999, padding: '3px 8px', width: 'fit-content', letterSpacing: 0.2,
+            position: 'relative', width: CORNER_BADGE_W, height: CORNER_BADGE_H,
+            transform: `scale(${scale})`, transformOrigin: 'top left',
+            background: '#fff', borderRadius: 14,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.35)',
+            display: 'flex', alignItems: 'stretch', gap: 10,
+            padding: '10px 14px 10px 10px',
+            overflow: 'hidden', boxSizing: 'border-box',
           }}>
-            Price + Photos
+            {/* diagonal peel / corner-flag detail */}
+            <div style={{
+              position: 'absolute', top: 0, right: 0, width: 0, height: 0,
+              borderStyle: 'solid', borderWidth: '0 18px 18px 0',
+              borderColor: `transparent ${badgePurple} transparent transparent`,
+              opacity: 0.85,
+            }} />
+
+            {qrUrl ? <QRCodeSVG value={qrUrl} size={68} /> : <div style={{ width: 68, height: 68, background: '#eee' }} />}
+
+            {/* thin vertical divider */}
+            <div style={{ width: 1, background: '#E5E7EB', alignSelf: 'stretch' }} />
+
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5, fontFamily: 'sans-serif' }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: '#111827', lineHeight: 1.1 }}>Scan For</div>
+              <div style={{
+                background: badgePurple, color: '#fff', fontSize: 9, fontWeight: 700,
+                borderRadius: 999, padding: '3px 8px', width: 'fit-content', letterSpacing: 0.2,
+              }}>
+                Price + Photos
+              </div>
+              <div style={{ fontSize: 8, fontWeight: 700, color: badgePurple, letterSpacing: 0.3, marginTop: 2 }}>
+                theqrealtor
+              </div>
+            </div>
           </div>
-          <div style={{ fontSize: 8, fontWeight: 700, color: badgePurple, letterSpacing: 0.3, marginTop: 2 }}>
-            theqrealtor
-          </div>
-        </div>
-      </div>
+        </Rnd>
+      )}
     </div>
   )
 }

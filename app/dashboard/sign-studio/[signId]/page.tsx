@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { QRCodeSVG } from 'qrcode.react'
 import NextImage from 'next/image'
-import { Tag, Clipboard, type LucideIcon } from 'lucide-react'
+import { Tag, Clipboard, Signpost, type LucideIcon } from 'lucide-react'
 import { createBrowserSupabase } from '../../../../lib/supabase-browser'
 import DashboardLayout from '../../../../components/DashboardLayout'
 import Link from 'next/link'
@@ -20,7 +20,7 @@ const C = {
   muted:   '#6B7280',
 } as const
 
-type Template = 'corner' | 'rider'
+type Template = 'corner' | 'rider' | 'aframe'
 type Goal = 'openhouse' | 'yardsign' | 'flyer'
 
 interface BrandingState {
@@ -261,6 +261,68 @@ async function downloadRider(
   a.click()
 }
 
+async function downloadAFrame(
+  signId: string, origin: string, branding: BrandingState,
+  address: string, svgRef: SVGSVGElement
+) {
+  // 8.5x11 at 300dpi = 2550x3300 portrait A-frame insert
+  const W = 2550, H = 3300
+  const badgePurple = '#534AB7'
+  const canvas = document.createElement('canvas')
+  canvas.width = W; canvas.height = H
+  const ctx = canvas.getContext('2d')!
+
+  // white background
+  ctx.fillStyle = '#FFFFFF'
+  ctx.fillRect(0, 0, W, H)
+
+  // purple header bar
+  const headerH = 520
+  ctx.fillStyle = badgePurple
+  ctx.fillRect(0, 0, W, headerH)
+
+  ctx.fillStyle = '#FFFFFF'
+  ctx.font = 'bold 180px sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText('OPEN HOUSE', W / 2, headerH / 2)
+  ctx.textBaseline = 'alphabetic'
+
+  // QR code, centered
+  const qrSize = 1500
+  const qrX = (W - qrSize) / 2
+  const qrY = headerH + 240
+  const qrImg = await svgToImage(svgRef, qrSize)
+  ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize)
+
+  // "Scan for Photos & Details"
+  ctx.fillStyle = '#111827'
+  ctx.font = 'bold 90px sans-serif'
+  ctx.textAlign = 'center'
+  ctx.fillText('Scan for Photos & Details', W / 2, qrY + qrSize + 150)
+
+  // "theqrealtor" wordmark, "qr" in brand purple, centered as a whole
+  const wordY = H - 220
+  ctx.font = 'bold 72px sans-serif'
+  const partThe = 'the', partQr = 'qr', partEaltor = 'ealtor'
+  const wThe = ctx.measureText(partThe).width
+  const wQr = ctx.measureText(partQr).width
+  const wEaltor = ctx.measureText(partEaltor).width
+  let x = W / 2 - (wThe + wQr + wEaltor) / 2
+  ctx.textAlign = 'left'
+  ctx.fillStyle = '#111827'
+  ctx.fillText(partThe, x, wordY); x += wThe
+  ctx.fillStyle = badgePurple
+  ctx.fillText(partQr, x, wordY); x += wQr
+  ctx.fillStyle = '#111827'
+  ctx.fillText(partEaltor, x, wordY)
+
+  const a = document.createElement('a')
+  a.download = `aframe-${signId}.png`
+  a.href = canvas.toDataURL('image/png')
+  a.click()
+}
+
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath()
   ctx.moveTo(x + r, y)
@@ -385,6 +447,7 @@ export default function SignStudioPage() {
     try {
       if (type === 'corner') await downloadCorner(signId, origin, branding, address, svgEl)
       else if (type === 'rider') await downloadRider(signId, origin, branding, address, svgEl)
+      else if (type === 'aframe') await downloadAFrame(signId, origin, branding, address, svgEl)
     } finally {
       setDownloading(null)
     }
@@ -410,13 +473,14 @@ export default function SignStudioPage() {
   )
 
   const TEMPLATES: { id: Template; label: string; desc: string; icon: LucideIcon; dims: string }[] = [
-    { id: 'corner', label: 'Corner Overlay', desc: 'Print-ready QR overlay for yard sign photos. Print on standard paper and trim.', icon: Tag, dims: '1200×1200' },
+    { id: 'corner', label: 'Corner Overlay', desc: 'Print-ready QR overlay for flyers and mailers. Print on standard paper and trim.', icon: Tag, dims: '1200×1200' },
     { id: 'rider', label: 'Sign Rider', desc: 'Print-ready rider for yard signs. Print on cardstock or heavy paper (60-120lb).', icon: Clipboard, dims: '1200×3600 (4×12 in)' },
+    { id: 'aframe', label: 'A-Frame Insert', desc: 'Standard portrait insert for a real estate A-frame sign holder. Print on cardstock or heavy paper (60-120lb).', icon: Signpost, dims: '2550×3300 (8.5×11 in)' },
   ]
 
   const GOALS: { id: Goal; label: string; template: Template; image: string }[] = [
     { id: 'yardsign',  label: 'Yard sign',             template: 'rider',  image: '/sign-studio/card_yard_sign_FINAL.png' },
-    { id: 'openhouse', label: 'Open house visitors',   template: 'corner', image: '/sign-studio/card_open_house_FINAL.png' },
+    { id: 'openhouse', label: 'Open house visitors',   template: 'aframe', image: '/sign-studio/card_open_house_FINAL.png' },
     { id: 'flyer',     label: 'Flyer / mailer',        template: 'corner', image: '/sign-studio/card_flyer_mailer_FINAL.png' },
   ]
 
@@ -624,6 +688,9 @@ export default function SignStudioPage() {
                   {template === 'rider' && (
                     <RiderPreview qrUrl={qrUrl} branding={branding} address={address} />
                   )}
+                  {template === 'aframe' && (
+                    <AFramePreview qrUrl={qrUrl} />
+                  )}
                 </div>
 
                 {/* Download buttons */}
@@ -642,9 +709,16 @@ export default function SignStudioPage() {
                         {downloading === 'rider' ? '⏳ Generating…' : '⬇ Download Print-Ready PNG'}
                       </button>
                     )}
+                    {template === 'aframe' && (
+                      <button style={dlBtn('aframe', '')} onClick={() => handleDownload('aframe')} disabled={!!downloading}>
+                        {downloading === 'aframe' ? '⏳ Generating…' : '⬇ Download Print-Ready PNG'}
+                      </button>
+                    )}
                   </div>
                   <p style={{ fontSize: 12, color: C.sub, marginTop: 12, lineHeight: 1.6 }}>
-                    💡 Recommended: Print on 60-120lb cardstock at FedEx Office, Staples, or your brokerage print room. Most locations offer same-day printing for under $5.
+                    💡 {template === 'corner'
+                      ? 'Recommended: Print on standard paper, cut to size, at FedEx Office, Staples, or your brokerage print room. Typically low-cost.'
+                      : 'Recommended: Print on 60-120lb cardstock at FedEx Office, Staples, or your brokerage print room. Typically low-cost.'}
                   </p>
                 </div>
 
@@ -746,6 +820,37 @@ function RiderPreview({ qrUrl, branding, address }: { qrUrl: string; branding: B
         <div style={{ height: 5, background: C2.purple }} />
       </div>
       <div style={{ fontSize: 10, color: '#6B7280', textAlign: 'center', marginTop: 6, fontFamily: 'sans-serif' }}>4×12 in print size</div>
+    </div>
+  )
+}
+
+function AFramePreview({ qrUrl }: { qrUrl: string }) {
+  const badgePurple = '#534AB7'
+  return (
+    <div style={{ maxWidth: 220, margin: '0 auto' }}>
+      <div style={{
+        background: '#fff', borderRadius: 10, overflow: 'hidden',
+        border: '1px solid #252533', fontFamily: 'sans-serif',
+      }}>
+        {/* purple header bar */}
+        <div style={{ background: badgePurple, padding: '16px 12px', textAlign: 'center' }}>
+          <div style={{ fontSize: 16, fontWeight: 900, color: '#fff', letterSpacing: 1.5 }}>OPEN HOUSE</div>
+        </div>
+        {/* white body */}
+        <div style={{ padding: '20px 16px', textAlign: 'center' }}>
+          <div style={{ display: 'inline-block', marginBottom: 10 }}>
+            {qrUrl ? <QRCodeSVG value={qrUrl} size={120} /> : <div style={{ width: 120, height: 120, background: '#eee' }} />}
+          </div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#111827' }}>Scan for Photos &amp; Details</div>
+        </div>
+        {/* footer wordmark */}
+        <div style={{ padding: '0 16px 16px', textAlign: 'center' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#111827' }}>
+            the<span style={{ color: badgePurple }}>qr</span>ealtor
+          </div>
+        </div>
+      </div>
+      <div style={{ fontSize: 10, color: '#6B7280', textAlign: 'center', marginTop: 6, fontFamily: 'sans-serif' }}>8.5×11 in print size</div>
     </div>
   )
 }

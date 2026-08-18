@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { normalizePhone } from '../../../../../lib/phone'
 import { checkPhoneVerification } from '../../../../../lib/twilio'
+import { signPhoneVerifyToken } from '../../../../../lib/phoneVerifyToken'
 
 export async function POST(req: Request) {
   const { phone, code } = await req.json()
@@ -21,5 +22,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ approved: false, error: result.error ?? 'Incorrect code. Please try again.' }, { status: 400 })
   }
 
-  return NextResponse.json({ approved: true })
+  // Signed proof-of-verification for beta-signup — Verify's check is one-time
+  // (the code is consumed here), so beta-signup can't re-check with Twilio
+  // itself and must trust this token instead.
+  try {
+    const token = signPhoneVerifyToken(normalizedPhone)
+    return NextResponse.json({ approved: true, token })
+  } catch (err: any) {
+    console.error('[phone/check] failed to sign verification token:', err?.message)
+    return NextResponse.json(
+      { approved: false, error: 'Could not complete verification. Please try again.' },
+      { status: 500 }
+    )
+  }
 }

@@ -33,6 +33,7 @@ function AuthForm() {
 
   const [codeSent, setCodeSent] = useState(false);
   const [phoneVerified, setPhoneVerified] = useState(false);
+  const [phoneVerifyToken, setPhoneVerifyToken] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [sendingCode, setSendingCode] = useState(false);
   const [verifyingCode, setVerifyingCode] = useState(false);
@@ -78,6 +79,7 @@ function AuthForm() {
         return;
       }
       setPhoneVerified(true);
+      setPhoneVerifyToken(body.token ?? null);
       setPhoneMessage("");
     } catch {
       setPhoneMessage('Could not verify code. Please try again.');
@@ -95,17 +97,23 @@ function AuthForm() {
         setMessage('A phone number is required.');
         return;
       }
-      if (!phoneVerified) {
+      if (!phoneVerified || !phoneVerifyToken) {
         setMessage('Please verify your phone number first.');
         return;
       }
       const res = await fetch('/api/auth/beta-signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, phone, dre: dre.trim() || null }),
+        body: JSON.stringify({ name, email, password, phone, dre: dre.trim() || null, phoneVerifyToken }),
       });
       const body = await res.json();
       if (!res.ok) {
+        if (body.phoneVerificationRequired) {
+          setCodeSent(false);
+          setPhoneVerified(false);
+          setPhoneVerifyToken(null);
+          setCode("");
+        }
         setMessage(body.error ?? 'Something went wrong. Please try again.');
         return;
       }
@@ -241,7 +249,7 @@ function AuthForm() {
                   disabled={phoneVerified}
                   onChange={(e) => {
                     setPhone(e.target.value);
-                    if (codeSent) { setCodeSent(false); setCode(""); setPhoneMessage(""); }
+                    if (codeSent) { setCodeSent(false); setCode(""); setPhoneMessage(""); setPhoneVerifyToken(null); }
                   }}
                   placeholder="(555) 555-5555"
                 />

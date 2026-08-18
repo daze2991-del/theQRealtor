@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { normalizePhone } from '../../../../lib/phone'
+import { verifyPhoneVerifyToken } from '../../../../lib/phoneVerifyToken'
 
 // Generic failure message for anything that must not reveal which field or
 // condition caused the failure (e.g. phone collisions). Must stay identical
@@ -9,7 +10,7 @@ const GENERIC_SIGNUP_ERROR =
   "We couldn't complete your signup. Please contact support if you believe this is an error."
 
 export async function POST(req: Request) {
-  const { name, email, password, phone, dre } = await req.json()
+  const { name, email, password, phone, dre, phoneVerifyToken } = await req.json()
 
   if (!name || typeof name !== 'string' || !name.trim()) {
     return NextResponse.json({ error: 'Name is required.' }, { status: 400 })
@@ -31,6 +32,23 @@ export async function POST(req: Request) {
   if (!normalizedPhone) {
     return NextResponse.json(
       { error: 'Please enter a valid phone number.' },
+      { status: 400 }
+    )
+  }
+
+  // Server-side enforcement of phone verification: the frontend only lets a
+  // user reach this point after Twilio Verify approved their code, but that's
+  // a UI gate, not a security boundary — anyone calling this endpoint
+  // directly could otherwise skip verification entirely. verificationChecks
+  // is one-time (the code is consumed on first check), so we can't re-ask
+  // Twilio here — instead we trust a short-lived token signed by
+  // /api/auth/phone/check, scoped to this exact phone number.
+  if (!verifyPhoneVerifyToken(phoneVerifyToken, normalizedPhone)) {
+    return NextResponse.json(
+      {
+        error: 'Phone verification required or expired. Please verify your phone again.',
+        phoneVerificationRequired: true,
+      },
       { status: 400 }
     )
   }

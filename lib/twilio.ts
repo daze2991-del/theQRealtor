@@ -44,6 +44,59 @@ export async function sendSms(to: string | null | undefined, body: string): Prom
   }
 }
 
+// ── Phone verification (Twilio Verify) ────────────────────────────────────────
+// Verify holds its own pending-code state on Twilio's side — no local table
+// needed. Uses the Verify Service (TWILIO_VERIFY_SERVICE_SID), a separate
+// resource from the TWILIO_PHONE_NUMBER sender used by sendSms() above.
+export function verifyConfigured(): boolean {
+  return !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_VERIFY_SERVICE_SID)
+}
+
+export async function startPhoneVerification(to: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const sid = process.env.TWILIO_ACCOUNT_SID
+  const token = process.env.TWILIO_AUTH_TOKEN
+  const verifySid = process.env.TWILIO_VERIFY_SERVICE_SID
+  if (!sid || !token || !verifySid) {
+    console.warn('[twilio verify] not configured — skipping send')
+    return { ok: false, error: 'Phone verification is not available right now.' }
+  }
+  try {
+    const verification = await twilio(sid, token).verify.v2.services(verifySid).verifications.create({ to, channel: 'sms' })
+    console.log('[twilio verify] sent', verification.sid, '|', verification.status, '→', to)
+    return { ok: true }
+  } catch (err: any) {
+    console.error('[twilio verify] send error — code:', err?.code, '| message:', err?.message)
+    // 60203 = Twilio's own max-send-attempts throttle for this destination number
+    if (err?.code === 60203) {
+      return { ok: false, error: 'Too many code requests for this number. Please try again later.' }
+    }
+    return { ok: false, error: 'Could not send verification code. Please check the number and try again.' }
+  }
+}
+
+export async function checkPhoneVerification(to: string, code: string): Promise<{ approved: boolean; error?: string }> {
+  const sid = process.env.TWILIO_ACCOUNT_SID
+  const token = process.env.TWILIO_AUTH_TOKEN
+  const verifySid = process.env.TWILIO_VERIFY_SERVICE_SID
+  if (!sid || !token || !verifySid) {
+    console.warn('[twilio verify] not configured — skipping check')
+    return { approved: false, error: 'Phone verification is not available right now.' }
+  }
+  try {
+    const check = await twilio(sid, token).verify.v2.services(verifySid).verificationChecks.create({ to, code })
+    console.log('[twilio verify] check', check.sid, '|', check.status, '→', to)
+    if (check.status === 'approved') return { approved: true }
+    return { approved: false, error: 'Incorrect code. Please try again.' }
+  } catch (err: any) {
+    console.error('[twilio verify] check error — code:', err?.code, '| message:', err?.message)
+    // 20404 = no pending verification for this number (expired or already used)
+    if (err?.code === 20404) {
+      return { approved: false, error: 'That code has expired. Please request a new one.' }
+    }
+    return { approved: false, error: 'Could not verify code. Please try again.' }
+  }
+}
+
 // ── Agent phone resolution ────────────────────────────────────────────────────
 // profiles.phone is the source of truth; fall back to the agent_phone synced onto
 // their properties (older accounts that predate profiles.phone).

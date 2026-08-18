@@ -102,6 +102,8 @@ function SignCard({ sign, origin, onRename, onOpenAssign, onUnassign, unassignin
     setEditing(false)
   }
 
+  const cancelEdit = () => { setEditing(false); setEditLabel(sign.label); setLabelError('') }
+
   const copyUrl = async () => {
     try {
       await navigator.clipboard.writeText(url)
@@ -115,33 +117,60 @@ function SignCard({ sign, origin, onRename, onOpenAssign, onUnassign, unassignin
       {/* Label + assignment status */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
         <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+            URL name
+          </div>
           {editing ? (
-            <input
-              ref={inputRef}
-              value={editLabel}
-              disabled={saving}
-              onChange={e => setEditLabel(e.target.value)}
-              onBlur={saveLabel}
-              onKeyDown={e => {
-                if (e.key === 'Enter') saveLabel()
-                if (e.key === 'Escape') { setEditing(false); setEditLabel(sign.label); setLabelError('') }
-              }}
-              style={{ width: '100%', background: C.bg, border: `1px solid ${C.purple}`, borderRadius: 8, padding: '7px 10px', color: C.text, fontSize: 14, fontWeight: 700, boxSizing: 'border-box', outline: 'none' }}
-            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <input
+                ref={inputRef}
+                value={editLabel}
+                disabled={saving}
+                onChange={e => setEditLabel(e.target.value)}
+                onBlur={saveLabel}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') saveLabel()
+                  if (e.key === 'Escape') cancelEdit()
+                }}
+                aria-label="Edit custom URL name"
+                style={{ flex: 1, minWidth: 0, background: C.bg, border: `1px solid ${C.purple}`, borderRadius: 8, padding: '7px 10px', color: C.text, fontSize: 15, fontWeight: 700, boxSizing: 'border-box', outline: 'none' }}
+              />
+              <button
+                onMouseDown={e => e.preventDefault()}
+                onClick={saveLabel}
+                disabled={saving}
+                title="Save"
+                aria-label="Save URL name"
+                style={{ flexShrink: 0, width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.purple, border: 'none', borderRadius: 7, color: '#fff', fontSize: 14, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}
+              >
+                ✓
+              </button>
+              <button
+                onMouseDown={e => e.preventDefault()}
+                onClick={cancelEdit}
+                title="Cancel"
+                aria-label="Cancel editing"
+                style={{ flexShrink: 0, width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 7, color: C.sub, fontSize: 13, cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
           ) : (
             <button
               className="sign-label-btn"
-              onClick={() => { setEditLabel(sign.label); setEditing(true) }}
-              title="Click to rename"
-              style={{ background: 'none', display: 'block', maxWidth: '100%', textAlign: 'left' }}
+              onClick={() => { setEditLabel(sign.label); setEditing(true); setLabelError('') }}
+              title="Click to edit custom URL name"
+              aria-label={`Edit custom URL name, currently "${sign.label}"`}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, width: '100%', maxWidth: '100%', textAlign: 'left' }}
             >
-              <span style={{ fontSize: 15, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
-                {sign.label} <span className="sign-label-pencil" style={{ fontSize: 11, color: C.muted, fontWeight: 400 }}>✎</span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {sign.label}
               </span>
+              <span className="sign-label-pencil" aria-hidden="true" style={{ fontSize: 13, color: C.purpleL, flexShrink: 0 }}>✎</span>
             </button>
           )}
           {labelError && <p style={{ color: '#F87171', fontSize: 12, margin: '6px 0 0' }}>{labelError}</p>}
-          <div style={{ fontSize: 12, color: C.muted, marginTop: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: 12, color: C.muted, marginTop: 7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {assigned ? assignmentAddress(assigned) : 'Created ' + formatDate(sign.created_at)}
           </div>
         </div>
@@ -486,17 +515,24 @@ function SignsPageInner() {
         .sign-label-btn {
           cursor: pointer;
           border-radius: 8px;
-          padding: 3px 7px;
-          margin: -3px -7px;
-          border: 1px solid transparent;
-          transition: background 0.12s, border-color 0.12s;
+          padding: 7px 10px;
+          background: #22222E;
+          border: 1px solid #2E2E3D;
+          transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
         }
         .sign-label-btn:hover {
-          background: rgba(124, 58, 237, 0.12);
-          border-color: #7C3AED55;
+          background: rgba(124, 58, 237, 0.14);
+          border-color: #7C3AED90;
+          box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.14);
         }
-        .sign-label-pencil { opacity: 0.5; transition: opacity 0.12s; }
-        .sign-label-btn:hover .sign-label-pencil { opacity: 1; }
+        .sign-label-btn:focus-visible {
+          outline: none;
+          border-color: #7C3AED;
+          box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.28);
+        }
+        .sign-label-pencil { opacity: 0.7; transition: opacity 0.15s ease; }
+        .sign-label-btn:hover .sign-label-pencil,
+        .sign-label-btn:focus-visible .sign-label-pencil { opacity: 1; }
       `}</style>
 
       {loading ? (

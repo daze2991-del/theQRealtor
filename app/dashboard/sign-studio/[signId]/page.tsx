@@ -665,9 +665,9 @@ export default function SignStudioPage() {
                               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                             />
                           </div>
-                          <div style={{ padding: '10px 12px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
-                            <span style={{ fontSize: 13, fontWeight: 700, color: active ? '#fff' : C.text, lineHeight: 1.2, overflowWrap: 'break-word' }}>{g.label}</span>
-                            <span style={{ fontSize: 10, lineHeight: 1.4, minHeight: 28, color: active ? 'rgba(255,255,255,0.55)' : C.muted, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <div style={{ padding: '10px 12px 12px', display: 'flex', flexDirection: 'column', gap: 5, flex: 1 }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.2, minHeight: 32, color: active ? '#fff' : C.text, overflowWrap: 'break-word' }}>{g.label}</span>
+                            <span style={{ fontSize: 10, lineHeight: 1.4, minHeight: 28, marginTop: 'auto', color: active ? 'rgba(255,255,255,0.55)' : C.muted, display: 'flex', alignItems: 'center', gap: 4 }}>
                               <tmpl.icon size={12} strokeWidth={1.8} style={{ flexShrink: 0 }} />
                               <span style={{ overflowWrap: 'break-word', minWidth: 0 }}>{tmpl.label} · {tmpl.dims}</span>
                             </span>

@@ -641,7 +641,7 @@ export default function SignStudioPage() {
                     Where are you capturing buyers?
                   </div>
                   <div style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>Select your use case — we'll pick the best template.</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, alignItems: 'stretch' }}>
                     {GOALS.map(g => {
                       const active = goal === g.id
                       const tmpl = TEMPLATES.find(t => t.id === g.template)!
@@ -653,6 +653,7 @@ export default function SignStudioPage() {
                             ...btnStyle(active),
                             display: 'flex', flexDirection: 'column', alignItems: 'stretch',
                             padding: 0, gap: 0, textAlign: 'left', overflow: 'hidden',
+                            height: '100%',
                           }}
                         >
                           <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9' }}>
@@ -666,8 +667,8 @@ export default function SignStudioPage() {
                           </div>
                           <div style={{ padding: '10px 12px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
                             <span style={{ fontSize: 13, fontWeight: 700, color: active ? '#fff' : C.text, lineHeight: 1.2 }}>{g.label}</span>
-                            <span style={{ fontSize: 10, color: active ? 'rgba(255,255,255,0.55)' : C.muted, display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <tmpl.icon size={12} strokeWidth={1.8} />
+                            <span style={{ fontSize: 10, lineHeight: 1.4, minHeight: 28, color: active ? 'rgba(255,255,255,0.55)' : C.muted, display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <tmpl.icon size={12} strokeWidth={1.8} style={{ flexShrink: 0 }} />
                               {tmpl.label} · {tmpl.dims}
                             </span>
                           </div>

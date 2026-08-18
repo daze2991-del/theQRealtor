@@ -149,6 +149,8 @@ function AuthForm() {
               <input
                 style={inputStyle}
                 type="email"
+                name="email"
+                autoComplete={mode === "signin" ? "username" : "email"}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
@@ -160,6 +162,8 @@ function AuthForm() {
               <input
                 style={inputStyle}
                 type="password"
+                name="password"
+                autoComplete={mode === "signin" ? "current-password" : "new-password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Min. 6 characters"

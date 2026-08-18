@@ -20,10 +20,11 @@ const C = {
   muted:   '#6B7280',
 } as const
 
-type Plan = 'founding' | 'free' | 'starter' | 'pro' | 'elite'
+type Plan = 'founding' | 'alpha' | 'free' | 'starter' | 'pro' | 'elite'
 
 const PLAN_LABELS: Record<Plan, string> = {
   founding: 'Beta Agent',
+  alpha:    'Alpha',
   free:     'Free Plan',
   starter:  'Starter',
   pro:      'Pro',
@@ -370,7 +371,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }
 
         const rawPlan = (profile?.plan as string) || 'free'
-        const KNOWN_PLANS: Plan[] = ['founding', 'free', 'starter', 'pro', 'elite']
+        const KNOWN_PLANS: Plan[] = ['founding', 'alpha', 'free', 'starter', 'pro', 'elite']
         let resolvedPlan: Plan = (KNOWN_PLANS.includes(rawPlan as Plan) ? rawPlan : 'free') as Plan
 
         if (resolvedPlan === 'free') {

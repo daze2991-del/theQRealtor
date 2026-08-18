@@ -5,6 +5,7 @@ import { createAdminSupabase } from '@/lib/supabase-admin'
 // Per-plan sign limits. 'founding' is the beta plan. null = unlimited.
 const SIGN_LIMITS: Record<string, number | null> = {
   founding: 10,
+  alpha:    10,
   free:     1,
   starter:  3,
   pro:      10,

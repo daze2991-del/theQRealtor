@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createBrowserSupabase } from "@/lib/supabase-browser";
 import DashboardLayout from "@/components/DashboardLayout";
 import { getBetaStatus } from "@/lib/beta";
+import { propertyLimitForPlan } from "@/lib/plans";
 
 const C = {
   bg:      '#0F0F13',
@@ -57,6 +58,7 @@ export default function NewPropertyPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [blocked, setBlocked] = useState(false);
+  const [blockedPlan, setBlockedPlan] = useState('free');
   const [betaExpired, setBetaExpired] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
 
@@ -78,7 +80,10 @@ export default function NewPropertyPage() {
         supabase.from('profiles').select('plan, beta_joined_at').eq('id', user.id).single(),
         supabase.from('properties').select('id', { count: 'exact', head: true }).eq('user_id', user.id).is('deleted_at', null),
       ]);
-      if ((profile?.plan || 'free') === 'free' && (count || 0) >= 1) {
+      const plan = profile?.plan || 'free';
+      const limit = propertyLimitForPlan(plan);
+      if (limit !== null && (count || 0) >= limit) {
+        setBlockedPlan(plan);
         setBlocked(true);
       }
       if (getBetaStatus(profile?.beta_joined_at).expired) {
@@ -224,9 +229,13 @@ export default function NewPropertyPage() {
             textAlign: 'center', fontFamily: 'sans-serif',
           }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
-            <h2 style={{ fontSize: 20, fontWeight: 800, color: C.text, marginBottom: 8 }}>Free plan limit reached</h2>
+            <h2 style={{ fontSize: 20, fontWeight: 800, color: C.text, marginBottom: 8 }}>
+              {blockedPlan === 'starter' ? 'Starter plan limit reached' : 'Free plan limit reached'}
+            </h2>
             <p style={{ color: C.muted, marginBottom: 28, fontSize: 14 }}>
-              Upgrade to Pro to add unlimited properties.
+              {blockedPlan === 'starter'
+                ? `You've reached your plan's limit of ${propertyLimitForPlan('starter')} properties. Upgrade to Pro for unlimited properties.`
+                : 'Upgrade to Pro to add unlimited properties.'}
             </p>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
               <button

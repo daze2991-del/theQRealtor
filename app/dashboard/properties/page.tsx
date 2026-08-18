@@ -5,6 +5,7 @@ import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DashboardLayout from '../../../components/DashboardLayout'
+import { propertyLimitForPlan } from '../../../lib/plans'
 
 const C = {
   bg:      '#0F0F13',
@@ -574,7 +575,7 @@ export default function PropertiesPage() {
   const [leadCounts, setLeadCounts]       = useState<Record<string, number>>({})
   const [hotLeadCounts, setHotLeadCounts] = useState<Record<string, number>>({})
   const [propThumbs, setPropThumbs]       = useState<Record<string, string>>({})
-  const [plan, setPlan]                   = useState<'free' | 'pro'>('free')
+  const [plan, setPlan]                   = useState('free')
   const [loading, setLoading]             = useState(true)
   const [togglingId, setTogglingId]       = useState<string | null>(null)
   const [deletingId, setDeletingId]       = useState<string | null>(null)
@@ -602,7 +603,7 @@ export default function PropertiesPage() {
         ])
 
         if (cancelled) return
-        setPlan(profile?.plan === 'pro' ? 'pro' : 'free')
+        setPlan(profile?.plan || 'free')
         setProperties(props || [])
 
         if (props && props.length > 0) {
@@ -697,7 +698,8 @@ export default function PropertiesPage() {
     return 0 // 'recent' — preserve DB order (created_at desc)
   })
 
-  const canAddProperty = plan === 'pro' || properties.length < 1
+  const propertyLimit = propertyLimitForPlan(plan)
+  const canAddProperty = propertyLimit === null || properties.length < propertyLimit
 
   return (
     <DashboardLayout>

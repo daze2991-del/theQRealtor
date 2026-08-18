@@ -11,3 +11,17 @@ export function qrLimitForPlan(plan: string): number | null {
     default:         return 3  // free / unknown
   }
 }
+
+// Single source of truth for per-plan active-property limits. Starter caps at
+// 3; founding/alpha/pro/elite are unlimited; free (or unrecognized) caps at 1.
+// null = unlimited.
+export function propertyLimitForPlan(plan: string): number | null {
+  switch (plan) {
+    case 'starter':  return 3
+    case 'founding': return null
+    case 'alpha':    return null
+    case 'pro':      return null
+    case 'elite':    return null
+    default:         return 1  // free / unknown
+  }
+}

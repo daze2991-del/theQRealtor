@@ -641,7 +641,7 @@ export default function SignStudioPage() {
                     Where are you capturing buyers?
                   </div>
                   <div style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>Select your use case — we'll pick the best template.</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, alignItems: 'stretch' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {GOALS.map(g => {
                       const active = goal === g.id
                       const tmpl = TEMPLATES.find(t => t.id === g.template)!
@@ -653,7 +653,6 @@ export default function SignStudioPage() {
                             ...btnStyle(active),
                             display: 'flex', flexDirection: 'column', alignItems: 'stretch',
                             padding: 0, gap: 0, textAlign: 'left', overflow: 'hidden',
-                            height: '100%',
                           }}
                         >
                           <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9' }}>

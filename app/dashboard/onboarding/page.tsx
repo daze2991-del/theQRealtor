@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { QRCodeSVG } from 'qrcode.react'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
-import { qrLimitForPlan } from '../../../lib/plans'
+import { signLimitForPlan } from '../../../lib/plans'
 
 /* ─── tokens ─────────────────────────────────────────────────── */
 const C = {
@@ -59,7 +59,7 @@ function OnboardingWizard() {
   const [userId, setUserId]   = useState('')
   const [origin, setOrigin]   = useState('')
   const [plan, setPlan]       = useState('free')
-  const [qrCount, setQrCount] = useState(0)
+  const [signCount, setSignCount] = useState(0)
 
   const [step, setStep]                 = useState(1)
   const [propertyId, setPropertyId]     = useState('')
@@ -82,10 +82,10 @@ function OnboardingWizard() {
   const [uploadError, setUploadError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Step 3 — QR
+  // Step 3 — sign / QR
   const [qrLabel, setQrLabel]           = useState('')
   const [generatingQR, setGeneratingQR] = useState(false)
-  const [qrId, setQrId]                 = useState('')
+  const [signId, setSignId]             = useState('')
   const [limitReached, setLimitReached] = useState(false)
 
   // Step 4
@@ -109,30 +109,42 @@ function OnboardingWizard() {
       setPlan((profile?.plan as string) || 'free')
 
       const properties = props || []
-      let pid = '', addr = '', qrExists = false, qrCnt = 0
+      let pid = '', addr = '', signExists = false
+      // Total signs owned by this agent — what the plan limit meter counts
+      // against (signs, not qrcodes — see lib/plans.ts signLimitForPlan).
+      const { count: signCnt } = await supabase
+        .from('signs').select('id', { count: 'exact', head: true })
+        .eq('agent_id', session.user.id)
+      setSignCount(signCnt || 0)
+
       if (properties.length > 0) {
         pid  = properties[0].id
         addr = properties[0].address
         const propertyIds = properties.map((p: any) => p.id)
-        // qrcodes has a permissive public-read policy — scope the count to the
-        // user's own properties explicitly (RLS alone would count all rows).
-        const { count } = await supabase
-          .from('qrcodes').select('id', { count: 'exact', head: true })
+        // Has a sign already been assigned to one of this agent's properties?
+        // sign_assignments RLS follows sign ownership, so this stays scoped
+        // to the current agent even though we filter by property_id here.
+        const { data: assignment } = await supabase
+          .from('sign_assignments').select('sign_id')
           .in('property_id', propertyIds)
-        qrCnt = count || 0
-        qrExists = qrCnt > 0
+          .is('unassigned_at', null)
+          .limit(1)
+          .maybeSingle()
+        if (assignment?.sign_id) {
+          signExists = true
+          setSignId(assignment.sign_id)
+        }
       }
       setPropertyId(pid)
       setPropertyAddress(addr)
-      setQrCount(qrCnt)
       if (pid) { setPropertyCreated(true); setAddress(addr) }
 
       // Resume: DB progress clamps how far you can be; ?step is honored within bounds.
       const urlStep = parseInt(searchParams.get('step') || '', 10)
-      const maxAllowed = qrExists ? 4 : pid ? 3 : 2
+      const maxAllowed = signExists ? 4 : pid ? 3 : 2
       const resume = !isNaN(urlStep)
         ? Math.min(Math.max(urlStep, 1), maxAllowed)
-        : (qrExists ? 4 : pid ? 3 : 1)
+        : (signExists ? 4 : pid ? 3 : 1)
       setStep(resume)
       setLoading(false)
     }
@@ -228,32 +240,50 @@ function OnboardingWizard() {
     setUploading(false)
   }, [propertyId, userId, photos.length])
 
-  /* ── Step 3: generate QR (server trigger is the source of truth for the limit) ── */
+  /* ── Step 3: create a sign and assign it to the property — same path as
+     Sign Studio (/api/signs/create + /api/signs/assign). The API route is the
+     source of truth for the plan limit; the DB has no insert-time trigger for
+     signs, so it must be enforced server-side here rather than relying on a
+     Postgres error code. ── */
   const handleGenerateQR = async () => {
     if (!qrLabel.trim() || !propertyId) return
-    const limit = qrLimitForPlan(plan)
-    if (limit !== null && qrCount >= limit) { setLimitReached(true); return }
+    const limit = signLimitForPlan(plan)
+    if (limit !== null && signCount >= limit) { setLimitReached(true); return }
 
     setGeneratingQR(true); setError('')
-    const supabase = createBrowserSupabase()
-    const { data, error: err } = await supabase
-      .from('qrcodes')
-      .insert({ property_id: propertyId, label: qrLabel.trim(), placement: 'Yard Sign', type: 'property', scan_count: 0 })
-      .select('id')
-      .single()
-    if (err || !data) {
-      // Migration 024 trigger rejects over-limit inserts with errcode 23514.
-      if (err && (err.code === '23514' || /limit reached/i.test(err.message || ''))) {
-        setLimitReached(true)
-      } else {
-        setError(err?.message || 'Failed to generate QR code.')
+    try {
+      const createRes = await fetch('/api/signs/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label: qrLabel.trim() }),
+      })
+      const createBody = await createRes.json().catch(() => ({} as { error?: string; sign?: { id: string } }))
+      if (!createRes.ok || !createBody.sign) {
+        if (createRes.status === 403) setLimitReached(true)
+        else setError(createBody.error || 'Failed to generate QR code.')
+        setGeneratingQR(false); return
       }
-      setGeneratingQR(false); return
+
+      const newSignId = createBody.sign.id
+      const assignRes = await fetch('/api/signs/assign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sign_id: newSignId, property_id: propertyId }),
+      })
+      if (!assignRes.ok) {
+        const assignBody = await assignRes.json().catch(() => ({} as { error?: string }))
+        setError(assignBody.error || 'Failed to assign the QR code to your listing.')
+        setGeneratingQR(false); return
+      }
+
+      setSignId(newSignId)
+      setSignCount(c => c + 1)
+      setGeneratingQR(false)
+      goToStep(4)
+    } catch {
+      setError('Something went wrong. Please try again.')
+      setGeneratingQR(false)
     }
-    setQrId(data.id)
-    setQrCount(c => c + 1)
-    setGeneratingQR(false)
-    goToStep(4)
   }
 
   /* ── Step 4: download PNG ── */
@@ -331,10 +361,12 @@ function OnboardingWizard() {
     img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgStr)
   }
 
-  // The real buyer URL this QR encodes.
-  const buyerUrl = propertyId ? `${origin}/p/${propertyId}` : ''
-  const limit = qrLimitForPlan(plan)
-  const atLimit = limit !== null && qrCount >= limit
+  // The real buyer URL this QR encodes — the SIGN, not the property, so the
+  // same printed code keeps working if this sign is reassigned to a
+  // different listing later.
+  const buyerUrl = signId ? `${origin}/p/${signId}` : ''
+  const limit = signLimitForPlan(plan)
+  const atLimit = limit !== null && signCount >= limit
 
   if (loading) {
     return (
@@ -424,7 +456,7 @@ function OnboardingWizard() {
                   },
                   {
                     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.purpleL} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
-                    title: 'Download and print', desc: 'Print it out and place it on your yard sign. This QR code is permanently linked to this listing.',
+                    title: 'Download and print', desc: 'Print it out and place it on your yard sign. If you switch listings later, just reassign the sign — the printed code keeps working.',
                   },
                 ] as const).map(({ icon, title, desc }) => (
                   <div key={title} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: C.input, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px' }}>
@@ -536,25 +568,28 @@ function OnboardingWizard() {
                 Name your sign placement and preview the code buyers will scan.
               </p>
 
-              {/* Live QR preview — encodes the real buyer URL */}
+              {/* QR placeholder — the real code is generated (and permanently
+                  tied to the sign, not this listing) once you submit below. */}
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
-                <div style={{ background: '#fff', padding: 16, borderRadius: 16, boxShadow: `0 0 50px ${C.purple}30` }}>
-                  {origin && propertyId ? <QRCodeSVG value={buyerUrl} size={150} /> : <div style={{ width: 150, height: 150 }} />}
+                <div style={{ background: '#fff', padding: 16, borderRadius: 16, boxShadow: `0 0 50px ${C.purple}30`, width: 150, height: 150, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontSize: 40 }}>🪧</span>
                 </div>
               </div>
               <div style={{ textAlign: 'center', marginBottom: 20 }}>
-                <span style={{ fontSize: 11, color: C.muted, fontFamily: 'monospace' }}>{buyerUrl}</span>
+                <span style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>
+                  Your code stays with this sign even if you reassign it to a different listing later.
+                </span>
               </div>
 
               {/* Plan usage meter */}
               <div style={{ background: C.input, border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 14px', marginBottom: 18 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: C.sub }}>
                   <span>QR codes used</span>
-                  <span style={{ fontWeight: 700 }}>{limit === null ? `${qrCount} · Unlimited` : `${qrCount} of ${limit}`}</span>
+                  <span style={{ fontWeight: 700 }}>{limit === null ? `${signCount} · Unlimited` : `${signCount} of ${limit}`}</span>
                 </div>
                 {limit !== null && (
                   <div style={{ height: 4, background: C.border, borderRadius: 4, overflow: 'hidden', marginTop: 8 }}>
-                    <div style={{ height: '100%', borderRadius: 4, width: `${Math.min(100, Math.round((qrCount / limit) * 100))}%`, background: `linear-gradient(90deg, ${C.purple}, ${C.purpleL})` }} />
+                    <div style={{ height: '100%', borderRadius: 4, width: `${Math.min(100, Math.round((signCount / limit) * 100))}%`, background: `linear-gradient(90deg, ${C.purple}, ${C.purpleL})` }} />
                   </div>
                 )}
               </div>
@@ -569,7 +604,7 @@ function OnboardingWizard() {
                 </div>
               ) : (
                 <>
-                  <label style={labelStyle}>QR Code Label *</label>
+                  <label style={labelStyle}>Sign Label *</label>
                   <input className="ob-field" type="text" placeholder='e.g. "Front Yard Sign"' value={qrLabel} onChange={e => setQrLabel(e.target.value)} autoFocus style={inputStyle} />
                   <p style={{ fontSize: 12, color: C.muted, margin: '8px 0 0', lineHeight: 1.5 }}>Labels help you know which physical sign captured each lead.</p>
 
@@ -601,7 +636,7 @@ function OnboardingWizard() {
               {/* Branded QR card */}
               <div style={{ background: '#fff', borderRadius: 18, padding: '20px 16px 16px', width: 260, textAlign: 'center', boxShadow: `0 0 60px ${C.purple}35` }}>
                 <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 14 }}>Scan to view this home</div>
-                {origin && propertyId && <QRCodeSVG id="wizard-qr-svg" value={buyerUrl} size={212} />}
+                {origin && signId && <QRCodeSVG id="wizard-qr-svg" value={buyerUrl} size={212} />}
                 <div style={{ marginTop: 14 }}>
                   <span style={{ fontFamily: "-apple-system, 'Helvetica Neue', Arial, sans-serif", fontSize: '10px', letterSpacing: '-0.3px', lineHeight: 1 }}>
                     <span style={{ fontWeight: 300, color: '#9CA3AF' }}>Powered by the</span>

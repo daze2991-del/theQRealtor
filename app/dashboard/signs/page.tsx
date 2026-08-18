@@ -117,9 +117,6 @@ function SignCard({ sign, origin, onRename, onOpenAssign, onUnassign, unassignin
       {/* Label + assignment status */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
         <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
-            URL name
-          </div>
           {editing ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <input
@@ -513,7 +510,7 @@ function SignsPageInner() {
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         .sign-label-btn {
-          cursor: pointer;
+          cursor: text;
           border-radius: 8px;
           padding: 7px 10px;
           background: #22222E;

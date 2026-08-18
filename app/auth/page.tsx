@@ -246,7 +246,7 @@ function AuthForm() {
                   placeholder="(555) 555-5555"
                 />
                 <p style={{ margin: '7px 0 0', fontSize: 11.5, color: C.muted, lineHeight: 1.5 }}>
-                  Used to verify your identity and limit beta access to one account per agent. We won&apos;t text you unless you opt in from your account settings.
+                  We&apos;ll text you a one-time verification code to confirm it&apos;s really you. We won&apos;t message you otherwise unless you opt in from your account settings.
                 </p>
 
                 {phoneVerified ? (

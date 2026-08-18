@@ -653,6 +653,7 @@ export default function SignStudioPage() {
                             ...btnStyle(active),
                             display: 'flex', flexDirection: 'column', alignItems: 'stretch',
                             padding: 0, gap: 0, textAlign: 'left', overflow: 'hidden',
+                            maxWidth: '420px', width: '100%',
                           }}
                         >
                           <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9' }}>

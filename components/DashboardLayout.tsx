@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createBrowserSupabase } from '../lib/supabase-browser'
 import { getBetaStatus } from '../lib/beta'
-import { qrLimitForPlan } from '../lib/plans'
+import { signLimitForPlan } from '../lib/plans'
 import FeedbackPrompt from './FeedbackPrompt'
 
 const C = {
@@ -31,14 +31,15 @@ const PLAN_LABELS: Record<Plan, string> = {
   elite:    'Elite',
 }
 
-// Per-plan sidebar usage. QR-based plans cap QR codes; free caps properties;
-// elite is unlimited (usage hidden — returns null).
-function planUsage(plan: Plan, propertyCount: number, qrCount: number):
+// Per-plan sidebar usage. QR-based plans cap signs (one sign = one QR code
+// in this product); free caps properties; elite is unlimited (usage hidden
+// — returns null).
+function planUsage(plan: Plan, propertyCount: number, signCount: number):
   { used: number; limit: number; noun: string } | null {
   if (plan === 'elite') return null
   if (plan === 'free')  return { used: propertyCount, limit: 1, noun: 'properties' }
-  const limit = qrLimitForPlan(plan)
-  return limit === null ? null : { used: qrCount, limit, noun: 'QR codes' }
+  const limit = signLimitForPlan(plan)
+  return limit === null ? null : { used: signCount, limit, noun: 'QR/Signs' }
 }
 
 function NavIcon({ name }: { name: string }) {
@@ -217,12 +218,12 @@ function SignOutButton() {
   )
 }
 
-function Sidebar({ email, plan, propertyCount, qrCount, newLeadCount, isAdmin, onClose }: {
-  email: string; plan: Plan; propertyCount: number; qrCount: number;
+function Sidebar({ email, plan, propertyCount, signCount, newLeadCount, isAdmin, onClose }: {
+  email: string; plan: Plan; propertyCount: number; signCount: number;
   newLeadCount: number; isAdmin?: boolean; onClose?: () => void
 }) {
   const pathname = usePathname()
-  const usage = planUsage(plan, propertyCount, qrCount)
+  const usage = planUsage(plan, propertyCount, signCount)
   const initials = email ? email.slice(0, 2).toUpperCase() : '??'
 
   return (
@@ -270,7 +271,7 @@ function Sidebar({ email, plan, propertyCount, qrCount, newLeadCount, isAdmin, o
           {usage && (
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
-                <span style={{ fontSize: 11, color: C.muted }}>QR codes used</span>
+                <span style={{ fontSize: 11, color: C.muted }}>QR/Signs used</span>
                 <span style={{ fontSize: 11, fontWeight: 700, color: C.sub }}>{usage.used} / {usage.limit}</span>
               </div>
               {/* Segmented meter */}
@@ -326,7 +327,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [email, setEmail]               = useState('')
   const [plan, setPlan]                 = useState<Plan>('free')
   const [propertyCount, setPropertyCount] = useState(0)
-  const [qrCount, setQrCount]           = useState(0)
+  const [signCount, setSignCount]       = useState(0)
   const [newLeadCount, setNewLeadCount] = useState(0)
   const [mobileOpen, setMobileOpen]     = useState(false)
   const [betaJoinedAt, setBetaJoinedAt] = useState<string | null>(null)
@@ -350,15 +351,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         const propertyIds = (props || []).map((p: any) => p.id)
 
-        // qrcodes has a permissive public-read policy, so RLS alone would count
-        // every row — scope the QR count to the user's own properties explicitly.
-        let qrCnt = 0
-        if (propertyIds.length > 0) {
-          const { count: qc } = await supabase
-            .from('qrcodes').select('id', { count: 'exact', head: true })
-            .in('property_id', propertyIds)
-          qrCnt = qc || 0
-        }
+        // signs is RLS-scoped to the owning agent, so this only ever counts
+        // the caller's own rows — this is also exactly what SIGN_LIMITS
+        // enforces at sign-creation time (lib/plans.ts signLimitForPlan),
+        // so the displayed count always matches the real, enforced limit.
+        const { count: sc } = await supabase
+          .from('signs').select('id', { count: 'exact', head: true })
+          .eq('agent_id', session.user.id)
+        const signCnt = sc || 0
 
         // New/uncontacted lead count for the Leads nav badge.
         let newLeadCnt = 0
@@ -403,7 +403,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         } catch { /* default: non-admin, link stays hidden */ }
         setPlan(resolvedPlan)
         setPropertyCount(propertyIds.length)
-        setQrCount(qrCnt)
+        setSignCount(signCnt)
         setNewLeadCount(newLeadCnt)
       } catch (err) {
         console.error('[DashboardLayout] load error:', err)
@@ -432,14 +432,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <>
           <div onClick={() => setMobileOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 40 }} />
           <div style={{ position: 'fixed', top: 0, left: 0, height: '100vh', zIndex: 50 }}>
-            <Sidebar email={email} plan={plan} propertyCount={propertyCount} qrCount={qrCount} newLeadCount={newLeadCount} isAdmin={isAdmin} onClose={() => setMobileOpen(false)} />
+            <Sidebar email={email} plan={plan} propertyCount={propertyCount} signCount={signCount} newLeadCount={newLeadCount} isAdmin={isAdmin} onClose={() => setMobileOpen(false)} />
           </div>
         </>
       )}
 
       <div style={{ display: 'flex', minHeight: '100vh', background: C.bg, fontFamily: 'sans-serif' }}>
         <div className="db-sidebar">
-          <Sidebar email={email} plan={plan} propertyCount={propertyCount} qrCount={qrCount} newLeadCount={newLeadCount} isAdmin={isAdmin} />
+          <Sidebar email={email} plan={plan} propertyCount={propertyCount} signCount={signCount} newLeadCount={newLeadCount} isAdmin={isAdmin} />
         </div>
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
           <div className="db-mobile-header" style={{ position: 'sticky', top: 0, zIndex: 20, height: 52, background: C.sidebar, borderBottom: `1px solid ${C.border}`, alignItems: 'center', gap: 12, padding: '0 16px', flexShrink: 0 }}>

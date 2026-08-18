@@ -1,16 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { createAdminSupabase } from '@/lib/supabase-admin'
-
-// Per-plan sign limits. 'founding' is the beta plan. null = unlimited.
-const SIGN_LIMITS: Record<string, number | null> = {
-  founding: 10,
-  alpha:    10,
-  free:     1,
-  starter:  3,
-  pro:      10,
-  elite:    null,
-}
+import { signLimitForPlan } from '@/lib/plans'
 
 // ─── rate limiter ─────────────────────────────────────────────────────────────
 // Best-effort in-memory window per IP. Works for single-instance deployments;
@@ -64,7 +55,7 @@ export async function POST(req: Request) {
     .maybeSingle()
 
   const plan = typeof profile?.plan === 'string' ? profile.plan : 'free'
-  const limit = plan in SIGN_LIMITS ? SIGN_LIMITS[plan] : SIGN_LIMITS.free
+  const limit = signLimitForPlan(plan)
 
   if (limit !== null) {
     const { count, error: countError } = await admin

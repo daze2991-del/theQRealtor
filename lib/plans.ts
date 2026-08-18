@@ -25,3 +25,20 @@ export function propertyLimitForPlan(plan: string): number | null {
     default:         return 1  // free / unknown
   }
 }
+
+// Single source of truth for per-plan sign limits — one sign is always one
+// QR code in this product, so this is also what the sidebar's "QR/Signs
+// used" counter reads. app/api/signs/create/route.ts (the actual enforcement
+// point) calls this directly rather than keeping its own copy — see 034/035
+// migration commits tonight for why keeping two copies in sync is a bad idea.
+// null = unlimited.
+export function signLimitForPlan(plan: string): number | null {
+  switch (plan) {
+    case 'founding': return 10
+    case 'alpha':    return 10
+    case 'starter':  return 3
+    case 'pro':      return 10
+    case 'elite':    return null
+    default:         return 1  // free / unknown
+  }
+}

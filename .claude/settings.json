@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "defaultMode": "auto"
+  },
+  "autoMode": {
+    "soft_deny": [
+      "$defaults",
+      "Running SQL directly against the live Supabase project (via psql, the Supabase SQL editor API, a service-role script, or any other path) that creates, alters, or drops a table, trigger, function, policy, or index — migrations in supabase/migrations/ are written for the user to run by hand, never executed automatically",
+      "Deleting or bulk-modifying rows in the live Supabase database (including via service-role/admin scripts), except for cleaning up disposable test fixtures (e.g. test accounts/properties/signs) created earlier in the same session",
+      "git push --force or force-pushing any branch",
+      "git reset --hard",
+      "Modifying production or CI/CD configuration (vercel.json, .github/workflows/**, .env.production, or any live deployment settings)"
+    ]
+  }
+}

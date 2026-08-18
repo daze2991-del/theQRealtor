@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { QRCodeSVG } from 'qrcode.react'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import { useRouter, useSearchParams } from 'next/navigation'
 import DashboardLayout from '../../../components/DashboardLayout'
@@ -82,6 +83,7 @@ function SignCard({ sign, origin, onRename, onOpenAssign, onUnassign, unassignin
   const [labelError, setLabelError] = useState('')
   const [copied, setCopied]       = useState(false)
   const [showHistory, setShowHistory] = useState(false)
+  const [showQR, setShowQR]       = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { if (editing) inputRef.current?.focus() }, [editing])
@@ -128,12 +130,13 @@ function SignCard({ sign, origin, onRename, onOpenAssign, onUnassign, unassignin
             />
           ) : (
             <button
+              className="sign-label-btn"
               onClick={() => { setEditLabel(sign.label); setEditing(true) }}
               title="Click to rename"
-              style={{ background: 'none', border: 'none', padding: 0, cursor: 'text', textAlign: 'left', maxWidth: '100%' }}
+              style={{ background: 'none', display: 'block', maxWidth: '100%', textAlign: 'left' }}
             >
               <span style={{ fontSize: 15, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
-                {sign.label} <span style={{ fontSize: 11, color: C.muted, fontWeight: 400 }}>✎</span>
+                {sign.label} <span className="sign-label-pencil" style={{ fontSize: 11, color: C.muted, fontWeight: 400 }}>✎</span>
               </span>
             </button>
           )}
@@ -200,6 +203,12 @@ function SignCard({ sign, origin, onRename, onOpenAssign, onUnassign, unassignin
           >
             {showHistory ? 'Hide history' : 'View history'}
           </button>
+          <button
+            onClick={() => setShowQR(true)}
+            style={{ flex: 1, background: 'transparent', color: '#94A3B8', border: '1px solid #1E2340', borderRadius: 9, padding: '10px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+          >
+            View QR
+          </button>
         </div>
       </div>
 
@@ -224,6 +233,41 @@ function SignCard({ sign, origin, onRename, onOpenAssign, onUnassign, unassignin
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* View QR modal — read-only preview, white background so it can be
+          test-scanned straight off the screen. */}
+      {showQR && (
+        <div
+          onClick={() => setShowQR(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: '#fff', borderRadius: 18, padding: '22px 22px 20px', width: '100%', maxWidth: 300, textAlign: 'center' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#111827', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {sign.label}
+              </span>
+              <button
+                onClick={() => setShowQR(false)}
+                style={{ background: 'none', border: 'none', color: '#6B7280', fontSize: 18, cursor: 'pointer', padding: 0, marginLeft: 10, lineHeight: 1, flexShrink: 0 }}
+              >
+                ✕
+              </button>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+              <QRCodeSVG value={url} size={220} />
+            </div>
+            <p style={{ fontSize: 11, color: '#9CA3AF', fontFamily: 'monospace', wordBreak: 'break-all', margin: '0 0 8px' }}>
+              {url}
+            </p>
+            <p style={{ fontSize: 12.5, color: '#4B5563', margin: 0 }}>
+              {assigned ? `Points to ${assignmentAddress(assigned)}` : 'Not assigned to a listing yet'}
+            </p>
+          </div>
         </div>
       )}
     </div>
@@ -437,7 +481,23 @@ function SignsPageInner() {
 
   return (
     <DashboardLayout>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .sign-label-btn {
+          cursor: pointer;
+          border-radius: 8px;
+          padding: 3px 7px;
+          margin: -3px -7px;
+          border: 1px solid transparent;
+          transition: background 0.12s, border-color 0.12s;
+        }
+        .sign-label-btn:hover {
+          background: rgba(124, 58, 237, 0.12);
+          border-color: #7C3AED55;
+        }
+        .sign-label-pencil { opacity: 0.5; transition: opacity 0.12s; }
+        .sign-label-btn:hover .sign-label-pencil { opacity: 1; }
+      `}</style>
 
       {loading ? (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300 }}>

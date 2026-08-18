@@ -12,7 +12,30 @@ const SIGN_LIMITS: Record<string, number | null> = {
   elite:    null,
 }
 
+// ─── rate limiter ─────────────────────────────────────────────────────────────
+// Best-effort in-memory window per IP. Works for single-instance deployments;
+// for multi-instance (e.g. many Vercel regions) use Redis instead.
+// Stops a scripted flood from one account — separate from, and in addition
+// to, the per-plan SIGN_LIMITS cap above.
+const rateMap = new Map<string, number[]>()
+const LIMIT = 10
+const WINDOW_MS = 60_000
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now()
+  const hits = (rateMap.get(ip) ?? []).filter(t => now - t < WINDOW_MS)
+  if (hits.length >= LIMIT) return true
+  hits.push(now)
+  rateMap.set(ip, hits)
+  return false
+}
+
 export async function POST(req: Request) {
+  const ip = (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() || 'unknown'
+  if (isRateLimited(ip)) {
+    return NextResponse.json({ error: 'Too many requests. Please wait a minute.' }, { status: 429 })
+  }
+
   const supabase = createServerSupabase()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) {

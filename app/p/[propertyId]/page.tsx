@@ -198,6 +198,9 @@ export default function PropertyPage() {
     // Create a scan_event for every page visit; only include qr_id when
     // QR-originated. Sign-routed visits stamp BOTH sign_id and property_id on
     // insert — property_id is a write-once snapshot and is never updated after.
+    // Goes through the rate-limited /api/scan-events route (not a direct
+    // Supabase insert) — see migration 035 for why the client-facing INSERT
+    // policy on this table was removed.
     const scanRow: Record<string, unknown> = {
       property_id:            propertyId,
       return_visit:           visitCount.current > 1,
@@ -205,12 +208,14 @@ export default function PropertyPage() {
     }
     if (qrId) scanRow.qr_id = qrId
     if (signId) scanRow.sign_id = signId
-    createBrowserSupabase()
-      .from('scan_events')
-      .insert([scanRow])
-      .select('id')
-      .single()
-      .then(({ data }) => { if (data?.id) scanEventId.current = data.id })
+    fetch('/api/scan-events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(scanRow),
+    })
+      .then(res => res.json())
+      .then(({ id }) => { if (id) scanEventId.current = id })
+      .catch(() => { /* scan tracking must never break the buyer-facing page */ })
   }, [propertyId, qrId, signId])
 
   // Flush engagement data on page-unload (non-converting visits)

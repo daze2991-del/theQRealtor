@@ -1,0 +1,15 @@
+-- 035_restrict_scan_events_insert.sql
+-- Removes the fully-open public INSERT policy on scan_events, added in
+-- migration 002 ("scan_events public insert" ... with check (true)).
+--
+-- That policy let anyone with the public anon key insert scan_events rows
+-- directly against Supabase's REST API, completely bypassing the app and any
+-- rate limiting it applies — a real, exploitable path to flooding fake scan
+-- data (which Hot/Warm/Cold lead scoring is built on) for any property_id/
+-- qr_id an attacker has ever observed, with zero authentication required.
+--
+-- Client scan tracking now goes through POST /api/scan-events instead, which
+-- rate-limits per IP and inserts via the service-role client (which bypasses
+-- RLS entirely regardless of client-facing policy) — so no client-facing
+-- INSERT policy is needed on this table anymore.
+drop policy if exists "scan_events public insert" on public.scan_events;

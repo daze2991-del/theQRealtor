@@ -58,12 +58,16 @@ export default function BillingPage() {
       const propIds = (props || []).map((p: any) => p.id)
       setPropCount(propIds.length)
 
+      // Same source/scope as the sidebar's "QR/Signs used" count (signs is
+      // RLS-scoped to the owning agent) — qrcodes is the retired legacy table.
+      const { count: qrCnt } = await supabase
+        .from('signs').select('id', { count: 'exact', head: true })
+        .eq('agent_id', session.user.id)
+      setQrCount(qrCnt || 0)
+
       if (propIds.length > 0) {
-        const [{ count: qrCnt }, { data: leadsData }] = await Promise.all([
-          supabase.from('qrcodes').select('id', { count: 'exact', head: true }).in('property_id', propIds),
-          supabase.from('leads').select('motivation').in('property_id', propIds),
-        ])
-        setQrCount(qrCnt || 0)
+        const { data: leadsData } = await supabase
+          .from('leads').select('motivation').in('property_id', propIds)
         setLeadCount((leadsData || []).length)
         setHotLeadCount((leadsData || []).filter((l: any) => l.motivation === 'hot').length)
       }

@@ -130,26 +130,22 @@ export default function LeadDetailPage() {
         supabase.from('properties').select('*').eq('id', leadData.property_id).single(),
         supabase.from('property_photos').select('url').eq('property_id', leadData.property_id)
           .order('sort_order', { ascending: true }).limit(1),
-        leadData.qr_id
-          ? supabase.from('qrcodes').select('*').eq('id', leadData.qr_id).single()
+        leadData.sign_id
+          ? supabase.from('signs').select('*').eq('id', leadData.sign_id).single()
           : Promise.resolve({ data: null }),
-        leadData.qr_id
+        leadData.sign_id
           ? supabase.from('scan_events')
               .select('created_at, cta_clicked, photos_viewed, time_on_page_sec, return_visit')
-              .eq('qr_id', leadData.qr_id).eq('converted', true)
+              .eq('sign_id', leadData.sign_id).eq('converted', true)
               .order('created_at', { ascending: false }).limit(1).single()
           : Promise.resolve({ data: null }),
         supabase.from('leads').select('*', { count: 'exact', head: true }).eq('property_id', leadData.property_id),
-        // Scan count: count via the property's qr_ids. scan_events.property_id was added
-        // later (migration 009) and is NULL on rows written by the createLead path and on
-        // any pre-migration rows, so counting by property_id under-reports (often 0).
-        // qr_id is NOT NULL on every scan_event, so this reflects the real rows.
-        (async () => {
-          const { data: propQrs } = await supabase.from('qrcodes').select('id').eq('property_id', leadData.property_id)
-          const propQrIds = (propQrs || []).map((q: any) => q.id)
-          if (propQrIds.length === 0) return { count: 0 }
-          return await supabase.from('scan_events').select('*', { count: 'exact', head: true }).in('qr_id', propQrIds)
-        })(),
+        // Scan count: count scan_events directly by property_id. The old qrcodes-join
+        // indirection existed because property_id used to be under-populated (migration
+        // 009 backfill gap); /api/scan-events now requires property_id on every insert
+        // (see route.ts), so it's a reliable stamp going forward — no need to route
+        // through qrcodes (now empty/retired) or signs to get there.
+        supabase.from('scan_events').select('*', { count: 'exact', head: true }).eq('property_id', leadData.property_id),
         supabase.from('leads').select('*', { count: 'exact', head: true })
           .eq('property_id', leadData.property_id).eq('motivation', 'hot'),
         supabase.from('packet_requests').select('*', { count: 'exact', head: true }).eq('property_id', leadData.property_id),

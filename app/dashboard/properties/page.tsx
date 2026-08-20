@@ -570,7 +570,6 @@ export default function PropertiesPage() {
   routerRef.current = router
 
   const [properties, setProperties]       = useState<any[]>([])
-  const [qrCounts, setQrCounts]           = useState<Record<string, number>>({})
   const [scanCounts, setScanCounts]       = useState<Record<string, number>>({})
   const [leadCounts, setLeadCounts]       = useState<Record<string, number>>({})
   const [hotLeadCounts, setHotLeadCounts] = useState<Record<string, number>>({})
@@ -608,19 +607,20 @@ export default function PropertiesPage() {
 
         if (props && props.length > 0) {
           const ids = props.map((p: any) => p.id)
-          const [{ data: qrcodes }, { data: leads }, { data: thumbData }] = await Promise.all([
-            supabase.from('qrcodes').select('property_id, scan_count').in('property_id', ids),
+          // Scan counts now come from scan_events (property_id is a required,
+          // reliable stamp on every row) instead of qrcodes.scan_count, which
+          // lived on the now-empty/retired qrcodes table.
+          const [{ data: scanEvents }, { data: leads }, { data: thumbData }] = await Promise.all([
+            supabase.from('scan_events').select('property_id').in('property_id', ids),
             supabase.from('leads').select('property_id, tier').in('property_id', ids),
             supabase.from('property_photos').select('property_id, url')
               .in('property_id', ids).order('sort_order', { ascending: true }),
           ])
           if (cancelled) return
 
-          const qrMap: Record<string, number> = {}
           const scanMap: Record<string, number> = {}
-          ;(qrcodes || []).forEach((q: any) => {
-            qrMap[q.property_id] = (qrMap[q.property_id] || 0) + 1
-            scanMap[q.property_id] = (scanMap[q.property_id] || 0) + (q.scan_count || 0)
+          ;(scanEvents || []).forEach((s: any) => {
+            scanMap[s.property_id] = (scanMap[s.property_id] || 0) + 1
           })
           const leadMap: Record<string, number> = {}
           const hotMap: Record<string, number> = {}
@@ -631,7 +631,6 @@ export default function PropertiesPage() {
           const thumbMap: Record<string, string> = {}
           ;(thumbData || []).forEach((t: any) => { if (!thumbMap[t.property_id]) thumbMap[t.property_id] = t.url })
 
-          setQrCounts(qrMap)
           setScanCounts(scanMap)
           setLeadCounts(leadMap)
           setHotLeadCounts(hotMap)

@@ -239,33 +239,39 @@ function LeadsPageInner() {
       ;(leads || []).forEach((l: any) => { initNotes[l.id] = l.notes ?? '' })
       setNoteValues(initNotes)
 
-      // Fetch QR info + converted scan events in parallel
-      const qrIds = [...new Set((leads || []).map((l: any) => l.qr_id).filter(Boolean))] as string[]
-      if (qrIds.length > 0) {
-        const [{ data: qrcodes }, { data: scanEvs }, { data: allScans }] = await Promise.all([
-          supabase.from('qrcodes').select('id, label, scan_count').in('id', qrIds),
+      // Fetch sign info + converted scan events in parallel. Signs replaced
+      // qrcodes (now-empty legacy table) as the QR-code model; leads carry
+      // sign_id (qr_id is dead going forward — see leads/[leadId]/page.tsx).
+      const signIds = [...new Set((leads || []).map((l: any) => l.sign_id).filter(Boolean))] as string[]
+      if (signIds.length > 0) {
+        const [{ data: signsData }, { data: scanEvs }, { data: allScans }] = await Promise.all([
+          supabase.from('signs').select('id, label').in('id', signIds),
           supabase.from('scan_events')
-            .select('qr_id, cta_clicked, photos_viewed, return_visit')
-            .in('qr_id', qrIds).eq('converted', true)
+            .select('sign_id, cta_clicked, photos_viewed, return_visit')
+            .in('sign_id', signIds).eq('converted', true)
             .order('created_at', { ascending: false }),
-          // Latest activity per qr_id — any scan_events row (not just converted)
+          // Latest activity per sign_id — any scan_events row (not just converted)
           supabase.from('scan_events')
-            .select('qr_id, created_at')
-            .in('qr_id', qrIds)
+            .select('sign_id, created_at')
+            .in('sign_id', signIds)
             .order('created_at', { ascending: false }),
         ])
+        // scan_count isn't a signs column (unlike the old qrcodes.scan_count) —
+        // derive it by counting scan_events rows per sign_id.
+        const scanCountBySign: Record<string, number> = {}
+        ;(allScans || []).forEach((s: any) => { if (s.sign_id) scanCountBySign[s.sign_id] = (scanCountBySign[s.sign_id] || 0) + 1 })
         const qm: Record<string, { label: string; scan_count: number }> = {}
-        ;(qrcodes || []).forEach((q: any) => { qm[q.id] = { label: q.label || '', scan_count: q.scan_count || 0 } })
+        ;(signsData || []).forEach((s: any) => { qm[s.id] = { label: s.label || '', scan_count: scanCountBySign[s.id] || 0 } })
         setQrMap(qm)
 
-        // Most-recent converted scan event per qr_id
+        // Most-recent converted scan event per sign_id
         const em: Record<string, any> = {}
-        ;(scanEvs || []).forEach((e: any) => { if (!em[e.qr_id]) em[e.qr_id] = e })
+        ;(scanEvs || []).forEach((e: any) => { if (!em[e.sign_id]) em[e.sign_id] = e })
         setScanEventByQr(em)
 
-        // Most-recent scan timestamp per qr_id (rows arrive newest-first)
+        // Most-recent scan timestamp per sign_id (rows arrive newest-first)
         const lm: Record<string, string> = {}
-        ;(allScans || []).forEach((s: any) => { if (s.qr_id && !lm[s.qr_id]) lm[s.qr_id] = s.created_at })
+        ;(allScans || []).forEach((s: any) => { if (s.sign_id && !lm[s.sign_id]) lm[s.sign_id] = s.created_at })
         setLastActiveByQr(lm)
       }
       setLoading(false)
@@ -366,7 +372,7 @@ function LeadsPageInner() {
 
     if (filterDisclosures) {
       // Disclosures chip: filter by cta_clicked on the scan event, replaces tier filter
-      r = r.filter(l => l.qr_id && scanEventByQr[l.qr_id]?.cta_clicked === 'disclosures')
+      r = r.filter(l => l.sign_id && scanEventByQr[l.sign_id]?.cta_clicked === 'disclosures')
     } else {
       // Tier chips — use V2 tier field (with fallback to v1 motivation)
       r = r.filter(l => filterTemp.includes(leadTier(l)))
@@ -413,13 +419,13 @@ function LeadsPageInner() {
     if (leads.length === 0) return
     setExportingCSV(true)
     const supabase = createBrowserSupabase()
-    const qrIds = [...new Set(leads.map(l => l.qr_id).filter(Boolean))] as string[]
+    const signIds = [...new Set(leads.map(l => l.sign_id).filter(Boolean))] as string[]
     const lastScanMap: Record<string, string> = {}
-    if (qrIds.length > 0) {
+    if (signIds.length > 0) {
       const { data: scans } = await supabase
-        .from('scan_events').select('qr_id, created_at')
-        .in('qr_id', qrIds).order('created_at', { ascending: false })
-      ;(scans || []).forEach((s: any) => { if (s.qr_id && !lastScanMap[s.qr_id]) lastScanMap[s.qr_id] = s.created_at })
+        .from('scan_events').select('sign_id, created_at')
+        .in('sign_id', signIds).order('created_at', { ascending: false })
+      ;(scans || []).forEach((s: any) => { if (s.sign_id && !lastScanMap[s.sign_id]) lastScanMap[s.sign_id] = s.created_at })
     }
     const motivLabels: Record<string, string> = { hot: 'Ready now', motivated: '1–6 months', warm: '6–12 months', cold: 'Just browsing' }
     const recAction:   Record<string, string> = { hot: 'Call today', motivated: 'Text this week', warm: 'Follow up in 2 weeks', cold: 'Add to drip' }
@@ -433,9 +439,9 @@ function LeadsPageInner() {
           TIER_CHIP_CFG[leadTier(l)]?.label || l.motivation || '',
           motivLabels[l.motivation] || '',
           propMap[l.property_id] || '',
-          l.qr_id ? (qrMap[l.qr_id]?.label || '') : '',
-          l.qr_id ? String(qrMap[l.qr_id]?.scan_count ?? '') : '',
-          l.qr_id && lastScanMap[l.qr_id] ? new Date(lastScanMap[l.qr_id]).toLocaleString() : '',
+          l.sign_id ? (qrMap[l.sign_id]?.label || '') : '',
+          l.sign_id ? String(qrMap[l.sign_id]?.scan_count ?? '') : '',
+          l.sign_id && lastScanMap[l.sign_id] ? new Date(lastScanMap[l.sign_id]).toLocaleString() : '',
           eff.last_contacted_at ? new Date(eff.last_contacted_at).toLocaleString() : 'Not contacted',
           new Date(l.created_at).toLocaleString(),
           eff.notes || '',
@@ -657,12 +663,12 @@ function LeadsPageInner() {
                   const callPri  = computeCallPriority(lead.intent_score ?? 0, lead.last_activity_at ?? lead.created_at)
                   const urgency  = urgencyLabel(callPri)
                   const reason   = topSignalLabel(lead.score_breakdown, tier)
-                  const qr       = lead.qr_id ? qrMap[lead.qr_id] : null
-                  const lastScan = lead.qr_id ? lastActiveByQr[lead.qr_id] : null
+                  const qr       = lead.sign_id ? qrMap[lead.sign_id] : null
+                  const lastScan = lead.sign_id ? lastActiveByQr[lead.sign_id] : null
                   const address  = propMap[lead.property_id]
                   const eff      = getEffective(lead)
                   const status   = (eff.status ?? 'new') as StatusKey
-                  const signals  = buildSignals(lead.qr_id ? scanEventByQr[lead.qr_id] : null)
+                  const signals  = buildSignals(lead.sign_id ? scanEventByQr[lead.sign_id] : null)
                   const notesVal = noteValues[lead.id] ?? eff.notes ?? ''
                   const hasNotes = !!(notesVal.trim())
                   const notesOpen = expandedNotes[lead.id] ?? false

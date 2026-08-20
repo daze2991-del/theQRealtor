@@ -138,29 +138,18 @@ export async function getBetaOverview(range: OverviewRange = {}): Promise<BetaOv
   }
   const propIds = properties.map((p: any) => p.id)
 
-  // ── QR codes → qr→user map (scans attribute through qr → property → user) ───
-  const qrToUser = new Map<string, string>()
-  if (propIds.length > 0) {
-    const { data: qrRows } = await svc
-      .from('qrcodes')
-      .select('id, property_id')
-      .in('property_id', propIds)
-    for (const q of qrRows ?? []) {
-      const uid = propToUser.get(q.property_id)
-      if (uid) qrToUser.set(q.id, uid)
-    }
-  }
-
   // ── Scan events (optionally date-bounded) → count + last per user ───────────
+  // Attributed via property_id directly (propToUser, built above) — this is a
+  // required, reliable stamp on every scan_events row (see /api/scan-events),
+  // so no need to route through qrcodes (now empty/retired) as an indirection.
   const scansByUser = new Map<string, { count: number; last: string | null }>()
-  const qrIds = [...qrToUser.keys()]
-  if (qrIds.length > 0) {
-    let q = svc.from('scan_events').select('qr_id, created_at').in('qr_id', qrIds)
+  if (propIds.length > 0) {
+    let q = svc.from('scan_events').select('property_id, created_at').in('property_id', propIds)
     if (from) q = q.gte('created_at', from)
     if (to)   q = q.lte('created_at', to)
     const { data: scanRows } = await q
     for (const s of scanRows ?? []) {
-      const uid = qrToUser.get(s.qr_id)
+      const uid = propToUser.get(s.property_id)
       if (!uid) continue
       const cur = scansByUser.get(uid) ?? { count: 0, last: null }
       cur.count++

@@ -150,12 +150,18 @@ export default function SettingsPage() {
         const propIds = (props || []).map((p: any) => p.id)
         setPropCount(propIds.length)
 
+        // QR/sign count: same source/scope as the billing page and sidebar
+        // (signs is RLS-scoped to the owning agent) — qrcodes is the retired
+        // legacy table.
+        const { count: qrCnt } = await supabase
+          .from('signs').select('id', { count: 'exact', head: true })
+          .eq('agent_id', uid)
+        if (!cancelled) setQrCount(qrCnt || 0)
+
         if (propIds.length > 0) {
-          const [{ count: qrCnt }, { count: leadCnt }] = await Promise.all([
-            supabase.from('qrcodes').select('id', { count: 'exact', head: true }).in('property_id', propIds),
-            supabase.from('leads').select('id', { count: 'exact', head: true }).in('property_id', propIds),
-          ])
-          if (!cancelled) { setQrCount(qrCnt || 0); setLeadCount(leadCnt || 0) }
+          const { count: leadCnt } = await supabase
+            .from('leads').select('id', { count: 'exact', head: true }).in('property_id', propIds)
+          if (!cancelled) setLeadCount(leadCnt || 0)
         }
       } catch (err) {
         console.error('[SettingsPage] load error:', err)

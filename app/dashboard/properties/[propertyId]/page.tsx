@@ -169,14 +169,16 @@ export default function PropertyIntelligencePage() {
 
       const sixtyDaysAgo = new Date(Date.now() - 60 * 86400000).toISOString()
 
-      const [photoRes, scanRes, leadRes, qrRes, scanCountRes] = await Promise.all([
+      const [photoRes, scanRes, leadRes, assignmentRes, scanCountRes] = await Promise.all([
         supabase.from('property_photos').select('url, sort_order').eq('property_id', propertyId).order('sort_order', { ascending: true }),
         supabase.from('scan_events')
-          .select('created_at, cta_clicked, photos_viewed, time_on_page_sec, return_visit, qr_id')
+          .select('created_at, cta_clicked, photos_viewed, time_on_page_sec, return_visit, sign_id')
           .eq('property_id', propertyId).gte('created_at', sixtyDaysAgo)
           .order('created_at', { ascending: false }),
         supabase.from('leads').select('*').eq('property_id', propertyId).order('created_at', { ascending: false }),
-        supabase.from('qrcodes').select('id, label, scan_count, placement').eq('property_id', propertyId),
+        // Signs currently assigned to this property, replacing the old direct
+        // qrcodes.property_id list (qrcodes is now empty/retired).
+        supabase.from('sign_assignments').select('sign_id, signs(id, label)').eq('property_id', propertyId).is('unassigned_at', null),
         supabase.from('scan_events').select('*', { count: 'exact', head: true }).eq('property_id', propertyId),
       ])
 
@@ -184,7 +186,18 @@ export default function PropertyIntelligencePage() {
       setScanEvents(scanRes.data ?? [])
       setAllTimeScanCount(scanCountRes.count ?? 0)
       setLeads(leadRes.data ?? [])
-      setQrCodes(qrRes.data ?? [])
+      const assignedSigns = ((assignmentRes.data ?? []) as any[])
+        .map(a => (Array.isArray(a.signs) ? a.signs[0] : a.signs))
+        .filter(Boolean)
+      const signIds = assignedSigns.map((s: any) => s.id)
+      if (signIds.length > 0) {
+        const { data: signScans } = await supabase.from('scan_events').select('sign_id').in('sign_id', signIds)
+        const scanCountBySign: Record<string, number> = {}
+        ;(signScans || []).forEach((s: any) => { if (s.sign_id) scanCountBySign[s.sign_id] = (scanCountBySign[s.sign_id] || 0) + 1 })
+        setQrCodes(assignedSigns.map((s: any) => ({ id: s.id, label: s.label, scan_count: scanCountBySign[s.id] || 0 })))
+      } else {
+        setQrCodes([])
+      }
 
       try {
         const { count } = await supabase.from('packet_requests').select('*', { count: 'exact', head: true }).eq('property_id', propertyId)
@@ -725,7 +738,7 @@ export default function PropertyIntelligencePage() {
                       <div style={{ width: 28, height: 28, borderRadius: 8, background: `${C.purple}18`, border: `1px solid ${C.purple}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>📱</div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 12, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {qr.label || qr.placement || 'Unlabeled QR'}
+                          {qr.label || 'Unlabeled QR'}
                         </div>
                         <div style={{ fontSize: 10, color: C.muted }}>{qr.scan_count ?? 0} scans · ↑{mockPct}%</div>
                       </div>

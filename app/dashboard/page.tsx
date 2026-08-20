@@ -247,7 +247,7 @@ export default function Dashboard() {
       const lastMonthISO   = lastMonthStart.toISOString()
 
       const [
-        { data: qrData },
+        { data: allScansData },
         { data: recentLeadsData },
         { count: totalLeadsCount },
         { data: leadsPerProp },
@@ -257,7 +257,10 @@ export default function Dashboard() {
         prevLeadsResult,
         prevScansResult,
       ] = await Promise.all([
-        supabase.from('qrcodes').select('id, label, property_id, scan_count').in('property_id', ids),
+        // Scan totals now come straight from scan_events (property_id is a
+        // required, reliable stamp on every row — see /api/scan-events) instead
+        // of qrcodes.scan_count, which lived on the now-empty/retired qrcodes table.
+        supabase.from('scan_events').select('property_id').in('property_id', ids),
         supabase.from('leads').select('*').in('property_id', ids).order('created_at', { ascending: false }).limit(20),
         supabase.from('leads').select('*', { count: 'exact', head: true }).in('property_id', ids),
         supabase.from('leads').select('property_id, motivation, tier, status, created_at').in('property_id', ids),
@@ -270,7 +273,7 @@ export default function Dashboard() {
 
       // Maps
       const scanMap: Record<string, number> = {}
-      ;(qrData || []).forEach((q: any) => { scanMap[q.property_id] = (scanMap[q.property_id] || 0) + (q.scan_count || 0) })
+      ;(allScansData || []).forEach((s: any) => { scanMap[s.property_id] = (scanMap[s.property_id] || 0) + 1 })
 
       const leadMap: Record<string, number> = {}
       const hotByProp: Record<string, number> = {}
@@ -337,7 +340,7 @@ export default function Dashboard() {
       setProperties(props)
       setRecentLeads((recentLeadsData || []).slice(0, 5))
       setTotalLeads(totalLeadsCount || 0)
-      setTotalScansAll((qrData || []).reduce((s: number, q: any) => s + (q.scan_count || 0), 0))
+      setTotalScansAll((allScansData || []).length)
       setPropScanCounts(scanMap)
       setPropLeadCounts(leadMap)
       setPropThumbs(thumbMap)

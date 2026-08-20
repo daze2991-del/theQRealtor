@@ -363,10 +363,10 @@ export default function SellerReportPage() {
   const dowMax       = Math.max(1, ...dowCounts)
   const blockMax     = Math.max(1, ...blockCounts)
 
-  // Sign performance — real per-sign scan counts from scan_events (qrcodes.scan_count
-  // is unreliable; the buyer-page insert path doesn't increment it).
+  // Sign performance — real per-sign scan counts from scan_events.sign_id
+  // (qrcodes.scan_count lived on the now-empty/retired qrcodes table).
   const signCounts: Record<string, number> = {}
-  scanEvents.forEach((e: any) => { if (e.qr_id) signCounts[e.qr_id] = (signCounts[e.qr_id] || 0) + 1 })
+  scanEvents.forEach((e: any) => { if (e.sign_id) signCounts[e.sign_id] = (signCounts[e.sign_id] || 0) + 1 })
   const signRows = (qrCodes || [])
     .map((q: any) => ({ id: q.id, label: q.label || 'Unnamed sign', scans: signCounts[q.id] || 0 }))
     .sort((a: any, b: any) => b.scans - a.scans)

@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
+import { SMS_CONSENT_TEXT } from '../../../lib/smsConsent'
 
 const C = {
   bg:     '#0F0F13',
@@ -98,7 +99,10 @@ export default function PropertyPage() {
   const [phone,       setPhone]       = useState('')
   const [email,       setEmail]       = useState('')
   const [question,    setQuestion]    = useState('')
-  const [contactPref, setContactPref] = useState<string[]>(['Text', 'Email'])
+  // Nothing consent-adjacent is pre-checked: contact preferences and the SMS
+  // consent box below both start empty/false so any selection is affirmative.
+  const [contactPref, setContactPref] = useState<string[]>([])
+  const [smsConsent,  setSmsConsent]  = useState(false)
   const [submitting,  setSubmitting]  = useState(false)
   const [submitted,   setSubmitted]   = useState(false)
   const [error,       setError]       = useState('')
@@ -290,6 +294,10 @@ export default function PropertyPage() {
           motivation:        CTAS.find(c => c.id === intent)!.motivation,
           questionText:      question.trim() || undefined,
           contactPreference: contactPref.length > 0 ? contactPref.join(', ') : undefined,
+          // Affirmative SMS consent. The exact text shown is echoed back so it
+          // can be stored alongside the boolean — see lib/smsConsent.ts.
+          smsConsent,
+          smsConsentText: smsConsent ? SMS_CONSENT_TEXT : undefined,
           scanEventId: scanEventId.current,
           engagement: {
             timeOnPageSec:       Math.round((Date.now() - pageStart.current) / 1000),
@@ -317,7 +325,7 @@ export default function PropertyPage() {
     setSubmitting(false)
   }
 
-  const closeSheet = () => { setIntent(null); setSubmitted(false); setError(''); setPhoneErr(''); setEmailErr(''); setName(''); setPhone(''); setEmail(''); setQuestion(''); setWebsite(''); setContactPref(['Text', 'Email']) }
+  const closeSheet = () => { setIntent(null); setSubmitted(false); setError(''); setPhoneErr(''); setEmailErr(''); setName(''); setPhone(''); setEmail(''); setQuestion(''); setWebsite(''); setContactPref([]); setSmsConsent(false) }
   const closePacket = () => { setPacketOpen(false); setPacketSubmitted(false); setPacketError(''); setPacketEmail(''); setPacketName('') }
 
   const handlePacketSubmit = async (e: FormEvent) => {
@@ -694,6 +702,21 @@ export default function PropertyPage() {
                       })}
                     </div>
                   </div>
+
+                  {/* Affirmative SMS consent — unchecked by default. Gates the
+                      confirmation text server-side; leaving it unchecked still
+                      submits the lead, it just sends no SMS. */}
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', padding: '10px 13px', borderRadius: 10, background: smsConsent ? 'rgba(124,58,237,0.12)' : 'rgba(255,255,255,0.03)', border: `1px solid ${smsConsent ? C.purple + '70' : C.border}` }}>
+                    <input
+                      type="checkbox"
+                      checked={smsConsent}
+                      onChange={e => setSmsConsent(e.target.checked)}
+                      style={{ marginTop: 2, width: 16, height: 16, accentColor: C.purple, cursor: 'pointer', flexShrink: 0 }}
+                    />
+                    <span style={{ fontSize: 12.5, color: C.muted, lineHeight: 1.5 }}>
+                      {SMS_CONSENT_TEXT}
+                    </span>
+                  </label>
 
                   {error && <p style={{ color: '#FCA5A5', fontSize: 13, margin: 0 }}>{error}</p>}
 

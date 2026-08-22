@@ -3,6 +3,7 @@ import { createAdminSupabase } from '../../../lib/supabase-admin'
 import { computeIntent, type EngagementData } from '../../../lib/leadScoring'
 import { computeScoreV2, isLikelyBot, type EngagementInputV2 } from '../../../lib/leadScoringV2'
 import { sendSms, resolveAgentPhone, queueOrSendAgentSms, msg } from '../../../lib/twilio'
+import { SMS_CONSENT_TEXT, SMS_CONSENT_TEXT_MAX } from '../../../lib/smsConsent'
 
 // ─── rate limiter ─────────────────────────────────────────────────────────────
 // Best-effort in-memory window per IP. Works for single-instance deployments;
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
   }
 
-  const { propertyId, qrId, signId, name, phone, email, motivation, questionText, contactPreference, scanEventId, engagement } =
+  const { propertyId, qrId, signId, name, phone, email, motivation, questionText, contactPreference, scanEventId, engagement, smsConsent, smsConsentText } =
     body as Record<string, unknown>
 
   const ctaMotivation = motivation as string | undefined
@@ -57,6 +58,20 @@ export async function POST(request: Request) {
   // future SMS-verification step and is not set here.
   const contactQuality: 'phone' | 'email_only' | 'none' =
     trimmedPhone ? 'phone' : trimmedEmail ? 'email_only' : 'none'
+
+  // ── SMS consent ─────────────────────────────────────────────────────────────
+  // Strict boolean: anything other than a literal true is no consent. The exact
+  // checkbox text the buyer saw is stored alongside the flag so the record is
+  // provable later; we prefer the client-echoed copy (that's what was actually
+  // on screen) but fall back to the server constant and cap the length so a
+  // crafted payload can't write unbounded text.
+  const hasSmsConsent = smsConsent === true
+  const consentText = hasSmsConsent
+    ? (typeof smsConsentText === 'string' && smsConsentText.trim()
+        ? smsConsentText.trim().slice(0, SMS_CONSENT_TEXT_MAX)
+        : SMS_CONSENT_TEXT)
+    : null
+  const consentAt = hasSmsConsent ? new Date().toISOString() : null
 
   // ── bot filter ──────────────────────────────────────────────────────────────
   const ua = request.headers.get('user-agent') ?? ''
@@ -125,6 +140,10 @@ export async function POST(request: Request) {
     notes:              (questionText as string)?.trim() || null,
     contact_preference: (contactPreference as string)?.trim() || null,
     agent_id:           property.user_id || null,
+    // SMS consent record — flag, when it was given, and the exact text shown.
+    sms_consent:        hasSmsConsent,
+    sms_consent_at:     consentAt,
+    sms_consent_text:   consentText,
     // V2 scoring fields
     intent_score:       v2Score.intent_score,
     tier:               v2Score.tier,
@@ -202,8 +221,10 @@ export async function POST(request: Request) {
       console.warn('[submit-lead] no agent profile for', property.user_id, '— agent alerts skipped')
     }
 
-    // Buyer confirmation — showing/question only, phone required, NOT quiet-hours gated
-    if ((cta === 'showing' || cta === 'question') && trimmedPhone) {
+    // Buyer confirmation — showing/question only, phone required, NOT quiet-hours
+    // gated, and only with affirmative SMS consent captured at submission. No
+    // consent means the lead is still saved; we just never text the buyer.
+    if ((cta === 'showing' || cta === 'question') && trimmedPhone && hasSmsConsent) {
       const agentName = (property.agent_name as string) || null
       const sid = await sendSms(trimmedPhone, msg.buyerConfirmation(buyerName, address, agentName))
       if (sid) {

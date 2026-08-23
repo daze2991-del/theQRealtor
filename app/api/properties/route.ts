@@ -26,11 +26,11 @@ export async function POST(req: Request) {
   }
 
   // ── Per-plan listing limit ──────────────────────────────────────────────────
-  // Counts every non-deleted property, matching the client pre-check in
-  // new-property/page.tsx. NOTE: this deliberately does NOT filter on
-  // properties.active — a listing the agent has toggled inactive still occupies
-  // a slot until it is deleted. Grandfathered plans (founding/alpha) and pro
-  // return null here and skip the check entirely.
+  // Counts ACTIVE listings only — not-deleted AND active=true — matching the
+  // client pre-check in new-property/page.tsx and the marketing copy's "up to
+  // N active listings at a time." Toggling a listing inactive frees a slot
+  // immediately, without deleting it. Grandfathered plans (founding/alpha) and
+  // pro return null here and skip the check entirely.
   //
   // Counted with the admin client so the number is the true row count rather
   // than whatever the caller's RLS view happens to expose.
@@ -43,6 +43,7 @@ export async function POST(req: Request) {
       .from('properties')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', user.id)
+      .eq('active', true)
       .is('deleted_at', null)
     if (countError) {
       console.error('[properties] count error:', countError)

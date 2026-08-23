@@ -584,6 +584,7 @@ export default function PropertiesPage() {
   const [sortMode, setSortMode]           = useState<'recent' | 'leads' | 'active'>('recent')
   const [deleteTarget, setDeleteTarget]   = useState<any | null>(null)
   const [deleteModal, setDeleteModal]     = useState<'confirm' | null>(null)
+  const [exportingCsv, setExportingCsv]   = useState(false)
 
   useEffect(() => { setOrigin(window.location.origin) }, [])
 
@@ -662,6 +663,43 @@ export default function PropertiesPage() {
     // no need to inspect data or block properties that have leads/scans.
     setDeleteTarget(prop)
     setDeleteModal('confirm')
+  }
+
+  // Offered from the delete-confirm modal, before the soft-delete runs. The
+  // underlying lead rows are NOT destroyed by delete (see deleteProperty below)
+  // — this exists because a soft-deleted property drops out of the Leads page's
+  // property filter and its address label (leads/page.tsx:218-224), so isolating
+  // "just this property's leads" gets harder afterward, even though nothing is
+  // actually lost. A CSV taken now is the easy way to keep that grouping.
+  const downloadPropertyLeadsCsv = async (prop: any) => {
+    setExportingCsv(true)
+    try {
+      const supabase = createBrowserSupabase()
+      const { data: leads, error } = await supabase
+        .from('leads')
+        .select('name, phone, email, status, motivation, tier, notes, created_at')
+        .eq('property_id', prop.id)
+        .order('created_at', { ascending: false })
+      if (error) { console.error('[downloadPropertyLeadsCsv] query failed:', error); return }
+      if (!leads || leads.length === 0) return
+
+      const rows = [
+        ['Name', 'Phone', 'Email', 'Status', 'Tier', 'Motivation', 'Notes', 'Submitted'],
+        ...leads.map((l: any) => [
+          l.name || '', l.phone || '', l.email || '',
+          l.status || 'new', l.tier || '', l.motivation || '',
+          l.notes || '', new Date(l.created_at).toLocaleString(),
+        ]),
+      ]
+      const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
+      const slug = (prop.address || 'property').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+      a.download = `leads-${slug}-${new Date().toISOString().slice(0, 10)}.csv`
+      a.click()
+    } finally {
+      setExportingCsv(false)
+    }
   }
 
   const deleteProperty = async () => {
@@ -794,9 +832,16 @@ export default function PropertiesPage() {
           <div style={{ background: '#1A1A24', border: '1px solid #252533', borderRadius: 16, padding: 28, maxWidth: 420, width: '100%' }}>
             <div style={{ fontSize: 24, marginBottom: 12 }}>🗑️</div>
             <h2 style={{ fontSize: 17, fontWeight: 700, color: '#FFFFFF', margin: '0 0 12px' }}>Delete &ldquo;{deleteTarget.address}&rdquo;?</h2>
-            <p style={{ fontSize: 14, color: '#C4C4D4', lineHeight: 1.6, margin: '0 0 20px' }}>
-              This removes the property from your dashboard. Its leads and scan history are <strong style={{ color: '#FFFFFF' }}>preserved</strong> and stay in your Leads list.
+            <p style={{ fontSize: 14, color: '#C4C4D4', lineHeight: 1.6, margin: '0 0 14px' }}>
+              This removes the property from your dashboard. Its leads and scan history are <strong style={{ color: '#FFFFFF' }}>preserved</strong> and stay in your Leads list — but this property won&apos;t appear in the Leads filter anymore, so those leads will be harder to pull out as a group afterward. This can&apos;t be undone from the dashboard.
             </p>
+            <button
+              onClick={() => downloadPropertyLeadsCsv(deleteTarget)}
+              disabled={exportingCsv}
+              style={{ width: '100%', background: 'transparent', color: C.purpleL, border: `1px solid ${C.border}`, borderRadius: 9, padding: '9px 16px', fontSize: 13, fontWeight: 700, cursor: exportingCsv ? 'not-allowed' : 'pointer', opacity: exportingCsv ? 0.7 : 1, fontFamily: 'sans-serif', marginBottom: 16 }}
+            >
+              {exportingCsv ? 'Preparing…' : '⬇ Download leads as CSV'}
+            </button>
             <div style={{ display: 'flex', gap: 10 }}>
               <button
                 onClick={deleteProperty}

@@ -117,6 +117,15 @@ export default function NewPropertyPage() {
     });
     const body = await res.json();
     if (!res.ok) {
+      // Both the beta gate and the plan-limit gate answer 403, so branch on the
+      // flag rather than the status — otherwise a limit rejection would render
+      // as "your beta has ended".
+      if (body.limitReached) {
+        if (body.plan) setBlockedPlan(body.plan);
+        setBlocked(true);
+        setLoading(false);
+        return;
+      }
       if (res.status === 403) { setBetaExpired(true); setLoading(false); return; }
       setMessage(body.error || 'Failed to create property.');
       setLoading(false);

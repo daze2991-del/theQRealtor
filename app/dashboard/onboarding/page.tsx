@@ -197,10 +197,13 @@ function OnboardingWizard() {
     const num = (v: string) => (v.trim() && !isNaN(Number(v)) ? Number(v) : null)
     const int = (v: string) => (v.trim() && !isNaN(parseInt(v, 10)) ? parseInt(v, 10) : null)
 
-    const { data, error: err } = await supabase
-      .from('properties')
-      .insert({
-        user_id: user.id, active: true,
+    // Goes through /api/properties rather than inserting directly, so the
+    // per-plan listing limit (and the beta gate) apply here too. A direct
+    // client insert would satisfy RLS and bypass both.
+    const res = await fetch('/api/properties', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
         address: address.trim(),
         city: city.trim() || null,
         state: stateVal.trim() || null,
@@ -208,13 +211,13 @@ function OnboardingWizard() {
         beds: int(beds),
         baths: num(baths),
         description: description.trim() || null,
-      })
-      .select('id, address')
-      .single()
-    if (err || !data) { setError(err?.message || 'Failed to create property.'); setSavingProperty(false); return }
+      }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok || !data?.id) { setError(data?.error || 'Failed to create property.'); setSavingProperty(false); return }
 
     setPropertyId(data.id)
-    setPropertyAddress(data.address)
+    setPropertyAddress(address.trim())
     setPropertyCreated(true)
     setSavingProperty(false)
   }

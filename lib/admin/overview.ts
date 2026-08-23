@@ -19,6 +19,12 @@ export type HealthLabel =
 export interface AgentSummary {
   id:             string
   name:           string
+  // Entitlement state, shown so "who's paying" sits next to "are they using it".
+  // Read-only here — these are set by hand in the Supabase SQL editor, which
+  // migration 024 makes the only path that can write them.
+  plan:            string | null
+  accountStatus:   string | null
+  billingInterval: string | null
   betaJoinedAt:   string | null
   accountAgeDays: number
   daysRemaining:  number
@@ -107,7 +113,7 @@ export async function getBetaOverview(range: OverviewRange = {}): Promise<BetaOv
   // ── Roster: beta agents = profiles.beta_joined_at IS NOT NULL ──────────────
   const { data: profileRows } = await svc
     .from('profiles')
-    .select('id, name, beta_joined_at')
+    .select('id, name, beta_joined_at, plan, account_status, billing_interval')
     .not('beta_joined_at', 'is', null)
 
   const profiles = profileRows ?? []
@@ -208,6 +214,9 @@ export async function getBetaOverview(range: OverviewRange = {}): Promise<BetaOv
     return {
       id: p.id,
       name: (p.name && String(p.name).trim()) || '—',
+      plan: p.plan ?? null,
+      accountStatus: p.account_status ?? null,
+      billingInterval: p.billing_interval ?? null,
       betaJoinedAt: p.beta_joined_at ?? null,
       accountAgeDays,
       daysRemaining,

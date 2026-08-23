@@ -58,17 +58,25 @@ export async function POST(req: Request) {
   const limit = signLimitForPlan(plan)
 
   if (limit !== null) {
+    // Only ACTIVE signs count. Archived signs (archived_at set) are retired
+    // inventory — they keep their history and their buyer page keeps resolving,
+    // they just no longer consume a plan slot.
     const { count, error: countError } = await admin
       .from('signs')
       .select('id', { count: 'exact', head: true })
       .eq('agent_id', user.id)
+      .is('archived_at', null)
     if (countError) {
       console.error('[signs/create] count error:', countError)
       return NextResponse.json({ error: 'Failed to create sign. Please try again.' }, { status: 500 })
     }
     if ((count ?? 0) >= limit) {
       return NextResponse.json(
-        { error: `Your plan allows up to ${limit} sign${limit === 1 ? '' : 's'}. Upgrade to add more.` },
+        {
+          error: `You've reached your active sign limit (${limit}) — archive an old sign or upgrade to Pro.`,
+          limitReached: true,
+          limit,
+        },
         { status: 403 }
       )
     }

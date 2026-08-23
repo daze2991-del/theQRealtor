@@ -222,6 +222,8 @@ export default function AdminOverviewClient({ initial }: { initial: BetaOverview
             <thead>
               <tr>
                 <th style={TH}>Agent</th>
+                <th style={TH}>Plan</th>
+                <th style={TH}>Billing</th>
                 <th style={{ ...TH, textAlign: 'right' }}>Acct age</th>
                 <th style={{ ...TH, textAlign: 'right' }}>Last active</th>
                 <th style={{ ...TH, textAlign: 'right' }}>Active listings</th>
@@ -236,11 +238,16 @@ export default function AdminOverviewClient({ initial }: { initial: BetaOverview
             </thead>
             <tbody>
               {rows.length === 0 && (
-                <tr><td colSpan={11} style={{ ...TD, textAlign: 'center', color: C.muted, padding: '32px 16px' }}>No agents match these filters.</td></tr>
+                <tr><td colSpan={13} style={{ ...TD, textAlign: 'center', color: C.muted, padding: '32px 16px' }}>No agents match these filters.</td></tr>
               )}
               {rows.map(a => (
                 <tr key={a.id}>
                   <td style={{ ...TD, color: C.text, fontWeight: 600 }}>{a.name}</td>
+                  <td style={{ ...TD, fontSize: 12 }}>
+                    {a.plan ?? '—'}
+                    {a.accountStatus ? <span style={{ color: C.muted }}> · {a.accountStatus}</span> : null}
+                  </td>
+                  <td style={{ ...TD, fontSize: 12, color: C.muted }}>{a.billingInterval ?? '—'}</td>
                   <td style={{ ...TD, textAlign: 'right' }}>{a.accountAgeDays}d</td>
                   <td style={{ ...TD, textAlign: 'right', fontSize: 12 }}>{fmtAgo(a.lastActive)}</td>
                   <td style={{ ...TD, textAlign: 'right' }}>{a.activeListings}</td>

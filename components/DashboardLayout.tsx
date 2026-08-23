@@ -355,9 +355,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         // the caller's own rows — this is also exactly what SIGN_LIMITS
         // enforces at sign-creation time (lib/plans.ts signLimitForPlan),
         // so the displayed count always matches the real, enforced limit.
+        // Archived signs are excluded here for that reason: app/api/signs/create
+        // counts only archived_at IS NULL, so this filter must match it.
         const { count: sc } = await supabase
           .from('signs').select('id', { count: 'exact', head: true })
           .eq('agent_id', session.user.id)
+          .is('archived_at', null)
         const signCnt = sc || 0
 
         // New/uncontacted lead count for the Leads nav badge.

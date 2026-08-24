@@ -65,8 +65,14 @@ export default function SellerReportsPage() {
   }
 
   // Rotate the token, invalidating any link already shared for this property.
+  // Destructive and irreversible, so it is gated behind the same confirm()
+  // guard used for the other destructive actions in the dashboard (delete
+  // lead, delete property, unassign sign). Cancel returns before any fetch.
   const regenerateLink = async (propertyId: string) => {
-    if (!confirm('Generate a new report link for this property?\n\nThe existing link will stop working immediately — anyone you already sent it to will need the new one.')) return
+    const ok = confirm(
+      `Regenerate report link?\n\nThe current link will stop working immediately. If you've already shared it with your seller, you'll need to send them the new one.`
+    )
+    if (!ok) return
     setRegeneratingId(propertyId)
     try {
       const res = await fetch(`/api/properties/${propertyId}/regenerate-report-token`, { method: 'POST' })

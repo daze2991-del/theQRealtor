@@ -515,7 +515,7 @@ export default function PropertyPage() {
               <button
                 key={cta.id}
                 className="cta-btn"
-                onClick={() => { ctaClickedRef.current = cta.id; setIntent(cta.id); setSubmitted(false); setError(''); setPhoneErr(''); setEmailErr(''); setName(''); setPhone(''); setEmail(''); setQuestion(''); setContactPref(['Text', 'Email']) }}
+                onClick={() => { ctaClickedRef.current = cta.id; setIntent(cta.id); setSubmitted(false); setError(''); setPhoneErr(''); setEmailErr(''); setName(''); setPhone(''); setEmail(''); setQuestion(''); setContactPref([]) }}
                 style={{
                   background: cta.colorBg, border: `1px solid ${cta.color}40`,
                   borderRadius: 14, padding: '16px 14px',

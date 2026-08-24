@@ -3,6 +3,7 @@ node_modules
 .vercel
 .env*.local
 .env*
+!.env.example
 *.tsbuildinfo
 .DS_Store
 .claude/settings.local.json

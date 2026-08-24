@@ -4,9 +4,6 @@ import { FormEvent, useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 
-// Set to true in a future SMS v2 release to show the consent checkbox to buyers
-const SMS_FOLLOWUP_ENABLED = false
-
 const C = {
   bg:     '#0F0F13',
   card:   '#17131F',
@@ -49,7 +46,6 @@ export default function OpenHouseCheckInPage() {
   const [phone,             setPhone]             = useState('')
   const [email,             setEmail]             = useState('')
   const [workingWithAgent,  setWorkingWithAgent]  = useState<boolean | null>(null)
-  const [smsConsent,        setSmsConsent]        = useState(false)
   const [submitting,        setSubmitting]        = useState(false)
   const [submitted,         setSubmitted]         = useState(false)
   const [error,             setError]             = useState('')
@@ -102,7 +98,6 @@ export default function OpenHouseCheckInPage() {
           phone:              phone.trim(),
           email:              email.trim() || undefined,
           working_with_agent: workingWithAgent,
-          sms_consent:        smsConsent,
         }),
       })
       if (res.status === 429) { setError('Too many submissions. Please wait a minute.'); setSubmitting(false); return }
@@ -299,21 +294,6 @@ export default function OpenHouseCheckInPage() {
                     </div>
                   )}
                 </div>
-
-                {/* SMS consent — hidden until SMS_FOLLOWUP_ENABLED = true */}
-                {SMS_FOLLOWUP_ENABLED && (
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={smsConsent}
-                      onChange={e => setSmsConsent(e.target.checked)}
-                      style={{ marginTop: 2, width: 16, height: 16, accentColor: C.amber, cursor: 'pointer', flexShrink: 0 }}
-                    />
-                    <span style={{ fontSize: 13, color: C.muted, lineHeight: 1.5 }}>
-                      I agree to receive text message follow-ups about this property. Reply STOP to opt out.
-                    </span>
-                  </label>
-                )}
 
                 {error && <p style={{ color: '#FCA5A5', fontSize: 13, margin: 0 }}>{error}</p>}
 

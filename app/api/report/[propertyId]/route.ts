@@ -23,6 +23,9 @@ export async function GET(
     supabase.from('property_photos').select('url')
       .eq('property_id', propertyId).order('sort_order', { ascending: true }).limit(1),
     // tier drives the lead-quality breakdown; motivation kept as a legacy fallback.
+    // `notes` is buyer-authored free text and must NEVER reach this response —
+    // it is selected only to derive the has_notes presence flag below, then
+    // dropped by the sanitize step after this Promise.all.
     supabase.from('leads')
       .select('id, tier, motivation, notes, created_at')
       .eq('property_id', propertyId).order('created_at', { ascending: false }),
@@ -30,6 +33,25 @@ export async function GET(
   ])
 
   if (!propRes.data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  // ── Sanitize leads before they leave this UNAUTHENTICATED endpoint ──────────
+  // This route is reachable by anyone holding the property UUID, which is also
+  // handed to buyers (open-house QRs redirect to /open-house/{propertyId}), so
+  // the response must carry no buyer-authored content of any kind.
+  //
+  // motivation is an unconstrained `text` column (migration 003, no CHECK) and
+  // is client-supplied on one submit path (submit-lead falls back to the raw
+  // request-body value when no engagement payload is present), so it cannot be
+  // trusted to hold only known labels — allow-list it rather than pass it
+  // through. The seller page still needs it for legacy-row tier resolution.
+  const MOTIVATION_LABELS = new Set(['cold', 'warm', 'motivated', 'hot'])
+  const leads = ((leadRes.data ?? []) as any[]).map(l => ({
+    id:         l.id,
+    tier:       l.tier,                                                   // DB-constrained enum (migration 019)
+    motivation: MOTIVATION_LABELS.has(l.motivation) ? l.motivation : null,
+    created_at: l.created_at,
+    has_notes:  !!(l.notes && String(l.notes).trim()),                    // presence only — never the text
+  }))
 
   const qrCodes = ((assignmentRes.data ?? []) as any[])
     .map(a => (Array.isArray(a.signs) ? a.signs[0] : a.signs))
@@ -72,7 +94,7 @@ export async function GET(
   return NextResponse.json({
     property:       propRes.data,
     photo:          photoRes.data?.[0]?.url ?? null,
-    leads:          leadRes.data  ?? [],
+    leads,
     scanEvents,
     qrCodes,
     packetCount,

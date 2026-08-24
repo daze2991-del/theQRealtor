@@ -214,7 +214,7 @@ export default function SellerReportPage() {
   const engagedBuyers    = leads.filter((l: any) => tierOf(l) === 'hot' || tierOf(l) === 'warm').length
   console.log('[seller-report] engagedBuyers (before was 0, now):', engagedBuyers, '| total leads:', leads.length)
   const showingRequests  = leads.filter((l: any) => tierOf(l) === 'hot').length
-  const buyerQuestions   = leads.filter((l: any) => l.notes && (l.notes as string).trim()).length
+  const buyerQuestions   = leads.filter((l: any) => l.has_notes).length
   const returnVisitors   = scanEvents.filter((e: any) => e.return_visit).length
   const photoViewers     = scanEvents.filter((e: any) => (e.photos_viewed ?? 0) >= 5).length
 
@@ -224,8 +224,8 @@ export default function SellerReportPage() {
   const lastMonthEngaged  = leads.filter((l: any) => { const d = new Date(l.created_at); const t = tierOf(l); return (t === 'hot' || t === 'warm') && d >= lastMonthStart && d < thisMonthStart }).length
   const thisMonthShowings = leads.filter((l: any) => tierOf(l) === 'hot' && new Date(l.created_at) >= thisMonthStart).length
   const lastMonthShowings = leads.filter((l: any) => { const d = new Date(l.created_at); return tierOf(l) === 'hot' && d >= lastMonthStart && d < thisMonthStart }).length
-  const thisMonthQuestions = leads.filter((l: any) => l.notes && new Date(l.created_at) >= thisMonthStart).length
-  const lastMonthQuestions = leads.filter((l: any) => { const d = new Date(l.created_at); return l.notes && d >= lastMonthStart && d < thisMonthStart }).length
+  const thisMonthQuestions = leads.filter((l: any) => l.has_notes && new Date(l.created_at) >= thisMonthStart).length
+  const lastMonthQuestions = leads.filter((l: any) => { const d = new Date(l.created_at); return l.has_notes && d >= lastMonthStart && d < thisMonthStart }).length
   const thisMonthPackets  = (packets ?? []).filter((p: any) => new Date(p.created_at) >= thisMonthStart).length
   const lastMonthPackets  = (packets ?? []).filter((p: any) => { const d = new Date(p.created_at); return d >= lastMonthStart && d < thisMonthStart }).length
 
@@ -234,7 +234,7 @@ export default function SellerReportPage() {
   const engagedSparkData  = getDailyCount(scanEvents.filter((e: any) => (e.photos_viewed ?? 0) > 0 || (e.time_on_page_sec ?? 0) > 60), 14)
   const showingSparkData  = getDailyCount(leads.filter((l: any) => l.motivation === 'hot'), 14)
   const packetSparkData   = getDailyCount(packets ?? [], 14)
-  const questionSparkData = getDailyCount(leads.filter((l: any) => l.notes), 14)
+  const questionSparkData = getDailyCount(leads.filter((l: any) => l.has_notes), 14)
 
   // Health — shared formula via calcPropertyInterest
   const health = calcPropertyInterest({ totalLeads: leads.length, totalScans, showingRequests })
@@ -269,7 +269,7 @@ export default function SellerReportPage() {
     } else if (showingLeads.length > 1) {
       events.push({ icon: '📅', text: `${showingLeads.length} buyers requested a showing`, time: showingLeads[0].created_at, color: '#EF4444', dot: '#EF4444' })
     }
-    const questionLeads = leads.filter((l: any) => l.notes && (l.notes as string).trim())
+    const questionLeads = leads.filter((l: any) => l.has_notes)
     if (questionLeads.length === 1) {
       events.push({ icon: '💬', text: 'Buyer asked a question about the property', time: questionLeads[0].created_at, color: '#10B981', dot: '#10B981' })
     } else if (questionLeads.length > 1) {

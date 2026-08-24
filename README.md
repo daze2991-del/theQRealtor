@@ -1,8 +1,8 @@
-# RealtQR
+# theqrealtor
 
 QR-powered lead capture for real estate agents. Buyers scan a sign, fill out a form, and the agent gets an instant SMS. Every scan and lead is tracked in the dashboard.
 
-**Live:** https://realtqr.vercel.app
+**Live:** https://theqrealtor.com
 
 ---
 

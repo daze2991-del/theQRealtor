@@ -1,25 +1,39 @@
 import { NextResponse } from 'next/server'
 import { createAdminSupabase } from '../../../../lib/supabase-admin'
 
-// Public seller report data. The propertyId in the URL is the access token —
-// this runs server-side with the admin client and returns AGGREGATE data only
-// (no buyer names, phones, or emails are ever included in the response).
+// Public seller report data. The URL segment is properties.report_token — a
+// PRIVATE credential, distinct from properties.id (which is semi-public: it is
+// printed on QR signage and handed to buyers via /open-house/{propertyId}).
+// A property id will NOT resolve here. Rotate the token via
+// POST /api/properties/{id}/regenerate-report-token to kill a shared link.
+//
+// Runs server-side with the admin client and returns AGGREGATE data only —
+// no buyer names, phones, emails, or buyer-authored text (see sanitize below).
 export async function GET(
   _req: Request,
-  { params }: { params: { propertyId: string } }
+  { params }: { params: { token: string } }
 ) {
-  const { propertyId } = params
+  const { token } = params
   const supabase = createAdminSupabase()
   // Wider window so "total" stats and the 8-week / peak charts have full coverage.
   const windowStart = new Date(Date.now() - 365 * 86_400_000).toISOString()
 
-  // Property + photo + leads + signs currently assigned to this property (parallel).
+  // Resolve the token to a property FIRST — every query below filters on the
+  // resolved row's real primary key, which is NOT the value in the URL. (Fan
+  // -ning these out in parallel with the lookup would mean filtering
+  // property_id by a token and silently returning an all-zeros report.)
+  const propRes = await supabase.from('properties')
+    .select('id, address, city, state, active, created_at, agent_name, agent_phone, price, beds, baths')
+    .eq('report_token', token).maybeSingle()
+
+  if (!propRes.data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  const propertyId = propRes.data.id as string
+
+  // Photo + leads + signs currently assigned to this property (parallel).
   // qrcodes (the old direct property_id -> QR-code table) is now empty/retired;
   // signs is assigned to properties via sign_assignments instead.
-  const [propRes, photoRes, leadRes, assignmentRes] = await Promise.all([
-    supabase.from('properties')
-      .select('id, address, city, state, active, created_at, agent_name, agent_phone, price, beds, baths')
-      .eq('id', propertyId).single(),
+  const [photoRes, leadRes, assignmentRes] = await Promise.all([
     supabase.from('property_photos').select('url')
       .eq('property_id', propertyId).order('sort_order', { ascending: true }).limit(1),
     // tier drives the lead-quality breakdown; motivation kept as a legacy fallback.
@@ -32,12 +46,10 @@ export async function GET(
     supabase.from('sign_assignments').select('sign_id, signs(id, label)').eq('property_id', propertyId).is('unassigned_at', null),
   ])
 
-  if (!propRes.data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-
   // ── Sanitize leads before they leave this UNAUTHENTICATED endpoint ──────────
-  // This route is reachable by anyone holding the property UUID, which is also
-  // handed to buyers (open-house QRs redirect to /open-house/{propertyId}), so
-  // the response must carry no buyer-authored content of any kind.
+  // Reachable by anyone holding the report_token, which an agent may forward to
+  // a seller (and a seller onward), so the response must carry no
+  // buyer-authored content of any kind regardless of who ends up with the link.
   //
   // motivation is an unconstrained `text` column (migration 003, no CHECK) and
   // is client-supplied on one submit path (submit-lead falls back to the raw

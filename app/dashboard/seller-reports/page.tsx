@@ -24,6 +24,8 @@ export default function SellerReportsPage() {
   const [leadCounts,  setLeadCounts]  = useState<Record<string, number>>({})
   const [copiedId,    setCopiedId]    = useState<string | null>(null)
   const [origin,      setOrigin]      = useState('')
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null)
+  const [regeneratedId,  setRegeneratedId]  = useState<string | null>(null)
 
   useEffect(() => { setOrigin(window.location.origin) }, [])
 
@@ -35,7 +37,7 @@ export default function SellerReportsPage() {
 
       const { data: props } = await supabase
         .from('properties')
-        .select('id, address, city, state, active, created_at')
+        .select('id, address, city, state, active, created_at, report_token')
         .eq('user_id', session.user.id)
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
@@ -54,10 +56,36 @@ export default function SellerReportsPage() {
     load().catch(() => setLoading(false))
   }, [router])
 
-  const copyLink = async (propertyId: string) => {
-    try { await navigator.clipboard.writeText(`${origin}/report/${propertyId}`) } catch {}
+  // Share links are keyed on report_token, never the property id — the id is
+  // printed on QR signage and handed to buyers, so it can't be a credential.
+  const copyLink = async (propertyId: string, reportToken: string) => {
+    try { await navigator.clipboard.writeText(`${origin}/report/${reportToken}`) } catch {}
     setCopiedId(propertyId)
     setTimeout(() => setCopiedId(null), 2000)
+  }
+
+  // Rotate the token, invalidating any link already shared for this property.
+  const regenerateLink = async (propertyId: string) => {
+    if (!confirm('Generate a new report link for this property?\n\nThe existing link will stop working immediately — anyone you already sent it to will need the new one.')) return
+    setRegeneratingId(propertyId)
+    try {
+      const res = await fetch(`/api/properties/${propertyId}/regenerate-report-token`, { method: 'POST' })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok || !body?.report_token) {
+        alert(body?.error || 'Could not regenerate the link. Please try again.')
+        return
+      }
+      // Swap in the new token so the Copy/Open actions use it right away.
+      setProperties(prev => prev.map((p: any) =>
+        p.id === propertyId ? { ...p, report_token: body.report_token } : p
+      ))
+      setRegeneratedId(propertyId)
+      setTimeout(() => setRegeneratedId(null), 4000)
+    } catch {
+      alert('Could not regenerate the link. Please try again.')
+    } finally {
+      setRegeneratingId(null)
+    }
   }
 
   return (
@@ -96,6 +124,8 @@ export default function SellerReportsPage() {
               const location = [prop.city, prop.state].filter(Boolean).join(', ')
               const leads    = leadCounts[prop.id] || 0
               const copied   = copiedId === prop.id
+              const busy     = regeneratingId === prop.id
+              const rotated  = regeneratedId === prop.id
               return (
                 <div
                   key={prop.id}
@@ -121,7 +151,7 @@ export default function SellerReportsPage() {
 
                   <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                     <button
-                      onClick={() => copyLink(prop.id)}
+                      onClick={() => copyLink(prop.id, prop.report_token)}
                       style={{
                         fontSize: 12, fontWeight: 600,
                         background: copied ? '#052e16' : `${C.purple}14`,
@@ -133,8 +163,25 @@ export default function SellerReportsPage() {
                     >
                       {copied ? '✓ Copied' : '📋 Copy Link'}
                     </button>
+                    <button
+                      onClick={() => regenerateLink(prop.id)}
+                      disabled={busy}
+                      title="Generate a new link and immediately invalidate the current one"
+                      style={{
+                        fontSize: 12, fontWeight: 600,
+                        background: rotated ? '#052e16' : 'transparent',
+                        color: rotated ? '#4ade80' : C.muted,
+                        border: `1px solid ${rotated ? '#166534' : C.border}`,
+                        borderRadius: 8, padding: '8px 14px',
+                        cursor: busy ? 'not-allowed' : 'pointer',
+                        opacity: busy ? 0.6 : 1,
+                        fontFamily: 'sans-serif', transition: 'all 0.15s', whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {busy ? '…' : rotated ? '✓ New link' : '↻ Regenerate'}
+                    </button>
                     <Link
-                      href={`/report/${prop.id}`}
+                      href={`/report/${prop.report_token}`}
                       target="_blank"
                       rel="noreferrer"
                       style={{

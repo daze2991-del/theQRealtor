@@ -124,7 +124,10 @@ function KpiCard({ icon, label, value, change, sparkData, color }: {
 export default function SellerReportPage() {
   const params      = useParams()
   const searchParams = useSearchParams()
-  const propertyId  = params.propertyId as string
+  // The URL segment is properties.report_token — a private credential, NOT the
+  // property id. Buyer-facing links below must use the resolved property.id
+  // from the API response instead; these two must never be conflated.
+  const reportToken = params.token as string
 
   const [report,   setReport]   = useState<any>(null)
   const [loading,  setLoading]  = useState(true)
@@ -135,7 +138,7 @@ export default function SellerReportPage() {
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    fetch(`/api/report/${propertyId}`)
+    fetch(`/api/report/${reportToken}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (!d?.property) { setMissing(true); setLoading(false); return }
@@ -143,7 +146,7 @@ export default function SellerReportPage() {
         setLoading(false)
       })
       .catch(() => { setMissing(true); setLoading(false) })
-  }, [propertyId])
+  }, [reportToken])
 
   // Auto-print on ?print=true
   useEffect(() => {
@@ -432,7 +435,7 @@ export default function SellerReportPage() {
 
         {/* Actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          <a href={`/p/${propertyId}`} target="_blank" rel="noreferrer" style={{
+          <a href={`/p/${property.id}`} target="_blank" rel="noreferrer" style={{
             fontSize: 12, fontWeight: 600, color: C.sub, textDecoration: 'none',
             border: `1px solid ${C.border}`, borderRadius: 8, padding: '7px 13px',
           }}>
@@ -458,8 +461,8 @@ export default function SellerReportPage() {
             >⋮</button>
             {menuOpen && (
               <div style={dropdownStyle}>
-                <a href={`/p/${propertyId}`} target="_blank" rel="noreferrer" className="rpt-mitem" style={menuItemStyle} onClick={() => setMenuOpen(false)}>🔗 View Property Page</a>
-                <a href={`/report/${propertyId}?print=true`} target="_blank" rel="noreferrer" className="rpt-mitem" style={menuItemStyle} onClick={() => setMenuOpen(false)}>⬇ Download PDF</a>
+                <a href={`/p/${property.id}`} target="_blank" rel="noreferrer" className="rpt-mitem" style={menuItemStyle} onClick={() => setMenuOpen(false)}>🔗 View Property Page</a>
+                <a href={`/report/${reportToken}?print=true`} target="_blank" rel="noreferrer" className="rpt-mitem" style={menuItemStyle} onClick={() => setMenuOpen(false)}>⬇ Download PDF</a>
                 <button className="rpt-mitem" style={menuItemStyle} onClick={() => { setMenuOpen(false); window.print() }}>🖨 Print Report</button>
               </div>
             )}
@@ -541,7 +544,7 @@ export default function SellerReportPage() {
               <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>Report link</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ fontSize: 11, color: C.purpleL, fontWeight: 600, wordBreak: 'break-all' }}>
-                  theqrealtor.com/report/{propertyId.slice(0, 8)}…
+                  theqrealtor.com/report/{reportToken.slice(0, 8)}…
                 </span>
                 <button
                   onClick={copyURL}
@@ -894,7 +897,7 @@ export default function SellerReportPage() {
                     <span style={{ fontSize: 13, fontWeight: 700 }}>{copied ? '✓ Link Copied!' : '📊 Share Report Link'}</span>
                     <span style={{ fontSize: 10, opacity: 0.75 }}>via email or text</span>
                   </button>
-                  <a href={`/report/${propertyId}?print=true`} target="_blank" rel="noreferrer" style={{ ...outlineBtn, flex: 1 }}>
+                  <a href={`/report/${reportToken}?print=true`} target="_blank" rel="noreferrer" style={{ ...outlineBtn, flex: 1 }}>
                     <span style={{ fontSize: 13, fontWeight: 700 }}>⬇ Download PDF</span>
                     <span style={{ fontSize: 10, color: C.muted }}>Full report</span>
                   </a>

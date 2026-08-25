@@ -31,20 +31,19 @@ export async function POST(request: Request) {
 
   const admin = createAdminSupabase()
 
-  // Keep profile data and auth metadata in one server-side write path so the
-  // browser never needs elevated table permissions or auth-side sync hooks.
-  const { error: authErr } = await admin.auth.admin.updateUserById(user.id, {
-    user_metadata: {
-      phone: String(phone ?? '').trim(),
-      sms_enabled: Boolean(smsEnabled),
-    },
-  })
-
-  if (authErr) {
-    console.error('[update-profile] auth.admin.updateUserById error:', JSON.stringify(authErr))
-    return NextResponse.json({ error: authErr.message }, { status: 500 })
-  }
-
+  // ── profiles FIRST, auth.user_metadata SECOND ───────────────────────────────
+  // profiles.phone is guarded by the partial unique index profiles_phone_unique_idx
+  // (see app/api/auth/beta-signup/route.ts) — this write can fail on a genuine
+  // collision with another account's phone number. auth.user_metadata carries no
+  // such constraint and always succeeds. Writing profiles first means a rejected
+  // phone number is rejected everywhere: it can no longer get stuck in
+  // user_metadata while never having actually been saved to profiles, which is
+  // what happened when this route wrote metadata unconditionally before the
+  // constrained write — a failed profiles update left metadata holding a value
+  // the user never successfully saved, and Settings reads metadata as its
+  // fallback source, so the rejected value looked "already saved" on next load
+  // and reproduced the same failure on every retry.
+  //
   // Update profiles — admin client bypasses table-level GRANT issues.
   // profiles.phone is the agent's real number used for SMS alerts + inbound
   // reply forwarding; notification prefs + quiet hours live here too.
@@ -77,10 +76,40 @@ export async function POST(request: Request) {
       '| code:', (profileErr as any).code,
       '| hint:', (profileErr as any).hint,
       '| details:', (profileErr as any).details)
+
+    // 23505 = Postgres unique_violation. On this table that can only come from
+    // profiles_phone_unique_idx (id is the PK and is not client-writable here),
+    // so no need to inspect .details to disambiguate — mirrors the same code
+    // handled in app/api/auth/beta-signup/route.ts, but that path returns a
+    // generic message deliberately (pre-auth, avoids account enumeration);
+    // this route is already-authenticated, so a specific message is safe and
+    // more useful.
+    if ((profileErr as any).code === '23505') {
+      return NextResponse.json(
+        { error: 'That phone number is already in use on another account.' },
+        { status: 409 }
+      )
+    }
+
     return NextResponse.json({ error: profileErr.message }, { status: 500 })
   }
 
   console.log('[update-profile] profiles.update OK')
+
+  // auth.user_metadata is a display/notification convenience mirror, never a
+  // source of truth — only reached once the constrained write above succeeded,
+  // so it can never hold a phone number that profiles itself rejected.
+  const { error: authErr } = await admin.auth.admin.updateUserById(user.id, {
+    user_metadata: {
+      phone: String(phone ?? '').trim(),
+      sms_enabled: Boolean(smsEnabled),
+    },
+  })
+
+  if (authErr) {
+    console.error('[update-profile] auth.admin.updateUserById error:', JSON.stringify(authErr))
+    return NextResponse.json({ error: authErr.message }, { status: 500 })
+  }
 
   // Sync agent_phone + agent_name to all user's properties. agent_phone feeds
   // the SMS flow; agent_name is what the buyer-facing property page and the

@@ -233,7 +233,7 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
 
   const copyReportLink = async () => {
     try {
-      await navigator.clipboard.writeText(`${origin}/report/${prop.id}`)
+      await navigator.clipboard.writeText(`${origin}/report/${prop.report_token}`)
       setCopiedReport(true)
       setTimeout(() => setCopiedReport(false), 2000)
     } catch { /* clipboard unavailable */ }
@@ -377,7 +377,7 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
         {/* Secondary actions: Open Report + Add QR + ··· overflow */}
         <div style={{ display: 'flex', gap: 8 }}>
           <a
-            href={`/report/${prop.id}`}
+            href={`/report/${prop.report_token}`}
             target="_blank"
             rel="noreferrer"
             style={{
@@ -433,7 +433,7 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
                   style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
                   ✏️ Edit Property
                 </button>
-                <a href={`/report/${prop.id}?print=true`} target="_blank" rel="noreferrer"
+                <a href={`/report/${prop.report_token}?print=true`} target="_blank" rel="noreferrer"
                   onClick={() => setMenuOpen(false)}
                   style={{ display: 'block', width: '100%', boxSizing: 'border-box', textAlign: 'left', textDecoration: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
                   📄 PDF

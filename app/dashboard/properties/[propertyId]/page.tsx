@@ -155,8 +155,11 @@ export default function PropertyIntelligencePage() {
   const [menuOpen,    setMenuOpen]    = useState(false)
   const [copied,      setCopied]      = useState(false)
   const [toast,       setToast]       = useState('')
+  const [origin,      setOrigin]      = useState('')
   const [deleting,    setDeleting]    = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => { setOrigin(window.location.origin) }, [])
 
   useEffect(() => {
     const load = async () => {
@@ -255,9 +258,7 @@ export default function PropertyIntelligencePage() {
   }
 
   const copyReport = async () => {
-    // Always copy the canonical production link so the seller gets a clean URL,
-    // regardless of which host (preview/local) the agent is viewing from.
-    try { await navigator.clipboard.writeText(`https://theqrealtor.com/report/${propertyId}`) } catch {}
+    try { await navigator.clipboard.writeText(`${origin}/report/${property.report_token}`) } catch {}
     setCopied(true)
     setToast('Link copied — send to your seller')
     setTimeout(() => setCopied(false), 2000)
@@ -613,7 +614,7 @@ export default function PropertyIntelligencePage() {
           {/* Buyer Funnel */}
           <SectionCard
             title="Buyer Funnel"
-            action={<Link href={`/report/${propertyId}`} style={{ fontSize: 12, color: C.purpleL, textDecoration: 'none', fontWeight: 600 }}>View Funnel Report →</Link>}
+            action={<Link href={`/report/${property.report_token}`} style={{ fontSize: 12, color: C.purpleL, textDecoration: 'none', fontWeight: 600 }}>View Funnel Report →</Link>}
           >
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
               {funnelTiers.map((tier, i) => {
@@ -782,11 +783,11 @@ export default function PropertyIntelligencePage() {
               >
                 {copied ? '✓ Report Link Copied' : '📊 Share Report'}
               </button>
-              <a href={`/report/${propertyId}`} target="_blank" rel="noreferrer" className="pi-btn"
+              <a href={`/report/${property.report_token}`} target="_blank" rel="noreferrer" className="pi-btn"
                 style={{ display: 'block', textAlign: 'center', background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 9, padding: '10px', color: C.sub, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
                 👁 Preview Seller View
               </a>
-              <a href={`/report/${propertyId}?print=true`} target="_blank" rel="noreferrer" className="pi-btn"
+              <a href={`/report/${property.report_token}?print=true`} target="_blank" rel="noreferrer" className="pi-btn"
                 style={{ display: 'block', textAlign: 'center', background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 9, padding: '10px', color: C.sub, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
                 ⬇ Download PDF
               </a>

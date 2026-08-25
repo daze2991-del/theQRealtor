@@ -231,7 +231,7 @@ export default function Dashboard() {
 
       const { data: props, error: propsError } = await supabase
         .from('properties')
-        .select('id, address, city, state, price, beds, baths, description, active, agent_name, agent_phone, user_id, created_at')
+        .select('id, address, city, state, price, beds, baths, description, active, agent_name, agent_phone, user_id, created_at, report_token')
         .eq('user_id', session.user.id)
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
@@ -664,7 +664,7 @@ export default function Dashboard() {
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button
                       onClick={async () => {
-                        await navigator.clipboard.writeText(`${origin}/report/${topProp.id}`).catch(() => {})
+                        await navigator.clipboard.writeText(`${origin}/report/${topProp.report_token}`).catch(() => {})
                         setCopiedReport(true)
                         setTimeout(() => setCopiedReport(false), 2000)
                       }}
@@ -672,12 +672,12 @@ export default function Dashboard() {
                     >
                       {copiedReport ? '✓ Copied!' : <><Share2 size={11} style={{ verticalAlign: 'middle', marginRight: 4 }} />Share Report</>}
                     </button>
-                    <a href={`/report/${topProp.id}?print=true`} target="_blank" rel="noreferrer"
+                    <a href={`/report/${topProp.report_token}?print=true`} target="_blank" rel="noreferrer"
                       style={{ flex: 1, background: '#2563EB', borderRadius: 9, padding: '9px', fontSize: 11, fontWeight: 700, color: '#fff', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <Download size={11} style={{ verticalAlign: 'middle', marginRight: 4 }} />PDF
                     </a>
                   </div>
-                  <Link href={`/report/${topProp.id}`} style={{ fontSize: 12, color: C.purpleL, textDecoration: 'none', fontWeight: 600, textAlign: 'center' }}>View full report →</Link>
+                  <Link href={`/report/${topProp.report_token}`} style={{ fontSize: 12, color: C.purpleL, textDecoration: 'none', fontWeight: 600, textAlign: 'center' }}>View full report →</Link>
                 </div>
               </Card>
             ) : (

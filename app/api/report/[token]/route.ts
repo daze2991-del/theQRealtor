@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminSupabase } from '../../../../lib/supabase-admin'
+import { isReportExpired } from '../../../../lib/propertyStatus'
 
 // Public seller report data. The URL segment is properties.report_token — a
 // PRIVATE credential, distinct from properties.id (which is semi-public: it is
@@ -23,10 +24,21 @@ export async function GET(
   // -ning these out in parallel with the lookup would mean filtering
   // property_id by a token and silently returning an all-zeros report.)
   const propRes = await supabase.from('properties')
-    .select('id, user_id, address, city, state, active, created_at, agent_name, agent_phone, price, beds, baths')
+    .select('id, user_id, address, city, state, active, deactivated_at, created_at, agent_name, agent_phone, price, beds, baths')
     .eq('report_token', token).maybeSingle()
 
   if (!propRes.data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  // Expire the report 90 days after the listing went inactive, so a link an
+  // agent shared and forgot doesn't stay live forever. Deliberately identical
+  // to the not-found response above: a seller holding a stale link learns the
+  // report isn't available, not why — and the page already renders its existing
+  // "Report not found" state for any non-ok response, so no page change is
+  // needed. Requires a non-null deactivated_at, so listings that went inactive
+  // before migration 042 (all null) never retroactively expire.
+  if (isReportExpired(propRes.data.active as boolean | null, propRes.data.deactivated_at as string | null)) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
 
   const propertyId = propRes.data.id as string
 

@@ -6,6 +6,7 @@ import { createBrowserSupabase } from '../../../../lib/supabase-browser'
 import DashboardLayout from '../../../../components/DashboardLayout'
 import Link from 'next/link'
 import { calcPropertyInterest } from '../../../../lib/propertyInterest'
+import { deactivationPatch } from '../../../../lib/propertyStatus'
 
 const C = {
   bg: '#0F0F13', card: '#1A1A24', cardAlt: '#15151E', border: '#252533',
@@ -243,6 +244,9 @@ export default function PropertyIntelligencePage() {
       agent_name: editForm.agent_name.trim() || null,
       agent_phone: editForm.agent_phone.trim() || null,
       active: editForm.active, packet_enabled: editForm.packet_enabled,
+      // Same stamping rule as the list page's toggle and edit modal — shared so
+      // the three surfaces can't drift. No-ops when active didn't change.
+      ...deactivationPatch(!!property.active, editForm.active),
     }
     const { error } = await supabase.from('properties').update(updates).eq('id', propertyId)
     if (error) { setEditError('Failed to save. Please try again.') }

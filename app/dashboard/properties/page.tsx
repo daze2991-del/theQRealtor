@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DashboardLayout from '../../../components/DashboardLayout'
 import { propertyLimitForPlan } from '../../../lib/plans'
+import { deactivationPatch } from '../../../lib/propertyStatus'
 
 const C = {
   bg:      '#0F0F13',
@@ -208,6 +209,9 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
       agent_phone:    editForm.agent_phone.trim() || null,
       active:         editForm.active,
       packet_enabled: editForm.packet_enabled,
+      // Same stamping rule as the Go Live / Take Offline toggle — shared so the
+      // two surfaces can't drift. No-ops when the active state didn't change.
+      ...deactivationPatch(!!prop.active, editForm.active),
     }
     const { error } = await supabase.from('properties').update(updates).eq('id', prop.id)
     if (error) {
@@ -651,8 +655,11 @@ export default function PropertiesPage() {
     setTogglingId(prop.id)
     try {
       const supabase = createBrowserSupabase()
-      const { error } = await supabase.from('properties').update({ active: !prop.active }).eq('id', prop.id)
-      if (!error) setProperties(prev => prev.map(p => p.id === prop.id ? { ...p, active: !prop.active } : p))
+      const nextActive = !prop.active
+      // Stamp/clear deactivated_at alongside the flip — see lib/propertyStatus.
+      const patch = { active: nextActive, ...deactivationPatch(!!prop.active, nextActive) }
+      const { error } = await supabase.from('properties').update(patch).eq('id', prop.id)
+      if (!error) setProperties(prev => prev.map(p => p.id === prop.id ? { ...p, ...patch } : p))
     } finally {
       setTogglingId(null)
     }

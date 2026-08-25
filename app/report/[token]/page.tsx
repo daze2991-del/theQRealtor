@@ -451,7 +451,7 @@ export default function SellerReportPage() {
               cursor: 'pointer', fontFamily: 'sans-serif',
             }}
           >
-            {copied ? '✓ Copied!' : '📊 Share Report'}
+            {copied ? '✓ Copied!' : 'Share Report Link'}
           </button>
 
           <div ref={menuRef} style={{ position: 'relative' }}>
@@ -917,7 +917,7 @@ export default function SellerReportPage() {
                       fontFamily: 'sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
                     }}
                   >
-                    <span style={{ fontSize: 13, fontWeight: 700 }}>{copied ? '✓ Link Copied!' : '📊 Share Report Link'}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>{copied ? '✓ Link Copied!' : 'Share Report Link'}</span>
                     <span style={{ fontSize: 10, opacity: 0.75 }}>via email or text</span>
                   </button>
                   <a href={`/report/${reportToken}?print=true`} target="_blank" rel="noreferrer" style={{ ...outlineBtn, flex: 1 }}>

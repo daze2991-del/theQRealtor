@@ -452,7 +452,7 @@ export default function PropertyIntelligencePage() {
                 fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif',
               }}
             >
-              {copied ? '✓ Copied!' : '📊 Share Seller Report'}
+              {copied ? '✓ Copied!' : 'Share Seller Report Link'}
             </button>
 
             <div ref={menuRef} style={{ position: 'relative' }}>
@@ -781,7 +781,7 @@ export default function PropertyIntelligencePage() {
                   fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif',
                 }}
               >
-                {copied ? '✓ Report Link Copied' : '📊 Share Report'}
+                {copied ? '✓ Report Link Copied' : 'Share Seller Report Link'}
               </button>
               <a href={`/report/${property.report_token}`} target="_blank" rel="noreferrer" className="pi-btn"
                 style={{ display: 'block', textAlign: 'center', background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 9, padding: '10px', color: C.sub, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>

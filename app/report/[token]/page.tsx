@@ -192,7 +192,7 @@ export default function SellerReportPage() {
     )
   }
 
-  const { property, photo, leads, scanEvents, qrCodes, packetCount, packets, totalScanCount, uniqueVisitCount } = report
+  const { property, photo, agent, leads, scanEvents, qrCodes, packetCount, packets, totalScanCount, uniqueVisitCount } = report
 
   // ── Derived values ────────────────────────────────────────────────────────
   const now            = new Date()
@@ -534,7 +534,30 @@ export default function SellerReportPage() {
           <div style={{ width: 240, flexShrink: 0, padding: '22px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
               <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>Report for</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{agentName}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                {/* Credential stamp — every field is optional; each renders only
+                    when present so a partly-filled profile never leaves an
+                    empty label or a broken avatar behind. */}
+                {agent?.photo_url && (
+                  <img
+                    src={agent.photo_url}
+                    alt={agent.name || 'Listing agent'}
+                    style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: `1px solid ${C.border}` }}
+                  />
+                )}
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{agent?.name || agentName}</div>
+                  {agent?.brokerage && (
+                    <div style={{ fontSize: 11, color: C.sub, marginTop: 1 }}>{agent.brokerage}</div>
+                  )}
+                </div>
+              </div>
+              {(agent?.phone || agent?.dre) && (
+                <div style={{ fontSize: 11, color: C.muted, marginTop: 6, lineHeight: 1.5 }}>
+                  {agent?.phone && <div>{agent.phone}</div>}
+                  {agent?.dre && <div>DRE# {agent.dre}</div>}
+                </div>
+              )}
             </div>
             <div>
               <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>Report created</div>

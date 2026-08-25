@@ -86,6 +86,11 @@ export default function SettingsPage() {
   const [email, setEmail]         = useState('')
   const [name, setName]           = useState('')
   const [phone, setPhone]         = useState('')
+  const [dre, setDre]             = useState('')
+  const [brokerage, setBrokerage] = useState('')
+  const [photoUrl, setPhotoUrl]   = useState('')
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [photoError, setPhotoError]         = useState('')
   const [smsEnabled, setSmsEnabled] = useState(true)
 
   // Lead notification preferences (stored on profiles)
@@ -129,7 +134,7 @@ export default function SettingsPage() {
           { data: props },
         ] = await Promise.all([
           supabase.from('profiles')
-            .select('name, plan, phone, notify_showing, notify_question, notify_hot_lead, quiet_hours_start, quiet_hours_end')
+            .select('name, plan, phone, dre, brokerage, photo_url, notify_showing, notify_question, notify_hot_lead, quiet_hours_start, quiet_hours_end')
             .eq('id', uid).single(),
           supabase.from('properties').select('id').eq('user_id', uid).is('deleted_at', null),
         ])
@@ -140,6 +145,9 @@ export default function SettingsPage() {
           setPlan(profile.plan === 'pro' ? 'pro' : 'free')
           // Prefer profiles.phone; fall back to the auth metadata phone.
           if (profile.phone) setPhone(profile.phone)
+          setDre(profile.dre || '')
+          setBrokerage(profile.brokerage || '')
+          setPhotoUrl(profile.photo_url || '')
           if (typeof profile.notify_showing  === 'boolean') setNotifyShowing(profile.notify_showing)
           if (typeof profile.notify_question === 'boolean') setNotifyQuestion(profile.notify_question)
           if (typeof profile.notify_hot_lead === 'boolean') setNotifyHotLead(profile.notify_hot_lead)
@@ -184,6 +192,7 @@ export default function SettingsPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: name.trim(), phone: phone.trim(), smsEnabled, agentPhone,
+          dre: dre.trim(), brokerage: brokerage.trim(), photoUrl: photoUrl.trim(),
           notifyShowing, notifyQuestion, notifyHotLead,
           quietHoursStart: quietStart, quietHoursEnd: quietEnd,
         }),
@@ -198,6 +207,33 @@ export default function SettingsPage() {
       setSaveError(err?.message || 'Failed to save. Please try again.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  // Headshot upload — mirrors the property-photos upload path used elsewhere
+  // in the dashboard (upload → getPublicUrl → persist the URL), pointed at the
+  // agent-photos bucket. Path is {userId}/{filename}: storage RLS keys ownership
+  // off that first segment, so it must stay the user id.
+  const uploadPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !userId) return
+    setUploadingPhoto(true)
+    setPhotoError('')
+    try {
+      const supabase = createBrowserSupabase()
+      const ext = file.name.split('.').pop() || 'jpg'
+      const storagePath = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const { error: upErr } = await supabase.storage
+        .from('agent-photos')
+        .upload(storagePath, file, { cacheControl: '3600', upsert: false })
+      if (upErr) { setPhotoError(`Upload failed: ${upErr.message}`); return }
+      const { data: { publicUrl } } = supabase.storage.from('agent-photos').getPublicUrl(storagePath)
+      // Held in state only — persisted on Save, like every other field here.
+      setPhotoUrl(publicUrl)
+    } catch (err: any) {
+      setPhotoError(err?.message || 'Upload failed. Please try again.')
+    } finally {
+      setUploadingPhoto(false)
     }
   }
 
@@ -310,12 +346,53 @@ export default function SettingsPage() {
             </div>
 
             {/* Profile */}
-            <Section title="Profile" description="Your display name and SMS alert phone number.">
-              <Field label="Display Name">
+            <Section title="Profile" description="Your display name, licensing details, and SMS alert phone number. These appear on seller reports and your printed signs.">
+              <Field label="Display Name" hint="Also shown to buyers on your property pages and synced to all your listings.">
                 <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Your name" style={INPUT} />
               </Field>
               <Field label="SMS Alert Phone Number" hint="Lead alerts are sent to this number when a buyer submits their info. Format: +12125551234">
                 <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+12125551234" style={INPUT} />
+              </Field>
+              <Field label="DRE / License Number" hint="Optional. Shown on seller reports and sign artwork.">
+                <input type="text" value={dre} onChange={e => setDre(e.target.value)} placeholder="01234567" style={INPUT} />
+              </Field>
+              <Field label="Brokerage" hint="Optional. Shown on seller reports and sign artwork.">
+                <input type="text" value={brokerage} onChange={e => setBrokerage(e.target.value)} placeholder="Compass / KW / eXp…" style={INPUT} />
+              </Field>
+              <Field label="Photo" hint="Optional headshot shown on seller reports. JPG or PNG, up to 10MB.">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {photoUrl && (
+                    <img
+                      src={photoUrl}
+                      alt="Your headshot"
+                      style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: `2px solid ${C.purple}` }}
+                    />
+                  )}
+                  <label style={{
+                    flex: 1, background: '#0D1117', border: `1px dashed ${C.border}`, borderRadius: 9,
+                    color: C.muted, fontSize: 13, padding: '10px 14px',
+                    cursor: uploadingPhoto ? 'wait' : 'pointer', textAlign: 'center',
+                  }}>
+                    {uploadingPhoto ? 'Uploading…' : photoUrl ? 'Change photo' : 'Upload photo'}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      style={{ display: 'none' }}
+                      disabled={uploadingPhoto}
+                      onChange={uploadPhoto}
+                    />
+                  </label>
+                  {photoUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setPhotoUrl('')}
+                      style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 9, color: C.muted, fontSize: 12, padding: '9px 12px', cursor: 'pointer', flexShrink: 0 }}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                {photoError && <div style={{ fontSize: 12, color: '#FCA5A5', marginTop: 6 }}>{photoError}</div>}
               </Field>
               <Field label="Email Address">
                 <input type="email" value={email} readOnly style={{ ...INPUT, color: C.muted, cursor: 'not-allowed', opacity: 0.7 }} />

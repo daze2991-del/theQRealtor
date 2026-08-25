@@ -23,7 +23,7 @@ export async function GET(
   // -ning these out in parallel with the lookup would mean filtering
   // property_id by a token and silently returning an all-zeros report.)
   const propRes = await supabase.from('properties')
-    .select('id, address, city, state, active, created_at, agent_name, agent_phone, price, beds, baths')
+    .select('id, user_id, address, city, state, active, created_at, agent_name, agent_phone, price, beds, baths')
     .eq('report_token', token).maybeSingle()
 
   if (!propRes.data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -103,9 +103,49 @@ export async function GET(
     packets = recentRes.data ?? []
   } catch { /* table may not exist */ }
 
+  // ── Agent credential stamp ──────────────────────────────────────────────────
+  // AGENT-OWNED data only — the licensed professional who owns this listing,
+  // identifying themselves to their own seller. Nothing here touches `leads`
+  // or the buyer-facing sanitization above.
+  //
+  // Explicitly allow-listed rather than select('*'): profiles also holds
+  // billing/Stripe columns (stripe_customer_id, subscription_status, plan,
+  // trial_end…) which must never reach this unauthenticated response.
+  // Scoped to properties.user_id — the FK to profiles.id (migration 001).
+  let agent: {
+    name: string | null; phone: string | null
+    dre: string | null; brokerage: string | null; photo_url: string | null
+  } | null = null
+  {
+    const ownerId = propRes.data.user_id as string | null
+    if (ownerId) {
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('name, phone, dre, brokerage, photo_url')
+        .eq('id', ownerId)
+        .maybeSingle()
+      if (prof) {
+        // Normalize blank strings to null so the page's "omit when absent"
+        // rendering does not have to special-case empty text.
+        const clean = (v: unknown) => {
+          const s = typeof v === 'string' ? v.trim() : ''
+          return s ? s : null
+        }
+        agent = {
+          name:      clean(prof.name),
+          phone:     clean(prof.phone),
+          dre:       clean(prof.dre),
+          brokerage: clean(prof.brokerage),
+          photo_url: clean(prof.photo_url),
+        }
+      }
+    }
+  }
+
   return NextResponse.json({
     property:       propRes.data,
     photo:          photoRes.data?.[0]?.url ?? null,
+    agent,
     leads,
     scanEvents,
     qrCodes,

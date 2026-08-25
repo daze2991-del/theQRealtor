@@ -23,6 +23,7 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}))
   const {
     name, phone, smsEnabled, agentPhone,
+    dre, brokerage, photoUrl,
     notifyShowing, notifyQuestion, notifyHotLead, quietHoursStart, quietHoursEnd,
   } = body
   console.log('[update-profile] body keys:', Object.keys(body))
@@ -48,6 +49,11 @@ export async function POST(request: Request) {
   // reply forwarding; notification prefs + quiet hours live here too.
   const profileUpdate: Record<string, unknown> = { name: String(name ?? '').trim() }
   profileUpdate.phone = String(phone ?? '').trim() || null
+  // Agent identity fields — only written when the client actually sent the key,
+  // so a caller that omits them (e.g. an older client) never blanks them out.
+  if (typeof dre       === 'string') profileUpdate.dre       = dre.trim() || null
+  if (typeof brokerage === 'string') profileUpdate.brokerage = brokerage.trim() || null
+  if (typeof photoUrl  === 'string') profileUpdate.photo_url = photoUrl.trim() || null
   if (typeof notifyShowing  === 'boolean') profileUpdate.notify_showing  = notifyShowing
   if (typeof notifyQuestion === 'boolean') profileUpdate.notify_question = notifyQuestion
   if (typeof notifyHotLead  === 'boolean') profileUpdate.notify_hot_lead = notifyHotLead
@@ -69,7 +75,10 @@ export async function POST(request: Request) {
 
   console.log('[update-profile] profiles.update OK')
 
-  // Sync agent_phone to all user's properties so the SMS flow picks it up
+  // Sync agent_phone + agent_name to all user's properties. agent_phone feeds
+  // the SMS flow; agent_name is what the buyer-facing property page and the
+  // seller report display. Both are denormalized copies on properties, so a
+  // profile edit has to fan out or they silently drift from the profile.
   const { data: props, error: propsSelectErr } = await admin
     .from('properties')
     .select('id')
@@ -83,7 +92,10 @@ export async function POST(request: Request) {
     const ids = props.map((p: any) => p.id)
     const { error: propErr } = await admin
       .from('properties')
-      .update({ agent_phone: agentPhone || null })
+      .update({
+        agent_phone: agentPhone || null,
+        agent_name:  String(name ?? '').trim() || null,
+      })
       .in('id', ids)
 
     if (propErr) {

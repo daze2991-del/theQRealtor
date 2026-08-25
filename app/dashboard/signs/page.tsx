@@ -318,6 +318,11 @@ function SignsPageInner() {
   const [createError, setCreateError] = useState('')
   const createLabelRef = useRef<HTMLInputElement>(null)
 
+  // Auto-assign confirmation (createSign(), when arriving via a property's
+  // "+ Add Sign" link) — success-only; failure reuses pageError below, same
+  // as every other "the page still works but this one thing didn't" case.
+  const [autoAssignNotice, setAutoAssignNotice] = useState('')
+
   const [assignSign, setAssignSign]                 = useState<Sign | null>(null)
   const [selectedPropertyId, setSelectedPropertyId] = useState('')
   const [assigning, setAssigning]                   = useState(false)
@@ -394,8 +399,46 @@ function SignsPageInner() {
       if (!res.ok || !body.sign) {
         setCreateError(body.error || 'Failed to create sign. Please try again.')
       } else {
-        setSigns(prev => [normalizeSign(body.sign as RawSign), ...prev])
+        const created = normalizeSign(body.sign as RawSign)
+        setSigns(prev => [created, ...prev])
         setCreateLabel('')
+
+        // Auto-assign to the property that requested this sign, when arriving
+        // via that property's "+ Add Sign" link. Same endpoint + payload
+        // confirmAssign() already uses for a manual assign — a brand-new sign
+        // has no active assignment to close, so this is a clean no-op-close +
+        // fresh-insert, identical in effect to the manual flow. Runs for every
+        // sign created while preselectedPropertyId is set this session, not
+        // just the first — it's inside createSign() itself, not the one-time
+        // on-load effect.
+        if (preselectedPropertyId) {
+          try {
+            const assignRes = await fetch('/api/signs/assign', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ sign_id: created.id, property_id: preselectedPropertyId }),
+            })
+            const assignBody = await assignRes.json().catch(() => ({} as { error?: string; sign?: RawSign }))
+            if (!assignRes.ok || !assignBody.sign) {
+              // Creation already succeeded — never lose the sign or block on
+              // this. It just stays unassigned, same as today; pageError is
+              // this page's existing "still works, but this one thing didn't"
+              // banner (see the load/unassign error paths above).
+              setPageError(assignBody.error || "Sign created, but couldn't be assigned automatically — assign it below.")
+            } else {
+              const assigned = normalizeSign(assignBody.sign as RawSign)
+              setSigns(prev => prev.map(s => (s.id === assigned.id ? assigned : s)))
+              setAutoAssignNotice(
+                assigned.current_assignment
+                  ? `Assigned to ${assignmentAddress(assigned.current_assignment)}`
+                  : 'Sign assigned.'
+              )
+              setTimeout(() => setAutoAssignNotice(''), 4000)
+            }
+          } catch {
+            setPageError("Sign created, but couldn't be assigned automatically — assign it below.")
+          }
+        }
       }
     } catch {
       setCreateError('Something went wrong. Please try again.')
@@ -556,6 +599,16 @@ function SignsPageInner() {
               <div style={{ background: '#1C0A0A', border: '1px solid #7F1D1D', borderRadius: 10, padding: '10px 16px', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
                 <span style={{ fontSize: 13, color: '#FCA5A5' }}>{pageError}</span>
                 <button onClick={() => setPageError('')} style={{ background: 'none', border: 'none', color: '#7F1D1D', cursor: 'pointer', fontSize: 15, lineHeight: 1, flexShrink: 0 }}>✕</button>
+              </div>
+            )}
+
+            {/* Auto-assign confirmation — same banner shape as pageError above,
+                in this page's existing "Assigned" success palette (see the
+                assigned-status pill on each sign card). */}
+            {autoAssignNotice && (
+              <div style={{ background: '#062014', border: '1px solid #166534', borderRadius: 10, padding: '10px 16px', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: 13, color: '#4ade80' }}>✓ {autoAssignNotice}</span>
+                <button onClick={() => setAutoAssignNotice('')} style={{ background: 'none', border: 'none', color: '#4ade80', cursor: 'pointer', fontSize: 15, lineHeight: 1, flexShrink: 0 }}>✕</button>
               </div>
             )}
 

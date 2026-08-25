@@ -184,7 +184,7 @@ export async function POST(request: Request) {
   try {
     const { data: agentProfile } = await supabase
       .from('profiles')
-      .select('id, name, notify_showing, notify_question, notify_hot_lead, quiet_hours_start, quiet_hours_end')
+      .select('id, name, notify_showing, notify_question, notify_hot_lead, quiet_hours_enabled, quiet_hours_start, quiet_hours_end')
       .eq('id', property.user_id)
       .single()
 
@@ -192,8 +192,9 @@ export async function POST(request: Request) {
       const agentPhone = await resolveAgentPhone(supabase, property.user_id)
       const agent = {
         id: agentProfile.id as string,
-        quiet_hours_start: (agentProfile.quiet_hours_start as string) ?? '21:00',
-        quiet_hours_end:   (agentProfile.quiet_hours_end as string)   ?? '08:00',
+        quiet_hours_enabled: (agentProfile.quiet_hours_enabled as boolean) ?? true,
+        quiet_hours_start:   (agentProfile.quiet_hours_start as string)    ?? '21:00',
+        quiet_hours_end:     (agentProfile.quiet_hours_end as string)      ?? '08:00',
       }
       const dispatch = (message: string, alertType: string) =>
         queueOrSendAgentSms({ admin: supabase, agent, agentPhone, leadId, message, alertType })

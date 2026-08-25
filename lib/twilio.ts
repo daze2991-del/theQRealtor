@@ -167,6 +167,7 @@ export function nextSendTime(at: Date, endT: string, tz: string = DEFAULT_TZ): D
 // ── Agent alert dispatch (quiet-hours aware) ──────────────────────────────────
 export interface AgentNotifyProfile {
   id: string
+  quiet_hours_enabled: boolean
   quiet_hours_start: string
   quiet_hours_end: string
 }
@@ -227,7 +228,11 @@ export async function queueOrSendAgentSms(opts: {
   const now = opts.now ?? new Date()
   if (!agentPhone) return 'skipped'
 
-  if (isQuietHours(now, agent.quiet_hours_start, agent.quiet_hours_end)) {
+  // Master toggle checked BEFORE the time-window predicate — when off, this
+  // short-circuits straight past isQuietHours() regardless of what the time
+  // fields hold, so a stale/default 21:00-08:00 window can never hold a
+  // message while the agent has explicitly disabled quiet hours.
+  if (agent.quiet_hours_enabled && isQuietHours(now, agent.quiet_hours_start, agent.quiet_hours_end)) {
     const scheduledFor = nextSendTime(now, agent.quiet_hours_end)
     const { error } = await admin.from('pending_notifications').insert({
       agent_id: agent.id, lead_id: leadId, message,

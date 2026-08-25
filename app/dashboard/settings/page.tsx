@@ -97,6 +97,7 @@ export default function SettingsPage() {
   const [notifyShowing,  setNotifyShowing]  = useState(true)
   const [notifyQuestion, setNotifyQuestion] = useState(true)
   const [notifyHotLead,  setNotifyHotLead]  = useState(true)
+  const [quietEnabled,   setQuietEnabled]   = useState(true)
   const [quietStart,     setQuietStart]     = useState('21:00')
   const [quietEnd,       setQuietEnd]       = useState('08:00')
 
@@ -134,7 +135,7 @@ export default function SettingsPage() {
           { data: props },
         ] = await Promise.all([
           supabase.from('profiles')
-            .select('name, plan, phone, dre, brokerage, photo_url, notify_showing, notify_question, notify_hot_lead, quiet_hours_start, quiet_hours_end')
+            .select('name, plan, phone, dre, brokerage, photo_url, notify_showing, notify_question, notify_hot_lead, quiet_hours_enabled, quiet_hours_start, quiet_hours_end')
             .eq('id', uid).single(),
           supabase.from('properties').select('id').eq('user_id', uid).is('deleted_at', null),
         ])
@@ -151,6 +152,7 @@ export default function SettingsPage() {
           if (typeof profile.notify_showing  === 'boolean') setNotifyShowing(profile.notify_showing)
           if (typeof profile.notify_question === 'boolean') setNotifyQuestion(profile.notify_question)
           if (typeof profile.notify_hot_lead === 'boolean') setNotifyHotLead(profile.notify_hot_lead)
+          if (typeof profile.quiet_hours_enabled === 'boolean') setQuietEnabled(profile.quiet_hours_enabled)
           if (profile.quiet_hours_start) setQuietStart(String(profile.quiet_hours_start).slice(0, 5))
           if (profile.quiet_hours_end)   setQuietEnd(String(profile.quiet_hours_end).slice(0, 5))
         }
@@ -194,6 +196,7 @@ export default function SettingsPage() {
           name: name.trim(), phone: phone.trim(), smsEnabled, agentPhone,
           dre: dre.trim(), brokerage: brokerage.trim(), photoUrl: photoUrl.trim(),
           notifyShowing, notifyQuestion, notifyHotLead,
+          quietHoursEnabled: quietEnabled,
           quietHoursStart: quietStart, quietHoursEnd: quietEnd,
         }),
       })
@@ -470,18 +473,23 @@ export default function SettingsPage() {
               ))}
 
               <div style={{ marginTop: 4, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 4 }}>Quiet hours</div>
-                <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
-                  Agent alerts triggered during these hours are held — not dropped — and delivered at the end time. Times are America/Los_Angeles. Buyer confirmations are always sent immediately.
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 4 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 4 }}>Enable quiet hours</div>
+                    <div style={{ fontSize: 12, color: C.muted }}>
+                      Agent alerts triggered during these hours are held — not dropped — and delivered at the end time. Times are America/Los_Angeles. Buyer confirmations are always sent immediately.
+                    </div>
+                  </div>
+                  <Toggle checked={quietEnabled} onChange={setQuietEnabled} />
                 </div>
-                <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 12, opacity: quietEnabled ? 1 : 0.45, transition: 'opacity 0.15s' }}>
                   <label style={{ flex: 1, minWidth: 130 }}>
                     <span style={{ display: 'block', fontSize: 12, color: C.muted, marginBottom: 6 }}>Start</span>
-                    <input type="time" value={quietStart} onChange={e => setQuietStart(e.target.value)} style={INPUT} />
+                    <input type="time" value={quietStart} onChange={e => setQuietStart(e.target.value)} disabled={!quietEnabled} style={{ ...INPUT, cursor: quietEnabled ? 'text' : 'not-allowed' }} />
                   </label>
                   <label style={{ flex: 1, minWidth: 130 }}>
                     <span style={{ display: 'block', fontSize: 12, color: C.muted, marginBottom: 6 }}>End</span>
-                    <input type="time" value={quietEnd} onChange={e => setQuietEnd(e.target.value)} style={INPUT} />
+                    <input type="time" value={quietEnd} onChange={e => setQuietEnd(e.target.value)} disabled={!quietEnabled} style={{ ...INPUT, cursor: quietEnabled ? 'text' : 'not-allowed' }} />
                   </label>
                 </div>
               </div>

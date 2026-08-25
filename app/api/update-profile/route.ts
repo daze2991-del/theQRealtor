@@ -24,7 +24,8 @@ export async function POST(request: Request) {
   const {
     name, phone, smsEnabled, agentPhone,
     dre, brokerage, photoUrl,
-    notifyShowing, notifyQuestion, notifyHotLead, quietHoursStart, quietHoursEnd,
+    notifyShowing, notifyQuestion, notifyHotLead,
+    quietHoursEnabled, quietHoursStart, quietHoursEnd,
   } = body
   console.log('[update-profile] body keys:', Object.keys(body))
 
@@ -57,8 +58,14 @@ export async function POST(request: Request) {
   if (typeof notifyShowing  === 'boolean') profileUpdate.notify_showing  = notifyShowing
   if (typeof notifyQuestion === 'boolean') profileUpdate.notify_question = notifyQuestion
   if (typeof notifyHotLead  === 'boolean') profileUpdate.notify_hot_lead = notifyHotLead
-  if (typeof quietHoursStart === 'string' && quietHoursStart) profileUpdate.quiet_hours_start = quietHoursStart
-  if (typeof quietHoursEnd   === 'string' && quietHoursEnd)   profileUpdate.quiet_hours_end   = quietHoursEnd
+  if (typeof quietHoursEnabled === 'boolean') profileUpdate.quiet_hours_enabled = quietHoursEnabled
+  // Same "omitted vs explicitly empty" distinction as dre/brokerage/photoUrl
+  // above: typeof check gates whether the column is touched at all, so an
+  // explicit empty string writes null instead of being silently dropped (the
+  // previous `&& quietHoursStart` truthy check meant a cleared field never
+  // saved and the old DB value survived with no error shown).
+  if (typeof quietHoursStart === 'string') profileUpdate.quiet_hours_start = quietHoursStart.trim() || null
+  if (typeof quietHoursEnd   === 'string') profileUpdate.quiet_hours_end   = quietHoursEnd.trim()   || null
 
   const { error: profileErr } = await admin
     .from('profiles')

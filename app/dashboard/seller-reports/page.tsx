@@ -169,23 +169,30 @@ export default function SellerReportsPage() {
                     >
                       {copied ? '✓ Copied' : '📋 Copy Link'}
                     </button>
-                    <button
-                      onClick={() => regenerateLink(prop.id)}
-                      disabled={busy}
-                      title="Generate a new link and immediately invalidate the current one"
-                      style={{
-                        fontSize: 12, fontWeight: 600,
-                        background: rotated ? '#052e16' : 'transparent',
-                        color: rotated ? '#4ade80' : C.muted,
-                        border: `1px solid ${rotated ? '#166534' : C.border}`,
-                        borderRadius: 8, padding: '8px 14px',
-                        cursor: busy ? 'not-allowed' : 'pointer',
-                        opacity: busy ? 0.6 : 1,
-                        fontFamily: 'sans-serif', transition: 'all 0.15s', whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {busy ? '…' : rotated ? '✓ New link' : '↻ Regenerate'}
-                    </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                      <button
+                        onClick={() => regenerateLink(prop.id)}
+                        disabled={busy}
+                        title="Immediately invalidates the current link and issues a new one — the old link stops working right away"
+                        style={{
+                          fontSize: 12, fontWeight: 600,
+                          background: rotated ? '#052e16' : 'transparent',
+                          color: rotated ? '#4ade80' : C.muted,
+                          border: `1px solid ${rotated ? '#166534' : C.border}`,
+                          borderRadius: 8, padding: '8px 14px',
+                          cursor: busy ? 'not-allowed' : 'pointer',
+                          opacity: busy ? 0.6 : 1,
+                          fontFamily: 'sans-serif', transition: 'all 0.15s', whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {busy ? '…' : rotated ? '✓ New link' : '⚠ Revoke & Create New'}
+                      </button>
+                      {!rotated && (
+                        <span style={{ fontSize: 11, color: C.muted, whiteSpace: 'nowrap' }}>
+                          Old link stops working
+                        </span>
+                      )}
+                    </div>
                     <Link
                       href={`/report/${prop.report_token}`}
                       target="_blank"

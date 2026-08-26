@@ -64,6 +64,13 @@ const PRESETS: Preset[] = [
   { id: 'flyer',     label: 'Flyer / Mailer',  width: 1200, height: 1200, icon: Tag },
 ]
 
+// Yard Sign only — a physical wire-frame sign holder typically clips/covers
+// roughly the bottom 1.5in of the insert. Reserved as blank space nothing may
+// draw into. Tied to the PRESET selection (not the raw pixel dimensions), so
+// it correctly stops applying the moment an agent edits a custom size — at
+// that point they're no longer asserting "this goes in a wire-frame holder."
+const YARD_SIGN_HOLDER_ZONE = 450 // 1.5in @300dpi
+
 // ── canvas helpers ────────────────────────────────────────────────────────────
 // UNTOUCHED in this pass.
 
@@ -105,89 +112,207 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 }
 
 // ── layout ────────────────────────────────────────────────────────────────────
-// UNTOUCHED in this pass. Every measurement is a fraction of `unit` (the
-// smaller of width/height), so the design recomputes correctly for any chosen
-// size instead of stretching a fixed design. Single source of truth for both
-// the hidden QR source's `size` prop and the canvas draw call.
+// FIXED in this pass. The previous version derived EVERY measurement — QR,
+// bars, text, spacing — from unit = min(width, height) alone. That's correct
+// for a square canvas but breaks down as soon as the aspect ratio departs from
+// 1:1: the longer dimension never influenced sizing, only where the
+// (undersized) result got centered, so a 1:3 canvas like the Yard Sign ended
+// up with the identical absolute bar thickness and text size as the square
+// Flyer/Mailer, just adrift in 3x the vertical space.
+//
+// This version keeps QR sizing on `unit` (confirmed comfortably scannable,
+// not the source of the bug) but derives text size from the canvas's actual
+// available WIDTH via real glyph measurement (the true physical ceiling for a
+// fixed phrase — no formula can make "Scan for Photos & Details" bigger than
+// what fits across a 4-inch-wide sign without wrapping it), and distributes
+// bars/QR/text across the FULL available height, not a width-derived fraction
+// of it. Bar thickness has an absolute floor so it can't shrink to
+// imperceptibility on tall canvases the way it did before.
+//
+// `computeLayout` itself stays ctx-free (pure geometry: QR + bars + the
+// vertical/horizontal region text is allowed to occupy) because the
+// non-canvas call site in the component body only ever needs `qrSize` for the
+// hidden QRCodeSVG's `size` prop. Text sizing needs ctx.measureText, so it's
+// resolved inside `renderSignToCanvas`, the only place a ctx exists — both the
+// live preview and the download still funnel through that one function, so
+// they can't drift from each other.
+const BAR_SAFE_MARGIN = 75 // 0.25in @300dpi — print-shop trim safety inset
+
 interface Layout {
   unit: number
+  longSide: number
   barH: number
   qrSize: number
   qrX: number
-  qrY: number
-  titleSize: number
-  wmSize: number
-  gap1: number
-  gap2: number
+  contentTop: number
+  contentBottom: number
+  usableWidth: number
 }
 
-function computeLayout(width: number, height: number): Layout {
-  const unit = Math.min(width, height)
-  const barH      = Math.max(4, Math.round(unit * 0.012))
-  const qrSize    = Math.max(40, Math.round(unit * 0.5))
-  const titleSize = Math.max(14, Math.round(unit * 0.045))
-  const wmSize    = Math.max(10, Math.round(unit * 0.026))
-  const gap1      = Math.round(unit * 0.05)
-  const gap2      = Math.round(unit * 0.035)
-  const contentH  = qrSize + gap1 + titleSize + gap2 + wmSize
+// `holderZone`: px reserved at the BOTTOM of the canvas that nothing may draw
+// into (Yard Sign only — a physical wire-frame sign holder typically covers
+// roughly this much of the bottom edge). 0 for every other preset and for any
+// custom size — the caller decides, this function just treats the canvas as
+// `height - holderZone` tall for every purpose.
+function computeLayout(width: number, height: number, holderZone = 0): Layout {
+  const usableHeight = Math.max(1, height - holderZone)
+  const unit     = Math.min(width, usableHeight)
+  const longSide = Math.max(width, usableHeight)
+
+  // Absolute floor (24px = 0.08in), not just a fraction of unit — this is what
+  // guarantees the bar reads as a visible accent rather than vanishing on a
+  // canvas whose short side is small relative to its long side.
+  const barH   = Math.max(24, Math.round(unit * 0.025))
+  const qrSize = Math.max(40, Math.round(unit * 0.5))
   const qrX = Math.round((width - qrSize) / 2)
-  const qrY = Math.round(barH + (height - barH * 2 - contentH) / 2)
-  return { unit, barH, qrSize, qrX, qrY, titleSize, wmSize, gap1, gap2 }
+
+  const gapBelowBar = Math.round(unit * 0.03)
+  const contentTop    = BAR_SAFE_MARGIN + barH + gapBelowBar
+  const contentBottom = usableHeight - BAR_SAFE_MARGIN - barH - gapBelowBar
+  const usableWidth   = Math.max(1, width - BAR_SAFE_MARGIN * 2)
+
+  return { unit, longSide, barH, qrSize, qrX, contentTop, contentBottom, usableWidth }
 }
 
 // ── the one shared renderer ───────────────────────────────────────────────────
-// UNTOUCHED in this pass. Used for BOTH the live on-screen preview and the
-// downloaded PNG — same function, same inputs, so the preview can never drift
-// from what downloads.
+// Used for BOTH the live on-screen preview and the downloaded PNG — same
+// function, same inputs, so the preview can never drift from what downloads.
+// `holderZone` defaults to 0 (every preset/custom size except Yard Sign).
 async function renderSignToCanvas(
   canvas: HTMLCanvasElement,
   width: number,
   height: number,
   qrSvgEl: SVGSVGElement,
+  holderZone = 0,
 ) {
   canvas.width = width
   canvas.height = height
   const ctx = canvas.getContext('2d')!
-  const L = computeLayout(width, height)
+  const L = computeLayout(width, height, holderZone)
 
   ctx.fillStyle = '#FFFFFF'
   ctx.fillRect(0, 0, width, height)
 
+  // Purple bars — inset BAR_SAFE_MARGIN from every edge they'd otherwise touch
+  // (previously ran flush to 0,0/width,height with no trim safety at all). The
+  // bottom bar also stays above `holderZone`, so on the Yard Sign nothing is
+  // positioned where a physical sign-holder clip would sit.
+  const barW = Math.max(1, width - BAR_SAFE_MARGIN * 2)
   ctx.fillStyle = C.purple
-  ctx.fillRect(0, 0, width, L.barH)
-  ctx.fillRect(0, height - L.barH, width, L.barH)
+  ctx.fillRect(BAR_SAFE_MARGIN, BAR_SAFE_MARGIN, barW, L.barH)
+  ctx.fillRect(BAR_SAFE_MARGIN, height - holderZone - BAR_SAFE_MARGIN - L.barH, barW, L.barH)
+
+  // ── Title: the real ceiling on how big "Scan for Photos & Details" can get
+  // is how much HORIZONTAL space it has, not a coefficient — a fixed phrase
+  // cannot grow past what fits across the sign's actual width. Start from a
+  // candidate driven by the LONG dimension (so tall/portrait canvases target
+  // meaningfully bigger text than a square of the same width would), then
+  // measure it for real and wrap to 2 lines — or shrink — if it doesn't fit.
+  // sqrt(longSide/unit) reduces to exactly 1 at a 1:1 aspect ratio, so a
+  // square canvas gets the same titleSize the original (correctly-working)
+  // formula produced — this is what keeps the fix from being a regression on
+  // the Flyer/Mailer. It grows smoothly (not linearly) as the ratio departs
+  // from square, so an elongated canvas targets meaningfully bigger text
+  // without the growth being unbounded on extreme ratios.
+  const TITLE_TEXT = 'Scan for Photos & Details'
+  let titleSize = Math.max(14, Math.round(L.unit * 0.045 * Math.sqrt(L.longSide / L.unit)))
+  ctx.font = `bold ${titleSize}px sans-serif`
+  let titleLines: string[] = [TITLE_TEXT]
+
+  if (ctx.measureText(TITLE_TEXT).width > L.usableWidth) {
+    // Best 2-line word-wrap split — minimizes the wider of the two resulting
+    // lines, so an odd number of words doesn't leave one line needlessly long.
+    const words = TITLE_TEXT.split(' ')
+    let bestSplit: [string, string] | null = null
+    let bestWidth = Infinity
+    for (let i = 1; i < words.length; i++) {
+      const line1 = words.slice(0, i).join(' ')
+      const line2 = words.slice(i).join(' ')
+      const w = Math.max(ctx.measureText(line1).width, ctx.measureText(line2).width)
+      if (w < bestWidth) { bestWidth = w; bestSplit = [line1, line2] }
+    }
+    if (bestSplit) {
+      titleLines = bestSplit
+      if (bestWidth > L.usableWidth) {
+        // Even the best 2-line split overflows (a very narrow custom width) —
+        // shrink proportionally until it fits.
+        titleSize = Math.max(10, Math.floor(titleSize * (L.usableWidth / bestWidth)))
+      }
+    }
+  }
+
+  let titleLineH  = Math.round(titleSize * 1.2)
+  let titleBlockH = titleSize + (titleLines.length - 1) * titleLineH
+  let wmSize = Math.max(10, Math.round(titleSize * 0.55))
+  let gap1 = Math.round(titleSize * 1.0)
+  let gap2 = Math.round(titleSize * 0.7)
+  let qrSize = L.qrSize
+  let qrX = L.qrX
+
+  let contentH = qrSize + gap1 + titleBlockH + gap2 + wmSize
+  const availableSpan = L.contentBottom - L.contentTop
+
+  // Emergency uniform shrink — only reachable on an extreme custom aspect
+  // ratio (e.g. a very short, wide banner) where even a 2-line title plus the
+  // QR can't fit the available height. Guarantees the design never overflows
+  // vertically regardless of what an agent types into the custom-size fields.
+  if (contentH > availableSpan && availableSpan > 0) {
+    const scale = availableSpan / contentH
+    qrSize     = Math.max(20, Math.round(qrSize * scale))
+    titleSize  = Math.max(8, Math.round(titleSize * scale))
+    wmSize     = Math.max(6, Math.round(wmSize * scale))
+    gap1       = Math.round(gap1 * scale)
+    gap2       = Math.round(gap2 * scale)
+    titleLineH  = Math.round(titleSize * 1.2)
+    titleBlockH = titleSize + (titleLines.length - 1) * titleLineH
+    contentH    = qrSize + gap1 + titleBlockH + gap2 + wmSize
+    qrX = Math.round((width - qrSize) / 2)
+  }
+
+  const qrY = L.contentTop + Math.max(0, Math.round((availableSpan - contentH) / 2))
 
   // Light frame behind the QR for definition against the white background.
-  const framePad = Math.max(6, Math.round(L.qrSize * 0.06))
+  const framePad = Math.max(6, Math.round(qrSize * 0.06))
   ctx.strokeStyle = '#E5E7EB'
   ctx.lineWidth = Math.max(2, Math.round(L.unit * 0.003))
-  roundRect(ctx, L.qrX - framePad, L.qrY - framePad, L.qrSize + framePad * 2, L.qrSize + framePad * 2, framePad)
+  roundRect(ctx, qrX - framePad, qrY - framePad, qrSize + framePad * 2, qrSize + framePad * 2, framePad)
   ctx.stroke()
 
   const qrImg = await svgToImage(qrSvgEl)
-  ctx.drawImage(qrImg, L.qrX, L.qrY, L.qrSize, L.qrSize)
+  ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize)
 
   ctx.fillStyle = '#111827'
-  ctx.font = `bold ${L.titleSize}px sans-serif`
+  ctx.font = `bold ${titleSize}px sans-serif`
   ctx.textAlign = 'center'
-  ctx.fillText('Scan for Photos & Details', width / 2, L.qrY + L.qrSize + L.gap1 + L.titleSize)
+  const firstTitleBaseline = qrY + qrSize + gap1 + titleSize
+  titleLines.forEach((line, i) => {
+    ctx.fillText(line, width / 2, firstTitleBaseline + i * titleLineH)
+  })
+  const titleBottom = firstTitleBaseline + (titleLines.length - 1) * titleLineH
 
-  // "Powered by " + "the" + "qr" (brand purple) + "ealtor", centered as one line.
-  const wmY = L.qrY + L.qrSize + L.gap1 + L.titleSize + L.gap2 + L.wmSize
-  ctx.font = `bold ${L.wmSize}px sans-serif`
+  // "Powered by " + "the" + "qr" (brand purple) + "ealtor", centered as one
+  // line — shrunk (never wrapped) if a narrow custom width demands it.
+  const wmY = titleBottom + gap2 + wmSize
   const prefix = 'Powered by ', partThe = 'the', partQr = 'qr', partEaltor = 'ealtor'
-  const wPrefix  = ctx.measureText(prefix).width
-  const wThe     = ctx.measureText(partThe).width
-  const wQr      = ctx.measureText(partQr).width
-  const wEaltor  = ctx.measureText(partEaltor).width
-  let x = width / 2 - (wPrefix + wThe + wQr + wEaltor) / 2
+  const measureWmWidth = (size: number) => {
+    ctx.font = `bold ${size}px sans-serif`
+    return ctx.measureText(prefix).width + ctx.measureText(partThe).width
+      + ctx.measureText(partQr).width + ctx.measureText(partEaltor).width
+  }
+  let wmWidth = measureWmWidth(wmSize)
+  if (wmWidth > L.usableWidth) {
+    wmSize = Math.max(8, Math.floor(wmSize * (L.usableWidth / wmWidth)))
+    wmWidth = measureWmWidth(wmSize)
+  }
+  ctx.font = `bold ${wmSize}px sans-serif`
+  let x = width / 2 - wmWidth / 2
   ctx.textAlign = 'left'
   ctx.fillStyle = C.muted
-  ctx.fillText(prefix, x, wmY); x += wPrefix
+  ctx.fillText(prefix, x, wmY); x += ctx.measureText(prefix).width
   ctx.fillStyle = '#111827'
-  ctx.fillText(partThe, x, wmY); x += wThe
+  ctx.fillText(partThe, x, wmY); x += ctx.measureText(partThe).width
   ctx.fillStyle = C.purple
-  ctx.fillText(partQr, x, wmY); x += wQr
+  ctx.fillText(partQr, x, wmY); x += ctx.measureText(partQr).width
   ctx.fillStyle = '#111827'
   ctx.fillText(partEaltor, x, wmY)
 }
@@ -201,17 +326,17 @@ const PREVIEW_MAX_W = 420
 const PREVIEW_MAX_H = 560
 
 function SignPreview({
-  width, height, qrSvgEl, qrUrl,
+  width, height, qrSvgEl, qrUrl, holderZone,
 }: {
-  width: number; height: number; qrSvgEl: SVGSVGElement | null; qrUrl: string
+  width: number; height: number; qrSvgEl: SVGSVGElement | null; qrUrl: string; holderZone: number
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas || !qrSvgEl || !qrUrl) return
-    renderSignToCanvas(canvas, width, height, qrSvgEl).catch(() => { /* image load failed, leave prior frame */ })
-  }, [width, height, qrSvgEl, qrUrl])
+    renderSignToCanvas(canvas, width, height, qrSvgEl, holderZone).catch(() => { /* image load failed, leave prior frame */ })
+  }, [width, height, qrSvgEl, qrUrl, holderZone])
 
   const scale = Math.min(PREVIEW_MAX_W / width, PREVIEW_MAX_H / height)
   const dispW = Math.round(width * scale)
@@ -298,7 +423,10 @@ export default function SignStudioPage() {
 
   const width  = sanitizeDim(size.width)
   const height = sanitizeDim(size.height)
-  const layout = useMemo(() => computeLayout(width, height), [width, height])
+  // Reserved only while the Yard Sign preset is the ACTIVE selection — editing
+  // a custom size clears selectedPresetId, which correctly clears this too.
+  const holderZone = selectedPresetId === 'yardsign' ? YARD_SIGN_HOLDER_ZONE : 0
+  const layout = useMemo(() => computeLayout(width, height, holderZone), [width, height, holderZone])
 
   const activePreset = PRESETS.find(p => p.id === selectedPresetId) ?? null
   const formatName = activePreset ? activePreset.label : 'Custom Size'
@@ -327,7 +455,7 @@ export default function SignStudioPage() {
     setDownloading(true)
     try {
       const canvas = document.createElement('canvas')
-      await renderSignToCanvas(canvas, width, height, svgEl)
+      await renderSignToCanvas(canvas, width, height, svgEl, holderZone)
       const a = document.createElement('a')
       a.download = `sign-${signId}-${width}x${height}.png`
       a.href = canvas.toDataURL('image/png')
@@ -398,7 +526,7 @@ export default function SignStudioPage() {
                   not split across cards, so the download action reads as the
                   natural next step after seeing the sign, not a buried extra. */}
               <div style={{ ...card, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-                <SignPreview width={width} height={height} qrSvgEl={qrSourceEl} qrUrl={qrUrl} />
+                <SignPreview width={width} height={height} qrSvgEl={qrSourceEl} qrUrl={qrUrl} holderZone={holderZone} />
 
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>

@@ -244,7 +244,7 @@ function OnboardingWizard() {
   }, [propertyId, userId, photos.length])
 
   /* ── Step 3: create a sign and assign it to the property — same path as
-     Sign Studio (/api/signs/create + /api/signs/assign). The API route is the
+     Edit Sign/QR (/api/signs/create + /api/signs/assign). The API route is the
      source of truth for the plan limit; the DB has no insert-time trigger for
      signs, so it must be enforced server-side here rather than relying on a
      Postgres error code. ── */

@@ -421,9 +421,9 @@ export default function SellerReportPage() {
       }}>
         {/* Logo */}
         <div style={{ flexShrink: 0 }}>
-          <span style={{ fontSize: 17, fontWeight: 900, color: C.text, letterSpacing: '-0.02em' }}>
+          <a href="https://theqrealtor.com" style={{ fontSize: 17, fontWeight: 900, color: C.text, letterSpacing: '-0.02em', textDecoration: 'none' }}>
             the<span style={{ color: C.purpleL }}>QR</span>ealtor.
-          </span>
+          </a>
         </div>
 
         {/* Breadcrumb */}
@@ -439,7 +439,7 @@ export default function SellerReportPage() {
             fontSize: 12, fontWeight: 600, color: C.sub, textDecoration: 'none',
             border: `1px solid ${C.border}`, borderRadius: 8, padding: '7px 13px',
           }}>
-            👁 Preview as Seller
+            👁 Preview as Buyer
           </a>
           <button
             onClick={copyURL}

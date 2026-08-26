@@ -167,7 +167,7 @@ export default function SellerReportsPage() {
                         fontFamily: 'sans-serif', transition: 'all 0.15s', whiteSpace: 'nowrap',
                       }}
                     >
-                      {copied ? '✓ Copied' : '📋 Copy Link'}
+                      {copied ? '✓ Copied' : 'Copy Link'}
                     </button>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                       <button

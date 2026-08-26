@@ -210,7 +210,7 @@ function SignCard({ sign, origin, onRename, onOpenAssign, onUnassign, unassignin
             href={`/dashboard/sign-studio/${sign.id}`}
             style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: C.purpleL, border: `1px solid ${C.purple}60`, borderRadius: 9, padding: '10px 14px', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}
           >
-            🖨 Sign Studio
+            Sign Studio
           </Link>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>

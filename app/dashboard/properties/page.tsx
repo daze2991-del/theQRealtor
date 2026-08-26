@@ -691,7 +691,8 @@ export default function PropertiesPage() {
       if (!leads || leads.length === 0) return
 
       const rows = [
-        ['Name', 'Phone', 'Email', 'Status', 'Tier', 'Motivation', 'Notes', 'Submitted'],
+        // 'Notes' here is leads.notes — the BUYER's submitted message, not agent notes.
+        ['Name', 'Phone', 'Email', 'Status', 'Tier', 'Motivation', 'Buyer Message', 'Submitted'],
         ...leads.map((l: any) => [
           l.name || '', l.phone || '', l.email || '',
           l.status || 'new', l.tier || '', l.motivation || '',

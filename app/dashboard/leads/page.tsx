@@ -234,9 +234,12 @@ function LeadsPageInner() {
         .order('created_at', { ascending: false })
       setAllLeads(leads || [])
 
-      // Init notes from DB
+      // Init AGENT notes from DB. Seeded from agent_notes, never from `notes` —
+      // `notes` is the buyer's own submitted message and is read-only (see
+      // migration 043); seeding this editable box from it is what used to let
+      // an agent silently overwrite the buyer's words.
       const initNotes: Record<string, string> = {}
-      ;(leads || []).forEach((l: any) => { initNotes[l.id] = l.notes ?? '' })
+      ;(leads || []).forEach((l: any) => { initNotes[l.id] = l.agent_notes ?? '' })
       setNoteValues(initNotes)
 
       // Fetch sign info + converted scan events in parallel. Signs replaced
@@ -317,8 +320,10 @@ function LeadsPageInner() {
   const saveNotesNow = async (leadId: string, value: string) => {
     setSavingNotes(prev => ({ ...prev, [leadId]: true }))
     const supabase = createBrowserSupabase()
-    await supabase.from('leads').update({ notes: value }).eq('id', leadId)
-    setLocalLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], notes: value } }))
+    // agent_notes ONLY — this write must never touch `notes`, which holds the
+    // buyer's submitted message.
+    await supabase.from('leads').update({ agent_notes: value }).eq('id', leadId)
+    setLocalLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], agent_notes: value } }))
     setSavingNotes(prev => ({ ...prev, [leadId]: false }))
   }
 
@@ -430,7 +435,9 @@ function LeadsPageInner() {
     const motivLabels: Record<string, string> = { hot: 'Ready now', motivated: '1–6 months', warm: '6–12 months', cold: 'Just browsing' }
     const recAction:   Record<string, string> = { hot: 'Call today', motivated: 'Text this week', warm: 'Follow up in 2 weeks', cold: 'Add to drip' }
     const rows = [
-      ['Name', 'Phone', 'Email', 'Status', 'Intent', 'Motivation', 'Property', 'QR Label', 'Scans', 'Last Scan', 'Last Contacted', 'Submitted', 'Notes', 'Action'],
+      // 'Notes' split into two explicitly-named columns — the old single column
+      // exported leads.notes under a label that read as agent notes.
+      ['Name', 'Phone', 'Email', 'Status', 'Intent', 'Motivation', 'Property', 'QR Label', 'Scans', 'Last Scan', 'Last Contacted', 'Submitted', 'Buyer Message', 'Agent Notes', 'Action'],
       ...leads.map(l => {
         const eff = getEffective(l)
         return [
@@ -444,7 +451,8 @@ function LeadsPageInner() {
           l.sign_id && lastScanMap[l.sign_id] ? new Date(lastScanMap[l.sign_id]).toLocaleString() : '',
           eff.last_contacted_at ? new Date(eff.last_contacted_at).toLocaleString() : 'Not contacted',
           new Date(l.created_at).toLocaleString(),
-          eff.notes || '',
+          l.notes || '',          // buyer-authored, read-only
+          eff.agent_notes || '',  // agent-authored private notes
           recAction[l.motivation] || '',
         ]
       }),
@@ -669,8 +677,10 @@ function LeadsPageInner() {
                   const eff      = getEffective(lead)
                   const status   = (eff.status ?? 'new') as StatusKey
                   const signals  = buildSignals(lead.sign_id ? scanEventByQr[lead.sign_id] : null)
-                  const notesVal = noteValues[lead.id] ?? eff.notes ?? ''
+                  const notesVal = noteValues[lead.id] ?? eff.agent_notes ?? ''
                   const hasNotes = !!(notesVal.trim())
+                  // Buyer's own submitted message — read-only, rendered separately below.
+                  const buyerMsg = String(lead.notes ?? '').trim()
                   const notesOpen = expandedNotes[lead.id] ?? false
                   const isDdOpen  = openStatusDd === lead.id
 
@@ -874,17 +884,35 @@ function LeadsPageInner() {
                         </div>
                       )}
 
-                      {/* Expandable notes */}
+                      {/* Buyer's submitted message — READ-ONLY. Rendered as plain
+                          text, never inside an editable control. Omitted entirely
+                          when the lead carries no message (e.g. open-house
+                          check-ins) rather than showing an empty label. */}
+                      {buyerMsg && (
+                        <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+                            Buyer asked
+                          </div>
+                          <div style={{ fontSize: 13, color: C.text, lineHeight: 1.6, fontStyle: 'italic', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                            “{buyerMsg}”
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Expandable agent notes */}
                       {notesOpen && (
                         <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}
                           onClick={e => e.stopPropagation()}
                         >
+                          <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>
+                            Your private notes
+                          </div>
                           <textarea
                             className="notes-ta"
                             value={notesVal}
                             onChange={e => handleNoteChange(lead.id, e.target.value)}
                             onBlur={() => handleNoteBlur(lead.id)}
-                            placeholder="Add private notes about this lead…"
+                            placeholder="Add private notes about this lead… (only you can see these)"
                             rows={3}
                             style={{
                               width: '100%', boxSizing: 'border-box',

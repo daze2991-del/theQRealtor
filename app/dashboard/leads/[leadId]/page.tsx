@@ -120,7 +120,11 @@ export default function LeadDetailPage() {
       const { data: leadData } = await supabase.from('leads').select('*').eq('id', leadId).single()
       if (!leadData) { router.push('/dashboard/leads'); return }
       setLead(leadData)
-      setNotes(leadData.notes ?? '')
+      // Two genuinely separate columns — see migration 043. `agent_notes` feeds
+      // the editable Notes box; `notes` is the buyer's submitted message and is
+      // rendered read-only in the Buyer Question card. These used to both read
+      // from `notes`, which is how agent edits destroyed the buyer's words.
+      setNotes(leadData.agent_notes ?? '')
       setBuyerQuestion(leadData.notes ?? '')
 
       const [
@@ -185,7 +189,8 @@ export default function LeadDetailPage() {
     setSavingNotes(true)
     setNotesSaved(false)
     const supabase = createBrowserSupabase()
-    await supabase.from('leads').update({ notes }).eq('id', leadId)
+    // agent_notes ONLY — never `notes` (the buyer's message).
+    await supabase.from('leads').update({ agent_notes: notes }).eq('id', leadId)
     setSavingNotes(false)
     setNotesSaved(true)
     if (saveTimer.current) clearTimeout(saveTimer.current)

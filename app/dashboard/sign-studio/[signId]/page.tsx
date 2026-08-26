@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { QRCodeSVG } from 'qrcode.react'
-import NextImage from 'next/image'
 import { Tag, Clipboard, Signpost, type LucideIcon } from 'lucide-react'
 import { createBrowserSupabase } from '../../../../lib/supabase-browser'
 import DashboardLayout from '../../../../components/DashboardLayout'
@@ -23,6 +22,8 @@ const C = {
 // ── size model ──────────────────────────────────────────────────────────────
 // One design, rendered at whatever width/height is chosen. Presets just set a
 // starting point; the custom inputs below them can override to anything.
+// UNTOUCHED in this pass — same values as the rebuild, only labels/presentation
+// changed elsewhere in this file.
 const MIN_DIM = 200
 const MAX_DIM = 6000
 const DEFAULT_W = 1200
@@ -33,33 +34,38 @@ function sanitizeDim(n: number): number {
   return Math.max(MIN_DIM, Math.min(MAX_DIM, Math.round(n)))
 }
 
+// One-decimal form — kept for the advanced/custom-size readout, where a
+// precise "4.1 in" from an odd pixel value is more honest than rounding it away.
 function formatInches(px: number): string {
   return (px / 300).toFixed(1)
+}
+
+// Clean form for plain-language display ("4 × 12 in", not "4.0 × 12.0 in") —
+// presentation only, does not touch the underlying px math.
+function formatInchesClean(px: number): string {
+  const inches = px / 300
+  return Number.isInteger(inches) ? String(inches) : String(Math.round(inches * 10) / 10)
 }
 
 interface Preset {
   id: string
   label: string
-  image: string
   width: number
   height: number
   icon: LucideIcon
 }
 
-// Same three use-case cards as before; selecting one now sets a starting
-// width/height rather than choosing between different designs — there's only
-// one design. Dimensions reuse the exact print-correct pixel values from the
-// old per-template canvases (all @300dpi):
-//   Sign Rider     1200×3600  (4×12 in)
-//   A-Frame Insert 2550×3300  (8.5×11 in)
-//   Corner Overlay 1200×1200  (4×4 in)
+// Dimensions are UNTOUCHED — same print-correct pixel values as the rebuild
+// (all @300dpi). Only labels changed, to match physical product names rather
+// than "use case" framing.
 const PRESETS: Preset[] = [
-  { id: 'yardsign',  label: 'Yard sign',             image: '/sign-studio/card_yard_sign_FINAL.png',    width: 1200, height: 3600, icon: Clipboard },
-  { id: 'openhouse', label: 'Open house visitors',   image: '/sign-studio/card_open_house_FINAL.png',   width: 2550, height: 3300, icon: Signpost },
-  { id: 'flyer',     label: 'Flyer / mailer',        image: '/sign-studio/card_flyer_mailer_FINAL.png', width: 1200, height: 1200, icon: Tag },
+  { id: 'yardsign',  label: 'Yard Sign',       width: 1200, height: 3600, icon: Clipboard },
+  { id: 'openhouse', label: 'A-Frame Insert',  width: 2550, height: 3300, icon: Signpost },
+  { id: 'flyer',     label: 'Flyer / Mailer',  width: 1200, height: 1200, icon: Tag },
 ]
 
 // ── canvas helpers ────────────────────────────────────────────────────────────
+// UNTOUCHED in this pass.
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -99,13 +105,10 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 }
 
 // ── layout ────────────────────────────────────────────────────────────────────
-// Every measurement is a fraction of `unit` (the smaller of width/height), so
-// the design recomputes correctly for any chosen size instead of stretching a
-// fixed design — a 1200×1200 square and a 2550×3300 portrait both get
-// proportionally sized text and QR, not the same absolute pixel values.
-// This is the single source of truth for both the hidden QR source's `size`
-// prop and the canvas draw call — both read `layout.qrSize`, so the source
-// SVG is always rasterized at exactly the size it's drawn at.
+// UNTOUCHED in this pass. Every measurement is a fraction of `unit` (the
+// smaller of width/height), so the design recomputes correctly for any chosen
+// size instead of stretching a fixed design. Single source of truth for both
+// the hidden QR source's `size` prop and the canvas draw call.
 interface Layout {
   unit: number
   barH: number
@@ -133,10 +136,9 @@ function computeLayout(width: number, height: number): Layout {
 }
 
 // ── the one shared renderer ───────────────────────────────────────────────────
-// Used for BOTH the live on-screen preview and the downloaded PNG — same
-// function, same inputs, so the preview can never drift from what downloads.
-// `qrSvgEl` must already be rendered at `computeLayout(width,height).qrSize`
-// (the hidden QRCodeSVG's `size` prop is bound to that same layout below).
+// UNTOUCHED in this pass. Used for BOTH the live on-screen preview and the
+// downloaded PNG — same function, same inputs, so the preview can never drift
+// from what downloads.
 async function renderSignToCanvas(
   canvas: HTMLCanvasElement,
   width: number,
@@ -191,12 +193,12 @@ async function renderSignToCanvas(
 }
 
 // ── preview ───────────────────────────────────────────────────────────────────
-// Always visible — no disabled-behind-a-flag pattern. Renders the exact same
-// canvas the download produces, just CSS-scaled down to fit the panel; the
-// canvas's own resolution stays full-size, so it's a true preview, not a
-// simplified stand-in.
-const PREVIEW_MAX_W = 280
-const PREVIEW_MAX_H = 420
+// Renderer call itself is untouched; only the display bounds grew (this is now
+// the dominant hero element, not a small panel beside a size picker) and the
+// old technical caption line moved out to the parent, replaced by the
+// plain-language size text specified below.
+const PREVIEW_MAX_W = 420
+const PREVIEW_MAX_H = 560
 
 function SignPreview({
   width, height, qrSvgEl, qrUrl,
@@ -208,9 +210,7 @@ function SignPreview({
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas || !qrSvgEl || !qrUrl) return
-    let cancelled = false
     renderSignToCanvas(canvas, width, height, qrSvgEl).catch(() => { /* image load failed, leave prior frame */ })
-    return () => { cancelled = true }
   }, [width, height, qrSvgEl, qrUrl])
 
   const scale = Math.min(PREVIEW_MAX_W / width, PREVIEW_MAX_H / height)
@@ -218,19 +218,14 @@ function SignPreview({
   const dispH = Math.round(height * scale)
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-      <canvas
-        ref={canvasRef}
-        style={{
-          width: dispW, height: dispH,
-          borderRadius: 8, border: `1px solid ${C.border}`,
-          background: '#fff', display: 'block',
-        }}
-      />
-      <div style={{ fontSize: 11, color: C.muted }}>
-        {width}×{height}px · {formatInches(width)}×{formatInches(height)} in @300dpi
-      </div>
-    </div>
+    <canvas
+      ref={canvasRef}
+      style={{
+        width: dispW, height: dispH,
+        borderRadius: 10, border: `1px solid ${C.border}`,
+        background: '#fff', display: 'block',
+      }}
+    />
   )
 }
 
@@ -250,6 +245,8 @@ export default function SignStudioPage() {
 
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>('yardsign')
   const [size, setSize] = useState({ width: DEFAULT_W, height: DEFAULT_H })
+  const [customOpen, setCustomOpen] = useState(false)
+  const [printingTipsOpen, setPrintingTipsOpen] = useState(false)
 
   const qrSourceRef = useRef<SVGSVGElement>(null)
   const [qrSourceEl, setQrSourceEl] = useState<SVGSVGElement | null>(null)
@@ -303,18 +300,25 @@ export default function SignStudioPage() {
   const height = sanitizeDim(size.height)
   const layout = useMemo(() => computeLayout(width, height), [width, height])
 
+  const activePreset = PRESETS.find(p => p.id === selectedPresetId) ?? null
+  const formatName = activePreset ? activePreset.label : 'Custom Size'
+  const subtitle = address ? `${formatName} · ${address}` : formatName
+
   const selectPreset = (preset: Preset) => {
     setSelectedPresetId(preset.id)
     setSize({ width: preset.width, height: preset.height })
   }
 
-  const setCustomWidth = (raw: string) => {
+  // Custom size is entered in inches (agent-facing unit), converted to px at
+  // 300dpi internally — the underlying `size` state is still pixels, same as
+  // the untouched renderer/layout code expects.
+  const setCustomWidthIn = (raw: string) => {
     setSelectedPresetId(null)
-    setSize(prev => ({ ...prev, width: Number(raw) }))
+    setSize(prev => ({ ...prev, width: Math.round(Number(raw) * 300) }))
   }
-  const setCustomHeight = (raw: string) => {
+  const setCustomHeightIn = (raw: string) => {
     setSelectedPresetId(null)
-    setSize(prev => ({ ...prev, height: Number(raw) }))
+    setSize(prev => ({ ...prev, height: Math.round(Number(raw) * 300) }))
   }
 
   const handleDownload = async () => {
@@ -333,24 +337,21 @@ export default function SignStudioPage() {
     }
   }
 
-  // shared card style
+  // shared styles
   const card: React.CSSProperties = {
     background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 24,
   }
-
-  const btnStyle = (active?: boolean): React.CSSProperties => ({
-    background: active ? C.purple : 'transparent',
-    color: active ? '#fff' : C.sub,
-    border: `1px solid ${active ? C.purple : C.border}`,
-    borderRadius: 9, padding: '9px 18px', fontSize: 13, fontWeight: 700,
-    cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'sans-serif',
-  })
 
   const inputStyle: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box',
     background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8,
     color: C.text, fontSize: 14, padding: '9px 12px', outline: 'none',
     fontFamily: 'sans-serif',
+  }
+
+  const toggleLinkStyle: React.CSSProperties = {
+    background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+    color: C.purpleL, fontSize: 12, fontWeight: 600, fontFamily: 'sans-serif',
   }
 
   return (
@@ -379,151 +380,163 @@ export default function SignStudioPage() {
             <span style={{ color: C.border }}>|</span>
             <div>
               <h1 style={{ fontSize: 18, fontWeight: 800, color: C.text, margin: 0, letterSpacing: '-0.01em' }}>
-                Edit Sign/QR
+                Sign Studio
               </h1>
               {sign && (
                 <p style={{ fontSize: 11, color: C.muted, margin: '1px 0 0' }}>{sign.label}</p>
               )}
+              <p style={{ fontSize: 11, color: C.muted, margin: '1px 0 0' }}>{subtitle}</p>
             </div>
           </div>
 
+          {/* Single-column flow: the preview is the dominant, first thing an
+              agent sees. Everything below it is secondary. */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '28px', fontFamily: 'sans-serif' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 24, maxWidth: 1200 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 640, margin: '0 auto' }}>
 
-              {/* LEFT: Sign info */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                <div style={card}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
-                    Sign Info
+              {/* Preview + physical size + primary download CTA — one panel,
+                  not split across cards, so the download action reads as the
+                  natural next step after seeing the sign, not a buried extra. */}
+              <div style={{ ...card, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+                <SignPreview width={width} height={height} qrSvgEl={qrSourceEl} qrUrl={qrUrl} />
+
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>
+                    {formatInchesClean(width)} × {formatInchesClean(height)} in
                   </div>
-                  <div style={{ fontSize: 13, color: C.text, fontWeight: 600, marginBottom: 4 }}>{sign?.label}</div>
-                  <div style={{ fontSize: 12, color: property ? C.muted : '#FB923C', marginBottom: 12 }}>
-                    {property ? address : 'Not assigned to a listing yet'}
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
+                    300 DPI · Print ready
                   </div>
-                  <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: 22, fontWeight: 800, color: C.purpleL }}>{scanCount}</div>
-                      <div style={{ fontSize: 10, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Scans</div>
-                    </div>
-                  </div>
-                  <p style={{ fontSize: 11, color: C.muted, margin: 0, lineHeight: 1.55 }}>
-                    This QR is permanent to the sign — reassign the sign and the same
-                    printed code points to the new listing.
-                  </p>
                 </div>
+
+                <button
+                  onClick={handleDownload}
+                  disabled={downloading}
+                  style={{
+                    width: '100%',
+                    background: downloading ? `${C.purple}60` : C.purple,
+                    color: '#fff', border: 'none', borderRadius: 10,
+                    padding: '13px 20px', fontSize: 14, fontWeight: 700,
+                    cursor: downloading ? 'not-allowed' : 'pointer',
+                    fontFamily: 'sans-serif',
+                  }}
+                >
+                  {downloading ? '⏳ Generating…' : '↓ Download Print-Ready PNG'}
+                </button>
               </div>
 
-              {/* RIGHT: Size picker + preview + download */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-
-                {/* Size picker */}
-                <div style={card}>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 4, letterSpacing: '-0.01em' }}>
-                    Choose a starting size
-                  </div>
-                  <div style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>Pick a use case for a print-correct starting size, or set a custom size below.</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
-                    {PRESETS.map(preset => {
-                      const active = selectedPresetId === preset.id
-                      return (
-                        <button
-                          key={preset.id}
-                          onClick={() => selectPreset(preset)}
-                          style={{
-                            ...btnStyle(active),
-                            display: 'flex', flexDirection: 'column', alignItems: 'stretch',
-                            padding: 0, gap: 0, textAlign: 'left', overflow: 'hidden',
-                            maxWidth: '420px', width: '100%',
-                          }}
-                        >
-                          <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9' }}>
-                            <NextImage
-                              src={preset.image}
-                              alt={preset.label}
-                              width={480}
-                              height={270}
-                              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                            />
-                          </div>
-                          <div style={{ padding: '10px 12px 12px', display: 'flex', flexDirection: 'column', gap: 5, flex: 1 }}>
-                            <span style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.2, minHeight: 32, color: active ? '#fff' : C.text, overflowWrap: 'break-word' }}>{preset.label}</span>
-                            <span style={{ fontSize: 10, lineHeight: 1.4, minHeight: 28, marginTop: 'auto', color: active ? 'rgba(255,255,255,0.55)' : C.muted, display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <preset.icon size={12} strokeWidth={1.8} style={{ flexShrink: 0 }} />
-                              <span style={{ overflowWrap: 'break-word', minWidth: 0 }}>
-                                {preset.width}×{preset.height} ({formatInches(preset.width)}×{formatInches(preset.height)} in)
-                              </span>
-                            </span>
-                          </div>
-                        </button>
-                      )
-                    })}
-                  </div>
-
-                  {/* Custom size override */}
-                  <div style={{ paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
-                      Custom size
-                    </div>
-                    <div style={{ display: 'flex', gap: 14 }}>
-                      <label style={{ flex: 1 }}>
-                        <span style={{ display: 'block', fontSize: 11, color: C.muted, marginBottom: 5 }}>Width (px)</span>
-                        <input
-                          type="number" min={MIN_DIM} max={MAX_DIM}
-                          value={size.width}
-                          onChange={e => setCustomWidth(e.target.value)}
-                          className="ss-input" style={inputStyle}
-                        />
-                      </label>
-                      <label style={{ flex: 1 }}>
-                        <span style={{ display: 'block', fontSize: 11, color: C.muted, marginBottom: 5 }}>Height (px)</span>
-                        <input
-                          type="number" min={MIN_DIM} max={MAX_DIM}
-                          value={size.height}
-                          onChange={e => setCustomHeight(e.target.value)}
-                          className="ss-input" style={inputStyle}
-                        />
-                      </label>
-                    </div>
-                    <div style={{ fontSize: 11, color: C.muted, marginTop: 8 }}>
-                      = {formatInches(width)} × {formatInches(height)} in at 300 DPI (print resolution)
-                    </div>
-                  </div>
+              {/* Format picker — comes after the preview/download block. */}
+              <div style={card}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>
+                  Format
+                </div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  {PRESETS.map(preset => {
+                    const active = selectedPresetId === preset.id
+                    return (
+                      <button
+                        key={preset.id}
+                        onClick={() => selectPreset(preset)}
+                        style={{
+                          flex: '1 1 140px',
+                          display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4,
+                          background: active ? C.purple : 'transparent',
+                          border: `1px solid ${active ? C.purple : C.border}`,
+                          borderRadius: 10, padding: '12px 14px',
+                          cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'sans-serif',
+                          textAlign: 'left',
+                        }}
+                      >
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: active ? '#fff' : C.text }}>
+                          <preset.icon size={14} strokeWidth={1.8} style={{ flexShrink: 0 }} />
+                          {preset.label}
+                        </span>
+                        <span style={{ fontSize: 11, color: active ? 'rgba(255,255,255,0.65)' : C.muted }}>
+                          {formatInchesClean(preset.width)} × {formatInchesClean(preset.height)} in
+                        </span>
+                      </button>
+                    )
+                  })}
                 </div>
 
-                {/* Preview — always visible, no disabled-behind-a-flag state */}
-                <div style={card}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>
-                    Preview
-                  </div>
-                  <SignPreview width={width} height={height} qrSvgEl={qrSourceEl} qrUrl={qrUrl} />
-                </div>
-
-                {/* Download */}
-                <div style={card}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>
-                    Download
-                  </div>
-                  <button
-                    onClick={handleDownload}
-                    disabled={downloading}
-                    style={{
-                      background: downloading ? `${C.purple}60` : C.purple,
-                      color: '#fff', border: 'none', borderRadius: 9,
-                      padding: '10px 20px', fontSize: 13, fontWeight: 700,
-                      cursor: downloading ? 'not-allowed' : 'pointer',
-                      fontFamily: 'sans-serif',
-                    }}
-                  >
-                    {downloading ? '⏳ Generating…' : '⬇ Download Print-Ready PNG'}
+                {/* Custom size — collapsed by default, inches-first entry. */}
+                <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
+                  <button onClick={() => setCustomOpen(v => !v)} style={toggleLinkStyle}>
+                    Custom size {customOpen ? '▴' : '▾'}
                   </button>
-                  <p style={{ fontSize: 12, color: C.sub, marginTop: 12, lineHeight: 1.6 }}>
-                    💡 Recommended: print on standard paper for smaller sizes, or 60–120lb
-                    cardstock for yard signs and A-frame inserts, at FedEx Office, Staples,
-                    or your brokerage print room. Typically low-cost.
-                  </p>
+                  {customOpen && (
+                    <div style={{ marginTop: 14 }}>
+                      <div style={{ display: 'flex', gap: 14 }}>
+                        <label style={{ flex: 1 }}>
+                          <span style={{ display: 'block', fontSize: 11, color: C.muted, marginBottom: 5 }}>Width (in)</span>
+                          <input
+                            type="number" step="0.1" min={formatInches(MIN_DIM)} max={formatInches(MAX_DIM)}
+                            value={formatInches(width)}
+                            onChange={e => setCustomWidthIn(e.target.value)}
+                            className="ss-input" style={inputStyle}
+                          />
+                        </label>
+                        <label style={{ flex: 1 }}>
+                          <span style={{ display: 'block', fontSize: 11, color: C.muted, marginBottom: 5 }}>Height (in)</span>
+                          <input
+                            type="number" step="0.1" min={formatInches(MIN_DIM)} max={formatInches(MAX_DIM)}
+                            value={formatInches(height)}
+                            onChange={e => setCustomHeightIn(e.target.value)}
+                            className="ss-input" style={inputStyle}
+                          />
+                        </label>
+                      </div>
+                      <div style={{ fontSize: 11, color: C.muted, marginTop: 8 }}>
+                        {width}×{height}px at 300 DPI
+                      </div>
+                    </div>
+                  )}
                 </div>
-
               </div>
+
+              {/* Sign details — address/assignment status and scan count are
+                  secondary context now, not a co-equal primary section. */}
+              <div style={card}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+                  Sign Info
+                </div>
+                <div style={{ fontSize: 13, color: C.text, fontWeight: 600, marginBottom: 4 }}>{sign?.label}</div>
+                <div style={{ fontSize: 12, color: property ? C.muted : '#FB923C', marginBottom: 10 }}>
+                  {property ? address : 'Not assigned to a listing yet'}
+                </div>
+                <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
+                  {scanCount} scan{scanCount === 1 ? '' : 's'}
+                  {property && (
+                    <>
+                      {' · '}
+                      <Link href={`/dashboard/properties/${property.id}`} style={{ color: C.purpleL, textDecoration: 'none', fontWeight: 600 }}>
+                        View analytics →
+                      </Link>
+                    </>
+                  )}
+                </div>
+                <p style={{ fontSize: 11, color: C.muted, margin: 0, lineHeight: 1.55 }}>
+                  Your QR code stays with this sign. Reassign the sign anytime without reprinting.
+                </p>
+              </div>
+
+              {/* Printing — one line by default, detail behind a toggle. */}
+              <div style={card}>
+                <p style={{ fontSize: 12, color: C.sub, margin: 0, lineHeight: 1.6 }}>
+                  Need printing? Download the PNG and take it to your preferred print shop.
+                </p>
+                <button onClick={() => setPrintingTipsOpen(v => !v)} style={{ ...toggleLinkStyle, marginTop: 8 }}>
+                  Printing tips {printingTipsOpen ? '▴' : '▾'}
+                </button>
+                {printingTipsOpen && (
+                  <p style={{ fontSize: 12, color: C.muted, margin: '10px 0 0', lineHeight: 1.6 }}>
+                    Recommended: standard paper for smaller sizes, or 60–120lb cardstock for
+                    yard signs and A-frame inserts. Try FedEx Office, Staples, or your
+                    brokerage print room — typically low-cost.
+                  </p>
+                )}
+              </div>
+
             </div>
           </div>
 

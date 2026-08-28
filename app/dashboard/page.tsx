@@ -421,10 +421,10 @@ export default function Dashboard() {
 
           {/* ── SECTION 2: KPI Cards ── */}
           <div className="db-kpi4">
-            <KpiCard href="/dashboard/leads?tier=hot"                  icon={<Flame         size={18} color={ACCENT.red.color}    />} label="Buyer Interest"   value={buyerInterestCount} change={null}   accent={ACCENT.red}   caption={buyerInterestCount === 0 ? 'Place your first QR sign to start capturing buyers' : undefined} />
-            <KpiCard href="/dashboard/leads?tier=all&sort=newest"      icon={<Users         size={18} color={ACCENT.green.color}  />} label="New Leads"        value={totalLeads}     change={leadChange} accent={ACCENT.green} caption="Last 30 days" />
-            <KpiCard href="/dashboard/leads?motivation=showing"        icon={<CalendarCheck size={18} color={ACCENT.blue.color}   />} label="Showing Requests" value={hotCount}       change={null}       accent={ACCENT.blue}  caption={hotCount === 0 ? "Appears when buyers click 'Request a Showing'" : undefined} />
-            <KpiCard href="/dashboard/leads?status=not_contacted"      icon={<AlertCircle   size={18} color={ACCENT.amber.color}  />} label="Needs Follow-Up"  value={needsFollowUp}  change={null}       accent={ACCENT.amber} caption={needsFollowUp === 0 ? "You're all caught up" : 'High-interest buyers awaiting contact'} />
+            <KpiCard href="/dashboard/leads?status=not_contacted"      icon={<AlertCircle   size={18} color={ACCENT.amber.color}  />} label="Needs Follow-Up"    value={needsFollowUp}      change={null}       accent={ACCENT.amber} caption={needsFollowUp === 0 ? "You're all caught up" : 'High-interest buyers awaiting contact'} />
+            <KpiCard href="/dashboard/leads?tier=all&sort=newest"      icon={<Users         size={18} color={ACCENT.green.color}  />} label="New Leads"          value={totalLeads}         change={leadChange} accent={ACCENT.green} caption="Last 30 days" />
+            <KpiCard href="/dashboard/leads?motivation=showing"        icon={<CalendarCheck size={18} color={ACCENT.blue.color}   />} label="Showing Requests"   value={hotCount}           change={null}       accent={ACCENT.blue}  caption={hotCount === 0 ? "Appears when buyers click 'Request a Showing'" : undefined} />
+            <KpiCard href="/dashboard/leads?tier=hot"                  icon={<Flame         size={18} color={ACCENT.red.color}    />} label="High-Intent Buyers" value={buyerInterestCount} change={null}       accent={ACCENT.red}   caption={buyerInterestCount === 0 ? 'Place your first QR sign to start capturing buyers' : undefined} />
           </div>
 
           {/* ── SECTION 3+4+5: Two-column main layout ── */}

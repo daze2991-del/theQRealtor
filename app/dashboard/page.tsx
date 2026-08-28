@@ -6,9 +6,10 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DashboardLayout from '../../components/DashboardLayout'
 import { LineChart, Line, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-import { QrCode, Users, CalendarCheck, FileText, Flame, TrendingUp, BarChart2, Home, MapPin, Phone, Bell, Calendar, Share2, Download, RotateCcw, Minus, AlertCircle } from 'lucide-react'
+import { QrCode, Users, CalendarCheck, FileText, Flame, TrendingUp, BarChart2, Home, Bell, Calendar, Share2, Download, RotateCcw, AlertCircle } from 'lucide-react'
 import { calcPropertyInterest } from '../../lib/propertyInterest'
 import { motivationToTierV2 } from '../../lib/leadScoringV2'
+import NeedsAttention from '../../components/dashboard/NeedsAttention'
 
 // ── Tokens ────────────────────────────────────────────────────────────────────
 const C = {
@@ -29,13 +30,6 @@ const ACCENT = {
   blue:   { color: '#60A5FA', bg: '#0B1E3A',   border: '#1E4D8C'    },
   amber:  { color: '#FCD34D', bg: '#2D1A06',   border: '#92400E'    },
   red:    { color: '#EF4444', bg: '#3B0D0D',   border: '#EF444435'  },
-}
-
-const MOTIV: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  hot:       { label: 'Hot',       color: '#EF4444', bg: '#3B0D0D', border: '#EF4444' },
-  motivated: { label: 'Motivated', color: '#F97316', bg: '#3B1F0D', border: '#F97316' },
-  warm:      { label: 'Warm',      color: '#60A5FA', bg: '#0F2238', border: '#60A5FA' },
-  cold:      { label: 'Cold',      color: '#6B7280', bg: '#1F2937', border: '#6B7280' },
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -138,37 +132,6 @@ function HealthBadge({ scans, leads, hot }: { scans: number; leads: number; hot:
   )
 }
 
-// ── Motivation badge ──────────────────────────────────────────────────────────
-function MotivBadge({ level }: { level: string }) {
-  const m = MOTIV[level]
-  if (!m) return null
-  return (
-    <span style={{ fontSize: 10, fontWeight: 700, color: m.color, background: m.bg, border: `1px solid ${m.border}40`, borderRadius: 5, padding: '2px 7px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-      {level === 'hot'       && <Flame      size={9} />}
-      {level === 'motivated' && <Flame      size={9} />}
-      {level === 'warm'      && <TrendingUp size={9} />}
-      {level === 'cold'      && <Minus      size={9} />}
-      {m.label}
-    </span>
-  )
-}
-
-// ── Lead card helpers ─────────────────────────────────────────────────────────
-function getCtaPill(sb: any): { label: string; color: string; bg: string } | null {
-  if (!sb) return null
-  if (sb.requested_showing > 0) return { label: 'Showing Requested', color: '#EF4444', bg: '#3B0D0D' }
-  if (sb.question_asked    > 0) return { label: 'Question Asked',     color: '#60A5FA', bg: '#0F2238' }
-  if (sb.packet_requested  > 0) return { label: 'Info Requested',     color: '#6B7280', bg: '#1F2937' }
-  return null
-}
-function getRecommendedAction(lead: any): string {
-  const hoursSince = lead.last_activity_at
-    ? (Date.now() - new Date(lead.last_activity_at).getTime()) / 3600000
-    : Infinity
-  if (lead.motivation === 'hot') return hoursSince < 24 ? 'Call today' : 'Follow up now'
-  return 'Nurture'
-}
-
 // ── Section card wrapper ──────────────────────────────────────────────────────
 function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
@@ -191,7 +154,7 @@ export default function Dashboard() {
   const router = useRouter()
 
   const [properties,       setProperties]       = useState<any[]>([])
-  const [recentLeads,      setRecentLeads]       = useState<any[]>([])
+  const [agentId,          setAgentId]           = useState('')
   const [totalLeads,       setTotalLeads]        = useState(0)
   const [totalScansAll,    setTotalScansAll]     = useState(0)
   const [propScanCounts,   setPropScanCounts]    = useState<Record<string, number>>({})
@@ -225,6 +188,7 @@ export default function Dashboard() {
       const supabase = createBrowserSupabase()
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.push('/auth'); return }
+      setAgentId(session.user.id)
 
       const { data: profile } = await supabase.from('profiles').select('plan, name, onboarding_completed').eq('id', session.user.id).single()
       setProfileName(profile?.name || '')
@@ -341,7 +305,6 @@ export default function Dashboard() {
       } catch { setTotalPacketCount(pkTotal); setPropPacketCounts(pkByProp) }
 
       setProperties(props)
-      setRecentLeads((recentLeadsData || []).slice(0, 5))
       setTotalLeads(totalLeadsCount || 0)
       setTotalScansAll((allScansData || []).length)
       setPropScanCounts(scanMap)
@@ -382,10 +345,6 @@ export default function Dashboard() {
   const scanChange      = pctDiff(totalScansAll, prevMonthScans)
   const leadChange      = pctDiff(totalLeads, lastMonthLeads)
   const topProp         = topPropId ? properties.find(p => p.id === topPropId) : null
-
-  const hotLeads        = recentLeads.filter(l => l.motivation === 'hot').slice(0, 5)
-  const propNameMap: Record<string, string> = {}
-  properties.forEach((p: any) => { propNameMap[p.id] = p.address })
 
   // Donut segments — 3 tiers: Hot (11+), Warm (5–10), Cold (0–4)
   const donutSegments = [
@@ -480,57 +439,11 @@ export default function Dashboard() {
           {/* ── SECTION 3+4+5: Two-column main layout ── */}
           <div className="db-layout">
 
-            {/* Left column: Hot Leads stacked above Properties */}
+            {/* Left column: Needs Your Attention stacked above Properties */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-            {/* Hot Leads */}
-            <Card style={{ height: 320, display: 'flex', flexDirection: 'column' }}>
-              <CardHead
-                title={<span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Flame size={14} color="#EF4444" /> Hot leads need attention</span>}
-                action={<Link href="/dashboard/leads" style={{ fontSize: 11, color: C.purpleL, textDecoration: 'none', fontWeight: 600 }}>View all →</Link>}
-              />
-              <div style={{ flex: 1, overflowY: 'auto' }}>
-                {hotLeads.length === 0 ? (
-                  <div style={{ padding: '32px 18px', textAlign: 'center', color: C.muted, fontSize: 13, lineHeight: 1.6 }}>No hot leads right now. High-interest buyers appear here the moment a buyer shows strong intent.</div>
-                ) : (
-                  hotLeads.map((lead: any, i: number) => {
-                    const ctaPill = getCtaPill(lead.score_breakdown)
-                    const recAction = getRecommendedAction(lead)
-                    return (
-                      <div key={lead.id} className="db-hover" style={{ padding: '11px 18px', borderBottom: i < hotLeads.length - 1 ? `1px solid ${C.border}` : 'none', background: C.card }}>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                          <div style={{
-                            width: 32, height: 32, borderRadius: '50%', flexShrink: 0, marginTop: 1,
-                            background: MOTIV[lead.motivation]?.bg ?? C.card,
-                            border: `2px solid ${MOTIV[lead.motivation]?.border ?? C.border}60`,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 10, fontWeight: 700, color: MOTIV[lead.motivation]?.color ?? C.muted,
-                          }}>{(lead.name || '??').slice(0, 2).toUpperCase()}</div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 2 }}>
-                              <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{lead.name || 'Unknown'}</span>
-                              <MotivBadge level={lead.motivation} />
-                              {lead.phone && <a href={`tel:${lead.phone}`} style={{ width: 24, height: 24, borderRadius: 6, background: `${C.purple}20`, border: `1px solid ${C.purple}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', marginLeft: 'auto' }}><Phone size={11} color={C.purpleL} /></a>}
-                            </div>
-                            <div style={{ fontSize: 10, color: C.muted, display: 'flex', alignItems: 'center', gap: 3, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              <MapPin size={9} />{propNameMap[lead.property_id] || '—'}
-                            </div>
-                            <div style={{ display: 'flex', gap: 10, marginBottom: 4 }}>
-                              {lead.intent_score != null && <span style={{ fontSize: 10, color: C.muted }}>Score: <span style={{ color: C.sub, fontWeight: 600 }}>{lead.intent_score}</span></span>}
-                              {lead.last_activity_at && <span style={{ fontSize: 10, color: C.muted }}>Last active {timeAgo(lead.last_activity_at)}</span>}
-                            </div>
-                            {ctaPill && (
-                              <span style={{ display: 'inline-block', fontSize: 10, fontWeight: 700, color: ctaPill.color, background: ctaPill.bg, borderRadius: 4, padding: '2px 6px', marginBottom: 4 }}>{ctaPill.label}</span>
-                            )}
-                            <div style={{ fontSize: 10, fontWeight: 700, color: C.purpleL }}>{recAction}</div>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })
-                )}
-              </div>
-            </Card>
+            {/* Needs Your Attention — uncontacted hot/warm leads + anonymous return-scan activity */}
+            <NeedsAttention agentId={agentId} properties={properties} />
 
             {/* Properties list */}
             <Card style={{ height: 320, display: 'flex', flexDirection: 'column' }}>

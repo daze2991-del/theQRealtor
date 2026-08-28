@@ -7,7 +7,7 @@ import DashboardLayout from '../../../../components/DashboardLayout'
 import Link from 'next/link'
 import { calcIntentScore, scoreToLabel } from '../../../../lib/leadScoring'
 import { calcPropertyInterest } from '../../../../lib/propertyInterest'
-import { timeAgo } from '../../../../lib/timeAgo'
+import { timeAgo, parseTimestamp } from '../../../../lib/timeAgo'
 import {
   computeCallPriority, motivationToTierV2, TIER_V2_CFG, SCORE_GUIDE_V2,
   breakdownLines, type ScoreBreakdown, type LeadTierV2,
@@ -26,11 +26,11 @@ function fmtDate(iso: string) {
 }
 
 function fmtTime(iso: string) {
-  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  return new Date(parseTimestamp(iso)).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 }
 
 function fmtDateTime(iso: string) {
-  return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+  return new Date(parseTimestamp(iso)).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
 
 // SVG donut chart with colored arc segments

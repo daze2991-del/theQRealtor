@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DashboardLayout from '../../components/DashboardLayout'
 import { LineChart, Line, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-import { QrCode, Users, CalendarCheck, FileText, Flame, TrendingUp, BarChart2, Home, Bell, Calendar, Share2, Download, RotateCcw, AlertCircle } from 'lucide-react'
+import { QrCode, Users, CalendarCheck, Flame, TrendingUp, BarChart2, Home, Bell, Calendar, Share2, Download, RotateCcw, AlertCircle } from 'lucide-react'
 import { calcPropertyInterest } from '../../lib/propertyInterest'
 import { timeAgo } from '../../lib/timeAgo'
 import { motivationToTierV2 } from '../../lib/leadScoringV2'
@@ -162,11 +162,9 @@ export default function Dashboard() {
   const [propLeadCounts,   setPropLeadCounts]    = useState<Record<string, number>>({})
   const [propThumbs,       setPropThumbs]        = useState<Record<string, string>>({})
   const [propHotLeads,     setPropHotLeads]      = useState<Record<string, number>>({})
-  const [propPacketCounts, setPropPacketCounts]  = useState<Record<string, number>>({})
   const [pipelineCounts,   setPipelineCounts]    = useState<Record<string, number>>({ hot: 0, warm: 0, cold: 0 })
   const [topPropId,        setTopPropId]         = useState<string | null>(null)
   const [activityFeed,     setActivityFeed]      = useState<Array<{ iconKey: string; label: string; created_at: string }>>([])
-  const [totalPacketCount, setTotalPacketCount]  = useState(0)
   const [lastMonthLeads,   setLastMonthLeads]    = useState(0)
   const [prevMonthScans,   setPrevMonthScans]    = useState(0)
   const [scanSparkline,    setScanSparkline]     = useState<number[]>([])
@@ -219,7 +217,6 @@ export default function Dashboard() {
         { data: leadsPerProp },
         { data: thumbData },
         { data: recentScansData },
-        { data: recentPacketData },
         prevLeadsResult,
         prevScansResult,
       ] = await Promise.all([
@@ -232,7 +229,6 @@ export default function Dashboard() {
         supabase.from('leads').select('property_id, motivation, tier, status, created_at').in('property_id', ids),
         supabase.from('property_photos').select('property_id, url').in('property_id', ids).order('sort_order', { ascending: true }),
         supabase.from('scan_events').select('property_id, created_at, return_visit').in('property_id', ids).order('created_at', { ascending: false }).limit(50),
-        supabase.from('packet_requests').select('property_id, created_at').in('property_id', ids).order('created_at', { ascending: false }).limit(20),
         supabase.from('leads').select('*', { count: 'exact', head: true }).in('property_id', ids).gte('created_at', lastMonthISO).lt('created_at', monthISO),
         supabase.from('scan_events').select('*', { count: 'exact', head: true }).in('property_id', ids).gte('created_at', lastMonthISO).lt('created_at', monthISO),
       ])
@@ -292,23 +288,8 @@ export default function Dashboard() {
         // Excludes return-visit scans, which are already surfaced as actionable items in
         // Needs Your Attention — this feed shows recent activity that isn't already actionable there.
         ...(recentScansData || []).filter((e: any) => !e.return_visit).map((e: any) => ({ iconKey: e.return_visit ? 'return' : 'scan', label: `${e.return_visit ? 'Buyer returned' : 'Buyer scanned'}${shortAddr(e.property_id)}`, created_at: e.created_at })),
-        ...((recentPacketData as any[] || []).map((r: any) => ({ iconKey: 'packet', label: `Packet request${shortAddr(r.property_id)}`, created_at: r.created_at }))),
       ]
       feedItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-
-      // Packet counts per property
-      const pkByProp: Record<string, number> = {}
-      let pkTotal = 0
-      ;(recentPacketData as any[] || []).forEach((r: any) => { pkByProp[r.property_id] = (pkByProp[r.property_id] || 0) + 1; pkTotal++ })
-      // Try full packet count
-      try {
-        const { count: pkCount } = await supabase.from('packet_requests').select('*', { count: 'exact', head: true }).in('property_id', ids)
-        setTotalPacketCount(pkCount || 0)
-        const { data: pkAllData } = await supabase.from('packet_requests').select('property_id').in('property_id', ids)
-        const fullPkMap: Record<string, number> = {}
-        ;(pkAllData || []).forEach((r: any) => { fullPkMap[r.property_id] = (fullPkMap[r.property_id] || 0) + 1 })
-        setPropPacketCounts(fullPkMap)
-      } catch { setTotalPacketCount(pkTotal); setPropPacketCounts(pkByProp) }
 
       setProperties(props)
       setTotalLeads(totalLeadsCount || 0)
@@ -540,7 +521,6 @@ export default function Dashboard() {
                         {ev.iconKey === 'trending' && <TrendingUp size={14} color="#60A5FA" />}
                         {ev.iconKey === 'scan'     && <QrCode     size={14} color={C.muted} />}
                         {ev.iconKey === 'return'   && <RotateCcw  size={14} color={C.muted} />}
-                        {ev.iconKey === 'packet'   && <FileText   size={14} color="#D97706" />}
                         {ev.iconKey === 'user'     && <Users      size={14} color={C.muted} />}
                       </span>
                       <div style={{ flex: 1, minWidth: 0 }}>
@@ -568,12 +548,11 @@ export default function Dashboard() {
                     <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4 }}>{topProp.address}</div>
                     <HealthBadge scans={propScanCounts[topProp.id] || 0} leads={propLeadCounts[topProp.id] || 0} hot={propHotLeads[topProp.id] || 0} />
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                     {[
                       { label: 'Scans',    value: propScanCounts[topProp.id] || 0, color: C.purpleL },
                       { label: 'Leads',    value: propLeadCounts[topProp.id] || 0, color: '#FCD34D' },
                       { label: 'Showing',  value: propHotLeads[topProp.id] || 0,   color: '#EF4444' },
-                      { label: 'Packets',  value: propPacketCounts[topProp.id] || 0, color: '#D97706' },
                     ].map(({ label, value, color }) => (
                       <div key={label} style={{ background: C.card2, borderRadius: 9, padding: '9px 10px', border: `1px solid ${C.border}` }}>
                         <div style={{ fontSize: 18, fontWeight: 900, color, lineHeight: 1 }}>{value}</div>

@@ -87,7 +87,7 @@ export default function LeadDetailPage() {
   const [qrCode,         setQrCode]         = useState<any>(null)
   const [scanEvent,      setScanEvent]      = useState<any>(null)
   const [propPhoto,      setPropPhoto]      = useState<string | null>(null)
-  const [propStats,      setPropStats]      = useState({ leads: 0, scans: 0, showings: 0, packets: 0 })
+  const [propStats,      setPropStats]      = useState({ leads: 0, scans: 0, showings: 0 })
   const [loading,        setLoading]        = useState(true)
   const [notes,          setNotes]          = useState('')
   const [buyerQuestion,  setBuyerQuestion]  = useState('')
@@ -120,7 +120,7 @@ export default function LeadDetailPage() {
 
       const [
         propRes, photoRes, qrRes, scanRes,
-        leadCountRes, scanCountRes, showingCountRes, packetCountRes,
+        leadCountRes, scanCountRes, showingCountRes,
       ] = await Promise.all([
         supabase.from('properties').select('*').eq('id', leadData.property_id).single(),
         supabase.from('property_photos').select('url').eq('property_id', leadData.property_id)
@@ -143,7 +143,6 @@ export default function LeadDetailPage() {
         supabase.from('scan_events').select('*', { count: 'exact', head: true }).eq('property_id', leadData.property_id),
         supabase.from('leads').select('*', { count: 'exact', head: true })
           .eq('property_id', leadData.property_id).eq('motivation', 'hot'),
-        supabase.from('packet_requests').select('*', { count: 'exact', head: true }).eq('property_id', leadData.property_id),
       ])
 
       setProperty(propRes.data)
@@ -159,7 +158,6 @@ export default function LeadDetailPage() {
         leads:    leadCountRes.count ?? 0,
         scans:    scanCountRes.count ?? 0,
         showings: showingCountRes.count ?? 0,
-        packets:  packetCountRes.count ?? 0,
       })
       setLoading(false)
     }
@@ -754,12 +752,11 @@ export default function LeadDetailPage() {
                       {health.badgeLabel}
                     </span>
                     {/* Stats row */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
                       {[
                         { label: 'Scans',      value: propStats.scans },
                         { label: 'Leads',      value: propStats.leads },
                         { label: 'Showings',   value: propStats.showings },
-                        { label: 'Disclosures', value: propStats.packets },
                       ].map(({ label, value }) => (
                         <div key={label} style={{ background: C.cardAlt, borderRadius: 8, padding: '8px 6px', textAlign: 'center', border: `1px solid ${C.border}` }}>
                           <div style={{ fontSize: 16, fontWeight: 900, color: C.text }}>{value}</div>

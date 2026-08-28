@@ -187,7 +187,6 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
       agent_name:     prop.agent_name || '',
       agent_phone:    prop.agent_phone || '',
       active:         !!prop.active,
-      packet_enabled: !!prop.packet_enabled,
     })
     setEditError('')
     setEditOpen(true)
@@ -209,7 +208,6 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
       agent_name:     editForm.agent_name.trim() || null,
       agent_phone:    editForm.agent_phone.trim() || null,
       active:         editForm.active,
-      packet_enabled: editForm.packet_enabled,
       // Same stamping rule as the Go Live / Take Offline toggle — shared so the
       // two surfaces can't drift. No-ops when the active state didn't change.
       ...deactivationPatch(!!prop.active, editForm.active),
@@ -535,8 +533,6 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
                 placeholder="+15551234567"
                 style={{ width: '100%', background: '#0F0F13', border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 12px', color: C.text, fontSize: 13, boxSizing: 'border-box' }} />
             </label>
-
-            {/* TODO: Restore Property Packet toggle when V2 is built with proper file upload and delivery flow */}
 
             {/* Active toggle */}
             <div

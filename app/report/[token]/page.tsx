@@ -182,7 +182,7 @@ export default function SellerReportPage() {
     )
   }
 
-  const { property, photo, agent, leads, scanEvents, qrCodes, packetCount, packets, totalScanCount, uniqueVisitCount } = report
+  const { property, photo, agent, leads, scanEvents, qrCodes, totalScanCount, uniqueVisitCount } = report
 
   // ── Derived values ────────────────────────────────────────────────────────
   const now            = new Date()
@@ -217,14 +217,11 @@ export default function SellerReportPage() {
   const lastMonthShowings = leads.filter((l: any) => { const d = new Date(l.created_at); return tierOf(l) === 'hot' && d >= lastMonthStart && d < thisMonthStart }).length
   const thisMonthQuestions = leads.filter((l: any) => l.has_notes && new Date(l.created_at) >= thisMonthStart).length
   const lastMonthQuestions = leads.filter((l: any) => { const d = new Date(l.created_at); return l.has_notes && d >= lastMonthStart && d < thisMonthStart }).length
-  const thisMonthPackets  = (packets ?? []).filter((p: any) => new Date(p.created_at) >= thisMonthStart).length
-  const lastMonthPackets  = (packets ?? []).filter((p: any) => { const d = new Date(p.created_at); return d >= lastMonthStart && d < thisMonthStart }).length
 
   // Sparklines
   const scanSparkData     = getDailyCount(scanEvents, 14)
   const engagedSparkData  = getDailyCount(scanEvents.filter((e: any) => (e.photos_viewed ?? 0) > 0 || (e.time_on_page_sec ?? 0) > 60), 14)
-  const showingSparkData  = getDailyCount(leads.filter((l: any) => l.motivation === 'hot'), 14)
-  const packetSparkData   = getDailyCount(packets ?? [], 14)
+  const showingSparkData  = getDailyCount(leads.filter((l: any) => tierOf(l) === 'hot'), 14)
   const questionSparkData = getDailyCount(leads.filter((l: any) => l.has_notes), 14)
 
   // Health — shared formula via calcPropertyInterest
@@ -239,11 +236,10 @@ export default function SellerReportPage() {
 
   // Agent message
   const agentName = property.agent_name || 'Your Agent'
-  const hasDisclosures = packetCount > 0
   const agentMessage = [
     `Hi,`,
     ``,
-    `Your home at ${property.address} is generating strong buyer interest. In the last ${listingDays} day${listingDays !== 1 ? 's' : ''}, ${totalScanCount} buyer${totalScanCount !== 1 ? 's' : ''} scanned your QR sign${showingRequests > 0 ? `, ${showingRequests} requested a showing` : ''}${hasDisclosures ? `, and ${packetCount} downloaded your disclosures` : ''}.`,
+    `Your home at ${property.address} is generating strong buyer interest. In the last ${listingDays} day${listingDays !== 1 ? 's' : ''}, ${totalScanCount} buyer${totalScanCount !== 1 ? 's' : ''} scanned your QR sign${showingRequests > 0 ? `, ${showingRequests} requested a showing` : ''}.`,
     ``,
     `Let me know if you have any questions.`,
     ``,
@@ -265,12 +261,6 @@ export default function SellerReportPage() {
       events.push({ icon: '💬', text: 'Buyer asked a question about the property', time: questionLeads[0].created_at, color: '#10B981', dot: '#10B981' })
     } else if (questionLeads.length > 1) {
       events.push({ icon: '💬', text: `${questionLeads.length} buyers asked questions about the property`, time: questionLeads[0].created_at, color: '#10B981', dot: '#10B981' })
-    }
-    const packs = packets ?? []
-    if (packs.length === 1) {
-      events.push({ icon: '📄', text: 'Buyer downloaded property disclosures', time: packs[0].created_at, color: '#7C3AED', dot: '#7C3AED' })
-    } else if (packs.length > 1) {
-      events.push({ icon: '📄', text: `${packs.length} buyers downloaded property disclosures`, time: packs[0].created_at, color: '#7C3AED', dot: '#7C3AED' })
     }
     const returnVisits = scanEvents.filter((e: any) => e.return_visit)
     if (returnVisits.length === 1) {
@@ -761,11 +751,10 @@ export default function SellerReportPage() {
         <div style={{ marginBottom: 8 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 12 }}>Listing Performance Overview</div>
         </div>
-        <div className="rpt-5col" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 20 }}>
+        <div className="rpt-5col" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
           <KpiCard icon="👁" label="QR Scans"              value={totalScans}      change={showComparison ? safePct(thisMonthScans, lastMonthScans) : null}        sparkData={scanSparkData}     color="#60A5FA" />
           <KpiCard icon="👥" label="Engaged Buyers"       value={engagedBuyers}   change={showComparison ? safePct(thisMonthEngaged, lastMonthEngaged) : null}     sparkData={engagedSparkData}  color="#10B981" />
           <KpiCard icon="💬" label="Showing Requests"     value={showingRequests} change={showComparison ? safePct(thisMonthShowings, lastMonthShowings) : null}   sparkData={showingSparkData}  color="#F59E0B" />
-          <KpiCard icon="📄" label="Disclosure Requests"  value={packetCount}     change={showComparison ? safePct(thisMonthPackets, lastMonthPackets) : null}     sparkData={packetSparkData}   color={C.purpleL} />
           <KpiCard icon="❓" label="Buyer Questions"      value={buyerQuestions}  change={showComparison ? safePct(thisMonthQuestions, lastMonthQuestions) : null} sparkData={questionSparkData} color="#F97316" />
         </div>
 
@@ -782,7 +771,6 @@ export default function SellerReportPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 20 }}>
                 {[
                   { show: showingRequests > 0,  icon: '📅', n: showingRequests,  text: `buyer${showingRequests !== 1 ? 's' : ''} requested a showing`,                  color: '#EF4444' },
-                  { show: packetCount > 0,       icon: '📄', n: packetCount,       text: `buyer${packetCount !== 1 ? 's' : ''} downloaded disclosures`,                   color: '#7C3AED' },
                   { show: buyerQuestions > 0,    icon: '💬', n: buyerQuestions,    text: `buyer${buyerQuestions !== 1 ? 's' : ''} asked questions`,                      color: '#10B981' },
                   { show: returnVisitors > 0,    icon: '↩️', n: returnVisitors,    text: `buyer${returnVisitors !== 1 ? 's' : ''} returned to view this listing multiple times`, color: '#8B5CF6' },
                   { show: photoViewers > 0,      icon: '📸', n: photoViewers,      text: `buyer${photoViewers !== 1 ? 's' : ''} viewed all photos`,                      color: '#14B8A6' },
@@ -801,7 +789,7 @@ export default function SellerReportPage() {
                     </div>
                   </div>
                 ))}
-                {showingRequests === 0 && packetCount === 0 && buyerQuestions === 0 && returnVisitors === 0 && photoViewers === 0 && (
+                {showingRequests === 0 && buyerQuestions === 0 && returnVisitors === 0 && photoViewers === 0 && (
                   <div style={{ fontSize: 13, color: C.muted, textAlign: 'center', padding: '12px 0' }}>No buyer activity recorded yet.</div>
                 )}
               </div>

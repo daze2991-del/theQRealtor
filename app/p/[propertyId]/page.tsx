@@ -110,14 +110,6 @@ export default function PropertyPage() {
   const [emailErr,    setEmailErr]    = useState('')
   const [website,     setWebsite]     = useState('')   // honeypot — must stay empty
 
-  // Packet form
-  const [packetOpen,       setPacketOpen]       = useState(false)
-  const [packetEmail,      setPacketEmail]      = useState('')
-  const [packetName,       setPacketName]       = useState('')
-  const [packetSubmitting, setPacketSubmitting] = useState(false)
-  const [packetSubmitted,  setPacketSubmitted]  = useState(false)
-  const [packetError,      setPacketError]      = useState('')
-
   // Resolve the URL id: sign with an active assignment → its property; sign
   // without one → branded "not assigned" state; anything else → treat the id
   // as a property id (existing behavior, unchanged). One retry before falling
@@ -326,24 +318,6 @@ export default function PropertyPage() {
   }
 
   const closeSheet = () => { setIntent(null); setSubmitted(false); setError(''); setPhoneErr(''); setEmailErr(''); setName(''); setPhone(''); setEmail(''); setQuestion(''); setWebsite(''); setContactPref([]); setSmsConsent(false) }
-  const closePacket = () => { setPacketOpen(false); setPacketSubmitted(false); setPacketError(''); setPacketEmail(''); setPacketName('') }
-
-  const handlePacketSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-    if (!packetEmail.trim() || !packetEmail.includes('@')) { setPacketError('Please enter a valid email address.'); return }
-    setPacketSubmitting(true)
-    setPacketError('')
-    try {
-      const res = await fetch('/api/request-packet', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ propertyId, email: packetEmail.trim(), name: packetName.trim() || undefined }),
-      })
-      if (!res.ok) { const { error: msg } = await res.json().catch(() => ({})); setPacketError(msg || 'Something went wrong.'); setPacketSubmitting(false); return }
-    } catch { setPacketError('Network error. Please check your connection.'); setPacketSubmitting(false); return }
-    setPacketSubmitted(true)
-    setPacketSubmitting(false)
-  }
 
   // ── Loading ──────────────────────────────────────────────────────────────────
   if (loading) return (
@@ -532,28 +506,6 @@ export default function PropertyPage() {
           <p style={{ fontSize: 12, color: C.muted, lineHeight: 1.55, margin: '14px 0 0' }}>
             * By connecting with the listing agent, you confirm you are not currently represented by a buyer&apos;s agent. If you are working with an agent, please have them contact the listing agent directly.
           </p>
-
-          {/* Packet CTA — only when agent has enabled it */}
-          {property.packet_enabled && (
-            <button
-              className="cta-btn"
-              onClick={() => { closeSheet(); setPacketOpen(true) }}
-              style={{
-                marginTop: 10, width: '100%',
-                background: '#1A1200', border: '1px solid #92400E40',
-                borderRadius: 14, padding: '16px 18px',
-                cursor: 'pointer', textAlign: 'left', fontFamily: 'sans-serif',
-                display: 'flex', alignItems: 'center', gap: 14,
-              }}
-            >
-              <span style={{ fontSize: 28, lineHeight: 1 }}>📄</span>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: C.text, lineHeight: 1.2 }}>Get Property Packet</div>
-                <div style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>Flyer, disclosures &amp; floorplans</div>
-              </div>
-              <span style={{ marginLeft: 'auto', color: '#FCD34D', fontSize: 18 }}>›</span>
-            </button>
-          )}
         </div>
 
       </div>
@@ -798,75 +750,6 @@ export default function PropertyPage() {
         </div>
       )}
 
-      {/* ── Packet form sheet ── */}
-      {packetOpen && (
-        <div
-          className="form-sheet-wrap"
-          onClick={closePacket}
-          style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
-        >
-          <div
-            className="form-sheet sheet"
-            onClick={e => e.stopPropagation()}
-            style={{ width: '100%', background: '#17131F', borderRadius: '20px 20px 0 0', padding: '0 0 env(safe-area-inset-bottom)', maxHeight: '92vh', overflowY: 'auto' }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px' }}>
-              <div style={{ width: 40, height: 4, borderRadius: 2, background: C.border }} />
-            </div>
-
-            {!packetSubmitted ? (
-              <form onSubmit={handlePacketSubmit} style={{ padding: '4px 20px 28px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-                  <div>
-                    <div style={{ fontSize: 20, fontWeight: 900, color: C.text, lineHeight: 1.2 }}>📄 Get Property Packet</div>
-                    <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>Flyer, disclosures &amp; floorplans</div>
-                  </div>
-                  <button type="button" onClick={closePacket} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: C.muted, borderRadius: '50%', width: 34, height: 34, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>✕</button>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Your Name (optional)</span>
-                    <input className="field" type="text" placeholder="Full name" value={packetName} onChange={e => setPacketName(e.target.value)} style={inp} />
-                  </label>
-
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Email *</span>
-                    <input className="field" type="email" required placeholder="you@example.com" value={packetEmail} onChange={e => setPacketEmail(e.target.value)} style={inp} />
-                  </label>
-
-                  {packetError && <p style={{ color: '#FCA5A5', fontSize: 13, margin: 0 }}>{packetError}</p>}
-
-                  <button
-                    type="submit"
-                    disabled={packetSubmitting}
-                    style={{ background: '#D97706', color: '#fff', border: 'none', borderRadius: 12, padding: '15px 18px', fontSize: 16, fontWeight: 900, cursor: packetSubmitting ? 'not-allowed' : 'pointer', opacity: packetSubmitting ? 0.7 : 1, fontFamily: 'sans-serif', marginTop: 4 }}
-                  >
-                    {packetSubmitting ? 'Sending…' : 'Request Packet →'}
-                  </button>
-
-                  <p style={{ fontSize: 11, color: C.muted, textAlign: 'center', margin: 0, lineHeight: 1.55 }}>
-                    The agent will send the packet directly to your email.
-                  </p>
-                </div>
-              </form>
-            ) : (
-              <div style={{ padding: '4px 20px 32px', animation: 'popIn 0.25s ease' }}>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-                  <button onClick={closePacket} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: C.muted, borderRadius: '50%', width: 34, height: 34, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
-                </div>
-                <div style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.35)', borderRadius: 14, padding: '18px 18px 16px' }}>
-                  <div style={{ fontSize: 24, marginBottom: 8 }}>✅</div>
-                  <div style={{ fontSize: 18, fontWeight: 900, color: C.text, marginBottom: 6 }}>Request Sent!</div>
-                  <p style={{ fontSize: 14, color: C.soft, margin: 0, lineHeight: 1.55 }}>
-                    Check your email — the agent will send your packet shortly.
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </main>
   )
 }

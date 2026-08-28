@@ -143,7 +143,6 @@ export default function PropertyIntelligencePage() {
   const [scanEvents,      setScanEvents]      = useState<any[]>([])
   const [allTimeScanCount, setAllTimeScanCount] = useState(0)
   const [leads,           setLeads]           = useState<any[]>([])
-  const [packetCount,     setPacketCount]     = useState(0)
   const [qrCodes,         setQrCodes]         = useState<any[]>([])
   const [loading,         setLoading]         = useState(true)
   const [editOpen,    setEditOpen]    = useState(false)
@@ -201,11 +200,6 @@ export default function PropertyIntelligencePage() {
         setQrCodes([])
       }
 
-      try {
-        const { count } = await supabase.from('packet_requests').select('*', { count: 'exact', head: true }).eq('property_id', propertyId)
-        setPacketCount(count ?? 0)
-      } catch { /* table may not exist */ }
-
       setLoading(false)
     }
     load()
@@ -224,7 +218,7 @@ export default function PropertyIntelligencePage() {
       address: property.address || '', city: property.city || '', state: property.state || '',
       price: property.price ?? '', beds: property.beds ?? '', baths: property.baths ?? '',
       description: property.description || '', agent_name: property.agent_name || '',
-      agent_phone: property.agent_phone || '', active: !!property.active, packet_enabled: !!property.packet_enabled,
+      agent_phone: property.agent_phone || '', active: !!property.active,
     })
     setEditError('')
     setEditOpen(true)
@@ -244,7 +238,7 @@ export default function PropertyIntelligencePage() {
       description: editForm.description.trim() || null,
       agent_name: editForm.agent_name.trim() || null,
       agent_phone: editForm.agent_phone.trim() || null,
-      active: editForm.active, packet_enabled: editForm.packet_enabled,
+      active: editForm.active,
       // Same stamping rule as the list page's toggle and edit modal — shared so
       // the three surfaces can't drift. No-ops when active didn't change.
       ...deactivationPatch(!!property.active, editForm.active),
@@ -490,11 +484,10 @@ export default function PropertyIntelligencePage() {
       <div style={{ padding: '22px 28px 56px', fontFamily: 'sans-serif' }}>
 
         {/* ── Section 2: KPI Cards ─────────────────────────────────────────── */}
-        <div className="pi-4col" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 20 }}>
+        <div className="pi-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 20 }}>
           <KpiCard icon="🔍" label="QR Scans"            value={allTimeScanCount} change={scanChangePct}    sparkData={scanSparkData}    color="#60A5FA" />
           <KpiCard icon="👥" label="Leads"               value={totalLeads}        change={leadChangePct}    sparkData={leadSparkData}    color="#10B981" />
           <KpiCard icon="💬" label="Showing Requests"    value={showingRequests}  change={showingChangePct} sparkData={showingSparkData} color="#F59E0B" />
-          <KpiCard icon="📄" label="Disclosure Requests" value={packetCount}      change={0}                sparkData={Array(14).fill(0)} color={C.purpleL} />
         </div>
 
         {/* ── Section 3: Listing Health | Property Image ───────────────────── */}
@@ -858,8 +851,7 @@ export default function PropertyIntelligencePage() {
             </label>
 
             {[
-              { key: 'packet_enabled', icon: '📄', label: 'Enable Property Packet', sub: 'Buyers see a "Get Property Packet" CTA on the listing page' },
-              { key: 'active',         icon: '',   label: editForm.active ? 'Listing is Live' : 'Listing is Offline', sub: '' },
+              { key: 'active', icon: '', label: editForm.active ? 'Listing is Live' : 'Listing is Offline', sub: '' },
             ].map(({ key, icon, label, sub }) => (
               <div key={key} onClick={() => setEditForm((f: any) => ({ ...f, [key]: !f[key] }))}
                 style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, cursor: 'pointer', userSelect: 'none' }}>

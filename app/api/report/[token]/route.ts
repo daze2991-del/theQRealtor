@@ -104,17 +104,6 @@ export async function GET(
     uniqueVisitCount = uniqueRes.count ?? 0
   }
 
-  let packetCount = 0
-  let packets: any[] = []
-  try {
-    const [countRes, recentRes] = await Promise.all([
-      supabase.from('packet_requests').select('*', { count: 'exact', head: true }).eq('property_id', propertyId),
-      supabase.from('packet_requests').select('created_at').eq('property_id', propertyId).gte('created_at', windowStart),
-    ])
-    packetCount = countRes.count ?? 0
-    packets = recentRes.data ?? []
-  } catch { /* table may not exist */ }
-
   // ── Agent credential stamp ──────────────────────────────────────────────────
   // AGENT-OWNED data only — the licensed professional who owns this listing,
   // identifying themselves to their own seller. Nothing here touches `leads`
@@ -161,8 +150,6 @@ export async function GET(
     leads,
     scanEvents,
     qrCodes,
-    packetCount,
-    packets,
     totalScanCount,
     uniqueVisitCount,
   })

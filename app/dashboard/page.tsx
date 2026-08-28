@@ -276,7 +276,9 @@ export default function Dashboard() {
       const motivText: Record<string, string> = { hot: 'Hot lead', motivated: 'Warm lead', warm: 'Warm lead', cold: 'New lead' }
       const feedItems: Array<{ iconKey: string; label: string; created_at: string }> = [
         ...(recentLeadsData || []).map((l: any) => ({ iconKey: motivIconKey[l.motivation] ?? 'user', label: `${motivText[l.motivation] ?? 'New lead'}${shortAddr(l.property_id)}`, created_at: l.created_at })),
-        ...(recentScansData || []).map((e: any) => ({ iconKey: e.return_visit ? 'return' : 'scan', label: `${e.return_visit ? 'Buyer returned' : 'Buyer scanned'}${shortAddr(e.property_id)}`, created_at: e.created_at })),
+        // Excludes return-visit scans, which are already surfaced as actionable items in
+        // Needs Your Attention — this feed shows recent activity that isn't already actionable there.
+        ...(recentScansData || []).filter((e: any) => !e.return_visit).map((e: any) => ({ iconKey: e.return_visit ? 'return' : 'scan', label: `${e.return_visit ? 'Buyer returned' : 'Buyer scanned'}${shortAddr(e.property_id)}`, created_at: e.created_at })),
         ...((recentPacketData as any[] || []).map((r: any) => ({ iconKey: 'packet', label: `Packet request${shortAddr(r.property_id)}`, created_at: r.created_at }))),
       ]
       feedItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())

@@ -8,6 +8,7 @@ import DashboardLayout from '../../components/DashboardLayout'
 import { LineChart, Line, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { QrCode, Users, CalendarCheck, FileText, Flame, TrendingUp, BarChart2, Home, MapPin, Phone, Bell, Calendar, Share2, Download, RotateCcw, Minus, AlertCircle } from 'lucide-react'
 import { calcPropertyInterest } from '../../lib/propertyInterest'
+import { motivationToTierV2 } from '../../lib/leadScoringV2'
 
 // ── Tokens ────────────────────────────────────────────────────────────────────
 const C = {
@@ -198,7 +199,7 @@ export default function Dashboard() {
   const [propThumbs,       setPropThumbs]        = useState<Record<string, string>>({})
   const [propHotLeads,     setPropHotLeads]      = useState<Record<string, number>>({})
   const [propPacketCounts, setPropPacketCounts]  = useState<Record<string, number>>({})
-  const [pipelineCounts,   setPipelineCounts]    = useState<Record<string, number>>({ hot: 0, motivated: 0, warm: 0, cold: 0 })
+  const [pipelineCounts,   setPipelineCounts]    = useState<Record<string, number>>({ hot: 0, warm: 0, cold: 0 })
   const [topPropId,        setTopPropId]         = useState<string | null>(null)
   const [activityFeed,     setActivityFeed]      = useState<Array<{ iconKey: string; label: string; created_at: string }>>([])
   const [totalPacketCount, setTotalPacketCount]  = useState(0)
@@ -277,17 +278,19 @@ export default function Dashboard() {
 
       const leadMap: Record<string, number> = {}
       const hotByProp: Record<string, number> = {}
-      const pipeline: Record<string, number> = { hot: 0, motivated: 0, warm: 0, cold: 0 }
+      const pipeline: Record<string, number> = { hot: 0, warm: 0, cold: 0 }
       const monthLeadsByProp: Record<string, number> = {}
       let hotNotCalledCount = 0, warmNotCalledCount = 0
       ;(leadsPerProp || []).forEach((l: any) => {
         leadMap[l.property_id] = (leadMap[l.property_id] || 0) + 1
-        if (l.motivation && pipeline[l.motivation] !== undefined) pipeline[l.motivation]++
+        // Lead Health buckets on tier (V2), falling back to motivation only for legacy rows with no tier
+        const t = l.tier && ['hot', 'warm', 'cold'].includes(l.tier) ? l.tier : motivationToTierV2(l.motivation)
+        if (pipeline[t] !== undefined) pipeline[t]++
         if (l.motivation === 'hot') hotByProp[l.property_id] = (hotByProp[l.property_id] || 0) + 1
         if (l.created_at >= monthISO) monthLeadsByProp[l.property_id] = (monthLeadsByProp[l.property_id] || 0) + 1
         const uncontacted = !l.status || l.status === 'new'
-        if (l.motivation === 'hot' && uncontacted) hotNotCalledCount++
-        if ((l.motivation === 'motivated' || l.motivation === 'warm') && uncontacted) warmNotCalledCount++
+        if (t === 'hot' && uncontacted) hotNotCalledCount++
+        if (t === 'warm' && uncontacted) warmNotCalledCount++
       })
       const topEntry = Object.entries(monthLeadsByProp).sort((a, b) => b[1] - a[1])[0]
 
@@ -384,10 +387,10 @@ export default function Dashboard() {
   const propNameMap: Record<string, string> = {}
   properties.forEach((p: any) => { propNameMap[p.id] = p.address })
 
-  // Donut segments — 3 tiers: Hot (11+), Warm (5–10, includes motivated), Cold (0–4)
+  // Donut segments — 3 tiers: Hot (11+), Warm (5–10), Cold (0–4)
   const donutSegments = [
     { key: 'hot',  value: pipelineCounts.hot || 0,                                             color: '#EF4444', label: 'Hot' },
-    { key: 'warm', value: (pipelineCounts.motivated || 0) + (pipelineCounts.warm || 0),         color: '#60A5FA', label: 'Warm' },
+    { key: 'warm', value: pipelineCounts.warm || 0,                                             color: '#60A5FA', label: 'Warm' },
     { key: 'cold', value: pipelineCounts.cold || 0,                                             color: '#6B7280', label: 'Cold' },
   ]
 
@@ -586,7 +589,7 @@ export default function Dashboard() {
               <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {[
                   { label: 'Hot',  color: '#EF4444', count: pipelineCounts.hot || 0,                                           uncontacted: hotNotCalled  },
-                  { label: 'Warm', color: '#F59E0B', count: (pipelineCounts.motivated || 0) + (pipelineCounts.warm || 0),       uncontacted: warmNotCalled },
+                  { label: 'Warm', color: '#F59E0B', count: pipelineCounts.warm || 0,                                           uncontacted: warmNotCalled },
                   { label: 'Cold', color: '#6B7280', count: pipelineCounts.cold || 0,                                           uncontacted: null          },
                 ].map(({ label, color, count, uncontacted }) => (
                   <div key={label} style={{ borderLeft: `3px solid ${color}`, paddingLeft: 10, paddingTop: 5, paddingBottom: 5 }}>

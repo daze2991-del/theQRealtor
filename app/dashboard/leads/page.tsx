@@ -432,19 +432,19 @@ function LeadsPageInner() {
         .in('sign_id', signIds).order('created_at', { ascending: false })
       ;(scans || []).forEach((s: any) => { if (s.sign_id && !lastScanMap[s.sign_id]) lastScanMap[s.sign_id] = s.created_at })
     }
-    const motivLabels: Record<string, string> = { hot: 'Ready now', motivated: '1–6 months', warm: '6–12 months', cold: 'Just browsing' }
-    const recAction:   Record<string, string> = { hot: 'Call today', motivated: 'Text this week', warm: 'Follow up in 2 weeks', cold: 'Add to drip' }
+    const tierLabels: Record<string, string> = { hot: 'Hot', warm: 'Warm', cold: 'Cold' }
     const rows = [
       // 'Notes' split into two explicitly-named columns — the old single column
       // exported leads.notes under a label that read as agent notes.
-      ['Name', 'Phone', 'Email', 'Status', 'Intent', 'Motivation', 'Property', 'QR Label', 'Scans', 'Last Scan', 'Last Contacted', 'Submitted', 'Buyer Message', 'Agent Notes', 'Action'],
+      ['Name', 'Phone', 'Email', 'Status', 'Intent', 'Tier', 'Property', 'QR Label', 'Scans', 'Last Scan', 'Last Contacted', 'Submitted', 'Buyer Message', 'Agent Notes', 'Action'],
       ...leads.map(l => {
         const eff = getEffective(l)
+        const t = leadTier(l)
         return [
           l.name || '', l.phone || '', l.email || '',
           eff.status || 'new',
-          TIER_CHIP_CFG[leadTier(l)]?.label || l.motivation || '',
-          motivLabels[l.motivation] || '',
+          TIER_CHIP_CFG[t]?.label || l.motivation || '',
+          tierLabels[t] || '',
           propMap[l.property_id] || '',
           l.sign_id ? (qrMap[l.sign_id]?.label || '') : '',
           l.sign_id ? String(qrMap[l.sign_id]?.scan_count ?? '') : '',
@@ -453,7 +453,7 @@ function LeadsPageInner() {
           new Date(l.created_at).toLocaleString(),
           l.notes || '',          // buyer-authored, read-only
           eff.agent_notes || '',  // agent-authored private notes
-          recAction[l.motivation] || '',
+          TIER_V2_CFG[t]?.action || '',
         ]
       }),
     ]

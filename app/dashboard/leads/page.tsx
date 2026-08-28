@@ -10,6 +10,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import DashboardLayout from '../../../components/DashboardLayout'
 import { computeCallPriority, motivationToTierV2, urgencyLabel, topSignalLabel, TIER_V2_CFG, type LeadTierV2 } from '../../../lib/leadScoringV2'
+import { timeAgo } from '../../../lib/timeAgo'
 
 // ── Tokens ────────────────────────────────────────────────────────────────────
 const C = {
@@ -50,18 +51,6 @@ function leadTier(lead: any): LeadTierV2 {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
-  const m = Math.floor(diff / 60000)
-  if (m < 1) return 'just now'
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  const d = Math.floor(h / 24)
-  if (d < 7) return `${d}d ago`
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
 function lastContactedText(iso: string | null | undefined): string {
   if (!iso) return 'Not yet contacted'
   const diff = Date.now() - new Date(iso).getTime()
@@ -73,7 +62,7 @@ function lastContactedText(iso: string | null | undefined): string {
 
 // Most recent buyer activity (latest scan), falling back to the original scan / submit time
 function lastActiveText(lastScanIso: string | null | undefined, fallbackIso: string): string {
-  return `Last active: ${timeAgo(lastScanIso || fallbackIso)}`
+  return `Last active: ${timeAgo(lastScanIso || fallbackIso, { absoluteAfterDays: 7 })}`
 }
 
 function buildSignals(scanEvent: any): string {
@@ -745,7 +734,7 @@ function LeadsPageInner() {
                                 )}
                               </div>
 
-                              <span style={{ fontSize: 11, color: C.muted, whiteSpace: 'nowrap' }}>{timeAgo(lead.created_at)}</span>
+                              <span style={{ fontSize: 11, color: C.muted, whiteSpace: 'nowrap' }}>{timeAgo(lead.created_at, { absoluteAfterDays: 7 })}</span>
                             </div>
                           </div>
 

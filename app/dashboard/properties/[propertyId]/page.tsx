@@ -6,6 +6,7 @@ import { createBrowserSupabase } from '../../../../lib/supabase-browser'
 import DashboardLayout from '../../../../components/DashboardLayout'
 import Link from 'next/link'
 import { calcPropertyInterest } from '../../../../lib/propertyInterest'
+import { timeAgo } from '../../../../lib/timeAgo'
 import { deactivationPatch } from '../../../../lib/propertyStatus'
 
 const C = {
@@ -26,16 +27,6 @@ const TIER_LABEL: Record<string, string> = {
 const MOCK_PCTS = [12, 8, 24, 15, 6, 19, 31]
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-function timeAgo(iso: string) {
-  const diff = Date.now() - new Date(iso).getTime()
-  const m = Math.floor(diff / 60000)
-  if (m < 1) return 'just now'
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  return `${Math.floor(h / 24)}d ago`
-}
-
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }

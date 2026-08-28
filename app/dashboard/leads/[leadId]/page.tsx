@@ -7,6 +7,7 @@ import DashboardLayout from '../../../../components/DashboardLayout'
 import Link from 'next/link'
 import { calcIntentScore, scoreToLabel } from '../../../../lib/leadScoring'
 import { calcPropertyInterest } from '../../../../lib/propertyInterest'
+import { timeAgo } from '../../../../lib/timeAgo'
 import {
   computeCallPriority, motivationToTierV2, TIER_V2_CFG, SCORE_GUIDE_V2,
   breakdownLines, type ScoreBreakdown, type LeadTierV2,
@@ -19,16 +20,6 @@ const C = {
 } as const
 
 // SCORE_GUIDE is now sourced from leadScoringV2 (SCORE_GUIDE_V2) — V2 tiers only
-
-function timeAgo(iso: string) {
-  const diff = Date.now() - new Date(iso).getTime()
-  const m = Math.floor(diff / 60000)
-  if (m < 1) return 'just now'
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  return `${Math.floor(h / 24)}d ago`
-}
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })

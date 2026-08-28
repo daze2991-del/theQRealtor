@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { User, RotateCcw, MapPin, CheckCircle2, X } from 'lucide-react'
 import { createBrowserSupabase } from '../../lib/supabase-browser'
 import { TIER_V2_CFG } from '../../lib/leadScoringV2'
+import { timeAgo, parseTimestamp } from '../../lib/timeAgo'
 
 // ── Tokens (mirrors the dashboard page's local palette) ───────────────────────
 const C = {
@@ -51,29 +52,6 @@ type ActivityItem = {
 }
 
 type Item = LeadItem | ActivityItem
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-// leads.created_at and scan_events.created_at are Postgres `timestamp without
-// time zone` columns that hold UTC wall-clock (verified live: the same lead
-// row's timestamptz last_activity_at matches its naive created_at to the
-// sub-second). PostgREST returns those with no offset, and `new Date(...)`
-// would read them in the viewer's local zone — in PDT that makes a scan look 7
-// hours newer than it is, which is badly wrong inside a 24-hour window.
-// dashboard_dismissals.dismissed_at IS timestamptz and comes back with +00:00,
-// so it parses correctly on its own; this handles both shapes.
-function parseTs(value: string): number {
-  const hasOffset = /(?:[Zz]|[+-]\d{2}:?\d{2})$/.test(value)
-  return new Date(hasOffset ? value : `${value}Z`).getTime()
-}
-
-function relTime(value: string): string {
-  const mins = Math.floor((Date.now() - parseTs(value)) / 60000)
-  if (mins < 1)  return 'Just now'
-  if (mins < 60) return `${mins}m ago`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24)  return `${hrs}h ago`
-  return `${Math.floor(hrs / 24)}d ago`
-}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function NeedsAttention({
@@ -164,17 +142,17 @@ export default function NeedsAttention({
       // property rather than staying hidden forever.
       const dismissedAt: Record<string, number> = {}
       ;((dismissalsRes.data || []) as any[]).forEach(d => {
-        const t = parseTs(d.dismissed_at)
+        const t = parseTimestamp(d.dismissed_at)
         if (!(d.item_key in dismissedAt) || t > dismissedAt[d.item_key]) dismissedAt[d.item_key] = t
       })
 
       const activityItems: ActivityItem[] = Object.entries(latestByProp)
         .filter(([propertyId, scanAt]) => {
           const d = dismissedAt[propertyId]
-          return d === undefined || d <= parseTs(scanAt)
+          return d === undefined || d <= parseTimestamp(scanAt)
         })
         .map(([propertyId, lastScanAt]): ActivityItem => ({ kind: 'activity', propertyId, lastScanAt }))
-        .sort((a, b) => parseTs(b.lastScanAt) - parseTs(a.lastScanAt))
+        .sort((a, b) => parseTimestamp(b.lastScanAt) - parseTimestamp(a.lastScanAt))
 
       setItems([...leadItems, ...activityItems])
     }
@@ -275,7 +253,7 @@ export default function NeedsAttention({
                       </span>
                     </div>
                     <div style={{ fontSize: 10, color: C.muted, marginBottom: 5 }}>
-                      No contact details — this is a repeat scan, not a lead · {relTime(item.lastScanAt)}
+                      No contact details — this is a repeat scan, not a lead · {timeAgo(item.lastScanAt)}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <Link href={`/dashboard/properties/${item.propertyId}`} style={{ fontSize: 10, fontWeight: 700, color: C.purpleL, textDecoration: 'none' }}>View Property →</Link>

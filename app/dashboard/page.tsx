@@ -8,6 +8,7 @@ import DashboardLayout from '../../components/DashboardLayout'
 import { LineChart, Line, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { QrCode, Users, CalendarCheck, FileText, Flame, TrendingUp, BarChart2, Home, Bell, Calendar, Share2, Download, RotateCcw, AlertCircle } from 'lucide-react'
 import { calcPropertyInterest } from '../../lib/propertyInterest'
+import { timeAgo } from '../../lib/timeAgo'
 import { motivationToTierV2 } from '../../lib/leadScoringV2'
 import NeedsAttention from '../../components/dashboard/NeedsAttention'
 
@@ -33,16 +34,6 @@ const ACCENT = {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
-  const m = Math.floor(diff / 60000)
-  if (m < 1) return 'just now'
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  return `${Math.floor(h / 24)}d ago`
-}
-
 function pctDiff(curr: number, prev: number): { n: number; up: boolean } | null {
   if (!prev) return null
   const n = Math.round(((curr - prev) / prev) * 100)

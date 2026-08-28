@@ -34,6 +34,16 @@ const ACCENT = {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+// Addresses are stored exactly as the agent typed them (often all-lowercase,
+// e.g. "4444 culver blvs") — this only affects display, never the stored value.
+// Title-cases each word; does not correct spelling or expand abbreviations.
+function formatAddressDisplay(address: string): string {
+  return address
+    .split(' ')
+    .map(word => (word ? word[0].toUpperCase() + word.slice(1).toLowerCase() : word))
+    .join(' ')
+}
+
 function pctDiff(curr: number, prev: number): { n: number; up: boolean } | null {
   if (!prev) return null
   const n = Math.round(((curr - prev) / prev) * 100)
@@ -453,14 +463,12 @@ export default function Dashboard() {
                     const scans = propScanCounts[p.id] || 0
                     const leads = propLeadCounts[p.id] || 0
                     const hot   = propHotLeads[p.id] || 0
-                    const isTop = i === 0 && properties.length >= 2
                     return (
                       <Link key={p.id} href={`/dashboard/properties/${p.id}`} style={{ textDecoration: 'none', display: 'block' }}>
                         <div className="db-hover" style={{ padding: '11px 18px', borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : 'none', background: C.card }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{p.address}</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{formatAddressDisplay(p.address)}</span>
                             <HealthBadge scans={scans} leads={leads} hot={hot} />
-                            {isTop && <span style={{ fontSize: 10, fontWeight: 700, color: '#FCD34D', flexShrink: 0 }}>🏆 Top</span>}
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
                             <span style={{ color: '#FCD34D', fontWeight: 600 }}>{leads}</span><span style={{ color: C.muted }}>Leads</span>

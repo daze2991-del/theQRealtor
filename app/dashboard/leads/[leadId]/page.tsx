@@ -311,7 +311,7 @@ export default function LeadDetailPage() {
     intelBullets.push({ icon: '📋', text: 'Requested property disclosures' })
   if (lead.notes)
     intelBullets.push({ icon: '💬', text: 'Asked a question about the property' })
-  if (lead.motivation === 'hot')
+  if (tierV2 === 'hot')
     intelBullets.push({ icon: '📅', text: 'Requested a showing' })
 
   const dropdownStyle: React.CSSProperties = {

@@ -282,10 +282,13 @@ export default function Dashboard() {
         const short = words.length > 2 ? words.slice(0, 2).join(' ') + '…' : addr
         return ` at ${short}`
       }
-      const motivIconKey: Record<string, string> = { hot: 'flame', motivated: 'flame', warm: 'trending', cold: 'user' }
-      const motivText: Record<string, string> = { hot: 'Hot lead', motivated: 'Warm lead', warm: 'Warm lead', cold: 'New lead' }
+      const tierIconKey: Record<string, string> = { hot: 'flame', warm: 'trending', cold: 'user' }
+      const tierText: Record<string, string> = { hot: 'Hot lead', warm: 'Warm lead', cold: 'New lead' }
       const feedItems: Array<{ iconKey: string; label: string; created_at: string }> = [
-        ...(recentLeadsData || []).map((l: any) => ({ iconKey: motivIconKey[l.motivation] ?? 'user', label: `${motivText[l.motivation] ?? 'New lead'}${shortAddr(l.property_id)}`, created_at: l.created_at })),
+        ...(recentLeadsData || []).map((l: any) => {
+          const t = l.tier && ['hot', 'warm', 'cold'].includes(l.tier) ? l.tier : motivationToTierV2(l.motivation)
+          return { iconKey: tierIconKey[t] ?? 'user', label: `${tierText[t] ?? 'New lead'}${shortAddr(l.property_id)}`, created_at: l.created_at }
+        }),
         // Excludes return-visit scans, which are already surfaced as actionable items in
         // Needs Your Attention — this feed shows recent activity that isn't already actionable there.
         ...(recentScansData || []).filter((e: any) => !e.return_visit).map((e: any) => ({ iconKey: e.return_visit ? 'return' : 'scan', label: `${e.return_visit ? 'Buyer returned' : 'Buyer scanned'}${shortAddr(e.property_id)}`, created_at: e.created_at })),

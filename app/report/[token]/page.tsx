@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { calcPropertyInterest } from '../../../lib/propertyInterest'
 import { timeAgo } from '../../../lib/timeAgo'
+import { motivationToTierV2 } from '../../../lib/leadScoringV2'
 
 // App default agent timezone (matches the SMS quiet-hours default). No per-agent
 // timezone is stored, so peak-engagement grouping uses this for UTC→local.
@@ -191,12 +192,10 @@ export default function SellerReportPage() {
 
   // Must be defined before the KPI counts below so it's in scope.
   // Resolves V2 tier first; falls back to V1 motivation for legacy rows.
-  const tierOf = (l: any): 'hot' | 'warm' | 'cold' => {
-    if (l.tier === 'hot' || l.tier === 'warm' || l.tier === 'cold') return l.tier
-    if (l.motivation === 'hot' || l.motivation === 'motivated') return 'hot'
-    if (l.motivation === 'warm') return 'warm'
-    return 'cold'
-  }
+  // Dedup: this used to reimplement the tier/motivation fallback inline. Same
+  // behavior, now backed by the single source of truth (lib/leadScoringV2).
+  const tierOf = (l: any): 'hot' | 'warm' | 'cold' =>
+    l.tier === 'hot' || l.tier === 'warm' || l.tier === 'cold' ? l.tier : motivationToTierV2(l.motivation)
 
   const totalScans       = scanEvents.length
   // Before fix: counted scan_events with photos_viewed>0 OR time_on_page_sec>60 — both

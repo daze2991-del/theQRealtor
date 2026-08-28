@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import { Flame } from 'lucide-react'
 import DashboardLayout from '../../../components/DashboardLayout'
+import { motivationToTierV2 } from '../../../lib/leadScoringV2'
 
 const C = {
   bg:      '#0F0F13',
@@ -67,9 +68,12 @@ export default function BillingPage() {
 
       if (propIds.length > 0) {
         const { data: leadsData } = await supabase
-          .from('leads').select('motivation').in('property_id', propIds)
+          .from('leads').select('tier, motivation').in('property_id', propIds)
         setLeadCount((leadsData || []).length)
-        setHotLeadCount((leadsData || []).filter((l: any) => l.motivation === 'hot').length)
+        setHotLeadCount((leadsData || []).filter((l: any) => {
+          const t = l.tier && ['hot', 'warm', 'cold'].includes(l.tier) ? l.tier : motivationToTierV2(l.motivation)
+          return t === 'hot'
+        }).length)
       }
 
       if (currentPlan === 'pro') {

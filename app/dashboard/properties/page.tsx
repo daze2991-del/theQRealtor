@@ -7,6 +7,7 @@ import Link from 'next/link'
 import DashboardLayout from '../../../components/DashboardLayout'
 import { propertyLimitForPlan } from '../../../lib/plans'
 import { deactivationPatch } from '../../../lib/propertyStatus'
+import { motivationToTierV2 } from '../../../lib/leadScoringV2'
 
 const C = {
   bg:      '#0F0F13',
@@ -692,12 +693,15 @@ export default function PropertiesPage() {
 
       const rows = [
         // 'Notes' here is leads.notes — the BUYER's submitted message, not agent notes.
-        ['Name', 'Phone', 'Email', 'Status', 'Tier', 'Motivation', 'Buyer Message', 'Submitted'],
-        ...leads.map((l: any) => [
-          l.name || '', l.phone || '', l.email || '',
-          l.status || 'new', l.tier || '', l.motivation || '',
-          l.notes || '', new Date(l.created_at).toLocaleString(),
-        ]),
+        ['Name', 'Phone', 'Email', 'Status', 'Tier', 'Buyer Message', 'Submitted'],
+        ...leads.map((l: any) => {
+          const tier = l.tier && ['hot', 'warm', 'cold'].includes(l.tier) ? l.tier : motivationToTierV2(l.motivation)
+          return [
+            l.name || '', l.phone || '', l.email || '',
+            l.status || 'new', tier,
+            l.notes || '', new Date(l.created_at).toLocaleString(),
+          ]
+        }),
       ]
       const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
       const slug = (prop.address || 'property').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)

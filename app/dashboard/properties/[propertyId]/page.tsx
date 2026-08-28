@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { calcPropertyInterest } from '../../../../lib/propertyInterest'
 import { timeAgo } from '../../../../lib/timeAgo'
 import { deactivationPatch } from '../../../../lib/propertyStatus'
+import { motivationToTierV2 } from '../../../../lib/leadScoringV2'
 
 const C = {
   bg: '#0F0F13', card: '#1A1A24', cardAlt: '#15151E', border: '#252533',
@@ -16,19 +17,25 @@ const C = {
 } as const
 
 const TIER_COLOR: Record<string, string> = {
-  hot: '#EF4444', motivated: '#F97316', warm: '#60A5FA', cold: '#6B7280',
+  hot: '#EF4444', warm: '#60A5FA', cold: '#6B7280',
 }
 const TIER_BG: Record<string, string> = {
-  hot: '#3B0D0D', motivated: '#3B1F0D', warm: '#0F2238', cold: '#1F2937',
+  hot: '#3B0D0D', warm: '#0F2238', cold: '#1F2937',
 }
 const TIER_LABEL: Record<string, string> = {
-  hot: '🔥 Hot', motivated: '⚡ Motivated', warm: '👍 Warm', cold: '❄️ Cold',
+  hot: '🔥 Hot', warm: '👍 Warm', cold: '❄️ Cold',
 }
 const MOCK_PCTS = [12, 8, 24, 15, 6, 19, 31]
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+// V2 tier is the source of truth; falls back to V1 motivation for legacy rows
+// with no tier value (same pattern as app/dashboard/page.tsx:252).
+function leadTier(l: any): 'hot' | 'warm' | 'cold' {
+  return l.tier && ['hot', 'warm', 'cold'].includes(l.tier) ? l.tier : motivationToTierV2(l.motivation)
 }
 
 function getDailyCount(items: any[], days = 14): number[] {
@@ -288,7 +295,7 @@ export default function PropertyIntelligencePage() {
 
   // Health — shared formula via calcPropertyInterest
   const totalLeads = leads.length
-  const showingRequests = leads.filter((l: any) => l.motivation === 'hot').length
+  const showingRequests = leads.filter((l: any) => leadTier(l) === 'hot').length
   const healthCfg = calcPropertyInterest({
     totalLeads,
     totalScans:      scanEvents.length,
@@ -302,8 +309,8 @@ export default function PropertyIntelligencePage() {
   const lastMonthScans    = scanEvents.filter((e: any) => { const d = new Date(e.created_at); return d >= lastMonthStart && d < thisMonthStart }).length
   const thisMonthLeads    = leads.filter((l: any) => new Date(l.created_at) >= thisMonthStart).length
   const lastMonthLeads    = leads.filter((l: any) => { const d = new Date(l.created_at); return d >= lastMonthStart && d < thisMonthStart }).length
-  const thisMonthShowings = leads.filter((l: any) => l.motivation === 'hot' && new Date(l.created_at) >= thisMonthStart).length
-  const lastMonthShowings = leads.filter((l: any) => { const d = new Date(l.created_at); return l.motivation === 'hot' && d >= lastMonthStart && d < thisMonthStart }).length
+  const thisMonthShowings = leads.filter((l: any) => leadTier(l) === 'hot' && new Date(l.created_at) >= thisMonthStart).length
+  const lastMonthShowings = leads.filter((l: any) => { const d = new Date(l.created_at); return leadTier(l) === 'hot' && d >= lastMonthStart && d < thisMonthStart }).length
 
   const scanChangePct    = safePct(thisMonthScans, lastMonthScans)
   const leadChangePct    = safePct(thisMonthLeads, lastMonthLeads)
@@ -312,7 +319,7 @@ export default function PropertyIntelligencePage() {
   // Sparklines
   const scanSparkData    = getDailyCount(scanEvents, 14)
   const leadSparkData    = getDailyCount(leads, 14)
-  const showingSparkData = getDailyCount(leads.filter((l: any) => l.motivation === 'hot'), 14)
+  const showingSparkData = getDailyCount(leads.filter((l: any) => leadTier(l) === 'hot'), 14)
 
   // 7-day / 30-day stats for health card
   const last7Scans  = scanEvents.filter((e: any) => (now.getTime() - new Date(e.created_at).getTime()) < 7 * msPerDay).length
@@ -330,18 +337,21 @@ export default function PropertyIntelligencePage() {
   // Activity feed
   type AEvent = { icon: string; title: string; desc: string; time: string; color: string; bg: string }
   const activityEvents: AEvent[] = [
-    ...leads.slice(0, 8).map((l: any): AEvent => ({
-      icon:  l.motivation === 'hot' ? '🏠' : l.notes ? '💬' : '👤',
-      title: l.motivation === 'hot' ? 'Showing Requested' : l.notes ? 'Buyer Asked Question' : 'New Lead',
-      desc:  l.motivation === 'hot'
-        ? `${l.name} requested a showing`
-        : l.notes
-          ? `${l.name}: "${(l.notes as string).slice(0, 52)}${l.notes.length > 52 ? '…' : ''}"`
-          : `${l.name} submitted a lead`,
-      time:  l.created_at,
-      color: l.motivation === 'hot' ? '#EF4444' : l.notes ? '#10B981' : '#7C3AED',
-      bg:    l.motivation === 'hot' ? '#3B0D0D' : l.notes ? '#052e16' : '#1e1b4b',
-    })),
+    ...leads.slice(0, 8).map((l: any): AEvent => {
+      const isHot = leadTier(l) === 'hot'
+      return {
+        icon:  isHot ? '🏠' : l.notes ? '💬' : '👤',
+        title: isHot ? 'Showing Requested' : l.notes ? 'Buyer Asked Question' : 'New Lead',
+        desc:  isHot
+          ? `${l.name} requested a showing`
+          : l.notes
+            ? `${l.name}: "${(l.notes as string).slice(0, 52)}${l.notes.length > 52 ? '…' : ''}"`
+            : `${l.name} submitted a lead`,
+        time:  l.created_at,
+        color: isHot ? '#EF4444' : l.notes ? '#10B981' : '#7C3AED',
+        bg:    isHot ? '#3B0D0D' : l.notes ? '#052e16' : '#1e1b4b',
+      }
+    }),
     ...scanEvents.slice(0, 8).map((e: any): AEvent => ({
       icon:  e.return_visit ? '↩️' : '📱',
       title: e.return_visit ? 'Repeat Visitor Returned' : 'New Scan',
@@ -353,10 +363,10 @@ export default function PropertyIntelligencePage() {
   ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 5)
 
   // Top leads
-  const TIER_ORDER: Record<string, number> = { hot: 0, motivated: 1, warm: 2, cold: 3 }
+  const TIER_ORDER: Record<string, number> = { hot: 0, warm: 1, cold: 2 }
   const topLeads = [...leads].sort((a: any, b: any) => {
-    const ta = TIER_ORDER[a.motivation] ?? 4
-    const tb = TIER_ORDER[b.motivation] ?? 4
+    const ta = TIER_ORDER[leadTier(a)] ?? 3
+    const tb = TIER_ORDER[leadTier(b)] ?? 3
     return ta !== tb ? ta - tb : new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   }).slice(0, 3)
 
@@ -649,9 +659,10 @@ export default function PropertyIntelligencePage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {topLeads.map((lead: any) => {
                   const initials = (lead.name ?? '??').slice(0, 2).toUpperCase()
-                  const color    = TIER_COLOR[lead.motivation] ?? C.muted
-                  const bg       = TIER_BG[lead.motivation]   ?? '#1F2937'
-                  const action   = lead.motivation === 'hot' ? 'Requested showing' : lead.notes ? 'Asked a question' : 'Submitted lead'
+                  const tier     = leadTier(lead)
+                  const color    = TIER_COLOR[tier] ?? C.muted
+                  const bg       = TIER_BG[tier]   ?? '#1F2937'
+                  const action   = tier === 'hot' ? 'Requested showing' : lead.notes ? 'Asked a question' : 'Submitted lead'
                   return (
                     <div key={lead.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{
@@ -666,7 +677,7 @@ export default function PropertyIntelligencePage() {
                         <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lead.name}</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
                           <span style={{ fontSize: 10, fontWeight: 700, color, background: bg, borderRadius: 20, padding: '1px 7px', border: `1px solid ${color}40` }}>
-                            {TIER_LABEL[lead.motivation] ?? lead.motivation}
+                            {TIER_LABEL[tier] ?? tier}
                           </span>
                           <span style={{ fontSize: 10, color: C.muted }}>{action} · {timeAgo(lead.created_at)}</span>
                         </div>

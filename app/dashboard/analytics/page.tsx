@@ -8,7 +8,7 @@ import {
 } from 'recharts'
 import DashboardLayout from '../../../components/DashboardLayout'
 import { Flame, Home, CalendarCheck, BarChart2, Sparkles, CheckCircle, TrendingUp, Minus } from 'lucide-react'
-import { TIER_V2_CFG } from '../../../lib/leadScoringV2'
+import { TIER_V2_CFG, motivationToTierV2 } from '../../../lib/leadScoringV2'
 
 // ── tokens ──────────────────────────────────────────────────────────────────
 
@@ -48,12 +48,10 @@ function hoursSince(isoStr: string): number {
   return (Date.now() - new Date(isoStr).getTime()) / 3_600_000
 }
 
+// Dedup: this used to reimplement the tier/motivation fallback inline. Same
+// behavior, now backed by the single source of truth (lib/leadScoringV2).
 function leadTier(l: any): 'hot' | 'warm' | 'cold' {
-  if (l.tier === 'hot' || l.tier === 'warm' || l.tier === 'cold') return l.tier
-  // fall back to motivation mapping
-  if (l.motivation === 'hot' || l.motivation === 'motivated') return 'hot'
-  if (l.motivation === 'warm') return 'warm'
-  return 'cold'
+  return l.tier === 'hot' || l.tier === 'warm' || l.tier === 'cold' ? l.tier : motivationToTierV2(l.motivation)
 }
 
 function isUncontacted(l: any): boolean {

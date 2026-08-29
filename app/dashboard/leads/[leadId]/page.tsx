@@ -9,7 +9,7 @@ import { calcIntentScore, scoreToLabel } from '../../../../lib/leadScoring'
 import { calcPropertyInterest } from '../../../../lib/propertyInterest'
 import { timeAgo, parseTimestamp } from '../../../../lib/timeAgo'
 import {
-  computeCallPriority, motivationToTierV2, TIER_V2_CFG, SCORE_GUIDE_V2,
+  computeCallPriority, motivationToTierV2, requestedShowing, TIER_V2_CFG, SCORE_GUIDE_V2,
   breakdownLines, type ScoreBreakdown, type LeadTierV2,
 } from '../../../../lib/leadScoringV2'
 
@@ -120,7 +120,7 @@ export default function LeadDetailPage() {
 
       const [
         propRes, photoRes, qrRes, scanRes,
-        leadCountRes, scanCountRes, showingCountRes,
+        leadCountRes, scanCountRes, showingRes,
       ] = await Promise.all([
         supabase.from('properties').select('*').eq('id', leadData.property_id).single(),
         supabase.from('property_photos').select('url').eq('property_id', leadData.property_id)
@@ -141,8 +141,10 @@ export default function LeadDetailPage() {
         // (see route.ts), so it's a reliable stamp going forward — no need to route
         // through qrcodes (now empty/retired) or signs to get there.
         supabase.from('scan_events').select('*', { count: 'exact', head: true }).eq('property_id', leadData.property_id),
-        supabase.from('leads').select('*', { count: 'exact', head: true })
-          .eq('property_id', leadData.property_id).eq('motivation', 'hot'),
+        // Not a head-count like the others above — requestedShowing() needs the
+        // actual score_breakdown values, filtered client-side like every other
+        // "Showing Requests" site in the app.
+        supabase.from('leads').select('score_breakdown').eq('property_id', leadData.property_id),
       ])
 
       setProperty(propRes.data)
@@ -157,7 +159,7 @@ export default function LeadDetailPage() {
       setPropStats({
         leads:    leadCountRes.count ?? 0,
         scans:    scanCountRes.count ?? 0,
-        showings: showingCountRes.count ?? 0,
+        showings: (showingRes.data ?? []).filter(requestedShowing).length,
       })
       setLoading(false)
     }

@@ -8,7 +8,7 @@ import {
 } from 'recharts'
 import DashboardLayout from '../../../components/DashboardLayout'
 import { Flame, Home, CalendarCheck, BarChart2, Sparkles, CheckCircle, TrendingUp, Minus } from 'lucide-react'
-import { TIER_V2_CFG, motivationToTierV2 } from '../../../lib/leadScoringV2'
+import { TIER_V2_CFG, motivationToTierV2, requestedShowing } from '../../../lib/leadScoringV2'
 
 // ── tokens ──────────────────────────────────────────────────────────────────
 
@@ -56,10 +56,6 @@ function leadTier(l: any): 'hot' | 'warm' | 'cold' {
 
 function isUncontacted(l: any): boolean {
   return (l.status ?? 'new') === 'new'
-}
-
-function requestedShowing(l: any): boolean {
-  return (l.score_breakdown?.requested_showing ?? 0) > 0
 }
 
 const CHART_COLORS = { scans: '#8B5CF6', leads: '#FFD700' }

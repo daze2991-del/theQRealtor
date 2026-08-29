@@ -9,7 +9,7 @@ import { LineChart, Line, ResponsiveContainer, PieChart, Pie, Cell } from 'recha
 import { QrCode, Users, CalendarCheck, Flame, TrendingUp, BarChart2, Home, Bell, Calendar, Share2, Download, RotateCcw, AlertCircle } from 'lucide-react'
 import { calcPropertyInterest } from '../../lib/propertyInterest'
 import { timeAgo } from '../../lib/timeAgo'
-import { motivationToTierV2 } from '../../lib/leadScoringV2'
+import { motivationToTierV2, requestedShowing } from '../../lib/leadScoringV2'
 import NeedsAttention from '../../components/dashboard/NeedsAttention'
 
 // ── Tokens ────────────────────────────────────────────────────────────────────
@@ -176,6 +176,7 @@ export default function Dashboard() {
   const [copiedReport,     setCopiedReport]      = useState(false)
   const [origin,           setOrigin]            = useState('')
   const [buyerInterestCount, setBuyerInterestCount] = useState(0)
+  const [showingRequestsCount, setShowingRequestsCount] = useState(0)
   const [needsFollowUp,    setNeedsFollowUp]     = useState(0)
   const [hotNotCalled,     setHotNotCalled]      = useState(0)
   const [warmNotCalled,    setWarmNotCalled]      = useState(0)
@@ -226,7 +227,7 @@ export default function Dashboard() {
         supabase.from('scan_events').select('property_id').in('property_id', ids),
         supabase.from('leads').select('*').in('property_id', ids).order('created_at', { ascending: false }).limit(20),
         supabase.from('leads').select('*', { count: 'exact', head: true }).in('property_id', ids),
-        supabase.from('leads').select('property_id, motivation, tier, status, created_at').in('property_id', ids),
+        supabase.from('leads').select('property_id, motivation, tier, status, created_at, score_breakdown').in('property_id', ids),
         supabase.from('property_photos').select('property_id, url').in('property_id', ids).order('sort_order', { ascending: true }),
         supabase.from('scan_events').select('property_id, created_at, return_visit').in('property_id', ids).order('created_at', { ascending: false }).limit(50),
         supabase.from('leads').select('*', { count: 'exact', head: true }).in('property_id', ids).gte('created_at', lastMonthISO).lt('created_at', monthISO),
@@ -300,6 +301,7 @@ export default function Dashboard() {
       setPropHotLeads(hotByProp)
       setPipelineCounts(pipeline)
       setBuyerInterestCount((leadsPerProp || []).filter((l: any) => l.tier === 'hot').length)
+      setShowingRequestsCount((leadsPerProp || []).filter(requestedShowing).length)
       setNeedsFollowUp((leadsPerProp || []).filter((l: any) => l.tier === 'hot' && (!l.status || l.status === 'new')).length)
       setHotNotCalled(hotNotCalledCount)
       setWarmNotCalled(warmNotCalledCount)
@@ -390,8 +392,8 @@ export default function Dashboard() {
               </div>
               <div style={{ position: 'relative' }}>
                 <div style={{ width: 36, height: 36, background: C.card, border: `1px solid ${C.border}`, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Bell size={17} color={C.sub} /></div>
-                {hotCount > 0 && (
-                  <div style={{ position: 'absolute', top: -4, right: -4, background: '#EF4444', color: '#fff', fontSize: 10, fontWeight: 800, borderRadius: 10, minWidth: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>{hotCount}</div>
+                {showingRequestsCount > 0 && (
+                  <div style={{ position: 'absolute', top: -4, right: -4, background: '#EF4444', color: '#fff', fontSize: 10, fontWeight: 800, borderRadius: 10, minWidth: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>{showingRequestsCount}</div>
                 )}
               </div>
             </div>
@@ -401,16 +403,16 @@ export default function Dashboard() {
           <div style={{ background: C.card, border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.purple}`, borderRadius: 12, padding: '11px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <div>
               <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Today's Focus</div>
-              {needsFollowUp === 0 && hotCount === 0 ? (
+              {needsFollowUp === 0 && showingRequestsCount === 0 ? (
                 <span style={{ fontSize: 13, color: C.sub }}>You're all caught up — no urgent actions right now.</span>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {needsFollowUp > 0 && <span style={{ fontSize: 13, color: C.sub }}>• {needsFollowUp} high-interest buyer{needsFollowUp !== 1 ? 's' : ''} awaiting contact</span>}
-                  {hotCount > 0 && <span style={{ fontSize: 13, color: C.sub }}>• {hotCount} showing request{hotCount !== 1 ? 's' : ''} pending</span>}
+                  {showingRequestsCount > 0 && <span style={{ fontSize: 13, color: C.sub }}>• {showingRequestsCount} showing request{showingRequestsCount !== 1 ? 's' : ''} pending</span>}
                 </div>
               )}
             </div>
-            {(needsFollowUp > 0 || hotCount > 0) && (
+            {(needsFollowUp > 0 || showingRequestsCount > 0) && (
               <Link href="/dashboard/leads" style={{ fontSize: 12, fontWeight: 700, color: C.purpleL, textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0 }}>Review Leads →</Link>
             )}
           </div>
@@ -419,7 +421,7 @@ export default function Dashboard() {
           <div className="db-kpi4">
             <KpiCard href="/dashboard/leads?status=not_contacted"      icon={<AlertCircle   size={18} color={ACCENT.amber.color}  />} label="Needs Follow-Up"    value={needsFollowUp}      change={null}       accent={ACCENT.amber} caption={needsFollowUp === 0 ? "You're all caught up" : 'High-interest buyers awaiting contact'} />
             <KpiCard href="/dashboard/leads?tier=all&sort=newest"      icon={<Users         size={18} color={ACCENT.green.color}  />} label="New Leads"          value={totalLeads}         change={leadChange} accent={ACCENT.green} caption="Last 30 days" />
-            <KpiCard href="/dashboard/leads?motivation=showing"        icon={<CalendarCheck size={18} color={ACCENT.blue.color}   />} label="Showing Requests"   value={hotCount}           change={null}       accent={ACCENT.blue}  caption={hotCount === 0 ? "Appears when buyers click 'Request a Showing'" : undefined} />
+            <KpiCard href="/dashboard/leads?motivation=showing"        icon={<CalendarCheck size={18} color={ACCENT.blue.color}   />} label="Showing Requests"   value={showingRequestsCount} change={null}     accent={ACCENT.blue}  caption={showingRequestsCount === 0 ? "Appears when buyers click 'Request a Showing'" : undefined} />
             <KpiCard href="/dashboard/leads?tier=hot"                  icon={<Flame         size={18} color={ACCENT.red.color}    />} label="High-Intent Buyers" value={buyerInterestCount} change={null}       accent={ACCENT.red}   caption={buyerInterestCount === 0 ? 'Place your first QR sign to start capturing buyers' : undefined} />
           </div>
 

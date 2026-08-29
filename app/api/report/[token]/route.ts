@@ -53,7 +53,7 @@ export async function GET(
     // it is selected only to derive the has_notes presence flag below, then
     // dropped by the sanitize step after this Promise.all.
     supabase.from('leads')
-      .select('id, tier, motivation, notes, created_at')
+      .select('id, tier, motivation, notes, created_at, score_breakdown')
       .eq('property_id', propertyId).order('created_at', { ascending: false }),
     supabase.from('sign_assignments').select('sign_id, signs(id, label)').eq('property_id', propertyId).is('unassigned_at', null),
   ])
@@ -75,6 +75,10 @@ export async function GET(
     motivation: MOTIVATION_LABELS.has(l.motivation) ? l.motivation : null,
     created_at: l.created_at,
     has_notes:  !!(l.notes && String(l.notes).trim()),                    // presence only — never the text
+    // Single numeric field pulled out of score_breakdown, not the whole object —
+    // requestedShowing() only needs this one value, so there's no reason to widen
+    // what an unauthenticated, forwardable link can see beyond it.
+    score_breakdown: { requested_showing: l.score_breakdown?.requested_showing ?? 0 },
   }))
 
   const qrCodes = ((assignmentRes.data ?? []) as any[])

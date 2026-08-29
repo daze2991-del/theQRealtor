@@ -198,6 +198,17 @@ export function topSignalLabel(
   return tier === 'hot' ? 'Hot engagement' : tier === 'warm' ? 'Warm engagement' : 'Cold engagement'
 }
 
+// ── Discrete "requested a showing" signal ────────────────────────────────────
+// True only when THIS lead clicked the showing CTA with valid contact info
+// (the one-time +15 award in computeScoreV2, above). Independent of tier — a
+// lead can reach 'hot' purely through accumulated engagement (return visits,
+// time on page, photos) without ever requesting a showing, and a showing
+// click always crosses the hot threshold on its own, so this is strictly
+// narrower than tier === 'hot', not equivalent to it.
+export function requestedShowing(l: { score_breakdown?: Partial<ScoreBreakdown> | null } | null | undefined): boolean {
+  return (l?.score_breakdown?.requested_showing ?? 0) > 0
+}
+
 // ── Tier derivation (fallback for V1 rows without tier field) ────────────────
 export function motivationToTierV2(motivation: string | null | undefined): LeadTierV2 {
   if (motivation === 'hot' || motivation === 'motivated') return 'hot'

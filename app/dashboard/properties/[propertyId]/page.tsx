@@ -8,7 +8,7 @@ import Link from 'next/link'
 import { calcPropertyInterest } from '../../../../lib/propertyInterest'
 import { timeAgo } from '../../../../lib/timeAgo'
 import { deactivationPatch } from '../../../../lib/propertyStatus'
-import { motivationToTierV2 } from '../../../../lib/leadScoringV2'
+import { motivationToTierV2, requestedShowing } from '../../../../lib/leadScoringV2'
 
 const C = {
   bg: '#0F0F13', card: '#1A1A24', cardAlt: '#15151E', border: '#252533',
@@ -289,7 +289,7 @@ export default function PropertyIntelligencePage() {
 
   // Health — shared formula via calcPropertyInterest
   const totalLeads = leads.length
-  const showingRequests = leads.filter((l: any) => leadTier(l) === 'hot').length
+  const showingRequests = leads.filter(requestedShowing).length
   const healthCfg = calcPropertyInterest({
     totalLeads,
     totalScans:      scanEvents.length,
@@ -303,8 +303,8 @@ export default function PropertyIntelligencePage() {
   const lastMonthScans    = scanEvents.filter((e: any) => { const d = new Date(e.created_at); return d >= lastMonthStart && d < thisMonthStart }).length
   const thisMonthLeads    = leads.filter((l: any) => new Date(l.created_at) >= thisMonthStart).length
   const lastMonthLeads    = leads.filter((l: any) => { const d = new Date(l.created_at); return d >= lastMonthStart && d < thisMonthStart }).length
-  const thisMonthShowings = leads.filter((l: any) => leadTier(l) === 'hot' && new Date(l.created_at) >= thisMonthStart).length
-  const lastMonthShowings = leads.filter((l: any) => { const d = new Date(l.created_at); return leadTier(l) === 'hot' && d >= lastMonthStart && d < thisMonthStart }).length
+  const thisMonthShowings = leads.filter((l: any) => requestedShowing(l) && new Date(l.created_at) >= thisMonthStart).length
+  const lastMonthShowings = leads.filter((l: any) => { const d = new Date(l.created_at); return requestedShowing(l) && d >= lastMonthStart && d < thisMonthStart }).length
 
   const scanChangePct    = safePct(thisMonthScans, lastMonthScans)
   const leadChangePct    = safePct(thisMonthLeads, lastMonthLeads)
@@ -313,7 +313,7 @@ export default function PropertyIntelligencePage() {
   // Sparklines
   const scanSparkData    = getDailyCount(scanEvents, 14)
   const leadSparkData    = getDailyCount(leads, 14)
-  const showingSparkData = getDailyCount(leads.filter((l: any) => leadTier(l) === 'hot'), 14)
+  const showingSparkData = getDailyCount(leads.filter(requestedShowing), 14)
 
   // 7-day / 30-day stats for health card
   const last7Scans  = scanEvents.filter((e: any) => (now.getTime() - new Date(e.created_at).getTime()) < 7 * msPerDay).length
@@ -332,18 +332,18 @@ export default function PropertyIntelligencePage() {
   type AEvent = { icon: string; title: string; desc: string; time: string; color: string; bg: string }
   const activityEvents: AEvent[] = [
     ...leads.slice(0, 8).map((l: any): AEvent => {
-      const isHot = leadTier(l) === 'hot'
+      const didRequestShowing = requestedShowing(l)
       return {
-        icon:  isHot ? '🏠' : l.notes ? '💬' : '👤',
-        title: isHot ? 'Showing Requested' : l.notes ? 'Buyer Asked Question' : 'New Lead',
-        desc:  isHot
+        icon:  didRequestShowing ? '🏠' : l.notes ? '💬' : '👤',
+        title: didRequestShowing ? 'Showing Requested' : l.notes ? 'Buyer Asked Question' : 'New Lead',
+        desc:  didRequestShowing
           ? `${l.name} requested a showing`
           : l.notes
             ? `${l.name}: "${(l.notes as string).slice(0, 52)}${l.notes.length > 52 ? '…' : ''}"`
             : `${l.name} submitted a lead`,
         time:  l.created_at,
-        color: isHot ? '#EF4444' : l.notes ? '#10B981' : '#7C3AED',
-        bg:    isHot ? '#3B0D0D' : l.notes ? '#052e16' : '#1e1b4b',
+        color: didRequestShowing ? '#EF4444' : l.notes ? '#10B981' : '#7C3AED',
+        bg:    didRequestShowing ? '#3B0D0D' : l.notes ? '#052e16' : '#1e1b4b',
       }
     }),
     ...scanEvents.slice(0, 8).map((e: any): AEvent => ({

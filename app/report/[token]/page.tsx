@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { calcPropertyInterest } from '../../../lib/propertyInterest'
 import { timeAgo } from '../../../lib/timeAgo'
-import { motivationToTierV2 } from '../../../lib/leadScoringV2'
+import { motivationToTierV2, requestedShowing } from '../../../lib/leadScoringV2'
 
 // App default agent timezone (matches the SMS quiet-hours default). No per-agent
 // timezone is stored, so peak-engagement grouping uses this for UTC→local.
@@ -204,7 +204,7 @@ export default function SellerReportPage() {
   // (hot or warm tier), which is a meaningful signal independent of scan_events columns.
   const engagedBuyers    = leads.filter((l: any) => tierOf(l) === 'hot' || tierOf(l) === 'warm').length
   console.log('[seller-report] engagedBuyers (before was 0, now):', engagedBuyers, '| total leads:', leads.length)
-  const showingRequests  = leads.filter((l: any) => tierOf(l) === 'hot').length
+  const showingRequests  = leads.filter(requestedShowing).length
   const buyerQuestions   = leads.filter((l: any) => l.has_notes).length
   const returnVisitors   = scanEvents.filter((e: any) => e.return_visit).length
   const photoViewers     = scanEvents.filter((e: any) => (e.photos_viewed ?? 0) >= 5).length
@@ -213,15 +213,15 @@ export default function SellerReportPage() {
   const lastMonthScans    = scanEvents.filter((e: any) => { const d = new Date(e.created_at); return d >= lastMonthStart && d < thisMonthStart }).length
   const thisMonthEngaged  = leads.filter((l: any) => (tierOf(l) === 'hot' || tierOf(l) === 'warm') && new Date(l.created_at) >= thisMonthStart).length
   const lastMonthEngaged  = leads.filter((l: any) => { const d = new Date(l.created_at); const t = tierOf(l); return (t === 'hot' || t === 'warm') && d >= lastMonthStart && d < thisMonthStart }).length
-  const thisMonthShowings = leads.filter((l: any) => tierOf(l) === 'hot' && new Date(l.created_at) >= thisMonthStart).length
-  const lastMonthShowings = leads.filter((l: any) => { const d = new Date(l.created_at); return tierOf(l) === 'hot' && d >= lastMonthStart && d < thisMonthStart }).length
+  const thisMonthShowings = leads.filter((l: any) => requestedShowing(l) && new Date(l.created_at) >= thisMonthStart).length
+  const lastMonthShowings = leads.filter((l: any) => { const d = new Date(l.created_at); return requestedShowing(l) && d >= lastMonthStart && d < thisMonthStart }).length
   const thisMonthQuestions = leads.filter((l: any) => l.has_notes && new Date(l.created_at) >= thisMonthStart).length
   const lastMonthQuestions = leads.filter((l: any) => { const d = new Date(l.created_at); return l.has_notes && d >= lastMonthStart && d < thisMonthStart }).length
 
   // Sparklines
   const scanSparkData     = getDailyCount(scanEvents, 14)
   const engagedSparkData  = getDailyCount(scanEvents.filter((e: any) => (e.photos_viewed ?? 0) > 0 || (e.time_on_page_sec ?? 0) > 60), 14)
-  const showingSparkData  = getDailyCount(leads.filter((l: any) => tierOf(l) === 'hot'), 14)
+  const showingSparkData  = getDailyCount(leads.filter(requestedShowing), 14)
   const questionSparkData = getDailyCount(leads.filter((l: any) => l.has_notes), 14)
 
   // Health — shared formula via calcPropertyInterest
@@ -250,7 +250,7 @@ export default function SellerReportPage() {
   type AEvent = { icon: string; text: string; time: string; color: string; dot: string }
   const activityEvents: AEvent[] = (() => {
     const events: AEvent[] = []
-    const showingLeads = leads.filter((l: any) => tierOf(l) === 'hot')
+    const showingLeads = leads.filter(requestedShowing)
     if (showingLeads.length === 1) {
       events.push({ icon: '📅', text: 'Buyer requested a showing', time: showingLeads[0].created_at, color: '#EF4444', dot: '#EF4444' })
     } else if (showingLeads.length > 1) {

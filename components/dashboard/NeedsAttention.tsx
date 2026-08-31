@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { User, RotateCcw, MapPin, CheckCircle2, X } from 'lucide-react'
+import { User, RotateCcw, MapPin, CheckCircle2, X, ChevronDown } from 'lucide-react'
 import { createBrowserSupabase } from '../../lib/supabase-browser'
 import { TIER_V2_CFG, motivationToTierV2 } from '../../lib/leadScoringV2'
 import { needsAttention } from '../../lib/leadEligibility'
@@ -64,6 +64,8 @@ export default function NeedsAttention({
 }) {
   const [items,      setItems]      = useState<Item[] | null>(null)
   const [dismissing, setDismissing] = useState<string | null>(null)
+  const [showScrollHint, setShowScrollHint] = useState(false)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   const propAddr: Record<string, string> = {}
   properties.forEach(p => { propAddr[p.id] = p.address })
@@ -160,6 +162,21 @@ export default function NeedsAttention({
     return () => { cancelled = true }
   }, [agentId, propertyKey])
 
+  // Bottom fade + chevron shown any time there's more content below the fold —
+  // driven by actual scroll position, not :hover, so it's visible regardless of
+  // cursor location. Recomputed on scroll, on item-list changes, and on resize
+  // (row heights can wrap differently at narrow widths).
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const update = () => setShowScrollHint(el.scrollHeight - el.scrollTop - el.clientHeight > 4)
+    update()
+    el.addEventListener('scroll', update)
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => { el.removeEventListener('scroll', update); ro.disconnect() }
+  }, [items])
+
   const dismiss = async (propertyId: string) => {
     setDismissing(propertyId)
     const supabase = createBrowserSupabase()
@@ -178,7 +195,7 @@ export default function NeedsAttention({
   const count = items?.length ?? 0
 
   return (
-    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', height: 320, display: 'flex', flexDirection: 'column' }}>
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', height: 320, display: 'flex', flexDirection: 'column', position: 'relative' }}>
       <div style={{ padding: '13px 18px', borderBottom: `1px solid ${C.border}`, background: C.card2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: C.text, display: 'flex', alignItems: 'center', gap: 7 }}>
           Needs Your Attention
@@ -189,7 +206,7 @@ export default function NeedsAttention({
         <Link href="/dashboard/leads" style={{ fontSize: 11, color: C.purpleL, textDecoration: 'none', fontWeight: 600 }}>View all →</Link>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto' }}>
         {items === null ? (
           <div style={{ padding: '32px 18px', textAlign: 'center', color: C.muted, fontSize: 13 }}>Loading…</div>
         ) : items.length === 0 ? (
@@ -277,6 +294,17 @@ export default function NeedsAttention({
           })
         )}
       </div>
+
+      {showScrollHint && (
+        <div style={{
+          position: 'absolute', left: 0, right: 0, bottom: 0, height: 36,
+          background: `linear-gradient(to bottom, transparent, ${C.card} 75%)`,
+          display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 4,
+          pointerEvents: 'none',
+        }}>
+          <ChevronDown size={14} color={C.muted} />
+        </div>
+      )}
     </div>
   )
 }

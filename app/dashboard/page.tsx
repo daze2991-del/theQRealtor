@@ -405,7 +405,10 @@ export default function Dashboard() {
                 <span style={{ fontSize: 12, fontWeight: 600, color: C.sub }}>{monthRange}</span>
               </div>
               <div style={{ position: 'relative' }}>
-                <div style={{ width: 36, height: 36, background: C.card, border: `1px solid ${C.border}`, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Bell size={17} color={C.sub} /></div>
+                <div
+                  onClick={() => router.push('/dashboard/leads?motivation=showing')}
+                  style={{ width: 36, height: 36, background: C.card, border: `1px solid ${C.border}`, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                ><Bell size={17} color={C.sub} /></div>
                 {showingRequestsCount > 0 && (
                   <div style={{ position: 'absolute', top: -4, right: -4, background: '#EF4444', color: '#fff', fontSize: 10, fontWeight: 800, borderRadius: 10, minWidth: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>{showingRequestsCount}</div>
                 )}

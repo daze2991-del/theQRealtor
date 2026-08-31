@@ -344,7 +344,6 @@ export default function Dashboard() {
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
   const monthRange = `${monthStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
 
-  const hotCount        = pipelineCounts.hot || 0
   const scanChange      = pctDiff(totalScansAll, prevMonthScans)
   const leadChange      = pctDiff(totalLeads, lastMonthLeads)
   const topProp         = topPropId ? properties.find(p => p.id === topPropId) : null

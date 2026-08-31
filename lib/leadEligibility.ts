@@ -21,10 +21,18 @@ export interface LeadEligibilityInput {
   spam:           boolean | null | undefined
 }
 
+// Status alone — has this lead been contacted at all? Distinct from
+// isEligibleLead(): a do_not_contact/spam lead with status 'new' has never
+// been contacted, but isn't eligible for follow-up either. Surfaces that mean
+// "was this lead worked" (e.g. a contacted-vs-total funnel stage) should use
+// this, not isEligibleLead(), which would misclassify that lead as contacted.
+export function isUncontacted(l: { status: LeadEligibilityInput['status'] }): boolean {
+  return !l.status || l.status === 'new'
+}
+
 // Base rule: agent ownership is enforced by the caller's query, not here.
 export function isEligibleLead(l: LeadEligibilityInput): boolean {
-  const uncontacted = !l.status || l.status === 'new'
-  return uncontacted && l.do_not_contact !== true && l.spam !== true
+  return isUncontacted(l) && l.do_not_contact !== true && l.spam !== true
 }
 
 // "Needs Follow-Up" KPI — the urgent subset: base rule + hot tier only.

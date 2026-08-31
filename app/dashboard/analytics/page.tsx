@@ -9,7 +9,7 @@ import {
 import DashboardLayout from '../../../components/DashboardLayout'
 import { Flame, Home, CalendarCheck, BarChart2, Sparkles, CheckCircle, TrendingUp, Minus } from 'lucide-react'
 import { TIER_V2_CFG, motivationToTierV2, requestedShowing } from '../../../lib/leadScoringV2'
-import { isEligibleLead } from '../../../lib/leadEligibility'
+import { isEligibleLead, isUncontacted } from '../../../lib/leadEligibility'
 
 // ── tokens ──────────────────────────────────────────────────────────────────
 
@@ -53,13 +53,6 @@ function hoursSince(isoStr: string): number {
 // behavior, now backed by the single source of truth (lib/leadScoringV2).
 function leadTier(l: any): 'hot' | 'warm' | 'cold' {
   return l.tier === 'hot' || l.tier === 'warm' || l.tier === 'cold' ? l.tier : motivationToTierV2(l.motivation)
-}
-
-// Kept only for funnelContacted below, which counts contacted (not
-// eligibility) — everything else on this page now uses the canonical
-// isEligibleLead() from lib/leadEligibility.ts instead.
-function isUncontacted(l: any): boolean {
-  return !l.status || l.status === 'new'
 }
 
 const CHART_COLORS = { scans: '#8B5CF6', leads: '#FFD700' }

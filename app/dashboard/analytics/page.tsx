@@ -9,6 +9,7 @@ import {
 import DashboardLayout from '../../../components/DashboardLayout'
 import { Flame, Home, CalendarCheck, BarChart2, Sparkles, CheckCircle, TrendingUp, Minus } from 'lucide-react'
 import { TIER_V2_CFG, motivationToTierV2, requestedShowing } from '../../../lib/leadScoringV2'
+import { isEligibleLead } from '../../../lib/leadEligibility'
 
 // ── tokens ──────────────────────────────────────────────────────────────────
 
@@ -54,8 +55,11 @@ function leadTier(l: any): 'hot' | 'warm' | 'cold' {
   return l.tier === 'hot' || l.tier === 'warm' || l.tier === 'cold' ? l.tier : motivationToTierV2(l.motivation)
 }
 
+// Kept only for funnelContacted below, which counts contacted (not
+// eligibility) — everything else on this page now uses the canonical
+// isEligibleLead() from lib/leadEligibility.ts instead.
 function isUncontacted(l: any): boolean {
-  return (l.status ?? 'new') === 'new'
+  return !l.status || l.status === 'new'
 }
 
 const CHART_COLORS = { scans: '#8B5CF6', leads: '#FFD700' }
@@ -108,7 +112,7 @@ export default function AnalyticsPage() {
         { count: prevLeads },
       ] = await Promise.all([
         supabase.from('scan_events').select('property_id, created_at').in('property_id', propertyIds).gte('created_at', cutoffStr),
-        supabase.from('leads').select('id, name, property_id, motivation, tier, intent_score, status, last_contacted_at, last_activity_at, score_breakdown, created_at').in('property_id', propertyIds).gte('created_at', cutoffStr),
+        supabase.from('leads').select('id, name, property_id, motivation, tier, intent_score, status, do_not_contact, spam, last_contacted_at, last_activity_at, score_breakdown, created_at').in('property_id', propertyIds).gte('created_at', cutoffStr),
         supabase.from('profiles').select('last_seen_analytics_at').eq('id', session.user.id).single(),
         supabase.from('scan_events').select('*', { count: 'exact', head: true }).in('property_id', propertyIds).gte('created_at', cutoff60Str).lt('created_at', cutoffStr),
         supabase.from('leads').select('*', { count: 'exact', head: true }).in('property_id', propertyIds).gte('created_at', cutoff60Str).lt('created_at', cutoffStr),
@@ -153,8 +157,8 @@ export default function AnalyticsPage() {
 
   // briefing
   const AGING_HOURS = 6
-  const agingHot = leads.filter(l => leadTier(l) === 'hot' && isUncontacted(l) && hoursSince(l.created_at) >= AGING_HOURS)
-  const outstandingShowings = leads.filter(l => requestedShowing(l) && isUncontacted(l))
+  const agingHot = leads.filter(l => leadTier(l) === 'hot' && isEligibleLead(l) && hoursSince(l.created_at) >= AGING_HOURS)
+  const outstandingShowings = leads.filter(l => requestedShowing(l) && isEligibleLead(l))
   const newSinceLastVisit = oldLastSeen ? leads.filter(l => l.created_at > oldLastSeen) : []
   const newHot = newSinceLastVisit.filter(l => leadTier(l) === 'hot')
   const allCaughtUp = agingHot.length === 0 && outstandingShowings.length === 0 && (oldLastSeen === null || newSinceLastVisit.length === 0)
@@ -166,7 +170,7 @@ export default function AnalyticsPage() {
   // tier distribution
   const tierRows = (['hot', 'warm', 'cold'] as const).map(tier => {
     const total = leads.filter(l => leadTier(l) === tier).length
-    const uncontacted = leads.filter(l => leadTier(l) === tier && isUncontacted(l)).length
+    const uncontacted = leads.filter(l => leadTier(l) === tier && isEligibleLead(l)).length
     return { tier, total, uncontacted, cfg: TIER_V2_CFG[tier] }
   })
 
@@ -182,7 +186,7 @@ export default function AnalyticsPage() {
     .map(p => {
       const pScans = scans.filter((s: any) => s.property_id === p.id).length
       const pLeads = leads.filter((l: any) => l.property_id === p.id).length
-      const hasUnworkedHot = leads.some((l: any) => l.property_id === p.id && leadTier(l) === 'hot' && isUncontacted(l))
+      const hasUnworkedHot = leads.some((l: any) => l.property_id === p.id && leadTier(l) === 'hot' && isEligibleLead(l))
       const rawConv = pScans > 0 ? (pLeads / pScans) * 100 : null
       const isCapped = rawConv !== null && rawConv > 100
       const conv = rawConv === null ? '—' : isCapped ? '100%*' : Math.round(rawConv) + '%'

@@ -10,6 +10,7 @@ import { QrCode, Users, CalendarCheck, Flame, TrendingUp, BarChart2, Home, Bell,
 import { calcPropertyInterest } from '../../lib/propertyInterest'
 import { timeAgo } from '../../lib/timeAgo'
 import { motivationToTierV2, requestedShowing } from '../../lib/leadScoringV2'
+import { isEligibleLead, needsFollowUp as isNeedsFollowUpLead } from '../../lib/leadEligibility'
 import NeedsAttention from '../../components/dashboard/NeedsAttention'
 
 // ── Tokens ────────────────────────────────────────────────────────────────────
@@ -218,6 +219,7 @@ export default function Dashboard() {
         { data: leadsPerProp },
         { data: thumbData },
         { data: recentScansData },
+        { data: eligibleLeadsData },
         prevLeadsResult,
         prevScansResult,
       ] = await Promise.all([
@@ -230,6 +232,11 @@ export default function Dashboard() {
         supabase.from('leads').select('property_id, motivation, tier, status, created_at, score_breakdown').in('property_id', ids),
         supabase.from('property_photos').select('property_id, url').in('property_id', ids).order('sort_order', { ascending: true }),
         supabase.from('scan_events').select('property_id, created_at, return_visit').in('property_id', ids).order('created_at', { ascending: false }).limit(50),
+        // Canonical eligible-lead set (lib/leadEligibility.ts) — agent_id-scoped,
+        // not property_id-scoped, so a lead survives here regardless of whether
+        // its property is soft-deleted, hard-deleted, or gone entirely. Feeds
+        // "Needs Follow-Up" and Lead Health's "not yet called" sub-labels.
+        supabase.from('leads').select('tier, motivation, status, do_not_contact, spam').eq('agent_id', session.user.id),
         supabase.from('leads').select('*', { count: 'exact', head: true }).in('property_id', ids).gte('created_at', lastMonthISO).lt('created_at', monthISO),
         supabase.from('scan_events').select('*', { count: 'exact', head: true }).in('property_id', ids).gte('created_at', lastMonthISO).lt('created_at', monthISO),
       ])
@@ -242,7 +249,6 @@ export default function Dashboard() {
       const hotByProp: Record<string, number> = {}
       const pipeline: Record<string, number> = { hot: 0, warm: 0, cold: 0 }
       const monthLeadsByProp: Record<string, number> = {}
-      let hotNotCalledCount = 0, warmNotCalledCount = 0
       ;(leadsPerProp || []).forEach((l: any) => {
         leadMap[l.property_id] = (leadMap[l.property_id] || 0) + 1
         // Lead Health buckets on tier (V2), falling back to motivation only for legacy rows with no tier
@@ -250,11 +256,19 @@ export default function Dashboard() {
         if (pipeline[t] !== undefined) pipeline[t]++
         if (l.motivation === 'hot') hotByProp[l.property_id] = (hotByProp[l.property_id] || 0) + 1
         if (l.created_at >= monthISO) monthLeadsByProp[l.property_id] = (monthLeadsByProp[l.property_id] || 0) + 1
-        const uncontacted = !l.status || l.status === 'new'
-        if (t === 'hot' && uncontacted) hotNotCalledCount++
-        if (t === 'warm' && uncontacted) warmNotCalledCount++
       })
       const topEntry = Object.entries(monthLeadsByProp).sort((a, b) => b[1] - a[1])[0]
+
+      // Canonical eligible-lead counts (agent_id-scoped — see the query comment
+      // above). "Needs Follow-Up" and Lead Health's "Hot: N not yet called" are
+      // now provably the same number, computed once, instead of two independent
+      // property_id-scoped reimplementations that could silently disagree.
+      const eligibleLeads = (eligibleLeadsData || []).map((l: any) => ({
+        ...l,
+        tier: l.tier && ['hot', 'warm', 'cold'].includes(l.tier) ? l.tier : motivationToTierV2(l.motivation),
+      }))
+      const hotNotCalledCount  = eligibleLeads.filter(isNeedsFollowUpLead).length
+      const warmNotCalledCount = eligibleLeads.filter((l: any) => isEligibleLead(l) && l.tier === 'warm').length
 
       const thumbMap: Record<string, string> = {}
       ;(thumbData || []).forEach((t: any) => { if (!thumbMap[t.property_id]) thumbMap[t.property_id] = t.url })
@@ -302,7 +316,7 @@ export default function Dashboard() {
       setPipelineCounts(pipeline)
       setBuyerInterestCount((leadsPerProp || []).filter((l: any) => l.tier === 'hot').length)
       setShowingRequestsCount((leadsPerProp || []).filter(requestedShowing).length)
-      setNeedsFollowUp((leadsPerProp || []).filter((l: any) => l.tier === 'hot' && (!l.status || l.status === 'new')).length)
+      setNeedsFollowUp(hotNotCalledCount)
       setHotNotCalled(hotNotCalledCount)
       setWarmNotCalled(warmNotCalledCount)
       setTopPropId(topEntry?.[0] ?? null)

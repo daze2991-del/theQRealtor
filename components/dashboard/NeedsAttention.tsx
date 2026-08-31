@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { User, RotateCcw, MapPin, CheckCircle2, X } from 'lucide-react'
 import { createBrowserSupabase } from '../../lib/supabase-browser'
-import { TIER_V2_CFG } from '../../lib/leadScoringV2'
+import { TIER_V2_CFG, motivationToTierV2 } from '../../lib/leadScoringV2'
+import { needsAttention } from '../../lib/leadEligibility'
 import { timeAgo, parseTimestamp } from '../../lib/timeAgo'
 
 // ── Tokens (mirrors the dashboard page's local palette) ───────────────────────
@@ -84,20 +85,16 @@ export default function NeedsAttention({
       // rather than sent with an empty IN list.
       const empty = { data: [] as any[], error: null }
       const [leadsRes, scansRes, dismissalsRes] = await Promise.all([
-        // Uncontacted hot/warm leads, scoped by agent_id — the durable owner
-        // stamp (migration 006/030). Unlike property_id scoping this still
-        // surfaces a lead whose property was hard-deleted (property_id nulled),
-        // which is exactly the lead an agent must not silently lose. Note this
-        // can therefore exceed the "Needs Follow-Up" KPI, which counts by
-        // property.
+        // Scoped by agent_id — the durable owner stamp (migration 006/030) —
+        // not property_id, so a lead survives here regardless of whether its
+        // property is soft-deleted, hard-deleted, or gone entirely. Eligibility
+        // itself (uncontacted, not do_not_contact, not spam, hot/warm tier) is
+        // applied client-side via the canonical needsAttention() predicate
+        // below, rather than reimplemented as a chain of query filters here.
         supabase
           .from('leads')
-          .select('id, name, phone, email, property_id, tier, created_at')
+          .select('id, name, phone, email, property_id, tier, motivation, status, do_not_contact, spam, created_at')
           .eq('agent_id', agentId)
-          .in('tier', ['hot', 'warm'])
-          .or('status.is.null,status.eq.new')
-          .not('do_not_contact', 'is', true)
-          .not('spam', 'is', true)
           .order('created_at', { ascending: true }),
         propertyIds.length === 0 ? empty : supabase
           .from('scan_events')
@@ -121,7 +118,9 @@ export default function NeedsAttention({
 
       // Leads — hot first, then warm, oldest first within each tier (the query
       // already returns oldest-first, so partitioning preserves that).
-      const rows = (leadsRes.data || []) as any[]
+      const rows = ((leadsRes.data || []) as any[])
+        .map(l => ({ ...l, tier: l.tier && ['hot', 'warm', 'cold'].includes(l.tier) ? l.tier : motivationToTierV2(l.motivation) }))
+        .filter(needsAttention)
       const toLead = (l: any): LeadItem => ({
         kind: 'lead', id: l.id, name: l.name, phone: l.phone, email: l.email,
         propertyId: l.property_id, tier: l.tier as TierKey,

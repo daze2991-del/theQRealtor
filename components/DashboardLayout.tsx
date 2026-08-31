@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createBrowserSupabase } from '../lib/supabase-browser'
 import { getBetaStatus } from '../lib/beta'
 import { signLimitForPlan } from '../lib/plans'
+import { isEligibleLead } from '../lib/leadEligibility'
 import FeedbackPrompt from './FeedbackPrompt'
 
 const C = {
@@ -363,14 +364,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           .is('archived_at', null)
         const signCnt = sc || 0
 
-        // New/uncontacted lead count for the Leads nav badge.
+        // New/uncontacted lead count for the Leads nav badge. Intentionally
+        // broad — an inbox count, not a priority metric, so no tier narrowing:
+        // uses the base isEligibleLead() (agent_id-scoped, uncontacted, not
+        // do_not_contact, not spam), not needsFollowUp()/needsAttention().
         let newLeadCnt = 0
-        if (propertyIds.length > 0) {
-          const { count: nlc } = await supabase
-            .from('leads').select('id', { count: 'exact', head: true })
-            .in('property_id', propertyIds)
-            .or('status.is.null,status.eq.new')
-          newLeadCnt = nlc || 0
+        {
+          const { data: eligibleLeadsData } = await supabase
+            .from('leads').select('status, do_not_contact, spam')
+            .eq('agent_id', session.user.id)
+          newLeadCnt = (eligibleLeadsData || []).filter(isEligibleLead).length
         }
 
         const rawPlan = (profile?.plan as string) || 'free'

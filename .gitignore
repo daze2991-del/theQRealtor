@@ -7,3 +7,4 @@ node_modules
 *.tsbuildinfo
 .DS_Store
 .claude/settings.local.json
+SESSION_NOTES.md

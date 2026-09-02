@@ -79,6 +79,10 @@ export default function AnalyticsPage() {
 
       setSessionUserId(session.user.id)
 
+      // ── Scope: which properties count for this page. Currently always
+      // "active only" (non-soft-deleted) — a future Active/All-Time toggle
+      // would only need to change what propertyIds resolves to here; every
+      // query below already reads from this one array, nothing else to touch.
       const { data: props } = await supabase
         .from('properties')
         .select('id, address')
@@ -88,8 +92,6 @@ export default function AnalyticsPage() {
 
       const propertyIds = (props || []).map((p: any) => p.id)
       setProperties(props || [])
-
-      if (propertyIds.length === 0) { setLoading(false); return }
 
       const now = new Date()
       const cutoff30 = new Date(now); cutoff30.setDate(cutoff30.getDate() - 29)
@@ -105,6 +107,11 @@ export default function AnalyticsPage() {
         { count: prevLeads },
       ] = await Promise.all([
         supabase.from('scan_events').select('property_id, created_at').in('property_id', propertyIds).gte('created_at', cutoffStr),
+        // Scoped to the same propertyIds as scan_events above (active
+        // properties only), so scans and leads share one population and the
+        // funnel/conversion math stays internally consistent. Deliberately
+        // reverted from agent_id-scoping — see the "Scope" comment above for
+        // where a future Active/All-Time toggle would live instead.
         supabase.from('leads').select('id, name, property_id, motivation, tier, intent_score, status, do_not_contact, spam, last_contacted_at, last_activity_at, score_breakdown, created_at').in('property_id', propertyIds).gte('created_at', cutoffStr),
         supabase.from('profiles').select('last_seen_analytics_at').eq('id', session.user.id).single(),
         supabase.from('scan_events').select('*', { count: 'exact', head: true }).in('property_id', propertyIds).gte('created_at', cutoff60Str).lt('created_at', cutoffStr),

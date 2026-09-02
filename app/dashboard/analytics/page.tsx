@@ -10,6 +10,7 @@ import DashboardLayout from '../../../components/DashboardLayout'
 import { Flame, Home, CalendarCheck, BarChart2, Sparkles, CheckCircle, TrendingUp, Minus } from 'lucide-react'
 import { TIER_V2_CFG, motivationToTierV2, requestedShowing } from '../../../lib/leadScoringV2'
 import { isEligibleLead, isUncontacted } from '../../../lib/leadEligibility'
+import { parseTimestamp } from '../../../lib/timeAgo'
 
 // ── tokens ──────────────────────────────────────────────────────────────────
 
@@ -26,21 +27,86 @@ const C = {
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-function last30Days(): string[] {
-  const days: string[] = []
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date()
-    d.setDate(d.getDate() - i)
-    days.push(d.toISOString().slice(0, 10))
-  }
-  return days
+type Scope = '7' | '30' | '90' | 'all'
+const SCOPE_DAYS: Record<'7' | '30' | '90', number> = { '7': 7, '30': 30, '90': 90 }
+const SCOPE_LABEL: Record<Scope, string> = { '7': 'Last 7 days', '30': 'Last 30 days', '90': 'Last 90 days', all: 'All time' }
+
+type Granularity = 'day' | 'week' | 'month'
+
+// 7/30-day scopes plot daily bars; 90-day plots weekly (else ~90 unreadable
+// bars); All Time plots monthly (unbounded date range otherwise).
+function scopeGranularity(scope: Scope): Granularity {
+  if (scope === '90') return 'week'
+  if (scope === 'all') return 'month'
+  return 'day'
 }
 
-function groupByDay(rows: { created_at: string }[]): Record<string, number> {
+// Bucket key for one row's created_at. Day/month use plain string-slicing on
+// the naive-UTC created_at string (safe — no local-time parsing involved,
+// same approach the old groupByDay always used). Week bucketing needs real
+// date arithmetic to find the bucket's Sunday, so it goes through
+// parseTimestamp (lib/timeAgo.ts) rather than a raw `new Date(string)`, which
+// would misread these naive-UTC timestamps as local time.
+function bucketKey(createdAt: string, granularity: Granularity): string {
+  if (granularity === 'month') return createdAt.slice(0, 7)   // 'YYYY-MM'
+  if (granularity === 'day')   return createdAt.slice(0, 10)  // 'YYYY-MM-DD'
+  const d = new Date(parseTimestamp(createdAt))
+  d.setUTCDate(d.getUTCDate() - d.getUTCDay())
+  d.setUTCHours(0, 0, 0, 0)
+  return d.toISOString().slice(0, 10)
+}
+
+// The ordered x-axis bucket keys to plot, oldest first. For month buckets
+// (All Time), the range is derived from the earliest loaded row rather than
+// fixed, since there's no bounded window — capped at 24 months so a very old
+// first lead can't blow the chart out to hundreds of bars.
+function bucketSequence(scope: Scope, granularity: Granularity, allRows: { created_at: string }[]): string[] {
+  const now = new Date()
+  if (granularity === 'day') {
+    const n = SCOPE_DAYS[scope as '7' | '30']
+    return Array.from({ length: n }, (_, idx) => {
+      const d = new Date(); d.setDate(d.getDate() - (n - 1 - idx))
+      return d.toISOString().slice(0, 10)
+    })
+  }
+  if (granularity === 'week') {
+    const weekStart = new Date(now)
+    weekStart.setUTCDate(weekStart.getUTCDate() - weekStart.getUTCDay())
+    weekStart.setUTCHours(0, 0, 0, 0)
+    return Array.from({ length: 13 }, (_, idx) => {
+      const d = new Date(weekStart); d.setUTCDate(d.getUTCDate() - (12 - idx) * 7)
+      return d.toISOString().slice(0, 10)
+    })
+  }
+  // month
+  if (allRows.length === 0) return [now.toISOString().slice(0, 7)]
+  const minMs = Math.min(...allRows.map(r => parseTimestamp(r.created_at)))
+  const minD  = new Date(minMs)
+  let cursor  = Date.UTC(minD.getUTCFullYear(), minD.getUTCMonth(), 1)
+  const end   = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)
+  const months: string[] = []
+  while (cursor <= end && months.length < 24) {
+    const c = new Date(cursor)
+    months.push(c.toISOString().slice(0, 7))
+    cursor = Date.UTC(c.getUTCFullYear(), c.getUTCMonth() + 1, 1)
+  }
+  return months
+}
+
+function formatBucketLabel(key: string, granularity: Granularity): string {
+  if (granularity === 'month') {
+    const [y, m] = key.split('-').map(Number)
+    return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString('en-US', { month: 'short', year: '2-digit', timeZone: 'UTC' })
+  }
+  const label = new Date(`${key}T00:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+  return granularity === 'week' ? `Wk ${label}` : label
+}
+
+function groupByBucket(rows: { created_at: string }[], granularity: Granularity): Record<string, number> {
   const map: Record<string, number> = {}
   rows.forEach(r => {
-    const day = r.created_at.slice(0, 10)
-    map[day] = (map[day] || 0) + 1
+    const key = bucketKey(r.created_at, granularity)
+    map[key] = (map[key] || 0) + 1
   })
   return map
 }
@@ -62,6 +128,7 @@ const CHART_COLORS = { scans: '#8B5CF6', leads: '#FFD700' }
 export default function AnalyticsPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
+  const [scope, setScope] = useState<Scope>('30')
 
   const [scans, setScans]           = useState<any[]>([])
   const [leads, setLeads]           = useState<any[]>([])
@@ -73,31 +140,61 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     const load = async () => {
+      setLoading(true)
       const supabase = createBrowserSupabase()
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.push('/auth'); return }
 
       setSessionUserId(session.user.id)
 
-      // ── Scope: which properties count for this page. Currently always
-      // "active only" (non-soft-deleted) — a future Active/All-Time toggle
-      // would only need to change what propertyIds resolves to here; every
-      // query below already reads from this one array, nothing else to touch.
-      const { data: props } = await supabase
+      const activeOnly = scope !== 'all'
+
+      // ── Scope: which properties count for this page. 7/30/90-day windows
+      // stay active-properties-only (today's fix). All Time also includes
+      // archived/soft-deleted properties — a true all-time view that still
+      // excluded sold listings would be misleading. This is the one place a
+      // future explicit Active/All-Time toggle would need to change; every
+      // query below already reads from propertyIds/props derived here.
+      let propsQuery = supabase
         .from('properties')
         .select('id, address')
         .eq('user_id', session.user.id)
-        .is('deleted_at', null)
         .order('created_at', { ascending: false })
+      if (activeOnly) propsQuery = propsQuery.is('deleted_at', null)
+      const { data: props } = await propsQuery
 
       const propertyIds = (props || []).map((p: any) => p.id)
       setProperties(props || [])
 
       const now = new Date()
-      const cutoff30 = new Date(now); cutoff30.setDate(cutoff30.getDate() - 29)
-      const cutoff60 = new Date(now); cutoff60.setDate(cutoff60.getDate() - 59)
-      const cutoffStr  = cutoff30.toISOString()
-      const cutoff60Str = cutoff60.toISOString()
+      // Bounded scopes (7/30/90) get a date cutoff and a same-length prior
+      // window for comparison. All Time has neither — no cutoff (the whole
+      // history counts) and no well-defined "period before all time", so the
+      // prior-period queries are skipped entirely below.
+      let cutoffStr: string | null = null
+      let priorStartStr: string | null = null
+      if (activeOnly) {
+        const n = SCOPE_DAYS[scope as '7' | '30' | '90']
+        const cutoff = new Date(now); cutoff.setDate(cutoff.getDate() - (n - 1))
+        const priorStart = new Date(now); priorStart.setDate(priorStart.getDate() - (2 * n - 1))
+        cutoffStr = cutoff.toISOString()
+        priorStartStr = priorStart.toISOString()
+      }
+
+      let scanQuery = supabase.from('scan_events').select('property_id, created_at').in('property_id', propertyIds)
+      if (cutoffStr) scanQuery = scanQuery.gte('created_at', cutoffStr)
+
+      let leadQuery = supabase.from('leads').select('id, name, property_id, motivation, tier, intent_score, status, do_not_contact, spam, last_contacted_at, last_activity_at, score_breakdown, created_at').in('property_id', propertyIds)
+      if (cutoffStr) leadQuery = leadQuery.gte('created_at', cutoffStr)
+
+      const profileQuery = supabase.from('profiles').select('last_seen_analytics_at').eq('id', session.user.id).single()
+
+      const prevScanQuery = (cutoffStr && priorStartStr)
+        ? supabase.from('scan_events').select('*', { count: 'exact', head: true }).in('property_id', propertyIds).gte('created_at', priorStartStr).lt('created_at', cutoffStr)
+        : Promise.resolve({ count: 0 })
+      const prevLeadQuery = (cutoffStr && priorStartStr)
+        ? supabase.from('leads').select('*', { count: 'exact', head: true }).in('property_id', propertyIds).gte('created_at', priorStartStr).lt('created_at', cutoffStr)
+        : Promise.resolve({ count: 0 })
 
       const [
         { data: scanData },
@@ -105,18 +202,7 @@ export default function AnalyticsPage() {
         { data: profileData },
         { count: prevScans },
         { count: prevLeads },
-      ] = await Promise.all([
-        supabase.from('scan_events').select('property_id, created_at').in('property_id', propertyIds).gte('created_at', cutoffStr),
-        // Scoped to the same propertyIds as scan_events above (active
-        // properties only), so scans and leads share one population and the
-        // funnel/conversion math stays internally consistent. Deliberately
-        // reverted from agent_id-scoping — see the "Scope" comment above for
-        // where a future Active/All-Time toggle would live instead.
-        supabase.from('leads').select('id, name, property_id, motivation, tier, intent_score, status, do_not_contact, spam, last_contacted_at, last_activity_at, score_breakdown, created_at').in('property_id', propertyIds).gte('created_at', cutoffStr),
-        supabase.from('profiles').select('last_seen_analytics_at').eq('id', session.user.id).single(),
-        supabase.from('scan_events').select('*', { count: 'exact', head: true }).in('property_id', propertyIds).gte('created_at', cutoff60Str).lt('created_at', cutoffStr),
-        supabase.from('leads').select('*', { count: 'exact', head: true }).in('property_id', propertyIds).gte('created_at', cutoff60Str).lt('created_at', cutoffStr),
-      ])
+      ] = await Promise.all([scanQuery, leadQuery, profileQuery, prevScanQuery, prevLeadQuery])
 
       const lastSeen = profileData?.last_seen_analytics_at ?? null
       setOldLastSeen(lastSeen)
@@ -130,19 +216,22 @@ export default function AnalyticsPage() {
       supabase.from('profiles').update({ last_seen_analytics_at: now.toISOString() }).eq('id', session.user.id).then(() => {})
     }
     load()
-  }, [])
+  }, [scope])
 
   // ── derived data ──────────────────────────────────────────────────────────
 
-  const days        = last30Days()
-  const scansByDay  = groupByDay(scans)
-  const leadsByDay  = groupByDay(leads)
+  const granularity   = scopeGranularity(scope)
+  const buckets       = bucketSequence(scope, granularity, [...scans, ...leads])
+  const scansByBucket = groupByBucket(scans, granularity)
+  const leadsByBucket = groupByBucket(leads, granularity)
 
-  const timelineData = days.map(day => ({
-    day: day.slice(5),
-    Scans: scansByDay[day] || 0,
-    Leads: leadsByDay[day] || 0,
+  const timelineData = buckets.map(key => ({
+    day: formatBucketLabel(key, granularity),
+    Scans: scansByBucket[key] || 0,
+    Leads: leadsByBucket[key] || 0,
   }))
+  // Roughly 6 visible x-axis labels regardless of bucket count/granularity.
+  const xAxisInterval = buckets.length <= 10 ? 0 : Math.ceil(buckets.length / 6) - 1
 
   const totalScans  = scans.length
   const totalLeads  = leads.length
@@ -252,8 +341,17 @@ export default function AnalyticsPage() {
               <h1 style={{ fontSize: 20, fontWeight: 800, color: C.text, margin: 0, letterSpacing: '-0.02em' }}>
                 Analytics
               </h1>
-              <p style={{ fontSize: 12, color: C.muted, margin: '2px 0 0' }}>Last 30 days</p>
             </div>
+            <select
+              value={scope}
+              onChange={e => setScope(e.target.value as Scope)}
+              style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 13, padding: '6px 10px', outline: 'none', cursor: 'pointer' }}
+            >
+              <option value="7">Last 7 days</option>
+              <option value="30">Last 30 days</option>
+              <option value="90">Last 90 days</option>
+              <option value="all">All time</option>
+            </select>
           </div>
 
           {/* Page body */}
@@ -401,7 +499,7 @@ export default function AnalyticsPage() {
                       <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>Capped at 100% — includes pre-fix leads</div>
                     )}
                     {!convCapped && convDelta !== null && (
-                      <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>vs your prior 30-day avg</div>
+                      <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>vs your prior {scope}-day avg</div>
                     )}
                     {!convCapped && convPrev === null && (
                       <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>Not enough history for comparison</div>
@@ -559,13 +657,13 @@ export default function AnalyticsPage() {
 
             {/* ── COMBINED TREND CHART ───────────────────────────────────── */}
             <div style={card}>
-              <div style={h2}>Activity — last 30 days</div>
+              <div style={h2}>Activity — {SCOPE_LABEL[scope].toLowerCase()}</div>
               {scans.length === 0 && leads.length === 0
                 ? <p style={{ color: C.muted, fontSize: 14 }}>No activity recorded yet. Generate a QR code and place it on yard signs, open houses, and flyers.</p>
                 : (
                   <ResponsiveContainer width="100%" height={200}>
                     <BarChart data={timelineData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                      <XAxis dataKey="day" tick={{ fill: C.muted, fontSize: 10 }} tickLine={false} axisLine={false} interval={6} />
+                      <XAxis dataKey="day" tick={{ fill: C.muted, fontSize: 10 }} tickLine={false} axisLine={false} interval={xAxisInterval} />
                       <YAxis tick={{ fill: C.muted, fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
                       <Tooltip
                         contentStyle={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text }}

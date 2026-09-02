@@ -66,9 +66,12 @@ export default function BillingPage() {
         .eq('agent_id', session.user.id)
       setQrCount(qrCnt || 0)
 
-      if (propIds.length > 0) {
+      {
+        // agent_id-scoped, not property_id — accumulated lead history (and the
+        // hot-lead count) must persist past a property being archived, same
+        // rationale as the dashboard's eligibility counts and analytics page.
         const { data: leadsData } = await supabase
-          .from('leads').select('tier, motivation').in('property_id', propIds)
+          .from('leads').select('tier, motivation').eq('agent_id', session.user.id)
         setLeadCount((leadsData || []).length)
         setHotLeadCount((leadsData || []).filter((l: any) => {
           const t = l.tier && ['hot', 'warm', 'cold'].includes(l.tier) ? l.tier : motivationToTierV2(l.motivation)

@@ -358,6 +358,7 @@ export default function PropertyPage() {
     </div>
   )
 
+  const isArchived = !!property.deleted_at
   const price    = formatPrice(property.price)
   const beds     = statLabel(property.beds, 'bed', 'beds')
   const baths    = statLabel(property.baths, 'bath', 'baths')
@@ -438,6 +439,17 @@ export default function PropertyPage() {
           </div>
         )}
 
+        {isArchived && (
+          <div style={{
+            margin: '14px 18px 0', background: 'rgba(239,68,68,0.12)',
+            border: '1px solid rgba(239,68,68,0.4)', borderRadius: 10,
+            padding: '10px 14px', color: '#FCA5A5', fontSize: 13, fontWeight: 700,
+            textAlign: 'center',
+          }}>
+            Listing Archived — No Longer Active
+          </div>
+        )}
+
         {/* ── Property info ── */}
         <div style={{ padding: '22px 18px 0' }}>
           {price && <div style={{ color: '#ffffff', fontSize: 28, fontWeight: 900, marginBottom: 6, letterSpacing: '-0.02em' }}>{price}</div>}
@@ -481,31 +493,43 @@ export default function PropertyPage() {
 
         {/* ── PHASE 2: CTA buttons ── */}
         <div style={{ padding: '0 18px 32px' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
-            Connect with the Agent
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            {CTAS.map(cta => (
-              <button
-                key={cta.id}
-                className="cta-btn"
-                onClick={() => { ctaClickedRef.current = cta.id; setIntent(cta.id); setSubmitted(false); setError(''); setPhoneErr(''); setEmailErr(''); setName(''); setPhone(''); setEmail(''); setQuestion(''); setContactPref([]) }}
-                style={{
-                  background: cta.colorBg, border: `1px solid ${cta.color}40`,
-                  borderRadius: 14, padding: '16px 14px',
-                  cursor: 'pointer', textAlign: 'left', fontFamily: 'sans-serif',
-                  display: 'flex', flexDirection: 'column', gap: 6,
-                }}
-              >
-                <span style={{ fontSize: 24, lineHeight: 1 }}>{cta.icon}</span>
-                <span style={{ fontSize: 14, fontWeight: 800, color: cta.color, lineHeight: 1.2 }}>{cta.label}</span>
-                <span style={{ fontSize: 11, color: C.muted, lineHeight: 1.3 }}>{cta.sub}</span>
-              </button>
-            ))}
-          </div>
-          <p style={{ fontSize: 12, color: C.muted, lineHeight: 1.55, margin: '14px 0 0' }}>
-            * By connecting with the listing agent, you confirm you are not currently represented by a buyer&apos;s agent. If you are working with an agent, please have them contact the listing agent directly.
-          </p>
+          {isArchived ? (
+            <div style={{
+              background: 'rgba(255,255,255,0.03)', border: `1px solid ${C.border}`,
+              borderRadius: 12, padding: '16px', textAlign: 'center',
+              color: C.muted, fontSize: 13, lineHeight: 1.6,
+            }}>
+              This property is no longer available.
+            </div>
+          ) : (
+            <>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
+                Connect with the Agent
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {CTAS.map(cta => (
+                  <button
+                    key={cta.id}
+                    className="cta-btn"
+                    onClick={() => { ctaClickedRef.current = cta.id; setIntent(cta.id); setSubmitted(false); setError(''); setPhoneErr(''); setEmailErr(''); setName(''); setPhone(''); setEmail(''); setQuestion(''); setContactPref([]) }}
+                    style={{
+                      background: cta.colorBg, border: `1px solid ${cta.color}40`,
+                      borderRadius: 14, padding: '16px 14px',
+                      cursor: 'pointer', textAlign: 'left', fontFamily: 'sans-serif',
+                      display: 'flex', flexDirection: 'column', gap: 6,
+                    }}
+                  >
+                    <span style={{ fontSize: 24, lineHeight: 1 }}>{cta.icon}</span>
+                    <span style={{ fontSize: 14, fontWeight: 800, color: cta.color, lineHeight: 1.2 }}>{cta.label}</span>
+                    <span style={{ fontSize: 11, color: C.muted, lineHeight: 1.3 }}>{cta.sub}</span>
+                  </button>
+                ))}
+              </div>
+              <p style={{ fontSize: 12, color: C.muted, lineHeight: 1.55, margin: '14px 0 0' }}>
+                * By connecting with the listing agent, you confirm you are not currently represented by a buyer&apos;s agent. If you are working with an agent, please have them contact the listing agent directly.
+              </p>
+            </>
+          )}
         </div>
 
       </div>

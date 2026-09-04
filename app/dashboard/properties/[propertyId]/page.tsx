@@ -164,7 +164,7 @@ export default function PropertyIntelligencePage() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.push('/auth'); return }
 
-      const { data: prop } = await supabase.from('properties').select('*').eq('id', propertyId).is('deleted_at', null).single()
+      const { data: prop } = await supabase.from('properties').select('*').eq('id', propertyId).single()
       if (!prop || prop.user_id !== session.user.id) { router.push('/dashboard/properties'); return }
       setProperty(prop)
 
@@ -280,6 +280,7 @@ export default function PropertyIntelligencePage() {
   if (!property) return null
 
   // ── Derived values ────────────────────────────────────────────────────────
+  const isArchived   = !!property.deleted_at
   const heroPhoto    = photos[0]?.url ?? null
   const location     = [property.city, property.state].filter(Boolean).join(', ')
   const now          = new Date()
@@ -409,6 +410,17 @@ export default function PropertyIntelligencePage() {
         background: C.bg, borderBottom: `1px solid ${C.border}`,
         padding: '12px 28px', fontFamily: 'sans-serif',
       }}>
+        {isArchived && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            background: 'rgba(239,68,68,0.18)', border: '1px solid rgba(239,68,68,0.6)',
+            borderRadius: 10, padding: '10px 16px', marginBottom: 12,
+            fontSize: 14, fontWeight: 800, color: '#FCA5A5',
+          }}>
+            <span style={{ fontSize: 18 }}>🗄️</span>
+            Archived — This listing is no longer active
+          </div>
+        )}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
           {/* Left: back + title */}
           <div>
@@ -430,7 +442,7 @@ export default function PropertyIntelligencePage() {
             </div>
             <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>
               {location && <span>{location} · </span>}
-              <span>{property.active ? 'Active Listing' : 'Offline'}</span>
+              <span>{isArchived ? 'Archived' : property.active ? 'Active Listing' : 'Offline'}</span>
               <span> · Created {fmtDate(property.created_at)}</span>
             </div>
           </div>
@@ -460,20 +472,26 @@ export default function PropertyIntelligencePage() {
               >⋮</button>
               {menuOpen && (
                 <div style={dropdownStyle}>
-                  <button className="pi-menu-item" onClick={() => { setMenuOpen(false); openEdit() }}
-                    style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '10px 16px', cursor: 'pointer' }}>
-                    ✏️ Edit Property
-                  </button>
+                  {!isArchived && (
+                    <button className="pi-menu-item" onClick={() => { setMenuOpen(false); openEdit() }}
+                      style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '10px 16px', cursor: 'pointer' }}>
+                      ✏️ Edit Property
+                    </button>
+                  )}
                   <a href={`/p/${propertyId}`} target="_blank" rel="noreferrer"
                     style={{ display: 'block', color: C.sub, fontSize: 13, padding: '10px 16px', textDecoration: 'none' }}
                     onClick={() => setMenuOpen(false)}>
                     🔗 View Buyer Page
                   </a>
-                  <div style={{ height: 1, background: C.border }} />
-                  <button className="pi-menu-item" onClick={() => { setMenuOpen(false); deleteProp() }} disabled={deleting}
-                    style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: '#EF4444', fontSize: 13, padding: '10px 16px', cursor: deleting ? 'not-allowed' : 'pointer' }}>
-                    {deleting ? '…' : '🗑️ Delete Property'}
-                  </button>
+                  {!isArchived && (
+                    <>
+                      <div style={{ height: 1, background: C.border }} />
+                      <button className="pi-menu-item" onClick={() => { setMenuOpen(false); deleteProp() }} disabled={deleting}
+                        style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: '#EF4444', fontSize: 13, padding: '10px 16px', cursor: deleting ? 'not-allowed' : 'pointer' }}>
+                        {deleting ? '…' : '🗑️ Delete Property'}
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -539,17 +557,19 @@ export default function PropertyIntelligencePage() {
                   🏠
                 </div>
               )}
-              <button
-                onClick={openEdit}
-                style={{
-                  position: 'absolute', top: 10, right: 10,
-                  background: 'rgba(0,0,0,0.65)', border: `1px solid rgba(255,255,255,0.2)`,
-                  borderRadius: 8, padding: '6px 12px', color: '#fff',
-                  fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                }}
-              >
-                ✏️ Edit Property
-              </button>
+              {!isArchived && (
+                <button
+                  onClick={openEdit}
+                  style={{
+                    position: 'absolute', top: 10, right: 10,
+                    background: 'rgba(0,0,0,0.65)', border: `1px solid rgba(255,255,255,0.2)`,
+                    borderRadius: 8, padding: '6px 12px', color: '#fff',
+                    fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  }}
+                >
+                  ✏️ Edit Property
+                </button>
+              )}
             </div>
             <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
               <a href={`/p/${propertyId}`} target="_blank" rel="noreferrer" className="pi-btn"

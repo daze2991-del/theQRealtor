@@ -157,7 +157,7 @@ export default function AnalyticsPage() {
       // query below already reads from propertyIds/props derived here.
       let propsQuery = supabase
         .from('properties')
-        .select('id, address')
+        .select('id, address, deleted_at')
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: false })
       if (activeOnly) propsQuery = propsQuery.is('deleted_at', null)
@@ -279,7 +279,7 @@ export default function AnalyticsPage() {
       const rawConv = pScans > 0 ? (pLeads / pScans) * 100 : null
       const isCapped = rawConv !== null && rawConv > 100
       const conv = rawConv === null ? '—' : isCapped ? '100%*' : Math.round(rawConv) + '%'
-      return { address: p.address, scans: pScans, leads: pLeads, conv, isCapped, flag: hasUnworkedHot }
+      return { address: p.address, scans: pScans, leads: pLeads, conv, isCapped, flag: hasUnworkedHot, archived: !!p.deleted_at }
     })
     .sort((a, b) => b.scans - a.scans)
   const anyLeaderboardCapped = leaderboardRows.some(r => r.isCapped)
@@ -582,6 +582,20 @@ export default function AnalyticsPage() {
                               <td style={td}>
                                 <span style={{ marginRight: 4 }}>{row.flag ? '🔥' : ''}</span>
                                 {row.address}
+                                {row.archived && (
+                                  <span style={{
+                                    marginLeft: 8,
+                                    fontSize: 10,
+                                    fontWeight: 600,
+                                    color: C.muted,
+                                    border: `1px solid ${C.muted}`,
+                                    borderRadius: 4,
+                                    padding: '1px 5px',
+                                    verticalAlign: 'middle',
+                                  }}>
+                                    Archived
+                                  </span>
+                                )}
                               </td>
                               <td style={{ ...td, textAlign: 'right', color: C.purpleL, fontWeight: 700 }}>{row.scans}</td>
                               <td style={{ ...td, textAlign: 'right', color: '#FFD700', fontWeight: 700 }}>{row.leads}</td>

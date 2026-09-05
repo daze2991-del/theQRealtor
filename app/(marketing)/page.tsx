@@ -14,6 +14,7 @@ import {
   Users,
   Clock,
 } from 'lucide-react'
+import { pricingTierConfig, PRICING_CLARIFIER } from '../../lib/pricing'
 
 const PURPLE = '#534AB7'
 
@@ -624,16 +625,16 @@ function Pricing() {
             viewport={viewportOnce}
             transition={{ duration: 0.5, ease: 'easeOut', delay: 0 }}
           >
-            <div className="text-sm font-semibold text-gray-400 mb-2">Starter</div>
+            <div className="text-sm font-semibold text-gray-400 mb-2">{pricingTierConfig('starter').displayName}</div>
             <div className="flex items-baseline gap-1 mb-5">
-              <span className="text-4xl font-bold tracking-tight text-gray-900">$39</span>
-              <span className="text-sm text-gray-400">/mo</span>
+              <span className="text-4xl font-bold tracking-tight text-gray-900">{pricingTierConfig('starter').displayPrice.split('/')[0]}</span>
+              <span className="text-sm text-gray-400">/{pricingTierConfig('starter').displayPrice.split('/')[1]}</span>
             </div>
-            <p className="text-sm font-semibold text-gray-900 mb-1">
-              Know which buyers are engaged on your active listings.
+            <p className="text-sm text-gray-500 leading-relaxed mb-3">
+              {pricingTierConfig('starter').copy}
             </p>
             <p className="text-sm text-gray-500 leading-relaxed mb-6">
-              Up to 3 active listings and 5 active signs at a time. Every scan, return visit, and inquiry lands in your dashboard with a Hot / Warm / Cold engagement score — so you know who to call before you pick up the phone.
+              {PRICING_CLARIFIER}
             </p>
             <Link
               href="/auth?tab=signup"
@@ -655,16 +656,16 @@ function Pricing() {
             <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#534AB7] text-white text-[11px] font-bold tracking-wide rounded-full px-4 py-1">
               Most popular
             </div>
-            <div className="text-sm font-semibold text-gray-400 mb-2">Pro</div>
+            <div className="text-sm font-semibold text-gray-400 mb-2">{pricingTierConfig('pro').displayName}</div>
             <div className="flex items-baseline gap-1 mb-5">
-              <span className="text-4xl font-bold tracking-tight text-gray-900">$79</span>
-              <span className="text-sm text-gray-400">/mo</span>
+              <span className="text-4xl font-bold tracking-tight text-gray-900">{pricingTierConfig('pro').displayPrice.split('/')[0]}</span>
+              <span className="text-sm text-gray-400">/{pricingTierConfig('pro').displayPrice.split('/')[1]}</span>
             </div>
-            <p className="text-sm font-semibold text-gray-900 mb-1">
-              See buyer interest across your entire pipeline.
+            <p className="text-sm text-gray-500 leading-relaxed mb-3">
+              {pricingTierConfig('pro').copy}
             </p>
             <p className="text-sm text-gray-500 leading-relaxed mb-6">
-              Everything in Starter, with unlimited active listings and up to 25 active signs. Add engagement trends over time and multi-listing comparison — so you always know which properties are heating up and where your follow-up energy belongs.
+              {PRICING_CLARIFIER}
             </p>
             <Link
               href="/auth?tab=signup"

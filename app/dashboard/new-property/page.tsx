@@ -6,6 +6,7 @@ import { createBrowserSupabase } from "@/lib/supabase-browser";
 import DashboardLayout from "@/components/DashboardLayout";
 import { getBetaStatus } from "@/lib/beta";
 import { propertyLimitForPlan } from "@/lib/plans";
+import { PRICING_TIERS, PRICING_CLARIFIER, pricingTierConfig, type PricingTier } from "@/lib/pricing";
 
 const C = {
   bg:      '#0F0F13',
@@ -93,12 +94,12 @@ export default function NewPropertyPage() {
     checkLimit();
   }, []);
 
-  const handleCheckout = async (billingPlan: 'monthly' | 'yearly') => {
+  const handleCheckout = async (tier: PricingTier) => {
     setCheckingOut(true);
     const res = await fetch('/api/stripe/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan: billingPlan }),
+      body: JSON.stringify({ tier, interval: 'month' }),
     });
     const { url } = await res.json();
     if (url) window.location.href = url;
@@ -229,47 +230,79 @@ export default function NewPropertyPage() {
   }
 
   if (blocked) {
+    // The only two plans with a non-null listing limit are 'free' and
+    // 'starter' (see lib/plans.ts) — pro/elite/founding/alpha are all null
+    // and can never reach this blocked state, so these are the only two
+    // branches that exist.
+    const proCfg = pricingTierConfig('pro');
     return (
       <DashboardLayout>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
           <div style={{
             background: C.card, border: `1px solid ${C.border}`,
-            borderRadius: 20, padding: '48px 40px', maxWidth: 480,
+            borderRadius: 20, padding: '48px 40px', maxWidth: blockedPlan === 'starter' ? 480 : 620,
             textAlign: 'center', fontFamily: 'sans-serif',
           }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
-            <h2 style={{ fontSize: 20, fontWeight: 800, color: C.text, marginBottom: 8 }}>
-              {blockedPlan === 'starter' ? 'Starter plan limit reached' : 'Free plan limit reached'}
-            </h2>
-            <p style={{ color: C.muted, marginBottom: 28, fontSize: 14 }}>
-              {blockedPlan === 'starter'
-                ? `You've reached your plan's limit of ${propertyLimitForPlan('starter')} properties. Upgrade to Pro for unlimited properties.`
-                : 'Upgrade to Pro to add unlimited properties.'}
-            </p>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <button
-                onClick={() => handleCheckout('monthly')}
-                disabled={checkingOut}
-                style={{
-                  background: C.purple, color: '#fff', border: 'none',
-                  borderRadius: 10, padding: '11px 22px', fontSize: 14, fontWeight: 700,
-                  cursor: checkingOut ? 'not-allowed' : 'pointer', opacity: checkingOut ? 0.7 : 1,
-                }}
-              >
-                {checkingOut ? 'Redirecting…' : 'Monthly — $19/mo'}
-              </button>
-              <button
-                onClick={() => handleCheckout('yearly')}
-                disabled={checkingOut}
-                style={{
-                  background: 'transparent', color: C.sub, border: `1px solid ${C.border}`,
-                  borderRadius: 10, padding: '11px 22px', fontSize: 14, fontWeight: 600,
-                  cursor: checkingOut ? 'not-allowed' : 'pointer', opacity: checkingOut ? 0.7 : 1,
-                }}
-              >
-                {checkingOut ? 'Redirecting…' : 'Yearly — $159/yr'}
-              </button>
-            </div>
+            {blockedPlan === 'starter' ? (
+              // Starter agent at their cap: exactly one sensible upgrade path.
+              <>
+                <h2 style={{ fontSize: 20, fontWeight: 800, color: C.text, marginBottom: 8 }}>
+                  Starter plan limit reached
+                </h2>
+                <p style={{ color: C.muted, marginBottom: 28, fontSize: 14 }}>
+                  You've reached your plan's limit of {pricingTierConfig('starter').maxActiveListings} listings.
+                  Upgrade to Pro — {proCfg.copy}
+                </p>
+                <button
+                  onClick={() => handleCheckout('pro')}
+                  disabled={checkingOut}
+                  style={{
+                    background: C.purple, color: '#fff', border: 'none',
+                    borderRadius: 10, padding: '11px 22px', fontSize: 14, fontWeight: 700,
+                    cursor: checkingOut ? 'not-allowed' : 'pointer', opacity: checkingOut ? 0.7 : 1,
+                  }}
+                >
+                  {checkingOut ? 'Redirecting…' : `Upgrade to Pro — ${proCfg.displayPrice}`}
+                </button>
+              </>
+            ) : (
+              // Free/unpaid agent: both tiers shown neutrally, never pre-selected.
+              <>
+                <h2 style={{ fontSize: 20, fontWeight: 800, color: C.text, marginBottom: 8 }}>
+                  Free plan limit reached
+                </h2>
+                <p style={{ color: C.muted, marginBottom: 28, fontSize: 14 }}>
+                  Choose a plan to add more listings and signs.
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, textAlign: 'left' }}>
+                  {PRICING_TIERS.map(tierKey => {
+                    const cfg = pricingTierConfig(tierKey);
+                    return (
+                      <div key={tierKey} style={{ background: `${C.purple}10`, border: `1px solid ${C.border}`, borderRadius: 10, padding: 20 }}>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 2 }}>{cfg.displayName}</div>
+                        <div style={{ fontSize: 20, fontWeight: 700, color: C.purpleL, marginBottom: 8 }}>{cfg.displayPrice}</div>
+                        <div style={{ fontSize: 12, color: C.muted, marginBottom: 16, lineHeight: 1.5 }}>{cfg.copy}</div>
+                        <button
+                          onClick={() => handleCheckout(tierKey)}
+                          disabled={checkingOut}
+                          style={{
+                            background: C.purple, color: '#fff', border: 'none',
+                            borderRadius: 10, padding: '10px 16px', fontSize: 13, fontWeight: 700, width: '100%',
+                            cursor: checkingOut ? 'not-allowed' : 'pointer', opacity: checkingOut ? 0.7 : 1,
+                          }}
+                        >
+                          {checkingOut ? 'Redirecting…' : `Choose ${cfg.displayName}`}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p style={{ fontSize: 11, color: C.muted, marginTop: 14, lineHeight: 1.5 }}>
+                  {PRICING_CLARIFIER}
+                </p>
+              </>
+            )}
           </div>
         </div>
       </DashboardLayout>

@@ -633,7 +633,7 @@ function Pricing() {
               Know which buyers are engaged on your active listings.
             </p>
             <p className="text-sm text-gray-500 leading-relaxed mb-6">
-              Up to 3 active listings at a time. Every scan, return visit, and inquiry lands in your dashboard with a Hot / Warm / Cold engagement score — so you know who to call before you pick up the phone.
+              Up to 3 active listings and 5 active signs at a time. Every scan, return visit, and inquiry lands in your dashboard with a Hot / Warm / Cold engagement score — so you know who to call before you pick up the phone.
             </p>
             <Link
               href="/auth?tab=signup"
@@ -664,7 +664,7 @@ function Pricing() {
               See buyer interest across your entire pipeline.
             </p>
             <p className="text-sm text-gray-500 leading-relaxed mb-6">
-              Everything in Starter, with unlimited active listings. Add engagement trends over time and multi-listing comparison — so you always know which properties are heating up and where your follow-up energy belongs.
+              Everything in Starter, with unlimited active listings and up to 25 active signs. Add engagement trends over time and multi-listing comparison — so you always know which properties are heating up and where your follow-up energy belongs.
             </p>
             <Link
               href="/auth?tab=signup"

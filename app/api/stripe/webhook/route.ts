@@ -91,19 +91,23 @@ export async function POST(request: Request) {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session
-    const userId = session.metadata?.userId
-    if (userId) {
+    // Must match exactly what app/api/stripe/checkout/route.ts stamps on the
+    // session: metadata.agent_id (and client_reference_id, same value). This
+    // previously read metadata.userId, a key the checkout route has never set
+    // — so attribution silently failed on every completed checkout.
+    const agentId = session.metadata?.agent_id
+    if (agentId) {
       const { error } = await supabase
         .from('profiles')
         .update({
           stripe_customer_id: session.customer as string,
           stripe_subscription_id: session.subscription as string,
         })
-        .eq('id', userId)
+        .eq('id', agentId)
       if (error) console.error('[stripe/webhook] profile update failed:', error.message)
       else acted = true
     } else {
-      console.warn('[stripe/webhook] checkout.session.completed without metadata.userId — cannot attribute')
+      console.warn('[stripe/webhook] checkout.session.completed without metadata.agent_id — cannot attribute')
     }
   }
 

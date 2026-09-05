@@ -620,49 +620,34 @@ export default function AnalyticsPage() {
                 {totalLeads === 0
                   ? <p style={{ color: C.muted, fontSize: 14 }}>No leads yet.</p>
                   : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                      {tierRows.map(({ tier, total, uncontacted, cfg }) => (
-                        total > 0 && (
-                          <a key={tier} href={`/dashboard/leads?tier=${tier}`} style={{ textDecoration: 'none' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                <span style={{ fontSize: 13, fontWeight: 700, color: cfg.color, display: 'flex', alignItems: 'center', gap: 5 }}>
-                                  {tier === 'hot'  && <Flame      size={13} />}
-                                  {tier === 'warm' && <TrendingUp size={13} />}
-                                  {tier === 'cold' && <Minus      size={13} />}
-                                  {tier === 'hot' ? 'Hot' : tier === 'warm' ? 'Warm' : 'Cold'} · {total}
-                                </span>
-                                {uncontacted > 0 && (
-                                  <span style={{ fontSize: 11, color: C.muted }}>
-                                    {uncontacted} not yet called
-                                  </span>
-                                )}
-                              </div>
-                              <div style={{ height: 10, background: C.border, borderRadius: 5, overflow: 'hidden' }}>
-                                <div style={{
-                                  height: '100%',
-                                  width: `${(total / totalLeads) * 100}%`,
-                                  background: cfg.color,
-                                  borderRadius: 5,
-                                }} />
-                              </div>
-                              {uncontacted > 0 && (
-                                <div style={{ height: 6, background: C.border, borderRadius: 5, overflow: 'hidden' }}>
-                                  <div style={{
-                                    height: '100%',
-                                    width: `${(uncontacted / total) * 100}%`,
-                                    background: '#EF4444',
-                                    borderRadius: 5,
-                                  }} />
-                                </div>
-                              )}
-                            </div>
-                          </a>
-                        )
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      {tierRows.filter(r => r.total > 0).map(({ tier, total, uncontacted, cfg }, i, arr) => (
+                        <a key={tier} href={`/dashboard/leads?tier=${tier}`} style={{ textDecoration: 'none' }}>
+                          <div style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            padding: '10px 2px',
+                            borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : 'none',
+                          }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: cfg.color, display: 'flex', alignItems: 'center', gap: 6 }}>
+                              {tier === 'hot'  && <Flame      size={14} />}
+                              {tier === 'warm' && <TrendingUp size={14} />}
+                              {tier === 'cold' && <Minus      size={14} />}
+                              {tier === 'hot' ? 'Hot' : tier === 'warm' ? 'Warm' : 'Cold'}
+                              <span style={{ color: C.muted, fontWeight: 600 }}>· {total}</span>
+                            </span>
+                            {uncontacted > 0 && (
+                              <span style={{
+                                fontSize: 11, fontWeight: 700, color: '#FCA5A5',
+                                background: 'rgba(239,68,68,0.15)',
+                                border: '1px solid rgba(239,68,68,0.4)',
+                                borderRadius: 20, padding: '2px 9px',
+                              }}>
+                                {uncontacted} needs contact
+                              </span>
+                            )}
+                          </div>
+                        </a>
                       ))}
-                      <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
-                        Red bar = uncontacted share within tier
-                      </div>
                     </div>
                   )
                 }

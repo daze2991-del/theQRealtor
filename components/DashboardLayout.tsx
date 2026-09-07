@@ -490,15 +490,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <span style={{ fontSize: 13.5, color: '#FCD34D', fontWeight: 500 }}>
                     Your beta ends in {daysRemaining} day{daysRemaining === 1 ? '' : 's'}.
                   </span>
-                  <button
-                    onClick={() => setWarningDismissed(true)}
-                    style={{
-                      background: 'transparent', border: 'none', color: '#92400E',
-                      cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '2px 4px',
-                      flexShrink: 0,
-                    }}
-                    aria-label="Dismiss"
-                  >✕</button>
+                  {/* Grouped so the banner keeps its text-left / actions-right
+                      layout under justifyContent: space-between. */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                    <Link href="/dashboard/billing" style={{
+                      fontSize: 12.5, fontWeight: 700, color: '#FCD34D',
+                      textDecoration: 'none', whiteSpace: 'nowrap',
+                      border: '1px solid #78350F', borderRadius: 6, padding: '4px 10px',
+                    }}>
+                      View billing →
+                    </Link>
+                    <button
+                      onClick={() => setWarningDismissed(true)}
+                      style={{
+                        background: 'transparent', border: 'none', color: '#92400E',
+                        cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '2px 4px',
+                        flexShrink: 0,
+                      }}
+                      aria-label="Dismiss"
+                    >✕</button>
+                  </div>
                 </div>
               )
             }

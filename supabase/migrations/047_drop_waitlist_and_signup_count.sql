@@ -1,0 +1,47 @@
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 047 — Drop the abandoned beta-cap/waitlist machinery from 022.
+--
+-- Both objects below were created by 022 for one feature — a hard cap on beta
+-- signups with an overflow waitlist for people who arrived after the cap was
+-- hit. That feature was never wired up, and the signup gate that actually
+-- shipped works differently (see below). They are dropped together because
+-- they are two halves of the same dead feature, not two unrelated cleanups.
+--
+-- ─────────────────────────────────────────────────────────────────────────
+-- 1. public.waitlist
+-- ─────────────────────────────────────────────────────────────────────────
+-- Zero code references anywhere in the repo — no route, no component, no
+-- dead/orphaned file. Nothing has ever read or written it from the app.
+-- Row count confirmed 0 before dropping, so no collected emails are lost.
+--
+-- Note it was also unreadable server-side: service_role got 42501 on it (022
+-- granted nothing), so even the "read server-side / in the dashboard" intent
+-- in its own comment never actually worked. Dropping the table takes its
+-- index (waitlist_created_at_idx) and its "anon_insert_waitlist" policy with
+-- it automatically.
+--
+-- ─────────────────────────────────────────────────────────────────────────
+-- 2. public.signup_count()
+-- ─────────────────────────────────────────────────────────────────────────
+-- Created by 022 purely to power the signup cap the waitlist overflowed
+-- from. Zero callers — grep finds it only in 022 itself.
+--
+-- Worth removing rather than leaving inert: it is SECURITY DEFINER with
+-- `grant execute ... to anon`, so any unauthenticated caller could invoke it
+-- and learn the exact total number of profiles. Small, but it is live
+-- surface area serving no purpose. The grant drops with the function.
+--
+-- ─────────────────────────────────────────────────────────────────────────
+-- What actually gates signups today (unaffected by this migration)
+-- ─────────────────────────────────────────────────────────────────────────
+-- app/api/auth/beta-signup/route.ts: the email must exist in beta_allowlist
+-- with approved = true, and a hard cap of 25 is enforced by counting
+-- beta_allowlist rows with joined_at not null. Neither object dropped here
+-- participates in that path.
+--
+-- Run once in the Supabase SQL editor.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+drop table if exists public.waitlist;
+
+drop function if exists public.signup_count();

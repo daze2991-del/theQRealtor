@@ -1,0 +1,31 @@
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 048 — Drop the superseded invite_codes table.
+--
+-- invite_codes (027) was an invite-gate mechanism that was never wired up:
+--   • Its own header comment says "All access goes through /api/validate-invite"
+--     — that route has never existed. Repo-wide grep finds zero occurrences of
+--     the word "invite" in any .ts/.tsx file.
+--   • The live table does not even match 027: the migration defines
+--     (code PK, used, used_by_email, used_at); the live table is
+--     (id, code, redeemed, redeemed_by, redeemed_at, created_at). It was
+--     hand-created with a different design and the migration was never
+--     reconciled.
+--   • All 12 live rows are unredeemed TQRB-XXXXX codes created 2026-06-26 —
+--     the same day beta_allowlist's first row was created.
+--
+-- What actually gates signups today, and is unaffected by this drop:
+-- app/api/auth/beta-signup/route.ts requires the email to be present in
+-- beta_allowlist with approved = true, and enforces a hard cap of 25 enrolled
+-- agents. That is the real gate; invite_codes gates nothing and never did.
+--
+-- Dropping the table also drops its RLS enablement automatically (027 created
+-- no policies). No code changes accompany this migration because no code path
+-- reads or writes this table.
+--
+-- NOTE: 047 is intentionally skipped here, reserved for a pending
+-- drop-waitlist migration awaiting a row-count check.
+--
+-- Run once in the Supabase SQL editor.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+drop table if exists public.invite_codes;

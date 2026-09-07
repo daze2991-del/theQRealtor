@@ -1,0 +1,35 @@
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 046 — feedback_prompt_state service_role grant
+--
+-- 033 created two feedback tables but only granted on one: feedback_responses
+-- got `grant insert ... to authenticated` (line 38), while
+-- feedback_prompt_state got no grant of any kind. Its header comment assumed
+-- "service_role bypasses RLS" was sufficient — but bypassrls only skips policy
+-- checks, never table-level privilege checks. Same root cause as 045
+-- (dashboard_dismissals) and the quiet-hours SMS grant gap: new tables in this
+-- project do not inherit service_role privileges automatically.
+--
+-- Confirmed live before writing this: a service-role SELECT on
+-- feedback_prompt_state returned 42501 "permission denied", while the same
+-- probe against feedback_responses returned 200. A dev-server log likewise
+-- showed `[feedback/dismiss] upsert error: permission denied for table
+-- feedback_prompt_state` -> POST /api/feedback/dismiss 500. All four
+-- /api/feedback/* routes are therefore failing in production today.
+--
+-- Privileges chosen to match exactly what those routes do via
+-- createAdminSupabase(), nothing more:
+--   select  — eligibility/route.ts reads next_eligible_at
+--   insert  } upsert() in shown / dismiss / submit: insert the first row,
+--   update  }   update it on every later action
+-- No delete: nothing in the codebase deletes from this table.
+--
+-- NOT included, deliberately: a `select` grant to `authenticated`. 033 defines
+-- an RLS policy "feedback state read own" for that role, which is inert
+-- without a matching grant — but no client-side code reads this table (all
+-- four routes use the admin client server-side), so wiring it up would widen
+-- client access with no caller to justify it. Left as-is; see the report.
+--
+-- Run once in the Supabase SQL editor.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+grant select, insert, update on public.feedback_prompt_state to service_role;

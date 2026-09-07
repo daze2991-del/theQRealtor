@@ -1,0 +1,32 @@
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 050 — Revoke the leftover TRUNCATE grant on beta_allowlist.
+--
+-- 049 backfilled this table's live posture verbatim, including a TRUNCATE
+-- grant held by anon and authenticated. That grant is removed here as its own
+-- reviewable change, rather than being quietly dropped during the backfill.
+--
+-- WHY IT MATTERS: PostgreSQL exempts TRUNCATE from row-level security. The
+-- table's RLS-on/zero-policies posture neutralizes SELECT/INSERT/UPDATE/DELETE
+-- for anon and authenticated, but it does NOT constrain TRUNCATE — so this was
+-- the one privilege those roles held that RLS was not covering.
+--
+-- WHY IT WAS NOT URGENT: PostgREST exposes no HTTP verb that maps to TRUNCATE,
+-- so there has never been a route to invoke it from the API. This was a latent
+-- privilege, not a live vulnerability.
+--
+-- WHY IT EXISTED: Supabase grants data privileges to anon/authenticated by
+-- default on new public-schema tables. This table's SELECT/INSERT/UPDATE/
+-- DELETE were revoked by hand at some point in its undocumented history, but
+-- the non-data privileges (REFERENCES, TRIGGER, TRUNCATE) were left behind.
+--
+-- REFERENCES and TRIGGER are deliberately left in place: both are genuinely
+-- inert here and removing them would be churn for its own sake.
+--
+-- No functional risk. Nothing reads or writes this table except
+-- app/api/auth/beta-signup/route.ts, which authenticates as service_role and
+-- is unaffected — its SELECT/INSERT/UPDATE/DELETE grants are untouched.
+--
+-- Run once in the Supabase SQL editor.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+revoke truncate on public.beta_allowlist from anon, authenticated;

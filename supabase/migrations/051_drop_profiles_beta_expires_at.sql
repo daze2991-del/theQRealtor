@@ -1,0 +1,32 @@
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 051 — Drop the dead profiles.beta_expires_at column.
+--
+-- Zero references anywhere in the repo: no .ts, .tsx, .sql, .md, or .json file
+-- reads or writes it, and no migration ever defined it (it was added by hand
+-- to the live database). Re-confirmed by repo-wide grep immediately before
+-- writing this migration.
+--
+-- It is NOT the source of beta expiry, despite the name. Expiry is computed on
+-- the fly in lib/beta.ts:
+--     new Date(beta_joined_at) + 90 days
+-- from profiles.beta_joined_at — never read from a stored date. So this column
+-- is not a precomputed cache that could drift out of sync; it is simply unused.
+--
+-- Nothing observable changes. The three consumers of beta status all go
+-- through getBetaStatus(profiles.beta_joined_at) and never touch this column:
+--   • app/api/properties/route.ts   — the server-side expired-agent gate
+--   • components/DashboardLayout.tsx — the countdown / expired banners
+--   • lib/admin/overview.ts          — admin roster + "trials expiring soon"
+--
+-- No data is lost: the column is null on every existing row (verified live —
+-- there is one profile row and its value is null).
+--
+-- Deliberately separate from 052, which backfills the column that IS
+-- load-bearing (beta_joined_at). Removing a dead column and documenting a live
+-- one are two different decisions and are kept in two different migrations.
+--
+-- Run once in the Supabase SQL editor.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+alter table public.profiles
+  drop column if exists beta_expires_at;

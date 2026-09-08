@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminSupabase } from '../../../lib/supabase-admin'
 import { computeIntent, type EngagementData } from '../../../lib/leadScoring'
 import { computeScoreV2, isLikelyBot, type EngagementInputV2 } from '../../../lib/leadScoringV2'
-import { sendSms, resolveAgentPhone, queueOrSendAgentSms, msg } from '../../../lib/twilio'
+import { sendSms, resolveAgentPhone, queueOrSendAgentSms, flushDueNotifications, msg } from '../../../lib/twilio'
 import { SMS_CONSENT_TEXT, SMS_CONSENT_TEXT_MAX } from '../../../lib/smsConsent'
 
 // ─── rate limiter ─────────────────────────────────────────────────────────────
@@ -232,6 +232,12 @@ export async function POST(request: Request) {
         await supabase.from('leads').update({ buyer_texted_at: new Date().toISOString() }).eq('id', leadId)
       }
     }
+
+    // Opportunistic delivery: a new lead is exactly the moment this agent's
+    // attention is warranted, so flush any of their own due, unsent
+    // pending_notifications now rather than waiting for the once-daily cron
+    // backstop (app/api/cron/flush-notifications).
+    await flushDueNotifications(supabase, { agentId: property.user_id as string, limit: 20 })
   } catch (smsErr: any) {
     // Never block lead capture on notification failures.
     console.error('[submit-lead] notification error:', smsErr?.message)

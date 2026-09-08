@@ -249,6 +249,52 @@ export async function queueOrSendAgentSms(opts: {
   return 'sent'
 }
 
+// ── Due-notification flush ────────────────────────────────────────────────────
+// Sends pending_notifications whose scheduled_for has passed and stamps
+// sent_at, same idempotent shape as the daily cron (app/api/cron/
+// flush-notifications). Shared so an agent-scoped opportunistic flush (a new
+// lead coming in for them, or their own dashboard load) and the global cron
+// backstop can't drift apart into two copies of the same loop.
+//
+// agentId narrows to one agent's due rows — cheap, since
+// pending_notifications_due_idx (on scheduled_for where sent_at is null)
+// covers the scan and the .eq('agent_id', …) filter is applied on top of it.
+// Omit agentId for the global sweep the cron job runs.
+export async function flushDueNotifications(
+  admin: Admin,
+  opts: { agentId?: string; limit?: number } = {}
+): Promise<{ processed: number; sent: number; error?: string }> {
+  const nowIso = new Date().toISOString()
+
+  let query = admin
+    .from('pending_notifications')
+    .select('id, agent_id, message')
+    .is('sent_at', null)
+    .lte('scheduled_for', nowIso)
+    .order('scheduled_for', { ascending: true })
+    .limit(opts.limit ?? 100)
+  if (opts.agentId) query = query.eq('agent_id', opts.agentId)
+
+  // Never throws — this runs on paths (lead submission, dashboard load) that
+  // must not fail because a notification flush had trouble. Callers that want
+  // the failure surfaced (the cron route) can check the returned `error`.
+  const { data: due, error } = await query
+  if (error) {
+    console.error('[twilio] flushDueNotifications query error:', error.message)
+    return { processed: 0, sent: 0, error: error.message }
+  }
+
+  let sent = 0
+  for (const n of due ?? []) {
+    const phone = await resolveAgentPhone(admin, n.agent_id)
+    if (phone) { await sendSms(phone, n.message); sent++ }
+    // Stamp sent regardless so a missing phone doesn't wedge the queue forever.
+    await admin.from('pending_notifications').update({ sent_at: new Date().toISOString() }).eq('id', n.id)
+  }
+
+  return { processed: due?.length ?? 0, sent }
+}
+
 // ── Message templates ─────────────────────────────────────────────────────────
 const firstName = (n?: string | null) => (n || '').trim().split(/\s+/)[0] || ''
 

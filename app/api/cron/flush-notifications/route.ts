@@ -1,16 +1,27 @@
 // ── Flush queued agent notifications ──────────────────────────────────────────
 //
-// Sends pending_notifications whose scheduled_for has passed (i.e. agent alerts
-// that were held during quiet hours). Driven by Vercel Cron (see vercel.json),
-// which hits this every 15 minutes. Idempotent: only unsent, due rows are sent,
-// and each is stamped sent_at immediately after.
+// Global backstop: sends any pending_notifications whose scheduled_for has
+// passed, across all agents. Driven by Vercel Cron (see vercel.json).
+//
+// This is now a backstop, not the only delivery path — flushDueNotifications()
+// (lib/twilio.ts) is also called opportunistically, scoped to one agent, from
+// app/api/submit-lead/route.ts (when a new lead comes in for them) and
+// app/api/notifications/flush-due/route.ts (their own dashboard load). Those
+// two catch an active agent close to their own quiet-hours end; this route
+// exists for an agent who triggers neither — it is what guarantees a deferred
+// message is never held longer than until the next cron tick.
+//
+// On the current Vercel plan this tick is once daily (see vercel.json's
+// schedule), which is why the opportunistic paths above carry most of the
+// real-world latency improvement — this route is the worst-case bound, not
+// the common case.
 //
 // If CRON_SECRET is set, the request must present it (Vercel Cron sends it as a
 // Bearer token automatically); otherwise the endpoint is open (best-effort).
 
 import { NextResponse } from 'next/server'
 import { createAdminSupabase } from '../../../../lib/supabase-admin'
-import { sendSms, resolveAgentPhone } from '../../../../lib/twilio'
+import { flushDueNotifications } from '../../../../lib/twilio'
 
 async function flush(request: Request) {
   const secret = process.env.CRON_SECRET
@@ -22,31 +33,13 @@ async function flush(request: Request) {
   }
 
   const admin = createAdminSupabase()
-  const nowIso = new Date().toISOString()
-
-  const { data: due, error } = await admin
-    .from('pending_notifications')
-    .select('id, agent_id, message')
-    .is('sent_at', null)
-    .lte('scheduled_for', nowIso)
-    .order('scheduled_for', { ascending: true })
-    .limit(100)
-
+  const { processed, sent, error } = await flushDueNotifications(admin)
   if (error) {
-    console.error('[cron/flush] query error:', error.message)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error }, { status: 500 })
   }
 
-  let sent = 0
-  for (const n of due ?? []) {
-    const phone = await resolveAgentPhone(admin, n.agent_id)
-    if (phone) { await sendSms(phone, n.message); sent++ }
-    // Stamp sent regardless so a missing phone doesn't wedge the queue forever.
-    await admin.from('pending_notifications').update({ sent_at: new Date().toISOString() }).eq('id', n.id)
-  }
-
-  console.log('[cron/flush] processed', due?.length ?? 0, '| sent', sent)
-  return NextResponse.json({ processed: due?.length ?? 0, sent })
+  console.log('[cron/flush] processed', processed, '| sent', sent)
+  return NextResponse.json({ processed, sent })
 }
 
 // Vercel Cron issues GET; allow POST for manual triggering too.

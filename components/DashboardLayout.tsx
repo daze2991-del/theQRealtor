@@ -395,6 +395,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           }
         }
 
+        // Opportunistic delivery: if this agent has any due, unsent
+        // pending_notifications (held during quiet hours, now past
+        // quiet_hours_end), flush them now rather than waiting for the
+        // once-daily cron backstop. Fire-and-forget — a dashboard load must
+        // never be blocked or fail because of notification plumbing.
+        fetch('/api/notifications/flush-due', { method: 'POST' }).catch(() => {})
+
         setBetaJoinedAt(profile?.beta_joined_at ?? null)
         // Server-authoritative admin check: /api/admin/whoami runs the same
         // adminGate() against the server-only ADMIN_USER_ID and returns just a

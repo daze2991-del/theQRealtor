@@ -7,7 +7,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import DashboardLayout from '../../../components/DashboardLayout'
-import { Flame, Home, CalendarCheck, BarChart2, Sparkles, CheckCircle, TrendingUp, Minus } from 'lucide-react'
+import { Flame, Home, CalendarCheck, BarChart2, Sparkles, CheckCircle, Minus } from 'lucide-react'
 import { TIER_V2_CFG, motivationToTierV2, requestedShowing } from '../../../lib/leadScoringV2'
 import { isEligibleLead, isUncontacted } from '../../../lib/leadEligibility'
 import { parseTimestamp } from '../../../lib/timeAgo'
@@ -628,10 +628,10 @@ export default function AnalyticsPage() {
                             padding: '10px 2px',
                             borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : 'none',
                           }}>
-                            <span style={{ fontSize: 13, fontWeight: 700, color: cfg.color, display: 'flex', alignItems: 'center', gap: 6 }}>
-                              {tier === 'hot'  && <Flame      size={14} />}
-                              {tier === 'warm' && <TrendingUp size={14} />}
-                              {tier === 'cold' && <Minus      size={14} />}
+                            <span style={{ fontSize: 13, fontWeight: 700, color: tier === 'hot' ? '#EF4444' : tier === 'warm' ? '#F59E0B' : cfg.color, display: 'flex', alignItems: 'center', gap: 6 }}>
+                              {tier === 'hot'  && <Flame size={14} />}
+                              {tier === 'warm' && <Flame size={14} />}
+                              {tier === 'cold' && <Minus size={14} />}
                               {tier === 'hot' ? 'Hot' : tier === 'warm' ? 'Warm' : 'Cold'}
                               <span style={{ color: C.muted, fontWeight: 600 }}>· {total}</span>
                             </span>

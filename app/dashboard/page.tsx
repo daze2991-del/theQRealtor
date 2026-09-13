@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DashboardLayout from '../../components/DashboardLayout'
 import { LineChart, Line, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-import { QrCode, Users, CalendarCheck, Flame, TrendingUp, BarChart2, Home, Bell, Calendar, Share2, Download, RotateCcw, AlertCircle } from 'lucide-react'
+import { QrCode, Users, CalendarCheck, Flame, BarChart2, Home, Bell, Calendar, Share2, Download, RotateCcw, AlertCircle } from 'lucide-react'
 import { calcPropertyInterest } from '../../lib/propertyInterest'
 import { timeAgo } from '../../lib/timeAgo'
 import { motivationToTierV2, requestedShowing } from '../../lib/leadScoringV2'
@@ -293,7 +293,7 @@ export default function Dashboard() {
         const short = words.length > 2 ? words.slice(0, 2).join(' ') + '…' : addr
         return ` at ${short}`
       }
-      const tierIconKey: Record<string, string> = { hot: 'flame', warm: 'trending', cold: 'user' }
+      const tierIconKey: Record<string, string> = { hot: 'flame', warm: 'flame-warm', cold: 'user' }
       const tierText: Record<string, string> = { hot: 'Hot lead', warm: 'Warm lead', cold: 'New lead' }
       const feedItems: Array<{ iconKey: string; label: string; created_at: string }> = [
         ...(recentLeadsData || []).map((l: any) => {
@@ -536,7 +536,7 @@ export default function Dashboard() {
                     <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '9px 16px', borderBottom: i < 4 ? `1px solid ${C.border}` : 'none' }}>
                       <span style={{ flexShrink: 0, marginTop: 1, display: 'flex', alignItems: 'center', width: 18, justifyContent: 'center' }}>
                         {ev.iconKey === 'flame'    && <Flame      size={14} color="#EF4444" />}
-                        {ev.iconKey === 'trending' && <TrendingUp size={14} color="#60A5FA" />}
+                        {ev.iconKey === 'flame-warm' && <Flame size={14} color="#F59E0B" />}
                         {ev.iconKey === 'scan'     && <QrCode     size={14} color={C.muted} />}
                         {ev.iconKey === 'return'   && <RotateCcw  size={14} color={C.muted} />}
                         {ev.iconKey === 'user'     && <Users      size={14} color={C.muted} />}

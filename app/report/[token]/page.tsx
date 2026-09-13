@@ -1,9 +1,15 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import {
+  Home, CalendarCheck, Calendar, MessageCircle, Repeat, Images, Smartphone,
+  Eye, Check, Download, Printer, Copy, Flame, TrendingUp,
+  TrendingDown, Minus, BarChart2, Trophy, Users, HelpCircle, Sparkles, Zap,
+  type LucideIcon,
+} from 'lucide-react'
 import { calcPropertyInterest } from '../../../lib/propertyInterest'
 import { timeAgo } from '../../../lib/timeAgo'
 import { motivationToTierV2, requestedShowing } from '../../../lib/leadScoringV2'
@@ -89,20 +95,21 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
   )
 }
 
-function KpiCard({ icon, label, value, change, sparkData, color }: {
-  icon: string; label: string; value: number; change: number | null; sparkData: number[]; color: string
+function KpiCard({ icon: Icon, label, value, change, sparkData, color }: {
+  icon: LucideIcon; label: string; value: number; change: number | null; sparkData: number[]; color: string
 }) {
   const pos = change !== null && change >= 0
+  const TrendIcon = pos ? TrendingUp : TrendingDown
   return (
     <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: '18px 16px 14px', display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
-        <span style={{ fontSize: 18 }}>{icon}</span>
+        <Icon size={18} color={color} />
         <span style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1.3 }}>{label}</span>
       </div>
       <div style={{ fontSize: 34, fontWeight: 900, color: C.text, lineHeight: 1, marginBottom: 5, letterSpacing: '-0.02em' }}>{value.toLocaleString()}</div>
       {change !== null && (
-        <div style={{ fontSize: 11, fontWeight: 600, color: pos ? '#4ade80' : '#F87171', marginBottom: 10 }}>
-          {pos ? '↑' : '↓'} {Math.abs(change)}% vs last month
+        <div style={{ fontSize: 11, fontWeight: 600, color: pos ? '#4ade80' : '#F87171', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 3 }}>
+          <TrendIcon size={12} /> {Math.abs(change)}% vs last month
         </div>
       )}
       <div style={{ opacity: 0.6 }}><Sparkline data={sparkData} color={color} /></div>
@@ -122,10 +129,8 @@ export default function SellerReportPage() {
   const [report,   setReport]   = useState<any>(null)
   const [loading,  setLoading]  = useState(true)
   const [missing,  setMissing]  = useState(false)
-  const [menuOpen, setMenuOpen] = useState(false)
   const [copied,   setCopied]   = useState(false)
   const [toast,    setToast]    = useState('')
-  const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     fetch(`/api/report/${reportToken}`)
@@ -145,14 +150,6 @@ export default function SellerReportPage() {
       return () => clearTimeout(t)
     }
   }, [searchParams])
-
-  useEffect(() => {
-    const h = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
-    }
-    document.addEventListener('mousedown', h)
-    return () => document.removeEventListener('mousedown', h)
-  }, [])
 
   const copyURL = async () => {
     try { await navigator.clipboard.writeText(window.location.href) } catch {}
@@ -174,7 +171,7 @@ export default function SellerReportPage() {
     return (
       <main style={{ background: C.bg, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
         <div style={{ textAlign: 'center', color: C.muted }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🏠</div>
+          <Home size={48} style={{ marginBottom: 16 }} />
           <div style={{ fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 8 }}>Report not found</div>
           <Link href="/dashboard/properties" style={{ color: C.purpleL }}>← Back to Properties</Link>
         </div>
@@ -247,52 +244,48 @@ export default function SellerReportPage() {
   ].join('\n')
 
   // Recent buyer activity — grouped by type so identical rows don't repeat.
-  type AEvent = { icon: string; text: string; time: string; color: string; dot: string }
+  type AEvent = { icon: LucideIcon; text: string; time: string; color: string; dot: string }
   const activityEvents: AEvent[] = (() => {
     const events: AEvent[] = []
     const showingLeads = leads.filter(requestedShowing)
     if (showingLeads.length === 1) {
-      events.push({ icon: '📅', text: 'Buyer requested a showing', time: showingLeads[0].created_at, color: '#EF4444', dot: '#EF4444' })
+      events.push({ icon: CalendarCheck, text: 'Buyer requested a showing', time: showingLeads[0].created_at, color: '#EF4444', dot: '#EF4444' })
     } else if (showingLeads.length > 1) {
-      events.push({ icon: '📅', text: `${showingLeads.length} buyers requested a showing`, time: showingLeads[0].created_at, color: '#EF4444', dot: '#EF4444' })
+      events.push({ icon: CalendarCheck, text: `${showingLeads.length} buyers requested a showing`, time: showingLeads[0].created_at, color: '#EF4444', dot: '#EF4444' })
     }
     const questionLeads = leads.filter((l: any) => l.has_notes)
     if (questionLeads.length === 1) {
-      events.push({ icon: '💬', text: 'Buyer asked a question about the property', time: questionLeads[0].created_at, color: '#10B981', dot: '#10B981' })
+      events.push({ icon: MessageCircle, text: 'Buyer asked a question about the property', time: questionLeads[0].created_at, color: '#10B981', dot: '#10B981' })
     } else if (questionLeads.length > 1) {
-      events.push({ icon: '💬', text: `${questionLeads.length} buyers asked questions about the property`, time: questionLeads[0].created_at, color: '#10B981', dot: '#10B981' })
+      events.push({ icon: MessageCircle, text: `${questionLeads.length} buyers asked questions about the property`, time: questionLeads[0].created_at, color: '#10B981', dot: '#10B981' })
     }
     const returnVisits = scanEvents.filter((e: any) => e.return_visit)
     if (returnVisits.length === 1) {
-      events.push({ icon: '↩️', text: 'Buyer returned to view this listing again', time: returnVisits[0].created_at, color: '#8B5CF6', dot: '#8B5CF6' })
+      events.push({ icon: Repeat, text: 'Buyer returned to view this listing again', time: returnVisits[0].created_at, color: '#8B5CF6', dot: '#8B5CF6' })
     } else if (returnVisits.length > 1) {
-      events.push({ icon: '↩️', text: `${returnVisits.length} buyers returned for a second look`, time: returnVisits[0].created_at, color: '#8B5CF6', dot: '#8B5CF6' })
+      events.push({ icon: Repeat, text: `${returnVisits.length} buyers returned for a second look`, time: returnVisits[0].created_at, color: '#8B5CF6', dot: '#8B5CF6' })
     }
     const photoViewers = scanEvents.filter((e: any) => !e.return_visit && (e.photos_viewed ?? 0) >= 5)
     if (photoViewers.length === 1) {
-      events.push({ icon: '📸', text: 'Buyer viewed all photos', time: photoViewers[0].created_at, color: '#14B8A6', dot: '#14B8A6' })
+      events.push({ icon: Images, text: 'Buyer viewed all photos', time: photoViewers[0].created_at, color: '#14B8A6', dot: '#14B8A6' })
     } else if (photoViewers.length > 1) {
-      events.push({ icon: '📸', text: `${photoViewers.length} buyers viewed all photos`, time: photoViewers[0].created_at, color: '#14B8A6', dot: '#14B8A6' })
+      events.push({ icon: Images, text: `${photoViewers.length} buyers viewed all photos`, time: photoViewers[0].created_at, color: '#14B8A6', dot: '#14B8A6' })
     }
     const newScans = scanEvents.filter((e: any) => !e.return_visit && (e.photos_viewed ?? 0) < 5)
     if (newScans.length === 1) {
-      events.push({ icon: '📱', text: 'New buyer discovered this listing', time: newScans[0].created_at, color: '#F97316', dot: '#F97316' })
+      events.push({ icon: Smartphone, text: 'New buyer discovered this listing', time: newScans[0].created_at, color: '#F97316', dot: '#F97316' })
     } else if (newScans.length > 1) {
-      events.push({ icon: '📱', text: `${newScans.length} new buyers discovered this listing`, time: newScans[0].created_at, color: '#F97316', dot: '#F97316' })
+      events.push({ icon: Smartphone, text: `${newScans.length} new buyers discovered this listing`, time: newScans[0].created_at, color: '#F97316', dot: '#F97316' })
     }
     return events.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
   })()
 
-  const dropdownStyle: React.CSSProperties = {
-    position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 50,
-    background: C.card, border: `1px solid ${C.border}`, borderRadius: 10,
-    overflow: 'hidden', minWidth: 200, boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-  }
-
-  const menuItemStyle: React.CSSProperties = {
-    display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none',
-    color: C.sub, fontSize: 13, padding: '10px 16px', cursor: 'pointer', fontFamily: 'sans-serif',
-    textDecoration: 'none', boxSizing: 'border-box',
+  // Top-nav secondary action pill — Preview/Download/Print all share this
+  // look; Share Report Link stays the one filled/primary action.
+  const pillBtn: React.CSSProperties = {
+    fontSize: 12, fontWeight: 600, color: C.sub, textDecoration: 'none',
+    border: `1px solid ${C.border}`, borderRadius: 8, padding: '7px 13px',
+    display: 'inline-flex', alignItems: 'center', gap: 6, background: 'none',
   }
 
   const outlineBtn: React.CSSProperties = {
@@ -360,7 +353,6 @@ export default function SellerReportPage() {
       <style>{`
         @keyframes spin { to { transform: rotate(360deg) } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px) } to { opacity: 1; transform: none } }
-        .rpt-mitem:hover { background: rgba(255,255,255,0.05) !important }
         @media (max-width: 900px) { .rpt-2col { grid-template-columns: 1fr !important } .rpt-5col { grid-template-columns: 1fr 1fr !important } }
         @media (max-width: 600px) { .rpt-5col { grid-template-columns: 1fr !important } .rpt-hero { flex-direction: column !important } .rpt-share { flex-direction: column !important } .rpt-nav-center { display: none !important } }
         @media print {
@@ -411,14 +403,19 @@ export default function SellerReportPage() {
           <span style={{ color: C.sub, fontWeight: 600 }}>{property.address}</span>
         </div>
 
-        {/* Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          <a href={`/p/${property.id}`} target="_blank" rel="noreferrer" style={{
-            fontSize: 12, fontWeight: 600, color: C.sub, textDecoration: 'none',
-            border: `1px solid ${C.border}`, borderRadius: 8, padding: '7px 13px',
-          }}>
-            👁 Preview as Buyer
+        {/* Actions — wraps onto a second line on narrow viewports rather than
+            overflowing; .rpt-nav-center already drops the breadcrumb at
+            ≤600px for the same reason. */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, rowGap: 8, flexWrap: 'wrap', flexShrink: 0 }}>
+          <a href={`/p/${property.id}`} target="_blank" rel="noreferrer" style={pillBtn}>
+            <Eye size={13} /> Preview as Buyer
           </a>
+          <a href={`/report/${reportToken}?print=true`} target="_blank" rel="noreferrer" style={pillBtn}>
+            <Download size={13} /> Download PDF
+          </a>
+          <button onClick={() => window.print()} style={{ ...pillBtn, cursor: 'pointer', fontFamily: 'sans-serif' }}>
+            <Printer size={13} /> Print Report
+          </button>
           <button
             onClick={copyURL}
             style={{
@@ -427,24 +424,11 @@ export default function SellerReportPage() {
               color: copied ? '#4ade80' : '#fff',
               border: 'none', borderRadius: 8, padding: '8px 16px',
               cursor: 'pointer', fontFamily: 'sans-serif',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
             }}
           >
-            {copied ? '✓ Copied!' : 'Share Report Link'}
+            {copied ? <><Check size={13} /> Copied!</> : 'Share Report Link'}
           </button>
-
-          <div ref={menuRef} style={{ position: 'relative' }}>
-            <button
-              onClick={() => setMenuOpen(v => !v)}
-              style={{ background: '#1F1F2E', border: `1px solid ${C.border}`, borderRadius: 8, padding: '8px 12px', fontSize: 16, color: C.muted, cursor: 'pointer', lineHeight: 1 }}
-            >⋮</button>
-            {menuOpen && (
-              <div style={dropdownStyle}>
-                <a href={`/p/${property.id}`} target="_blank" rel="noreferrer" className="rpt-mitem" style={menuItemStyle} onClick={() => setMenuOpen(false)}>🔗 View Property Page</a>
-                <a href={`/report/${reportToken}?print=true`} target="_blank" rel="noreferrer" className="rpt-mitem" style={menuItemStyle} onClick={() => setMenuOpen(false)}>⬇ Download PDF</a>
-                <button className="rpt-mitem" style={menuItemStyle} onClick={() => { setMenuOpen(false); window.print() }}>🖨 Print Report</button>
-              </div>
-            )}
-          </div>
         </div>
       </nav>
 
@@ -467,13 +451,14 @@ export default function SellerReportPage() {
               marginLeft: 'auto', fontSize: 13, fontWeight: 700,
               background: C.purple, color: '#fff', border: 'none', borderRadius: 9,
               padding: '8px 16px', cursor: 'pointer', fontFamily: 'sans-serif',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
             }}
           >
-            ⬇ Download PDF
+            <Download size={14} /> Download PDF
           </button>
         </div>
-        <div style={{ fontSize: 12, color: C.muted, paddingBottom: 14 }}>
-          📅 {dateRangeStr} &nbsp;|&nbsp; {listingDays} day{listingDays !== 1 ? 's' : ''} on market
+        <div style={{ fontSize: 12, color: C.muted, paddingBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Calendar size={12} /> {dateRangeStr} &nbsp;|&nbsp; {listingDays} day{listingDays !== 1 ? 's' : ''} on market
         </div>
       </div>
 
@@ -486,7 +471,7 @@ export default function SellerReportPage() {
             {photo ? (
               <img src={photo} alt={property.address} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             ) : (
-              <div style={{ width: '100%', height: '100%', minHeight: 190, background: `linear-gradient(135deg, ${C.purple}, #5B21B6)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 48 }}>🏠</div>
+              <div style={{ width: '100%', height: '100%', minHeight: 190, background: `linear-gradient(135deg, ${C.purple}, #5B21B6)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Home size={48} color="#fff" /></div>
             )}
           </div>
 
@@ -550,8 +535,8 @@ export default function SellerReportPage() {
                 <button
                   onClick={copyURL}
                   title="Copy report link"
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, flexShrink: 0, padding: 2 }}
-                >📋</button>
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, padding: 2, display: 'flex' }}
+                ><Copy size={14} color={C.purpleL} /></button>
               </div>
             </div>
           </div>
@@ -607,14 +592,14 @@ export default function SellerReportPage() {
         </div>
         <div className="rpt-5col" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
           {[
-            { label: 'Hot',      n: hotCount,         desc: 'Ready to move',         color: '#EF4444', icon: '🔥' },
-            { label: 'Warm',     n: warmCount,        desc: 'Actively considering',  color: '#F59E0B', icon: '👍' },
-            { label: 'Cold',     n: coldCount,        desc: 'Early interest',        color: '#60A5FA', icon: '❄️' },
-            { label: 'Showings', n: showingRequests,  desc: 'Requested a tour',      color: '#7C3AED', icon: '📅' },
+            { label: 'Hot',      n: hotCount,         desc: 'Ready to move',         color: '#EF4444', icon: Flame },
+            { label: 'Warm',     n: warmCount,        desc: 'Actively considering',  color: '#F59E0B', icon: Flame },
+            { label: 'Cold',     n: coldCount,        desc: 'Early interest',        color: '#60A5FA', icon: Minus },
+            { label: 'Showings', n: showingRequests,  desc: 'Requested a tour',      color: '#7C3AED', icon: CalendarCheck },
           ].map(c => (
             <div key={c.label} style={{ background: C.card, border: `1px solid ${C.border}`, borderLeft: `3px solid ${c.color}`, borderRadius: 14, padding: '16px 16px 14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
-                <span style={{ fontSize: 16 }}>{c.icon}</span>
+                <c.icon size={15} color={c.color} />
                 <span style={{ fontSize: 12, fontWeight: 700, color: c.color, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{c.label}</span>
               </div>
               <div style={{ fontSize: 32, fontWeight: 900, color: C.text, lineHeight: 1, marginBottom: 5 }}>{c.n}</div>
@@ -631,7 +616,7 @@ export default function SellerReportPage() {
           </div>
           {listingDays < 30 ? (
             <div style={{ padding: '36px 18px', textAlign: 'center' }}>
-              <div style={{ fontSize: 28, marginBottom: 12 }}>📈</div>
+              <BarChart2 size={28} color={C.muted} style={{ marginBottom: 12 }} />
               <div style={{ fontSize: 13, fontWeight: 600, color: C.sub, marginBottom: 6 }}>Building your trend</div>
               <div style={{ fontSize: 12, color: C.muted }}>Check back weekly — your activity chart grows with each buyer scan.</div>
             </div>
@@ -653,7 +638,7 @@ export default function SellerReportPage() {
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden', marginBottom: 20 }}>
           <div style={{ padding: '13px 18px', borderBottom: `1px solid ${C.border}`, background: C.cardAlt, display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Peak Engagement</span>
-            <span style={{ fontSize: 14 }}>⚡</span>
+            <Zap size={14} color="#F59E0B" />
             <span style={{ fontSize: 11, color: C.muted, marginLeft: 'auto' }}>times in {AGENT_TZ.split('/')[1].replace('_', ' ')}</span>
           </div>
           <div style={{ padding: '18px' }}>
@@ -726,7 +711,7 @@ export default function SellerReportPage() {
                 return (
                   <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
                     <div style={{ width: 150, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
-                      {isTop && <span style={{ fontSize: 13 }}>🏆</span>}
+                      {isTop && <Trophy size={13} color="#F59E0B" />}
                       <span style={{ fontSize: 13, fontWeight: isTop ? 700 : 600, color: isTop ? C.text : C.sub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.label}</span>
                     </div>
                     <div style={{ flex: 1, height: 18, background: C.cardAlt, borderRadius: 5, overflow: 'hidden' }}>
@@ -740,8 +725,8 @@ export default function SellerReportPage() {
               })
             )}
             {topSignId && (
-              <div style={{ marginTop: 4, fontSize: 12, color: C.muted }}>
-                🏆 Top performer: <span style={{ color: C.purpleL, fontWeight: 700 }}>{signRows[0].label}</span> is driving the most buyer scans.
+              <div style={{ marginTop: 4, fontSize: 12, color: C.muted, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Trophy size={13} color="#F59E0B" style={{ flexShrink: 0 }} /> Top performer: <span style={{ color: C.purpleL, fontWeight: 700 }}>{signRows[0].label}</span> is driving the most buyer scans.
               </div>
             )}
           </div>
@@ -752,36 +737,36 @@ export default function SellerReportPage() {
           <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 12 }}>Listing Performance Overview</div>
         </div>
         <div className="rpt-5col" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
-          <KpiCard icon="👁" label="QR Scans"              value={totalScans}      change={showComparison ? safePct(thisMonthScans, lastMonthScans) : null}        sparkData={scanSparkData}     color="#60A5FA" />
-          <KpiCard icon="👥" label="Engaged Buyers"       value={engagedBuyers}   change={showComparison ? safePct(thisMonthEngaged, lastMonthEngaged) : null}     sparkData={engagedSparkData}  color="#10B981" />
-          <KpiCard icon="💬" label="Showing Requests"     value={showingRequests} change={showComparison ? safePct(thisMonthShowings, lastMonthShowings) : null}   sparkData={showingSparkData}  color="#F59E0B" />
-          <KpiCard icon="❓" label="Buyer Questions"      value={buyerQuestions}  change={showComparison ? safePct(thisMonthQuestions, lastMonthQuestions) : null} sparkData={questionSparkData} color="#F97316" />
+          <KpiCard icon={Eye}           label="QR Scans"              value={totalScans}      change={showComparison ? safePct(thisMonthScans, lastMonthScans) : null}        sparkData={scanSparkData}     color="#60A5FA" />
+          <KpiCard icon={Users}         label="Engaged Buyers"       value={engagedBuyers}   change={showComparison ? safePct(thisMonthEngaged, lastMonthEngaged) : null}     sparkData={engagedSparkData}  color="#10B981" />
+          <KpiCard icon={CalendarCheck} label="Showing Requests"     value={showingRequests} change={showComparison ? safePct(thisMonthShowings, lastMonthShowings) : null}   sparkData={showingSparkData}  color="#F59E0B" />
+          <KpiCard icon={HelpCircle}    label="Buyer Questions"      value={buyerQuestions}  change={showComparison ? safePct(thisMonthQuestions, lastMonthQuestions) : null} sparkData={questionSparkData} color="#F97316" />
         </div>
 
         {/* ── Two Columns ──────────────────────────────────────────────────── */}
         <div className="rpt-2col" style={{ display: 'grid', gridTemplateColumns: '55% 1fr', gap: 16, marginBottom: 20 }}>
 
-          {/* What Buyers Are Doing ⭐ */}
+          {/* What Buyers Are Doing */}
           <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
             <div style={{ padding: '13px 18px', borderBottom: `1px solid ${C.border}`, background: C.cardAlt, display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>What Buyers Are Doing</span>
-              <span style={{ fontSize: 14 }}>⭐</span>
+              <Sparkles size={14} color={C.purpleL} />
             </div>
             <div style={{ padding: '20px 18px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 20 }}>
                 {[
-                  { show: showingRequests > 0,  icon: '📅', n: showingRequests,  text: `buyer${showingRequests !== 1 ? 's' : ''} requested a showing`,                  color: '#EF4444' },
-                  { show: buyerQuestions > 0,    icon: '💬', n: buyerQuestions,    text: `buyer${buyerQuestions !== 1 ? 's' : ''} asked questions`,                      color: '#10B981' },
-                  { show: returnVisitors > 0,    icon: '↩️', n: returnVisitors,    text: `buyer${returnVisitors !== 1 ? 's' : ''} returned to view this listing multiple times`, color: '#8B5CF6' },
-                  { show: photoViewers > 0,      icon: '📸', n: photoViewers,      text: `buyer${photoViewers !== 1 ? 's' : ''} viewed all photos`,                      color: '#14B8A6' },
+                  { show: showingRequests > 0,  icon: CalendarCheck, n: showingRequests,  text: `buyer${showingRequests !== 1 ? 's' : ''} requested a showing`,                  color: '#EF4444' },
+                  { show: buyerQuestions > 0,    icon: MessageCircle, n: buyerQuestions,    text: `buyer${buyerQuestions !== 1 ? 's' : ''} asked questions`,                      color: '#10B981' },
+                  { show: returnVisitors > 0,    icon: Repeat, n: returnVisitors,    text: `buyer${returnVisitors !== 1 ? 's' : ''} returned to view this listing multiple times`, color: '#8B5CF6' },
+                  { show: photoViewers > 0,      icon: Images, n: photoViewers,      text: `buyer${photoViewers !== 1 ? 's' : ''} viewed all photos`,                      color: '#14B8A6' },
                 ].filter(item => item.show).map((item, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                     <div style={{
                       width: 44, height: 44, borderRadius: 12, flexShrink: 0,
                       background: item.color + '18', border: `1px solid ${item.color}40`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
-                      {item.icon}
+                      <item.icon size={20} color={item.color} />
                     </div>
                     <div>
                       <span style={{ fontSize: 22, fontWeight: 900, color: item.color, marginRight: 8, letterSpacing: '-0.02em' }}>{item.n}</span>
@@ -822,7 +807,9 @@ export default function SellerReportPage() {
                         {i < activityEvents.length - 1 && <div style={{ width: 1, flex: 1, background: C.border, margin: '4px 0' }} />}
                       </div>
                       <div style={{ paddingBottom: i < activityEvents.length - 1 ? 0 : 0, flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, color: C.sub, lineHeight: 1.45 }}>{ev.icon} {ev.text}</div>
+                        <div style={{ fontSize: 13, color: C.sub, lineHeight: 1.45, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <ev.icon size={13} color={ev.color} style={{ flexShrink: 0 }} /> {ev.text}
+                        </div>
                         <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{timeAgo(ev.time, { absoluteAfterDays: 30 })}</div>
                       </div>
                     </div>
@@ -893,15 +880,15 @@ export default function SellerReportPage() {
                       fontFamily: 'sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
                     }}
                   >
-                    <span style={{ fontSize: 13, fontWeight: 700 }}>{copied ? '✓ Link Copied!' : 'Share Report Link'}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>{copied ? <><Check size={14} /> Link Copied!</> : 'Share Report Link'}</span>
                     <span style={{ fontSize: 10, opacity: 0.75 }}>via email or text</span>
                   </button>
                   <a href={`/report/${reportToken}?print=true`} target="_blank" rel="noreferrer" style={{ ...outlineBtn, flex: 1 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700 }}>⬇ Download PDF</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><Download size={14} /> Download PDF</span>
                     <span style={{ fontSize: 10, color: C.muted }}>Full report</span>
                   </a>
                   <button onClick={() => window.print()} style={{ ...outlineBtn, flex: 1 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700 }}>🖨 Print Report</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><Printer size={14} /> Print Report</span>
                     <span style={{ fontSize: 10, color: C.muted }}>Print-ready PDF</span>
                   </button>
                 </div>
@@ -914,7 +901,7 @@ export default function SellerReportPage() {
                     'Lead details summary', 'Branded with your info',
                   ].map(item => (
                     <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: C.sub }}>
-                      <span style={{ color: '#4ade80', fontWeight: 700 }}>✓</span> {item}
+                      <Check size={13} color="#4ade80" strokeWidth={3} /> {item}
                     </div>
                   ))}
                 </div>
@@ -925,7 +912,7 @@ export default function SellerReportPage() {
                 {photo ? (
                   <img src={photo} alt={property.address} style={{ width: '100%', height: 110, objectFit: 'cover', display: 'block' }} />
                 ) : (
-                  <div style={{ width: '100%', height: 110, background: `linear-gradient(135deg, ${C.purple}, #5B21B6)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>🏠</div>
+                  <div style={{ width: '100%', height: 110, background: `linear-gradient(135deg, ${C.purple}, #5B21B6)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Home size={28} color="#fff" /></div>
                 )}
                 <div style={{ padding: '8px 10px', background: C.cardAlt }}>
                   <div style={{ fontSize: 9, fontWeight: 800, color: C.purpleL, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Seller Report</div>

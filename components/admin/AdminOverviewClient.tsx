@@ -1,8 +1,8 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Star } from 'lucide-react'
+import { Star, ChevronDown, ChevronUp } from 'lucide-react'
 // Type-only import — erased at compile time, so the 'server-only' guarded module
 // is never pulled into the client bundle.
 import type { BetaOverview, AgentSummary, HealthLabel } from '../../lib/admin/overview'
@@ -65,6 +65,7 @@ export default function AdminOverviewClient({ initial }: { initial: BetaOverview
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [loading, setLoading] = useState(false)
+  const [expandedFeedbackId, setExpandedFeedbackId] = useState<string | null>(null)
 
   const applyRange = async () => {
     setLoading(true)
@@ -241,8 +242,11 @@ export default function AdminOverviewClient({ initial }: { initial: BetaOverview
               {rows.length === 0 && (
                 <tr><td colSpan={13} style={{ ...TD, textAlign: 'center', color: C.muted, padding: '32px 16px' }}>No agents match these filters.</td></tr>
               )}
-              {rows.map(a => (
-                <tr key={a.id}>
+              {rows.map(a => {
+                const feedbackOpen = expandedFeedbackId === a.id
+                return (
+                <Fragment key={a.id}>
+                <tr>
                   <td style={{ ...TD, color: C.text, fontWeight: 600 }}>{a.name}</td>
                   <td style={{ ...TD, fontSize: 12 }}>
                     {a.plan ?? '—'}
@@ -268,9 +272,21 @@ export default function AdminOverviewClient({ initial }: { initial: BetaOverview
                     </span>
                   </td>
                   <td style={{ ...TD, textAlign: 'center' }}>
-                    {a.latestRating != null
-                      ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>{a.latestRating}<Star size={11} color={C.amber} fill={C.amber} /></span>
-                      : '—'}
+                    {a.latestFeedback != null ? (
+                      <button
+                        onClick={() => setExpandedFeedbackId(id => id === a.id ? null : a.id)}
+                        title={feedbackOpen ? 'Hide feedback' : 'View feedback'}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 3,
+                          background: 'none', border: 'none', padding: '3px 5px', margin: '-3px -5px',
+                          borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit',
+                          color: feedbackOpen ? C.purpleL : C.text, fontSize: 13, fontWeight: 600,
+                        }}
+                      >
+                        {a.latestFeedback.rating}<Star size={11} color={C.amber} fill={C.amber} />
+                        {feedbackOpen ? <ChevronUp size={12} color={C.muted} /> : <ChevronDown size={12} color={C.muted} />}
+                      </button>
+                    ) : '—'}
                   </td>
                   <td style={TD}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -279,7 +295,31 @@ export default function AdminOverviewClient({ initial }: { initial: BetaOverview
                     </div>
                   </td>
                 </tr>
-              ))}
+                {feedbackOpen && a.latestFeedback && (
+                  <tr>
+                    <td colSpan={13} style={{ padding: 0, borderBottom: '1px solid #252533', background: C.card2 }}>
+                      <div style={{ padding: '14px 18px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                        <div style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 14, fontWeight: 700, color: C.text }}>
+                          {a.latestFeedback.rating}<Star size={13} color={C.amber} fill={C.amber} />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          {a.latestFeedback.comment ? (
+                            <p style={{ margin: 0, fontSize: 13, color: C.sub, lineHeight: 1.55, fontStyle: 'italic' }}>
+                              &ldquo;{a.latestFeedback.comment}&rdquo;
+                            </p>
+                          ) : (
+                            <p style={{ margin: 0, fontSize: 13, color: C.muted, fontStyle: 'italic' }}>No comment left</p>
+                          )}
+                          <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>
+                            Submitted {fmtAgo(a.latestFeedback.createdAt)}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
+              )})}
             </tbody>
           </table>
         </div>

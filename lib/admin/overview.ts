@@ -37,7 +37,7 @@ export interface AgentSummary {
   hot:            number
   warm:           number
   cold:           number
-  latestRating:   number | null
+  latestFeedback: { rating: number; comment: string | null; context: string; createdAt: string } | null
   health:         { label: HealthLabel; reason: string }
 }
 
@@ -186,16 +186,18 @@ export async function getBetaOverview(range: OverviewRange = {}): Promise<BetaOv
     }
   }
 
-  // ── Latest feedback rating per agent ────────────────────────────────────────
-  const latestRating = new Map<string, number>()
+  // ── Latest feedback (rating + comment) per agent ────────────────────────────
+  const latestFeedback = new Map<string, { rating: number; comment: string | null; context: string; createdAt: string }>()
   {
     const { data: fbRows } = await svc
       .from('feedback_responses')
-      .select('agent_id, rating, created_at')
+      .select('agent_id, rating, comment, context, created_at')
       .in('agent_id', userIds)
       .order('created_at', { ascending: false })
     for (const f of fbRows ?? []) {
-      if (!latestRating.has(f.agent_id)) latestRating.set(f.agent_id, f.rating)
+      if (!latestFeedback.has(f.agent_id)) {
+        latestFeedback.set(f.agent_id, { rating: f.rating, comment: f.comment, context: f.context, createdAt: f.created_at })
+      }
     }
   }
 
@@ -229,7 +231,7 @@ export async function getBetaOverview(range: OverviewRange = {}): Promise<BetaOv
       hot: leads.hot,
       warm: leads.warm,
       cold: leads.cold,
-      latestRating: latestRating.get(p.id) ?? null,
+      latestFeedback: latestFeedback.get(p.id) ?? null,
       health: computeHealth({
         activeListings: active, totalScans: scans.count, leadsCaptured: leads.count,
         hot: leads.hot, expired, daysRemaining, lastActive,

@@ -8,6 +8,7 @@ import { getBetaStatus } from '../lib/beta'
 import { signLimitForPlan } from '../lib/plans'
 import { isEligibleLead } from '../lib/leadEligibility'
 import FeedbackPrompt from './FeedbackPrompt'
+import { X, Menu } from 'lucide-react'
 
 const C = {
   bg:      '#0F0F13',
@@ -246,7 +247,7 @@ function Sidebar({ email, plan, propertyCount, signCount, newLeadCount, isAdmin,
           <span style={{ fontSize: '18px', fontWeight: 500, color: '#ffffff' }}>ealtor</span>
         </Link>
         {onClose && (
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '2px 4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: C.muted, cursor: 'pointer', padding: '2px 4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
         )}
       </div>
 
@@ -456,7 +457,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
           <div className="db-mobile-header" style={{ position: 'sticky', top: 0, zIndex: 20, height: 52, background: C.sidebar, borderBottom: `1px solid ${C.border}`, alignItems: 'center', gap: 12, padding: '0 16px', flexShrink: 0 }}>
-            <button onClick={() => setMobileOpen(true)} aria-label="Open menu" style={{ background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, width: 34, height: 34, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.text, fontSize: 15, cursor: 'pointer' }}>☰</button>
+            <button onClick={() => setMobileOpen(true)} aria-label="Open menu" style={{ background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, width: 34, height: 34, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.text, cursor: 'pointer' }}><Menu size={16} /></button>
             <Link href="/dashboard" style={{ fontFamily: "-apple-system, 'Helvetica Neue', Arial, sans-serif", letterSpacing: '-0.5px', textDecoration: 'none' }}>
               <span style={{ fontSize: '18px', fontWeight: 300, color: '#ffffff' }}>the</span>
               <span style={{ fontSize: '18px', fontWeight: 700, color: '#534AB7' }}>qr</span>
@@ -511,11 +512,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       onClick={() => setWarningDismissed(true)}
                       style={{
                         background: 'transparent', border: 'none', color: '#92400E',
-                        cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '2px 4px',
-                        flexShrink: 0,
+                        cursor: 'pointer', padding: '2px 4px',
+                        flexShrink: 0, display: 'flex',
                       }}
                       aria-label="Dismiss"
-                    >✕</button>
+                    ><X size={16} /></button>
                   </div>
                 </div>
               )

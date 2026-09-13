@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
+import { Star } from 'lucide-react'
 // Type-only import — erased at compile time, so the 'server-only' guarded module
 // is never pulled into the client bundle.
 import type { BetaOverview, AgentSummary, HealthLabel } from '../../lib/admin/overview'
@@ -266,7 +267,11 @@ export default function AdminOverviewClient({ initial }: { initial: BetaOverview
                       {a.expired ? 'Expired' : `${a.daysRemaining}d`}
                     </span>
                   </td>
-                  <td style={{ ...TD, textAlign: 'center' }}>{a.latestRating != null ? `${a.latestRating}★` : '—'}</td>
+                  <td style={{ ...TD, textAlign: 'center' }}>
+                    {a.latestRating != null
+                      ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>{a.latestRating}<Star size={11} color={C.amber} fill={C.amber} /></span>
+                      : '—'}
+                  </td>
                   <td style={TD}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                       <span style={{ fontSize: 12, fontWeight: 700, color: HEALTH_COLOR[a.health.label] }}>{a.health.label}</span>

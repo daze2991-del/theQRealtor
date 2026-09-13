@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { QRCodeSVG } from 'qrcode.react'
-import { Tag, Clipboard, Signpost, type LucideIcon } from 'lucide-react'
+import { Tag, Clipboard, Signpost, Loader2, Download, ChevronUp, ChevronDown, type LucideIcon } from 'lucide-react'
 import { createBrowserSupabase } from '../../../../lib/supabase-browser'
 import DashboardLayout from '../../../../components/DashboardLayout'
 import Link from 'next/link'
@@ -547,9 +547,12 @@ export default function SignStudioPage() {
                     padding: '13px 20px', fontSize: 14, fontWeight: 700,
                     cursor: downloading ? 'not-allowed' : 'pointer',
                     fontFamily: 'sans-serif',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                   }}
                 >
-                  {downloading ? '⏳ Generating…' : '↓ Download Print-Ready PNG'}
+                  {downloading
+                    ? <><Loader2 size={14} style={{ animation: 'spin 0.9s linear infinite' }} /> Generating…</>
+                    : <><Download size={14} /> Download Print-Ready PNG</>}
                 </button>
               </div>
 
@@ -589,8 +592,8 @@ export default function SignStudioPage() {
 
                 {/* Custom size — collapsed by default, inches-first entry. */}
                 <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
-                  <button onClick={() => setCustomOpen(v => !v)} style={toggleLinkStyle}>
-                    Custom size {customOpen ? '▴' : '▾'}
+                  <button onClick={() => setCustomOpen(v => !v)} style={{ ...toggleLinkStyle, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                    Custom size {customOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                   </button>
                   {customOpen && (
                     <div style={{ marginTop: 14 }}>
@@ -653,8 +656,8 @@ export default function SignStudioPage() {
                 <p style={{ fontSize: 12, color: C.sub, margin: 0, lineHeight: 1.6 }}>
                   Need printing? Download the PNG and take it to your preferred print shop.
                 </p>
-                <button onClick={() => setPrintingTipsOpen(v => !v)} style={{ ...toggleLinkStyle, marginTop: 8 }}>
-                  Printing tips {printingTipsOpen ? '▴' : '▾'}
+                <button onClick={() => setPrintingTipsOpen(v => !v)} style={{ ...toggleLinkStyle, marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                  Printing tips {printingTipsOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                 </button>
                 {printingTipsOpen && (
                   <p style={{ fontSize: 12, color: C.muted, margin: '10px 0 0', lineHeight: 1.6 }}>

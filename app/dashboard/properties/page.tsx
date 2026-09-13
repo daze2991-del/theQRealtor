@@ -5,6 +5,10 @@ import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DashboardLayout from '../../../components/DashboardLayout'
+import {
+  Home, AlertTriangle, GripVertical, X, Loader2, MoreHorizontal, Check, Link2,
+  Camera, Signpost, Pencil, FileText, Trash2, Download,
+} from 'lucide-react'
 import { propertyLimitForPlan } from '../../../lib/plans'
 import { deactivationPatch } from '../../../lib/propertyStatus'
 import { motivationToTierV2 } from '../../../lib/leadScoringV2'
@@ -246,7 +250,7 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
           {thumbnail ? (
             <img src={thumbnail} alt="" style={{ width: 60, height: 60, borderRadius: 10, objectFit: 'cover', flexShrink: 0, border: `1px solid ${C.border}` }} />
           ) : (
-            <div style={{ width: 60, height: 60, borderRadius: 10, flexShrink: 0, background: '#252533', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>🏠</div>
+            <div style={{ width: 60, height: 60, borderRadius: 10, flexShrink: 0, background: '#252533', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.muted }}><Home size={24} /></div>
           )}
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -255,7 +259,7 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
             {location ? (
               <div style={{ fontSize: 12.5, color: C.muted, marginBottom: 4 }}>{location}</div>
             ) : (
-              <div style={{ fontSize: 12, color: '#FB923C', fontWeight: 600, marginBottom: 4 }}>⚠️ Missing Location</div>
+              <div style={{ fontSize: 12, color: '#FB923C', fontWeight: 600, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}><AlertTriangle size={12} /> Missing Location</div>
             )}
             <Link href={`/p/${prop.id}`} target="_blank" style={{ fontSize: 12, fontWeight: 600, color: C.purpleL, textDecoration: 'none' }}>
               Preview public page →
@@ -290,7 +294,7 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
                 <>
                   {photos.length > 1 && !hasReordered && (
                     <div style={{ fontSize: 11, color: C.muted, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginBottom: 8 }}>
-                      <span style={{ letterSpacing: '0.15em', opacity: 0.5 }}>⋮⋮</span> Drag to reorder
+                      <GripVertical size={12} style={{ opacity: 0.5 }} /> Drag to reorder
                     </div>
                   )}
                   <div
@@ -325,12 +329,12 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
                         {i === 0 && (
                           <div style={{ position: 'absolute', top: 3, left: 3, zIndex: 2, background: C.purple, color: '#fff', fontSize: 8, fontWeight: 800, padding: '2px 5px', borderRadius: 3 }}>HERO</div>
                         )}
-                        <div style={{ position: 'absolute', bottom: 4, left: '50%', transform: 'translateX(-50%)', zIndex: 2, background: 'rgba(0,0,0,0.55)', color: 'rgba(255,255,255,0.65)', fontSize: 11, padding: '2px 6px', borderRadius: 4, letterSpacing: '0.15em', pointerEvents: 'none', userSelect: 'none' }}>⋮⋮</div>
+                        <div style={{ position: 'absolute', bottom: 4, left: '50%', transform: 'translateX(-50%)', zIndex: 2, background: 'rgba(0,0,0,0.55)', color: 'rgba(255,255,255,0.65)', padding: '2px 6px', borderRadius: 4, pointerEvents: 'none', userSelect: 'none', display: 'flex' }}><GripVertical size={11} /></div>
                         <img src={photo.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none', userSelect: 'none' }} />
                         <button
                           onClick={() => deletePhoto(photo)}
-                          style={{ position: 'absolute', top: 3, right: 3, zIndex: 2, background: 'rgba(0,0,0,0.75)', color: '#fff', border: 'none', borderRadius: '50%', width: 20, height: 20, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                        >✕</button>
+                          style={{ position: 'absolute', top: 3, right: 3, zIndex: 2, background: 'rgba(0,0,0,0.75)', color: '#fff', border: 'none', borderRadius: '50%', width: 20, height: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        ><X size={11} /></button>
                       </div>
                     ))}
                   </div>
@@ -344,7 +348,9 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
                   onClick={() => fileInputRef.current?.click()}
                   style={{ border: `2px dashed ${isDragging ? C.purple : C.border}`, borderRadius: 10, padding: '20px 12px', textAlign: 'center', cursor: 'pointer', background: isDragging ? `${C.purple}08` : 'transparent', transition: 'all 0.2s' }}
                 >
-                  <div style={{ fontSize: 20, marginBottom: 6 }}>{uploading ? '⏳' : '+'}</div>
+                  <div style={{ fontSize: 20, marginBottom: 6, display: 'flex', justifyContent: 'center', color: C.muted }}>
+                    {uploading ? <Loader2 size={20} style={{ animation: 'spin 0.9s linear infinite' }} /> : '+'}
+                  </div>
                   <div style={{ fontSize: 12, color: C.muted }}>{uploading ? 'Uploading…' : `Add photos (${10 - photos.length} remaining)`}</div>
                 </div>
               )}
@@ -404,11 +410,11 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
             <button
               onClick={() => setMenuOpen(v => !v)}
               style={{
-                fontSize: 18, color: '#94A3B8', background: 'transparent',
+                color: '#94A3B8', background: 'transparent',
                 border: '1px solid #1E2340', borderRadius: 8,
-                padding: '6px 13px', cursor: 'pointer', lineHeight: 1,
+                padding: '6px 13px', cursor: 'pointer', display: 'flex', alignItems: 'center',
               }}
-            >···</button>
+            ><MoreHorizontal size={16} /></button>
             {menuOpen && (
               <div style={{
                 position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 50,
@@ -417,35 +423,36 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
                 boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
               }}>
                 <button onClick={() => { setMenuOpen(false); copyBuyerLink() }}
-                  style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: copied ? '#4ade80' : C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
-                  {copied ? '✓ Copied!' : '🔗 Copy Buyer Link'}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', background: 'none', border: 'none', color: copied ? '#4ade80' : C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
+                  {copied ? <><Check size={13} /> Copied!</> : <><Link2 size={13} /> Copy Buyer Link</>}
                 </button>
                 <button onClick={() => { setMenuOpen(false); setShowPhotos(v => !v) }}
-                  style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
-                  📷 Manage Photos {photos.length > 0 ? `(${photos.length})` : ''}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
+                  <Camera size={13} /> Manage Photos {photos.length > 0 ? `(${photos.length})` : ''}
                 </button>
                 <button onClick={() => { setMenuOpen(false); router.push(`/dashboard/signs?propertyId=${prop.id}`) }}
-                  style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
-                  📱 Manage Signs
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
+                  <Signpost size={13} /> Manage Signs
                 </button>
                 <button onClick={() => { setMenuOpen(false); openEdit() }}
-                  style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
-                  ✏️ Edit Property
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
+                  <Pencil size={13} /> Edit Property
                 </button>
                 <a href={`/report/${prop.report_token}?print=true`} target="_blank" rel="noreferrer"
                   onClick={() => setMenuOpen(false)}
-                  style={{ display: 'block', width: '100%', boxSizing: 'border-box', textAlign: 'left', textDecoration: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
-                  📄 PDF
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', boxSizing: 'border-box', textAlign: 'left', textDecoration: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
+                  <FileText size={13} /> PDF
                 </a>
                 <button onClick={() => { setMenuOpen(false); onToggle() }}
-                  style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
-                  {prop.active ? '🔴 Take Offline' : '🟢 Go Live'}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '9px 16px', cursor: 'pointer' }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: prop.active ? '#EF4444' : '#4ade80', flexShrink: 0, display: 'inline-block' }} />
+                  {prop.active ? 'Take Offline' : 'Go Live'}
                 </button>
                 <div style={{ borderTop: `1px solid ${C.border}`, margin: '4px 0' }} />
                 <button onClick={() => { setMenuOpen(false); onDelete() }}
                   disabled={deleting}
-                  style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: '#EF4444', fontSize: 13, padding: '9px 16px', cursor: deleting ? 'not-allowed' : 'pointer', opacity: deleting ? 0.5 : 1 }}>
-                  {deleting ? '…' : '🗑️ Delete Property'}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', background: 'none', border: 'none', color: '#EF4444', fontSize: 13, padding: '9px 16px', cursor: deleting ? 'not-allowed' : 'pointer', opacity: deleting ? 0.5 : 1 }}>
+                  {deleting ? '…' : <><Trash2 size={13} /> Delete Property</>}
                 </button>
               </div>
             )}
@@ -462,7 +469,7 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
           <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 28, width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
               <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.text }}>Edit Property</h2>
-              <button onClick={() => setEditOpen(false)} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 18, cursor: 'pointer', padding: 4, lineHeight: 1 }}>✕</button>
+              <button onClick={() => setEditOpen(false)} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', padding: 4, display: 'flex' }}><X size={18} /></button>
             </div>
 
             {/* Address */}
@@ -801,7 +808,7 @@ export default function PropertiesPage() {
             )}
             {sortedProperties.length === 0 ? (
               <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: '72px 32px', textAlign: 'center' }}>
-                <div style={{ fontSize: 48, marginBottom: 16 }}>🏠</div>
+                <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center', color: C.muted }}><Home size={48} /></div>
                 <div style={{ fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 8 }}>No properties yet</div>
                 <p style={{ fontSize: 14, color: C.muted, maxWidth: 360, margin: '0 auto 24px' }}>
                   Add your first property to start capturing buyer leads with trackable QR codes.
@@ -838,7 +845,7 @@ export default function PropertiesPage() {
       {deleteModal === 'confirm' && deleteTarget && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div style={{ background: '#1A1A24', border: '1px solid #252533', borderRadius: 16, padding: 28, maxWidth: 420, width: '100%' }}>
-            <div style={{ fontSize: 24, marginBottom: 12 }}>🗑️</div>
+            <div style={{ marginBottom: 12, color: '#EF4444' }}><Trash2 size={24} /></div>
             <h2 style={{ fontSize: 17, fontWeight: 700, color: '#FFFFFF', margin: '0 0 12px' }}>Delete &ldquo;{deleteTarget.address}&rdquo;?</h2>
             <p style={{ fontSize: 14, color: '#C4C4D4', lineHeight: 1.6, margin: '0 0 14px' }}>
               This removes the property from your dashboard. Its leads and scan history are <strong style={{ color: '#FFFFFF' }}>preserved</strong> and stay in your Leads list — but this property won&apos;t appear in the Leads filter anymore, so those leads will be harder to pull out as a group afterward. This can&apos;t be undone from the dashboard.
@@ -846,9 +853,9 @@ export default function PropertiesPage() {
             <button
               onClick={() => downloadPropertyLeadsCsv(deleteTarget)}
               disabled={exportingCsv}
-              style={{ width: '100%', background: 'transparent', color: C.purpleL, border: `1px solid ${C.border}`, borderRadius: 9, padding: '9px 16px', fontSize: 13, fontWeight: 700, cursor: exportingCsv ? 'not-allowed' : 'pointer', opacity: exportingCsv ? 0.7 : 1, fontFamily: 'sans-serif', marginBottom: 16 }}
+              style={{ width: '100%', background: 'transparent', color: C.purpleL, border: `1px solid ${C.border}`, borderRadius: 9, padding: '9px 16px', fontSize: 13, fontWeight: 700, cursor: exportingCsv ? 'not-allowed' : 'pointer', opacity: exportingCsv ? 0.7 : 1, fontFamily: 'sans-serif', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
             >
-              {exportingCsv ? 'Preparing…' : '⬇ Download leads as CSV'}
+              {exportingCsv ? 'Preparing…' : <><Download size={13} /> Download leads as CSV</>}
             </button>
             <div style={{ display: 'flex', gap: 10 }}>
               <button

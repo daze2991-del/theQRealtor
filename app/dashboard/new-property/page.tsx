@@ -7,6 +7,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { getBetaStatus } from "@/lib/beta";
 import { propertyLimitForPlan } from "@/lib/plans";
 import { PRICING_TIERS, PRICING_CLARIFIER, pricingTierConfig, type PricingTier } from "@/lib/pricing";
+import { Hourglass, Lock, ChevronRight, Check, CheckCircle, X, Loader2, Camera } from "lucide-react";
 
 const C = {
   bg:      '#0F0F13',
@@ -218,7 +219,7 @@ export default function NewPropertyPage() {
             borderRadius: 20, padding: '48px 40px', maxWidth: 480,
             textAlign: 'center', fontFamily: 'sans-serif',
           }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
+            <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center', color: C.muted }}><Hourglass size={48} /></div>
             <h2 style={{ fontSize: 20, fontWeight: 800, color: C.text, marginBottom: 8 }}>Your beta has ended</h2>
             <p style={{ color: C.muted, marginBottom: 28, fontSize: 14 }}>
               Reach out to continue using theqrealtor.
@@ -243,7 +244,7 @@ export default function NewPropertyPage() {
             borderRadius: 20, padding: '48px 40px', maxWidth: blockedPlan === 'starter' ? 480 : 620,
             textAlign: 'center', fontFamily: 'sans-serif',
           }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
+            <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center', color: C.muted }}><Lock size={48} /></div>
             {blockedPlan === 'starter' ? (
               // Starter agent at their cap: exactly one sensible upgrade path.
               <>
@@ -328,12 +329,13 @@ export default function NewPropertyPage() {
             const isDone = step === 'photos' && i === 0
             return (
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                {i > 0 && <span style={{ color: C.muted, fontSize: 12 }}>›</span>}
+                {i > 0 && <span style={{ display: 'flex', color: C.muted }}><ChevronRight size={12} /></span>}
                 <span style={{
                   fontSize: 12, fontWeight: 600,
                   color: isDone ? C.purpleL : isActive ? C.text : C.muted,
+                  display: 'inline-flex', alignItems: 'center', gap: 3,
                 }}>
-                  {isDone ? `✓ ` : ''}{label}
+                  {isDone ? <Check size={11} /> : ''}{label}
                 </span>
               </div>
             )
@@ -433,7 +435,7 @@ export default function NewPropertyPage() {
               borderRadius: 12, padding: '14px 18px', marginBottom: 24,
               display: 'flex', alignItems: 'center', gap: 14,
             }}>
-              <span style={{ fontSize: 24 }}>✅</span>
+              <span style={{ display: 'flex', color: '#4ade80' }}><CheckCircle size={24} /></span>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{address}</div>
                 <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Property created — now add photos (optional)</div>
@@ -466,10 +468,10 @@ export default function NewPropertyPage() {
                           style={{
                             position: 'absolute', top: 4, right: 4, zIndex: 2,
                             background: 'rgba(0,0,0,0.7)', color: '#fff', border: 'none',
-                            borderRadius: '50%', width: 22, height: 22, fontSize: 11,
+                            borderRadius: '50%', width: 22, height: 22,
                             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                           }}
-                        >✕</button>
+                        ><X size={11} /></button>
                       </div>
                     ))}
                   </div>
@@ -490,8 +492,8 @@ export default function NewPropertyPage() {
                       transition: 'all 0.2s',
                     }}
                   >
-                    <div style={{ fontSize: 32, marginBottom: 12 }}>
-                      {uploading ? '⏳' : '📷'}
+                    <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center', color: C.muted }}>
+                      {uploading ? <Loader2 size={32} style={{ animation: 'spin 0.9s linear infinite' }} /> : <Camera size={32} />}
                     </div>
                     <div style={{ fontSize: 14, fontWeight: 600, color: C.sub, marginBottom: 6 }}>
                       {uploading ? 'Uploading…' : 'Drag & drop photos here'}

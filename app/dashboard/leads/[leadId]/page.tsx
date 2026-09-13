@@ -5,6 +5,11 @@ import { useParams, useRouter } from 'next/navigation'
 import { createBrowserSupabase } from '../../../../lib/supabase-browser'
 import DashboardLayout from '../../../../components/DashboardLayout'
 import Link from 'next/link'
+import {
+  Home, Star, Pencil, Check, MessageCircle, Mail, Phone, Clipboard, Link2, Trash2,
+  Brain, Lightbulb, Repeat, Images, Clock, CalendarCheck,
+  StickyNote, QrCode, ChevronRight, ChevronDown, type LucideIcon,
+} from 'lucide-react'
 import { calcIntentScore, scoreToLabel } from '../../../../lib/leadScoring'
 import { calcPropertyInterest } from '../../../../lib/propertyInterest'
 import { timeAgo, parseTimestamp } from '../../../../lib/timeAgo'
@@ -270,25 +275,25 @@ export default function LeadDetailPage() {
       })()
 
   // Timeline events (most recent first)
-  const timeline: Array<{ icon: string; title: string; desc: string; time: string; color: string; bg: string }> = []
+  const timeline: Array<{ icon: LucideIcon; title: string; desc: string; time: string; color: string; bg: string }> = []
   if (eng.ctaClicked === 'showing') {
-    timeline.push({ icon: '🏠', title: 'Requested Showing', desc: `${firstName} requested a showing for this property`, time: lead.created_at, color: '#EF4444', bg: '#3B0D0D' })
+    timeline.push({ icon: CalendarCheck, title: 'Requested Showing', desc: `${firstName} requested a showing for this property`, time: lead.created_at, color: '#EF4444', bg: '#3B0D0D' })
   }
   if (lead.notes) {
-    timeline.push({ icon: '💬', title: 'Asked a Question', desc: `"${lead.notes}"`, time: lead.created_at, color: '#10B981', bg: '#052e16' })
+    timeline.push({ icon: MessageCircle, title: 'Asked a Question', desc: `"${lead.notes}"`, time: lead.created_at, color: '#10B981', bg: '#052e16' })
   }
   if (eng.visitCount > 1) {
-    timeline.push({ icon: '↩️', title: 'Returned to Property Page', desc: 'Visited the property page more than once', time: scanEvent?.created_at ?? lead.created_at, color: '#7C3AED', bg: '#1e1b4b' })
+    timeline.push({ icon: Repeat, title: 'Returned to Property Page', desc: 'Visited the property page more than once', time: scanEvent?.created_at ?? lead.created_at, color: '#7C3AED', bg: '#1e1b4b' })
   }
   if (eng.photosViewed > 0) {
-    timeline.push({ icon: '📸', title: 'Viewed Photos', desc: `Viewed ${eng.photosViewed} photo${eng.photosViewed !== 1 ? 's' : ''}`, time: scanEvent?.created_at ?? lead.created_at, color: '#14B8A6', bg: '#022c22' })
+    timeline.push({ icon: Images, title: 'Viewed Photos', desc: `Viewed ${eng.photosViewed} photo${eng.photosViewed !== 1 ? 's' : ''}`, time: scanEvent?.created_at ?? lead.created_at, color: '#14B8A6', bg: '#022c22' })
   }
-  timeline.push({ icon: '📱', title: 'Scanned QR Code', desc: 'First scan from yard sign', time: scanEvent?.created_at ?? lead.created_at, color: '#F97316', bg: '#431407' })
+  timeline.push({ icon: QrCode, title: 'Scanned QR Code', desc: 'First scan from yard sign', time: scanEvent?.created_at ?? lead.created_at, color: '#F97316', bg: '#431407' })
 
   // Contact preferences
   const prefs    = lead.contact_preference ? (lead.contact_preference as string).split(',').map((p: string) => p.trim()).filter(Boolean) : []
   const allPrefs = ['Text', 'Email', 'Phone Call']
-  const prefIcon: Record<string, string> = { Text: '💬', Email: '✉️', 'Phone Call': '📞' }
+  const prefIcon: Record<string, LucideIcon> = { Text: MessageCircle, Email: Mail, 'Phone Call': Phone }
 
   // Listing health — shared formula via calcPropertyInterest
   const health = calcPropertyInterest({
@@ -298,21 +303,21 @@ export default function LeadDetailPage() {
   })
 
   // Buyer Intelligence bullets (rule-based)
-  const intelBullets: Array<{ icon: string; text: string }> = []
+  const intelBullets: Array<{ icon: LucideIcon; color: string; text: string }> = []
   if (eng.visitCount > 1)
-    intelBullets.push({ icon: '↩️', text: 'Visited the property page more than once' })
+    intelBullets.push({ icon: Repeat, color: '#8B5CF6', text: 'Visited the property page more than once' })
   if (eng.photosViewed > 0)
-    intelBullets.push({ icon: '📸', text: `Viewed ${eng.photosViewed} photo${eng.photosViewed !== 1 ? 's' : ''}` })
+    intelBullets.push({ icon: Images, color: '#14B8A6', text: `Viewed ${eng.photosViewed} photo${eng.photosViewed !== 1 ? 's' : ''}` })
   if (eng.timeOnPageSec > 60) {
     const mins = Math.floor(eng.timeOnPageSec / 60)
-    intelBullets.push({ icon: '⏱', text: `Spent ${mins} minute${mins !== 1 ? 's' : ''} on the property page` })
+    intelBullets.push({ icon: Clock, color: '#60A5FA', text: `Spent ${mins} minute${mins !== 1 ? 's' : ''} on the property page` })
   }
   if (eng.ctaClicked === 'disclosures')
-    intelBullets.push({ icon: '📋', text: 'Requested property disclosures' })
+    intelBullets.push({ icon: Clipboard, color: C.muted, text: 'Requested property disclosures' })
   if (lead.notes)
-    intelBullets.push({ icon: '💬', text: 'Asked a question about the property' })
+    intelBullets.push({ icon: MessageCircle, color: '#10B981', text: 'Asked a question about the property' })
   if (tierV2 === 'hot')
-    intelBullets.push({ icon: '📅', text: 'Requested a showing' })
+    intelBullets.push({ icon: CalendarCheck, color: '#EF4444', text: 'Requested a showing' })
 
   const dropdownStyle: React.CSSProperties = {
     position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 50,
@@ -341,7 +346,7 @@ export default function LeadDetailPage() {
         <div>
           <div style={{ fontSize: 11, color: C.muted, marginBottom: 2 }}>
             <Link href="/dashboard/leads" style={{ color: C.muted, textDecoration: 'none' }}>Leads</Link>
-            <span style={{ margin: '0 5px' }}>›</span>
+            <span style={{ display: 'inline-flex', verticalAlign: -2, margin: '0 3px' }}><ChevronRight size={13} /></span>
             <span style={{ color: C.sub }}>{lead.name}</span>
           </div>
           <div style={{ fontSize: 17, fontWeight: 800, color: C.text, letterSpacing: '-0.02em' }}>Lead Details</div>
@@ -361,14 +366,15 @@ export default function LeadDetailPage() {
                 fontSize: 13, fontWeight: 700, color: C.text, cursor: 'pointer',
                 padding: '8px 14px', borderRadius: 8, border: `1px solid ${C.border}`,
                 background: '#1F1F2E', fontFamily: 'sans-serif',
+                display: 'inline-flex', alignItems: 'center', gap: 4,
               }}
             >
-              Actions ▾
+              Actions <ChevronDown size={14} />
             </button>
             {actionsOpen && (
               <div style={dropdownStyle}>
-                {lead.phone && <DropdownItem onClick={() => { copyToClipboard(lead.phone, 'phone'); setActionsOpen(false) }}>Copy Phone {copied === 'phone' && '✓'}</DropdownItem>}
-                {lead.email && <DropdownItem onClick={() => { copyToClipboard(lead.email, 'email'); setActionsOpen(false) }}>Copy Email {copied === 'email' && '✓'}</DropdownItem>}
+                {lead.phone && <DropdownItem onClick={() => { copyToClipboard(lead.phone, 'phone'); setActionsOpen(false) }}>Copy Phone {copied === 'phone' && <Check size={12} style={{ verticalAlign: -2 }} />}</DropdownItem>}
+                {lead.email && <DropdownItem onClick={() => { copyToClipboard(lead.email, 'email'); setActionsOpen(false) }}>Copy Email {copied === 'email' && <Check size={12} style={{ verticalAlign: -2 }} />}</DropdownItem>}
                 {property && <DropdownItem href={`/p/${property.id}`}>View Buyer Page →</DropdownItem>}
                 <div style={{ height: 1, background: C.border }} />
                 <DropdownItem danger onClick={() => { setActionsOpen(false); deleteLead() }}>
@@ -416,13 +422,13 @@ export default function LeadDetailPage() {
                   {/* Name */}
                   <div style={{ fontSize: 26, fontWeight: 900, color: C.text, letterSpacing: '-0.02em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
                     {lead.name ?? 'Unknown'}
-                    <span title="Favorite" style={{ fontSize: 18, cursor: 'default', opacity: 0.4 }}>☆</span>
-                    <span title="Edit" style={{ fontSize: 14, cursor: 'default', opacity: 0.4 }}>✏️</span>
+                    <span title="Favorite" style={{ display: 'flex', cursor: 'default', opacity: 0.4, color: C.muted }}><Star size={16} /></span>
+                    <span title="Edit" style={{ display: 'flex', cursor: 'default', opacity: 0.4, color: C.muted }}><Pencil size={13} /></span>
                   </div>
                   {/* Address */}
                   {fullAddr && (
                     <div style={{ fontSize: 13, color: C.sub, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      🏠 {fullAddr}
+                      <Home size={13} /> {fullAddr}
                     </div>
                   )}
                   {/* Time */}
@@ -432,8 +438,9 @@ export default function LeadDetailPage() {
                       background: '#052e16', color: '#4ade80',
                       border: '1px solid #166534', borderRadius: 20,
                       padding: '2px 10px', fontSize: 11, fontWeight: 700,
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
                     }}>
-                      ✓ First Contact
+                      <Check size={11} /> First Contact
                     </span>
                   </div>
                 </div>
@@ -457,6 +464,7 @@ export default function LeadDetailPage() {
                     <span style={{ fontSize: 11, color: C.muted, fontStyle: 'italic' }}>No preference set</span>
                   ) : allPrefs.map(pref => {
                     const preferred = prefs.some(p => p.toLowerCase() === pref.toLowerCase())
+                    const PrefIcon = prefIcon[pref]
                     return (
                       <span key={pref} style={{
                         fontSize: 11, fontWeight: 700,
@@ -465,8 +473,9 @@ export default function LeadDetailPage() {
                         color: preferred ? C.purpleL : C.muted,
                         borderRadius: 20, padding: '4px 11px',
                         opacity: preferred ? 1 : 0.7,
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
                       }}>
-                        {prefIcon[pref]} {preferred ? pref : `Avoid ${pref}`}
+                        <PrefIcon size={11} /> {preferred ? pref : `Avoid ${pref}`}
                       </span>
                     )
                   })}
@@ -504,7 +513,7 @@ export default function LeadDetailPage() {
                 background: '#052e16', border: '1px solid #166534',
                 borderRadius: 10, padding: '10px 20px',
                 color: '#4ade80', fontSize: 14, fontWeight: 700, textDecoration: 'none',
-              }}>📞 Call Now</a>
+              }}><Phone size={15} /> Call Now</a>
             )}
             {lead.phone && (
               <a href={`sms:${lead.phone}`} className="action-btn" style={{
@@ -512,7 +521,7 @@ export default function LeadDetailPage() {
                 background: '#0B1E3A', border: '1px solid #1D4ED860',
                 borderRadius: 10, padding: '10px 20px',
                 color: '#60A5FA', fontSize: 14, fontWeight: 700, textDecoration: 'none',
-              }}>💬 Send Text</a>
+              }}><MessageCircle size={15} /> Send Text</a>
             )}
             {lead.email && (
               <a href={`mailto:${lead.email}`} className="action-btn" style={{
@@ -520,7 +529,7 @@ export default function LeadDetailPage() {
                 background: `${C.purple}18`, border: `1px solid ${C.purple}50`,
                 borderRadius: 10, padding: '10px 20px',
                 color: C.purpleL, fontSize: 14, fontWeight: 700, textDecoration: 'none',
-              }}>✉️ Send Email</a>
+              }}><Mail size={15} /> Send Email</a>
             )}
 
             {/* More Actions dropdown */}
@@ -534,26 +543,32 @@ export default function LeadDetailPage() {
                   color: C.sub, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif',
                 }}
               >
-                More Actions ▾
+                More Actions <ChevronDown size={14} />
               </button>
               {moreOpen && (
                 <div style={{ ...dropdownStyle, right: 0 }}>
                   {lead.phone && (
                     <DropdownItem onClick={() => copyToClipboard(lead.phone, 'phone')}>
-                      📋 Copy Phone {copied === 'phone' ? '✓' : ''}
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                        <Clipboard size={13} /> Copy Phone {copied === 'phone' && <Check size={12} />}
+                      </span>
                     </DropdownItem>
                   )}
                   {lead.email && (
                     <DropdownItem onClick={() => copyToClipboard(lead.email, 'email')}>
-                      📋 Copy Email {copied === 'email' ? '✓' : ''}
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                        <Clipboard size={13} /> Copy Email {copied === 'email' && <Check size={12} />}
+                      </span>
                     </DropdownItem>
                   )}
                   {property && (
-                    <DropdownItem href={`/p/${property.id}`}>🔗 View Buyer Page</DropdownItem>
+                    <DropdownItem href={`/p/${property.id}`}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Link2 size={13} /> View Buyer Page</span>
+                    </DropdownItem>
                   )}
                   <div style={{ height: 1, background: C.border }} />
                   <DropdownItem danger onClick={() => { setMoreOpen(false); deleteLead() }}>
-                    🗑 Delete Lead
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Trash2 size={13} /> Delete Lead</span>
                   </DropdownItem>
                 </div>
               )}
@@ -570,22 +585,22 @@ export default function LeadDetailPage() {
             {/* Buyer Intelligence */}
             <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
               <div style={{ padding: '13px 18px', borderBottom: `1px solid ${C.border}`, background: C.cardAlt }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>🧠 Buyer Intelligence</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Brain size={14} color={C.purpleL} /> Buyer Intelligence</span>
               </div>
               <div style={{ padding: '16px 18px' }}>
                 <p style={{ fontSize: 14, color: C.text, lineHeight: 1.65, margin: '0 0 14px' }}>
                   {TIER_V2_CFG[tierV2].summary}
                 </p>
                 {lead.buyer_texted_at && (
-                  <div style={{ fontSize: 11, color: C.muted, margin: '-6px 0 14px' }}>
-                    ✓ Buyer auto-texted {timeAgo(lead.buyer_texted_at)}
+                  <div style={{ fontSize: 11, color: C.muted, margin: '-6px 0 14px', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <Check size={11} /> Buyer auto-texted {timeAgo(lead.buyer_texted_at)}
                   </div>
                 )}
                 {intelBullets.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 16 }}>
                     {intelBullets.map((b, i) => (
                       <div key={i} style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
-                        <span style={{ flexShrink: 0, fontSize: 14 }}>{b.icon}</span>
+                        <span style={{ flexShrink: 0, display: 'flex', marginTop: 1, color: b.color }}><b.icon size={14} /></span>
                         <span style={{ fontSize: 13, color: C.sub, lineHeight: 1.5 }}>{b.text}</span>
                       </div>
                     ))}
@@ -596,8 +611,8 @@ export default function LeadDetailPage() {
                   border: `1px solid ${C.purple}40`,
                   borderRadius: 10, padding: '12px 14px',
                 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: C.purpleL, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
-                    💡 Recommended Action
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.purpleL, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <Lightbulb size={12} /> Recommended Action
                   </div>
                   <p style={{ fontSize: 13, color: C.sub, lineHeight: 1.6, margin: 0 }}>
                     {TIER_V2_CFG[tierV2].advice}
@@ -621,9 +636,9 @@ export default function LeadDetailPage() {
                       <div style={{
                         width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
                         background: ev.bg, border: `1px solid ${ev.color}50`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', color: ev.color,
                       }}>
-                        {ev.icon}
+                        <ev.icon size={15} />
                       </div>
                       {i < timeline.length - 1 && (
                         <div style={{ width: 1, flex: 1, background: C.border, marginTop: 4 }} />
@@ -687,7 +702,7 @@ export default function LeadDetailPage() {
             {/* Notes */}
             <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
               <div style={{ padding: '13px 18px', borderBottom: `1px solid ${C.border}`, background: C.cardAlt }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>📝 Notes</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 6 }}><StickyNote size={14} /> Notes</span>
               </div>
               <div style={{ padding: '16px 18px' }}>
                 <textarea
@@ -717,7 +732,7 @@ export default function LeadDetailPage() {
                   >
                     {savingNotes ? 'Saving…' : 'Save Note'}
                   </button>
-                  {notesSaved && <span style={{ fontSize: 12, color: '#4ade80', fontWeight: 600 }}>✓ Saved</span>}
+                  {notesSaved && <span style={{ fontSize: 12, color: '#4ade80', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Check size={12} /> Saved</span>}
                 </div>
               </div>
             </div>
@@ -783,7 +798,7 @@ export default function LeadDetailPage() {
                   </Link>
                 </div>
                 <div style={{ padding: '16px 18px' }}>
-                  <div style={{ fontSize: 28, marginBottom: 10 }}>💬</div>
+                  <div style={{ marginBottom: 10, color: C.purpleL }}><MessageCircle size={28} /></div>
                   <p style={{ fontSize: 15, color: C.text, lineHeight: 1.65, margin: '0 0 10px', fontStyle: 'italic' }}>
                     "{buyerQuestion}"
                   </p>
@@ -801,7 +816,7 @@ export default function LeadDetailPage() {
               <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {lead.phone && (
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                    <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>📞</span>
+                    <span style={{ display: 'flex', flexShrink: 0, marginTop: 1, color: C.sub }}><Phone size={16} /></span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>
                         Mobile {prefs.includes('Text') ? '(Text Preferred)' : ''}
@@ -810,13 +825,13 @@ export default function LeadDetailPage() {
                     </div>
                     <a href={`sms:${lead.phone}`} title="Send text" style={{
                       width: 30, height: 30, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: '#0B1E3A', border: '1px solid #1D4ED840', color: '#60A5FA', fontSize: 14, textDecoration: 'none', flexShrink: 0,
-                    }}>💬</a>
+                      background: '#0B1E3A', border: '1px solid #1D4ED840', color: '#60A5FA', textDecoration: 'none', flexShrink: 0,
+                    }}><MessageCircle size={14} /></a>
                   </div>
                 )}
                 {lead.email && (
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                    <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>✉️</span>
+                    <span style={{ display: 'flex', flexShrink: 0, marginTop: 1, color: C.sub }}><Mail size={16} /></span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>
                         Email
@@ -825,8 +840,8 @@ export default function LeadDetailPage() {
                     </div>
                     <a href={`mailto:${lead.email}`} title="Send email" style={{
                       width: 30, height: 30, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: `${C.purple}18`, border: `1px solid ${C.purple}40`, color: C.purpleL, fontSize: 14, textDecoration: 'none', flexShrink: 0,
-                    }}>✉️</a>
+                      background: `${C.purple}18`, border: `1px solid ${C.purple}40`, color: C.purpleL, textDecoration: 'none', flexShrink: 0,
+                    }}><Mail size={14} /></a>
                   </div>
                 )}
                 {!lead.phone && !lead.email && (
@@ -842,7 +857,7 @@ export default function LeadDetailPage() {
               </div>
               <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 20 }}>📱</span>
+                  <span style={{ display: 'flex', color: C.muted }}><QrCode size={18} /></span>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>QR Code Scan</div>
                     <div style={{ fontSize: 11, color: C.muted }}>

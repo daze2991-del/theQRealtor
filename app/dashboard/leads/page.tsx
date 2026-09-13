@@ -9,6 +9,11 @@ import { Suspense, useEffect, useState, useMemo, useRef, useCallback } from 'rea
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import DashboardLayout from '../../../components/DashboardLayout'
+import {
+  Flame, Minus, ChevronDown, Phone, MessageCircle, Mail, Download, FileText,
+  Ban, CheckSquare, Square, Check, Inbox, Home, MapPin, Zap, Tag, StickyNote,
+  ArchiveRestore, RefreshCw, type LucideIcon,
+} from 'lucide-react'
 import { computeCallPriority, motivationToTierV2, urgencyLabel, topSignalLabel, TIER_V2_CFG, type LeadTierV2 } from '../../../lib/leadScoringV2'
 import { timeAgo } from '../../../lib/timeAgo'
 
@@ -35,10 +40,10 @@ const STATUS_CFG = {
 // V2: hot / warm / cold only (motivated collapsed into hot)
 const TIER_CHIP_CFG = TIER_V2_CFG
 
-const TEMP_CHIPS: Array<{ key: LeadTierV2; label: string }> = [
-  { key: 'hot',  label: '🔥 Hot'  },
-  { key: 'warm', label: '☀️ Warm' },
-  { key: 'cold', label: '❄️ Cold' },
+const TEMP_CHIPS: Array<{ key: LeadTierV2; label: string; icon: LucideIcon }> = [
+  { key: 'hot',  label: 'Hot',  icon: Flame },
+  { key: 'warm', label: 'Warm', icon: Flame },
+  { key: 'cold', label: 'Cold', icon: Minus },
 ]
 
 const STATUS_OPTIONS = ['new', 'contacted', 'qualified', 'won', 'lost'] as const
@@ -88,10 +93,10 @@ function StatusBadge({ status, onClick }: { status: StatusKey; onClick?: (e: Rea
         background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`,
         borderRadius: 6, padding: '3px 9px', fontSize: 11, fontWeight: 700,
         whiteSpace: 'nowrap', cursor: onClick ? 'pointer' : 'default', userSelect: 'none',
-        fontFamily: 'sans-serif',
+        fontFamily: 'sans-serif', display: 'inline-flex', alignItems: 'center', gap: 2,
       }}
     >
-      {cfg.label}{onClick ? ' ▾' : ''}
+      {cfg.label}{onClick ? <ChevronDown size={11} /> : ''}
     </button>
   )
 }
@@ -119,16 +124,16 @@ function Avatar({ name, tier, size = 40 }: { name: string; tier?: LeadTierV2; si
   )
 }
 
-function ActionBtn({ href, title, emoji, bg, border }: { href: string; title: string; emoji: string; bg: string; border: string }) {
+function ActionBtn({ href, title, icon: Icon, color, bg, border }: { href: string; title: string; icon: LucideIcon; color: string; bg: string; border: string }) {
   return (
     <a href={href} title={title} onClick={e => e.stopPropagation()}
       style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        width: 32, height: 32, borderRadius: 8, fontSize: 15,
+        width: 32, height: 32, borderRadius: 8, color,
         background: bg, border: `1px solid ${border}`,
         textDecoration: 'none', flexShrink: 0,
       }}
-    >{emoji}</a>
+    ><Icon size={15} /></a>
   )
 }
 
@@ -507,10 +512,10 @@ function LeadsPageInner() {
                 padding: '8px 16px', fontSize: 13, fontWeight: 600,
                 cursor: (exportingCSV || leads.length === 0) ? 'not-allowed' : 'pointer',
                 opacity: (exportingCSV || leads.length === 0) ? 0.5 : 1,
-                fontFamily: 'sans-serif',
+                fontFamily: 'sans-serif', display: 'flex', alignItems: 'center', gap: 6,
               }}
             >
-              {exportingCSV ? 'Exporting…' : '⬇ Export CSV'}
+              {exportingCSV ? 'Exporting…' : <><Download size={13} /> Export CSV</>}
             </button>
           </div>
 
@@ -536,10 +541,11 @@ function LeadsPageInner() {
                       background: on ? `${cfg.color}22` : 'transparent',
                       border: `1px solid ${on ? cfg.color : C.border}`,
                       color: on ? cfg.color : C.muted,
+                      display: 'inline-flex', alignItems: 'center', gap: 5,
                     }}
                   >
-                    {chip.label}
-                    {cnt > 0 && <span style={{ marginLeft: 5, fontSize: 10, opacity: 0.7 }}>{cnt}</span>}
+                    <chip.icon size={12} /> {chip.label}
+                    {cnt > 0 && <span style={{ marginLeft: 1, fontSize: 10, opacity: 0.7 }}>{cnt}</span>}
                   </button>
                 )
               })}
@@ -550,9 +556,10 @@ function LeadsPageInner() {
                   background: filterDisclosures ? '#D97706' + '22' : 'transparent',
                   border: `1px solid ${filterDisclosures ? '#D97706' : C.border}`,
                   color: filterDisclosures ? '#D97706' : C.muted,
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
                 }}
               >
-                📄 Disclosures
+                <FileText size={12} /> Disclosures
               </button>
               <button className="chip-btn"
                 onClick={() => { setViewSpam(v => !v); setSpamConfirmId(null) }}
@@ -561,10 +568,11 @@ function LeadsPageInner() {
                   background: viewSpam ? '#EF444422' : 'transparent',
                   border: `1px solid ${viewSpam ? '#EF4444' : C.border}`,
                   color: viewSpam ? '#EF4444' : C.muted,
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
                 }}
               >
-                🚫 Spam
-                {spamCount > 0 && <span style={{ marginLeft: 5, fontSize: 10, opacity: 0.7 }}>{spamCount}</span>}
+                <Ban size={12} /> Spam
+                {spamCount > 0 && <span style={{ marginLeft: 1, fontSize: 10, opacity: 0.7 }}>{spamCount}</span>}
               </button>
             </div>
 
@@ -579,9 +587,10 @@ function LeadsPageInner() {
                   background: !allStatusOn ? `${C.purple}30` : 'transparent',
                   border: `1px solid ${!allStatusOn ? C.purple : C.border}`,
                   color: !allStatusOn ? C.purpleL : C.muted,
+                  display: 'inline-flex', alignItems: 'center', gap: 3,
                 }}
               >
-                Status {!allStatusOn ? `(${filterStatus.length})` : '(All)'} ▾
+                Status {!allStatusOn ? `(${filterStatus.length})` : '(All)'} <ChevronDown size={12} />
               </button>
               {openStatusDd === '__filter__' && (
                 <div style={{
@@ -594,7 +603,7 @@ function LeadsPageInner() {
                     const cfg = STATUS_CFG[s]
                     return (
                       <button key={s} className="dd-item" onClick={() => toggleStatus(s)}>
-                        <span style={{ fontSize: 13, color: on ? C.purpleL : C.muted }}>{on ? '☑' : '☐'}</span>
+                        <span style={{ display: 'flex', color: on ? C.purpleL : C.muted }}>{on ? <CheckSquare size={13} /> : <Square size={13} />}</span>
                         <span style={{ width: 8, height: 8, borderRadius: '50%', background: cfg.color, flexShrink: 0, display: 'inline-block' }} />
                         <span style={{ color: cfg.color, fontWeight: 600 }}>{cfg.label}</span>
                       </button>
@@ -644,7 +653,7 @@ function LeadsPageInner() {
           <div className="leads-grid" style={{ flex: 1, padding: '20px 28px 40px', fontFamily: 'sans-serif' }}>
             {leads.length === 0 ? (
               <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: '72px 24px', textAlign: 'center' }}>
-                <div style={{ fontSize: 42, marginBottom: 14 }}>📭</div>
+                <div style={{ marginBottom: 14, display: 'flex', justifyContent: 'center', color: C.muted }}><Inbox size={42} /></div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: C.sub, marginBottom: 8 }}>
                   {allLeads.length === 0 ? 'No leads yet' : 'No leads match your filters'}
                 </div>
@@ -693,13 +702,13 @@ function LeadsPageInner() {
                             <span style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{lead.name || 'Unknown'}</span>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                               {lead.source === 'open_house_checkin' && (
-                                <span style={{ fontSize: 10, fontWeight: 700, background: '#1A1200', border: '1px solid #D9770640', color: '#F59E0B', borderRadius: 6, padding: '2px 8px', whiteSpace: 'nowrap' }}>
-                                  🏠 Open House
+                                <span style={{ fontSize: 10, fontWeight: 700, background: '#1A1200', border: '1px solid #D9770640', color: '#F59E0B', borderRadius: 6, padding: '2px 8px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                  <Home size={10} /> Open House
                                 </span>
                               )}
                               {lead.do_not_contact && (
-                                <span style={{ fontSize: 10, fontWeight: 700, background: '#3B0D0D', border: '1px solid #EF444450', color: '#EF4444', borderRadius: 6, padding: '2px 8px', whiteSpace: 'nowrap' }}>
-                                  🚫 Do Not Contact
+                                <span style={{ fontSize: 10, fontWeight: 700, background: '#3B0D0D', border: '1px solid #EF444450', color: '#EF4444', borderRadius: 6, padding: '2px 8px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                  <Ban size={10} /> Do Not Contact
                                 </span>
                               )}
                               <TierBadge tier={tier} />
@@ -726,7 +735,7 @@ function LeadsPageInner() {
                                         >
                                           <span style={{ width: 8, height: 8, borderRadius: '50%', background: scfg.color, flexShrink: 0, display: 'inline-block' }} />
                                           <span style={{ color: scfg.color, flex: 1 }}>{scfg.label}</span>
-                                          {active && <span style={{ fontSize: 11, color: C.muted }}>✓</span>}
+                                          {active && <span style={{ display: 'flex', color: C.muted }}><Check size={11} /></span>}
                                         </button>
                                       )
                                     })}
@@ -751,11 +760,14 @@ function LeadsPageInner() {
                           {/* Contact prefs */}
                           {lead.contact_preference && (
                             <div style={{ display: 'flex', gap: 4, marginTop: 5, flexWrap: 'wrap' }}>
-                              {(lead.contact_preference as string).split(',').map((p: string) => p.trim()).filter(Boolean).map((pref: string) => (
-                                <span key={pref} style={{ fontSize: 10, fontWeight: 700, background: 'rgba(255,255,255,0.05)', border: `1px solid ${C.border}`, color: C.muted, borderRadius: 5, padding: '2px 7px', whiteSpace: 'nowrap' }}>
-                                  {pref === 'Phone Call' ? '📞' : pref === 'Text' ? '💬' : '✉️'} {pref}
-                                </span>
-                              ))}
+                              {(lead.contact_preference as string).split(',').map((p: string) => p.trim()).filter(Boolean).map((pref: string) => {
+                                const PrefIcon = pref === 'Phone Call' ? Phone : pref === 'Text' ? MessageCircle : Mail
+                                return (
+                                  <span key={pref} style={{ fontSize: 10, fontWeight: 700, background: 'rgba(255,255,255,0.05)', border: `1px solid ${C.border}`, color: C.muted, borderRadius: 5, padding: '2px 7px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                                    <PrefIcon size={10} /> {pref}
+                                  </span>
+                                )
+                              })}
                             </div>
                           )}
                         </div>
@@ -765,18 +777,18 @@ function LeadsPageInner() {
                       <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0, flex: 1 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.muted }}>
-                            <span>📍</span>
+                            <MapPin size={12} />
                             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontStyle: address ? undefined : 'italic', opacity: address ? 1 : 0.75 }}>
                               {address || 'Deleted Property'}
                             </span>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.purpleL }}>
-                            <span>⚡</span>
+                            <Zap size={12} />
                             <span>{lastActiveText(lastScan, lead.created_at)}</span>
                           </div>
                           {qr && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.muted }}>
-                              <span>🏷️</span>
+                              <Tag size={12} />
                               <span>{qr.label}</span>
                               <span style={{ color: C.border }}>·</span>
                               <span style={{ color: C.purpleL, fontWeight: 600 }}>{qr.scan_count} scan{qr.scan_count !== 1 ? 's' : ''}</span>
@@ -804,9 +816,9 @@ function LeadsPageInner() {
                             </span>
                           )}
                           <div style={{ display: 'flex', gap: 5 }}>
-                            {lead.phone && <ActionBtn href={`tel:${lead.phone}`}    title={`Call ${lead.name}`}  emoji="📞" bg="#062014"         border="#166534" />}
-                            {lead.phone && <ActionBtn href={`sms:${lead.phone}`}    title={`Text ${lead.name}`}  emoji="💬" bg={`${C.purple}18`}  border={`${C.purple}40`} />}
-                            {lead.email && <ActionBtn href={`mailto:${lead.email}`} title={`Email ${lead.name}`} emoji="✉️" bg="#0B1E3A"         border="#1D4ED860" />}
+                            {lead.phone && <ActionBtn href={`tel:${lead.phone}`}    title={`Call ${lead.name}`}  icon={Phone}         color="#4ade80" bg="#062014"         border="#166534" />}
+                            {lead.phone && <ActionBtn href={`sms:${lead.phone}`}    title={`Text ${lead.name}`}  icon={MessageCircle} color={C.purpleL} bg={`${C.purple}18`}  border={`${C.purple}40`} />}
+                            {lead.email && <ActionBtn href={`mailto:${lead.email}`} title={`Email ${lead.name}`} icon={Mail}          color="#60A5FA" bg="#0B1E3A"         border="#1D4ED860" />}
                           </div>
                           {/* Notes toggle */}
                           <button
@@ -817,10 +829,11 @@ function LeadsPageInner() {
                               border: `1px solid ${notesOpen ? C.purple : C.border}`,
                               background: notesOpen ? `${C.purple}20` : 'transparent',
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              fontSize: 14, cursor: 'pointer', position: 'relative', flexShrink: 0,
+                              color: notesOpen ? C.purpleL : C.muted,
+                              cursor: 'pointer', position: 'relative', flexShrink: 0,
                             }}
                           >
-                            📝
+                            <StickyNote size={14} />
                             {hasNotes && !notesOpen && (
                               <span style={{ position: 'absolute', top: 3, right: 3, width: 6, height: 6, borderRadius: '50%', background: C.purpleL }} />
                             )}
@@ -832,11 +845,11 @@ function LeadsPageInner() {
                               onClick={e => { e.stopPropagation(); markSpam(lead.id, false) }}
                               style={{
                                 width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-                                border: `1px solid ${C.border}`, background: 'transparent',
+                                border: `1px solid ${C.border}`, background: 'transparent', color: C.muted,
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                fontSize: 14, cursor: 'pointer',
+                                cursor: 'pointer',
                               }}
-                            >♻️</button>
+                            ><ArchiveRestore size={14} /></button>
                           ) : (
                             <button
                               title="Mark as spam"
@@ -845,10 +858,11 @@ function LeadsPageInner() {
                                 width: 32, height: 32, borderRadius: 8, flexShrink: 0,
                                 border: `1px solid ${spamConfirmId === lead.id ? '#EF4444' : C.border}`,
                                 background: spamConfirmId === lead.id ? '#EF444418' : 'transparent',
+                                color: spamConfirmId === lead.id ? '#EF4444' : C.muted,
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                fontSize: 14, cursor: 'pointer',
+                                cursor: 'pointer',
                               }}
-                            >🚫</button>
+                            ><Ban size={14} /></button>
                           )}
                         </div>
                       </div>
@@ -911,8 +925,10 @@ function LeadsPageInner() {
                               transition: 'border-color 0.12s',
                             }}
                           />
-                          <div style={{ fontSize: 10, color: C.muted, marginTop: 3 }}>
-                            {savingNotes[lead.id] ? '⟳ Saving…' : hasNotes ? '✓ Saved' : 'Auto-saves on blur'}
+                          <div style={{ fontSize: 10, color: C.muted, marginTop: 3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                            {savingNotes[lead.id]
+                              ? <><RefreshCw size={10} /> Saving…</>
+                              : hasNotes ? <><Check size={10} /> Saved</> : 'Auto-saves on blur'}
                           </div>
                         </div>
                       )}

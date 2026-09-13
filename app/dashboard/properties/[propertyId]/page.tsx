@@ -5,6 +5,11 @@ import { useParams, useRouter } from 'next/navigation'
 import { createBrowserSupabase } from '../../../../lib/supabase-browser'
 import DashboardLayout from '../../../../components/DashboardLayout'
 import Link from 'next/link'
+import {
+  Flame, Minus, TrendingUp, TrendingDown, QrCode, Users, CalendarCheck,
+  MessageCircle, User, Repeat, Archive, Check, MoreVertical, Pencil, Link2,
+  Trash2, Home, Eye, Download, Phone, X, type LucideIcon,
+} from 'lucide-react'
 import { calcPropertyInterest } from '../../../../lib/propertyInterest'
 import { timeAgo } from '../../../../lib/timeAgo'
 import { deactivationPatch } from '../../../../lib/propertyStatus'
@@ -17,13 +22,16 @@ const C = {
 } as const
 
 const TIER_COLOR: Record<string, string> = {
-  hot: '#EF4444', warm: '#60A5FA', cold: '#6B7280',
+  hot: '#EF4444', warm: '#F59E0B', cold: '#6B7280',
 }
 const TIER_BG: Record<string, string> = {
-  hot: '#3B0D0D', warm: '#0F2238', cold: '#1F2937',
+  hot: '#3B0D0D', warm: '#3B2504', cold: '#1F2937',
+}
+const TIER_ICON: Record<string, LucideIcon> = {
+  hot: Flame, warm: Flame, cold: Minus,
 }
 const TIER_LABEL: Record<string, string> = {
-  hot: '🔥 Hot', warm: '👍 Warm', cold: '❄️ Cold',
+  hot: 'Hot', warm: 'Warm', cold: 'Cold',
 }
 const MOCK_PCTS = [12, 8, 24, 15, 6, 19, 31]
 
@@ -86,19 +94,20 @@ function CircularProgress({ score, color }: { score: number; color: string }) {
   )
 }
 
-function KpiCard({ icon, label, value, change, sparkData, color }: {
-  icon: string; label: string; value: number; change: number; sparkData: number[]; color: string
+function KpiCard({ icon: Icon, label, value, change, sparkData, color }: {
+  icon: LucideIcon; label: string; value: number; change: number; sparkData: number[]; color: string
 }) {
   const pos = change >= 0
+  const TrendIcon = pos ? TrendingUp : TrendingDown
   return (
     <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: '18px 18px 14px', display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <span style={{ fontSize: 20 }}>{icon}</span>
+        <Icon size={18} color={color} />
         <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</span>
       </div>
       <div style={{ fontSize: 36, fontWeight: 900, color: C.text, lineHeight: 1, marginBottom: 6 }}>{value.toLocaleString()}</div>
-      <div style={{ fontSize: 12, fontWeight: 600, color: pos ? '#4ade80' : '#F87171', marginBottom: 12 }}>
-        {pos ? '↑' : '↓'} {Math.abs(change)}% vs last month
+      <div style={{ fontSize: 12, fontWeight: 600, color: pos ? '#4ade80' : '#F87171', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 3 }}>
+        <TrendIcon size={12} /> {Math.abs(change)}% vs last month
       </div>
       <div style={{ opacity: 0.65 }}>
         <Sparkline data={sparkData} color={color} />
@@ -330,12 +339,12 @@ export default function PropertyIntelligencePage() {
   const showingRatePct = totalLeads === 0 ? '—' : `${((showingRequests / totalLeads) * 100).toFixed(1)}%`
 
   // Activity feed
-  type AEvent = { icon: string; title: string; desc: string; time: string; color: string; bg: string }
+  type AEvent = { icon: LucideIcon; title: string; desc: string; time: string; color: string; bg: string }
   const activityEvents: AEvent[] = [
     ...leads.slice(0, 8).map((l: any): AEvent => {
       const didRequestShowing = requestedShowing(l)
       return {
-        icon:  didRequestShowing ? '🏠' : l.notes ? '💬' : '👤',
+        icon:  didRequestShowing ? CalendarCheck : l.notes ? MessageCircle : User,
         title: didRequestShowing ? 'Showing Requested' : l.notes ? 'Buyer Asked Question' : 'New Lead',
         desc:  didRequestShowing
           ? `${l.name} requested a showing`
@@ -348,7 +357,7 @@ export default function PropertyIntelligencePage() {
       }
     }),
     ...scanEvents.slice(0, 8).map((e: any): AEvent => ({
-      icon:  e.return_visit ? '↩️' : '📱',
+      icon:  e.return_visit ? Repeat : QrCode,
       title: e.return_visit ? 'Repeat Visitor Returned' : 'New Scan',
       desc:  e.return_visit ? 'A buyer returned to the property page' : 'A buyer scanned the QR code',
       time:  e.created_at,
@@ -417,7 +426,7 @@ export default function PropertyIntelligencePage() {
             borderRadius: 10, padding: '10px 16px', marginBottom: 12,
             fontSize: 14, fontWeight: 800, color: '#FCA5A5',
           }}>
-            <span style={{ fontSize: 18 }}>🗄️</span>
+            <Archive size={18} color="#FCA5A5" />
             Archived — This listing is no longer active
           </div>
         )}
@@ -459,7 +468,9 @@ export default function PropertyIntelligencePage() {
                 fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif',
               }}
             >
-              {copied ? '✓ Copied!' : 'Share Seller Report Link'}
+              {copied
+                ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Check size={13} /> Copied!</span>
+                : 'Share Seller Report Link'}
             </button>
 
             <div ref={menuRef} style={{ position: 'relative' }}>
@@ -467,28 +478,28 @@ export default function PropertyIntelligencePage() {
                 onClick={() => setMenuOpen(v => !v)}
                 style={{
                   background: '#1F1F2E', border: `1px solid ${C.border}`, borderRadius: 9,
-                  padding: '8px 13px', fontSize: 16, color: C.muted, cursor: 'pointer', lineHeight: 1,
+                  padding: '8px 13px', color: C.muted, cursor: 'pointer', display: 'flex', alignItems: 'center',
                 }}
-              >⋮</button>
+              ><MoreVertical size={16} /></button>
               {menuOpen && (
                 <div style={dropdownStyle}>
                   {!isArchived && (
                     <button className="pi-menu-item" onClick={() => { setMenuOpen(false); openEdit() }}
-                      style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '10px 16px', cursor: 'pointer' }}>
-                      ✏️ Edit Property
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', background: 'none', border: 'none', color: C.sub, fontSize: 13, padding: '10px 16px', cursor: 'pointer' }}>
+                      <Pencil size={13} /> Edit Property
                     </button>
                   )}
                   <a href={`/p/${propertyId}`} target="_blank" rel="noreferrer"
-                    style={{ display: 'block', color: C.sub, fontSize: 13, padding: '10px 16px', textDecoration: 'none' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, color: C.sub, fontSize: 13, padding: '10px 16px', textDecoration: 'none' }}
                     onClick={() => setMenuOpen(false)}>
-                    🔗 View Buyer Page
+                    <Link2 size={13} /> View Buyer Page
                   </a>
                   {!isArchived && (
                     <>
                       <div style={{ height: 1, background: C.border }} />
                       <button className="pi-menu-item" onClick={() => { setMenuOpen(false); deleteProp() }} disabled={deleting}
-                        style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: '#EF4444', fontSize: 13, padding: '10px 16px', cursor: deleting ? 'not-allowed' : 'pointer' }}>
-                        {deleting ? '…' : '🗑️ Delete Property'}
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', background: 'none', border: 'none', color: '#EF4444', fontSize: 13, padding: '10px 16px', cursor: deleting ? 'not-allowed' : 'pointer' }}>
+                        {deleting ? '…' : <><Trash2 size={13} /> Delete Property</>}
                       </button>
                     </>
                   )}
@@ -503,9 +514,9 @@ export default function PropertyIntelligencePage() {
 
         {/* ── Section 2: KPI Cards ─────────────────────────────────────────── */}
         <div className="pi-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 20 }}>
-          <KpiCard icon="🔍" label="QR Scans"            value={allTimeScanCount} change={scanChangePct}    sparkData={scanSparkData}    color="#60A5FA" />
-          <KpiCard icon="👥" label="Leads"               value={totalLeads}        change={leadChangePct}    sparkData={leadSparkData}    color="#10B981" />
-          <KpiCard icon="💬" label="Showing Requests"    value={showingRequests}  change={showingChangePct} sparkData={showingSparkData} color="#F59E0B" />
+          <KpiCard icon={QrCode}        label="QR Scans"            value={allTimeScanCount} change={scanChangePct}    sparkData={scanSparkData}    color="#60A5FA" />
+          <KpiCard icon={Users}        label="Leads"               value={totalLeads}        change={leadChangePct}    sparkData={leadSparkData}    color="#10B981" />
+          <KpiCard icon={CalendarCheck} label="Showing Requests"    value={showingRequests}  change={showingChangePct} sparkData={showingSparkData} color="#F59E0B" />
         </div>
 
         {/* ── Section 3: Listing Health | Property Image ───────────────────── */}
@@ -553,8 +564,8 @@ export default function PropertyIntelligencePage() {
               {heroPhoto ? (
                 <img src={heroPhoto} alt={property.address} style={{ width: '100%', height: 220, objectFit: 'cover', display: 'block' }} />
               ) : (
-                <div style={{ width: '100%', height: 220, background: `linear-gradient(135deg, ${C.purple}, #5B21B6)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 48 }}>
-                  🏠
+                <div style={{ width: '100%', height: 220, background: `linear-gradient(135deg, ${C.purple}, #5B21B6)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Home size={48} color="#fff" />
                 </div>
               )}
               {!isArchived && (
@@ -565,9 +576,10 @@ export default function PropertyIntelligencePage() {
                     background: 'rgba(0,0,0,0.65)', border: `1px solid rgba(255,255,255,0.2)`,
                     borderRadius: 8, padding: '6px 12px', color: '#fff',
                     fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 5,
                   }}
                 >
-                  ✏️ Edit Property
+                  <Pencil size={12} /> Edit Property
                 </button>
               )}
             </div>
@@ -607,9 +619,9 @@ export default function PropertyIntelligencePage() {
                   <div style={{
                     width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
                     background: ev.bg, border: `1px solid ${ev.color}40`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', color: ev.color,
                   }}>
-                    {ev.icon}
+                    <ev.icon size={13} />
                   </div>
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{ev.title}</div>
@@ -676,6 +688,7 @@ export default function PropertyIntelligencePage() {
                   const color    = TIER_COLOR[tier] ?? C.muted
                   const bg       = TIER_BG[tier]   ?? '#1F2937'
                   const action   = tier === 'hot' ? 'Requested showing' : lead.notes ? 'Asked a question' : 'Submitted lead'
+                  const TierIcon = TIER_ICON[tier] ?? Minus
                   return (
                     <div key={lead.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{
@@ -689,14 +702,14 @@ export default function PropertyIntelligencePage() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lead.name}</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, color, background: bg, borderRadius: 20, padding: '1px 7px', border: `1px solid ${color}40` }}>
-                            {TIER_LABEL[tier] ?? tier}
+                          <span style={{ fontSize: 10, fontWeight: 700, color, background: bg, borderRadius: 20, padding: '1px 7px', border: `1px solid ${color}40`, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                            <TierIcon size={10} /> {TIER_LABEL[tier] ?? tier}
                           </span>
                           <span style={{ fontSize: 10, color: C.muted }}>{action} · {timeAgo(lead.created_at)}</span>
                         </div>
                       </div>
                       {lead.phone && (
-                        <a href={`tel:${lead.phone}`} style={{ width: 28, height: 28, borderRadius: 7, background: '#052e16', border: '1px solid #166534', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', fontSize: 13, flexShrink: 0 }}>📞</a>
+                        <a href={`tel:${lead.phone}`} style={{ width: 28, height: 28, borderRadius: 7, background: '#052e16', border: '1px solid #166534', color: '#4ade80', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', flexShrink: 0 }}><Phone size={13} /></a>
                       )}
                     </div>
                   )
@@ -724,7 +737,7 @@ export default function PropertyIntelligencePage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {recentQuestions.map((lead: any) => (
                   <div key={lead.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                    <div style={{ width: 28, height: 28, borderRadius: 8, background: '#052e16', border: '1px solid #166534', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>💬</div>
+                    <div style={{ width: 28, height: 28, borderRadius: 8, background: '#052e16', border: '1px solid #166534', color: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><MessageCircle size={13} /></div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 12, color: C.text, lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         "{lead.notes}"
@@ -755,12 +768,12 @@ export default function PropertyIntelligencePage() {
                   const mockPct = MOCK_PCTS[i % MOCK_PCTS.length]
                   return (
                     <div key={qr.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 28, height: 28, borderRadius: 8, background: `${C.purple}18`, border: `1px solid ${C.purple}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>📱</div>
+                      <div style={{ width: 28, height: 28, borderRadius: 8, background: `${C.purple}18`, border: `1px solid ${C.purple}30`, color: C.purpleL, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><QrCode size={13} /></div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 12, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {qr.label || 'Unlabeled QR'}
                         </div>
-                        <div style={{ fontSize: 10, color: C.muted }}>{qr.scan_count ?? 0} scans · ↑{mockPct}%</div>
+                        <div style={{ fontSize: 10, color: C.muted, display: 'flex', alignItems: 'center', gap: 3 }}>{qr.scan_count ?? 0} scans · <TrendingUp size={10} />{mockPct}%</div>
                       </div>
                       <span style={{ fontSize: 10, fontWeight: 700, color: health.color, background: health.bg, borderRadius: 20, padding: '2px 9px', flexShrink: 0 }}>
                         {health.label}
@@ -784,7 +797,7 @@ export default function PropertyIntelligencePage() {
             {heroPhoto ? (
               <img src={heroPhoto} alt="Property" style={{ width: '100%', height: 110, objectFit: 'cover', borderRadius: 8, marginBottom: 14, display: 'block' }} />
             ) : (
-              <div style={{ width: '100%', height: 110, background: `linear-gradient(135deg, ${C.purple}, #5B21B6)`, borderRadius: 8, marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}>🏠</div>
+              <div style={{ width: '100%', height: 110, background: `linear-gradient(135deg, ${C.purple}, #5B21B6)`, borderRadius: 8, marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Home size={32} color="#fff" /></div>
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <button
@@ -794,17 +807,18 @@ export default function PropertyIntelligencePage() {
                   background: copied ? '#052e16' : C.purple, color: copied ? '#4ade80' : '#fff',
                   border: 'none', borderRadius: 9, padding: '10px',
                   fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'sans-serif',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                 }}
               >
-                {copied ? '✓ Report Link Copied' : 'Share Seller Report Link'}
+                {copied ? <><Check size={13} /> Report Link Copied</> : 'Share Seller Report Link'}
               </button>
               <a href={`/report/${property.report_token}`} target="_blank" rel="noreferrer" className="pi-btn"
-                style={{ display: 'block', textAlign: 'center', background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 9, padding: '10px', color: C.sub, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
-                👁 Preview Seller View
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, textAlign: 'center', background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 9, padding: '10px', color: C.sub, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
+                <Eye size={14} /> Preview Seller View
               </a>
               <a href={`/report/${property.report_token}?print=true`} target="_blank" rel="noreferrer" className="pi-btn"
-                style={{ display: 'block', textAlign: 'center', background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 9, padding: '10px', color: C.sub, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
-                ⬇ Download PDF
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, textAlign: 'center', background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 9, padding: '10px', color: C.sub, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
+                <Download size={14} /> Download PDF
               </a>
             </div>
           </SectionCard>
@@ -820,7 +834,7 @@ export default function PropertyIntelligencePage() {
           <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 28, width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
               <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.text }}>Edit Property</h2>
-              <button onClick={() => setEditOpen(false)} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 18, cursor: 'pointer', padding: 4 }}>✕</button>
+              <button onClick={() => setEditOpen(false)} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', padding: 4, display: 'flex' }}><X size={18} /></button>
             </div>
 
             <label style={{ display: 'block', marginBottom: 14 }}>
@@ -908,8 +922,9 @@ export default function PropertyIntelligencePage() {
           background: '#052e16', border: '1px solid #16a34a', borderRadius: 10,
           padding: '12px 20px', fontSize: 14, fontWeight: 600, color: '#4ade80',
           boxShadow: '0 4px 20px rgba(0,0,0,0.4)', fontFamily: 'sans-serif',
+          display: 'flex', alignItems: 'center', gap: 6,
         }}>
-          ✓ {toast}
+          <Check size={14} /> {toast}
         </div>
       )}
     </DashboardLayout>

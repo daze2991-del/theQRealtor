@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DashboardLayout from '../../components/DashboardLayout'
 import { LineChart, Line, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-import { QrCode, Users, CalendarCheck, Flame, BarChart2, Home, Bell, Calendar, Share2, Download, RotateCcw, AlertCircle } from 'lucide-react'
+import { QrCode, Users, CalendarCheck, Flame, BarChart2, Home, Bell, Calendar, Share2, Download, RotateCcw, AlertCircle, Info, Check } from 'lucide-react'
 import { calcPropertyInterest } from '../../lib/propertyInterest'
 import { timeAgo } from '../../lib/timeAgo'
 import { motivationToTierV2, requestedShowing } from '../../lib/leadScoringV2'
@@ -105,7 +105,7 @@ function KpiCard({ icon, label, value, change, accent, sparkData, caption, toolt
       </div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
         <div style={{ fontSize: 48, fontWeight: 900, color: C.text, lineHeight: 1, letterSpacing: '-0.03em' }}>{value}</div>
-        {tooltip && <span title={tooltip} style={{ fontSize: 11, color: C.muted, cursor: 'help', flexShrink: 0 }}>ⓘ</span>}
+        {tooltip && <span title={tooltip} style={{ color: C.muted, cursor: 'help', flexShrink: 0, display: 'flex' }}><Info size={12} /></span>}
       </div>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
         <div style={{ fontSize: 11, fontWeight: 600, color: change ? (change.up ? accent.color : '#F87171') : C.muted, lineHeight: 1.3 }}>
@@ -587,7 +587,7 @@ export default function Dashboard() {
                       }}
                       style={{ flex: 1, background: copiedReport ? '#052e16' : `${C.purple}20`, border: `1px solid ${copiedReport ? '#166534' : C.purple + '35'}`, borderRadius: 9, padding: '9px', fontSize: 11, fontWeight: 700, color: copiedReport ? '#4ade80' : C.purpleL, cursor: 'pointer', fontFamily: 'sans-serif', transition: 'all 0.15s' }}
                     >
-                      {copiedReport ? '✓ Copied!' : <><Share2 size={11} style={{ verticalAlign: 'middle', marginRight: 4 }} />Share Report</>}
+                      {copiedReport ? <><Check size={11} style={{ verticalAlign: 'middle', marginRight: 4 }} />Copied!</> : <><Share2 size={11} style={{ verticalAlign: 'middle', marginRight: 4 }} />Share Report</>}
                     </button>
                     <a href={`/report/${topProp.report_token}?print=true`} target="_blank" rel="noreferrer"
                       style={{ flex: 1, background: '#2563EB', borderRadius: 9, padding: '9px', fontSize: 11, fontWeight: 700, color: '#fff', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

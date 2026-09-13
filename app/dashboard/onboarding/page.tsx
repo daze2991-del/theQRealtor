@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { QRCodeSVG } from 'qrcode.react'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import { signLimitForPlan } from '../../../lib/plans'
+import { Check, Signpost } from 'lucide-react'
 
 /* ─── tokens ─────────────────────────────────────────────────── */
 const C = {
@@ -529,7 +530,7 @@ function OnboardingWizard() {
                 <>
                   {/* Property created confirmation */}
                   <div style={{ background: `${C.purple}14`, border: `1px solid ${C.purple}35`, borderRadius: 12, padding: '12px 16px', marginBottom: 22, display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: 8, background: `${C.purple}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>✓</div>
+                    <div style={{ width: 28, height: 28, borderRadius: 8, background: `${C.purple}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.purpleL, flexShrink: 0 }}><Check size={14} /></div>
                     <div>
                       <div style={{ fontSize: 11, color: C.purpleL, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Property created</div>
                       <div style={{ fontSize: 14, color: C.sub, marginTop: 2 }}>{propertyAddress}</div>
@@ -575,7 +576,7 @@ function OnboardingWizard() {
                   tied to the sign, not this listing) once you submit below. */}
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
                 <div style={{ background: '#fff', padding: 16, borderRadius: 16, boxShadow: `0 0 50px ${C.purple}30`, width: 150, height: 150, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontSize: 40 }}>🪧</span>
+                  <span style={{ display: 'flex', color: C.purple }}><Signpost size={40} /></span>
                 </div>
               </div>
               <div style={{ textAlign: 'center', marginBottom: 20 }}>

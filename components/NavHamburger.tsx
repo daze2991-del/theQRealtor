@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { X, Menu } from 'lucide-react'
 
 export default function NavHamburger() {
   const [open, setOpen] = useState(false)
@@ -24,13 +25,13 @@ export default function NavHamburger() {
         aria-expanded={open}
         style={{
           background: 'transparent', border: '1px solid #1E3A5F',
-          borderRadius: 8, color: '#CBD5E1', fontSize: 18,
+          borderRadius: 8, color: '#CBD5E1',
           width: 38, height: 38, cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0,
         }}
       >
-        {open ? '✕' : '☰'}
+        {open ? <X size={18} /> : <Menu size={18} />}
       </button>
 
       {open && (

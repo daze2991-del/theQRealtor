@@ -6,6 +6,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import { useRouter, useSearchParams } from 'next/navigation'
 import DashboardLayout from '../../../components/DashboardLayout'
+import { Check, X, Pencil, Signpost } from 'lucide-react'
 
 const C = {
   bg:      '#0F0F13',
@@ -138,18 +139,18 @@ function SignCard({ sign, origin, onRename, onOpenAssign, onUnassign, unassignin
                 disabled={saving}
                 title="Save"
                 aria-label="Save URL name"
-                style={{ flexShrink: 0, width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.purple, border: 'none', borderRadius: 7, color: '#fff', fontSize: 14, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}
+                style={{ flexShrink: 0, width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.purple, border: 'none', borderRadius: 7, color: '#fff', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}
               >
-                ✓
+                <Check size={14} />
               </button>
               <button
                 onMouseDown={e => e.preventDefault()}
                 onClick={cancelEdit}
                 title="Cancel"
                 aria-label="Cancel editing"
-                style={{ flexShrink: 0, width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 7, color: C.sub, fontSize: 13, cursor: 'pointer' }}
+                style={{ flexShrink: 0, width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 7, color: C.sub, cursor: 'pointer' }}
               >
-                ✕
+                <X size={13} />
               </button>
             </div>
           ) : (
@@ -163,7 +164,7 @@ function SignCard({ sign, origin, onRename, onOpenAssign, onUnassign, unassignin
               <span style={{ fontSize: 15, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {sign.label}
               </span>
-              <span className="sign-label-pencil" aria-hidden="true" style={{ fontSize: 13, color: C.purpleL, flexShrink: 0 }}>✎</span>
+              <span className="sign-label-pencil" aria-hidden="true" style={{ color: C.purpleL, flexShrink: 0, display: 'flex' }}><Pencil size={13} /></span>
             </button>
           )}
           {labelError && <p style={{ color: '#F87171', fontSize: 12, margin: '6px 0 0' }}>{labelError}</p>}
@@ -191,9 +192,9 @@ function SignCard({ sign, origin, onRename, onOpenAssign, onUnassign, unassignin
         </span>
         <button
           onClick={copyUrl}
-          style={{ background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 7, padding: '5px 11px', fontSize: 11, fontWeight: 700, color: copied ? '#4ade80' : C.sub, cursor: 'pointer', flexShrink: 0 }}
+          style={{ background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 7, padding: '5px 11px', fontSize: 11, fontWeight: 700, color: copied ? '#4ade80' : C.sub, cursor: 'pointer', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 4 }}
         >
-          {copied ? '✓ Copied' : 'Copy'}
+          {copied ? <><Check size={11} /> Copied</> : 'Copy'}
         </button>
       </div>
 
@@ -279,9 +280,9 @@ function SignCard({ sign, origin, onRename, onOpenAssign, onUnassign, unassignin
               </span>
               <button
                 onClick={() => setShowQR(false)}
-                style={{ background: 'none', border: 'none', color: '#6B7280', fontSize: 18, cursor: 'pointer', padding: 0, marginLeft: 10, lineHeight: 1, flexShrink: 0 }}
+                style={{ background: 'none', border: 'none', color: '#6B7280', cursor: 'pointer', padding: 0, marginLeft: 10, display: 'flex', flexShrink: 0 }}
               >
-                ✕
+                <X size={18} />
               </button>
             </div>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
@@ -598,7 +599,7 @@ function SignsPageInner() {
             {pageError && (
               <div style={{ background: '#1C0A0A', border: '1px solid #7F1D1D', borderRadius: 10, padding: '10px 16px', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
                 <span style={{ fontSize: 13, color: '#FCA5A5' }}>{pageError}</span>
-                <button onClick={() => setPageError('')} style={{ background: 'none', border: 'none', color: '#7F1D1D', cursor: 'pointer', fontSize: 15, lineHeight: 1, flexShrink: 0 }}>✕</button>
+                <button onClick={() => setPageError('')} style={{ background: 'none', border: 'none', color: '#7F1D1D', cursor: 'pointer', display: 'flex', flexShrink: 0 }}><X size={15} /></button>
               </div>
             )}
 
@@ -607,8 +608,8 @@ function SignsPageInner() {
                 assigned-status pill on each sign card). */}
             {autoAssignNotice && (
               <div style={{ background: '#062014', border: '1px solid #166534', borderRadius: 10, padding: '10px 16px', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontSize: 13, color: '#4ade80' }}>✓ {autoAssignNotice}</span>
-                <button onClick={() => setAutoAssignNotice('')} style={{ background: 'none', border: 'none', color: '#4ade80', cursor: 'pointer', fontSize: 15, lineHeight: 1, flexShrink: 0 }}>✕</button>
+                <span style={{ fontSize: 13, color: '#4ade80', display: 'flex', alignItems: 'center', gap: 5 }}><Check size={13} /> {autoAssignNotice}</span>
+                <button onClick={() => setAutoAssignNotice('')} style={{ background: 'none', border: 'none', color: '#4ade80', cursor: 'pointer', display: 'flex', flexShrink: 0 }}><X size={15} /></button>
               </div>
             )}
 
@@ -640,7 +641,7 @@ function SignsPageInner() {
 
             {signs.length === 0 ? (
               <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: '72px 32px', textAlign: 'center' }}>
-                <div style={{ fontSize: 48, marginBottom: 16 }}>🪧</div>
+                <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center', color: C.muted }}><Signpost size={48} /></div>
                 <div style={{ fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 8 }}>You haven&apos;t created any signs yet</div>
                 <p style={{ fontSize: 14, color: C.muted, maxWidth: 400, margin: '0 auto' }}>
                   {preselectedPropertyId
@@ -707,7 +708,7 @@ function SignsPageInner() {
                   <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.text }}>
                     {assignSign.current_assignment ? 'Reassign sign' : 'Assign sign'}
                   </h2>
-                  <button onClick={() => setAssignSign(null)} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 18, cursor: 'pointer', padding: 4, lineHeight: 1 }}>✕</button>
+                  <button onClick={() => setAssignSign(null)} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', padding: 4, display: 'flex' }}><X size={18} /></button>
                 </div>
                 <p style={{ fontSize: 13, color: C.muted, margin: '0 0 18px' }}>
                   {assignSign.current_assignment

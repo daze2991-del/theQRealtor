@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
-import { Flame } from 'lucide-react'
+import { Flame, Check } from 'lucide-react'
 import DashboardLayout from '../../../components/DashboardLayout'
 import { motivationToTierV2 } from '../../../lib/leadScoringV2'
 import { planConfig, type PlanId } from '../../../lib/plans'
@@ -379,7 +379,7 @@ export default function BillingPageClient({ paidPlansEnabled }: { paidPlansEnabl
                       'Priority support',
                     ].map((feature, i) => (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: C.text }}>
-                        <span style={{ color: '#4ade80', fontWeight: 700, fontSize: 15, flexShrink: 0 }}>✓</span>
+                        <span style={{ color: '#4ade80', flexShrink: 0, display: 'flex' }}><Check size={15} strokeWidth={3} /></span>
                         {feature}
                       </div>
                     ))}

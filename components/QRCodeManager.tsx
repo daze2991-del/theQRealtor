@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { createBrowserSupabase } from '../lib/supabase-browser'
+import { X, Download, ArrowLeftRight, Printer } from 'lucide-react'
 
 const PLACEMENT_OPTIONS = [
   'Yard Sign',
@@ -144,9 +145,10 @@ export default function QRCodeManager({ propertyId, allProperties }: QRCodeManag
             fontSize: 13,
             fontWeight: 700,
             cursor: 'pointer',
+            display: 'inline-flex', alignItems: 'center', gap: 5,
           }}
         >
-          {showForm ? '✕ Cancel' : '+ New QR Code'}
+          {showForm ? <><X size={13} /> Cancel</> : '+ New QR Code'}
         </button>
       </div>
 
@@ -277,9 +279,10 @@ export default function QRCodeManager({ propertyId, allProperties }: QRCodeManag
                     fontSize: 12,
                     cursor: 'pointer',
                     width: '100%',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
                   }}
                 >
-                  ⬇ Download PNG
+                  <Download size={12} /> Download PNG
                 </button>
                 {otherProperties.length > 0 && (
                   <button
@@ -293,9 +296,10 @@ export default function QRCodeManager({ propertyId, allProperties }: QRCodeManag
                       fontSize: 12,
                       cursor: 'pointer',
                       width: '100%',
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
                     }}
                   >
-                    ↔ Reassign
+                    <ArrowLeftRight size={12} /> Reassign
                   </button>
                 )}
               </div>
@@ -317,9 +321,10 @@ export default function QRCodeManager({ propertyId, allProperties }: QRCodeManag
               padding: '6px 14px',
               fontSize: 13,
               cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
             }}
           >
-            🖨 Print QR Sheet
+            <Printer size={13} /> Print QR Sheet
           </button>
         </div>
       )}

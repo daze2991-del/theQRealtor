@@ -7,7 +7,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import DashboardLayout from '../../../components/DashboardLayout'
-import { Flame, Home, CalendarCheck, BarChart2, Sparkles, CheckCircle, Minus } from 'lucide-react'
+import { Flame, Home, CalendarCheck, BarChart2, Sparkles, CheckCircle, Minus, TrendingUp, TrendingDown } from 'lucide-react'
 import { TIER_V2_CFG, motivationToTierV2, requestedShowing } from '../../../lib/leadScoringV2'
 import { isEligibleLead, isUncontacted } from '../../../lib/leadEligibility'
 import { parseTimestamp } from '../../../lib/timeAgo'
@@ -489,8 +489,8 @@ export default function AnalyticsPage() {
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                       <div style={{ fontSize: 32, fontWeight: 700, color: '#C084FC', lineHeight: 1 }}>{convNow.toFixed(1)}%</div>
                       {convDelta !== null && (
-                        <div style={{ fontSize: 12, fontWeight: 600, color: convDelta >= 0 ? '#22C55E' : '#EF4444' }}>
-                          {convDelta >= 0 ? '▲' : '▼'} {Math.abs(convDelta).toFixed(1)}pp
+                        <div style={{ fontSize: 12, fontWeight: 600, color: convDelta >= 0 ? '#22C55E' : '#EF4444', display: 'flex', alignItems: 'center', gap: 3 }}>
+                          {convDelta >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />} {Math.abs(convDelta).toFixed(1)}pp
                         </div>
                       )}
                     </div>
@@ -580,7 +580,7 @@ export default function AnalyticsPage() {
                           {leaderboardRows.map((row, i) => (
                             <tr key={i}>
                               <td style={td}>
-                                <span style={{ marginRight: 4 }}>{row.flag ? '🔥' : ''}</span>
+                                {row.flag && <span style={{ marginRight: 4, display: 'inline-flex', verticalAlign: -2, color: '#EF4444' }}><Flame size={12} /></span>}
                                 {row.address}
                                 {row.archived && (
                                   <span style={{

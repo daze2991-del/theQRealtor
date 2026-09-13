@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import { useRouter } from 'next/navigation'
 import DashboardLayout from '../../../components/DashboardLayout'
+import { Check, Zap, Lock, Moon, Sun, Monitor, Mail } from 'lucide-react'
 
 const C = {
   bg:      '#0F0F13',
@@ -303,9 +304,10 @@ export default function SettingsPage() {
                 borderRadius: 9, padding: '8px 20px', fontSize: 13, fontWeight: 700,
                 cursor: saving ? 'not-allowed' : 'pointer',
                 opacity: saving ? 0.7 : 1, transition: 'all 0.2s',
+                display: 'inline-flex', alignItems: 'center', gap: 6,
               }}
             >
-              {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save Changes'}
+              {saving ? 'Saving…' : saved ? <><Check size={13} /> Saved</> : 'Save Changes'}
             </button>
           </div>
 
@@ -329,8 +331,9 @@ export default function SettingsPage() {
                   color: plan === 'pro' ? C.purpleL : '#9CA3AF',
                   border: `1px solid ${plan === 'pro' ? C.purple : '#374151'}`,
                   borderRadius: 20, padding: '4px 14px', fontSize: 12, fontWeight: 700,
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
                 }}>
-                  {plan === 'pro' ? '⚡ Pro Plan' : '🔒 Free Plan'}
+                  {plan === 'pro' ? <><Zap size={12} /> Pro Plan</> : <><Lock size={12} /> Free Plan</>}
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
@@ -442,9 +445,10 @@ export default function SettingsPage() {
                         borderRadius: 9, padding: '8px 18px', fontSize: 13, fontWeight: 600,
                         cursor: testingSMS ? 'not-allowed' : 'pointer',
                         opacity: testingSMS ? 0.7 : 1, whiteSpace: 'nowrap', flexShrink: 0, transition: 'all 0.2s',
+                        display: 'inline-flex', alignItems: 'center', gap: 6,
                       }}
                     >
-                      {testingSMS ? 'Sending…' : testSMSResult?.ok ? '✓ Sent!' : 'Send Test SMS'}
+                      {testingSMS ? 'Sending…' : testSMSResult?.ok ? <><Check size={13} /> Sent!</> : 'Send Test SMS'}
                     </button>
                   </div>
                   {testSMSResult?.error && (
@@ -499,8 +503,8 @@ export default function SettingsPage() {
             <Section title="Appearance" description="Choose how theqrealtor looks to you.">
               <div style={{ display: 'flex', gap: 8 }}>
                 {(['dark', 'light', 'system'] as const).map(t => (
-                  <button key={t} onClick={() => handleTheme(t)} style={themeBtn(t, t)}>
-                    {t === 'dark' ? '🌙 Dark' : t === 'light' ? '☀️ Light' : '💻 System'}
+                  <button key={t} onClick={() => handleTheme(t)} style={{ ...themeBtn(t, t), display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    {t === 'dark' ? <><Moon size={13} /> Dark</> : t === 'light' ? <><Sun size={13} /> Light</> : <><Monitor size={13} /> System</>}
                   </button>
                 ))}
               </div>
@@ -525,9 +529,10 @@ export default function SettingsPage() {
                     border: `1px solid ${C.purple}55`, borderRadius: 9,
                     padding: '8px 16px', fontSize: 13, fontWeight: 600,
                     textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0,
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
                   }}
                 >
-                  ✉ Email Support
+                  <Mail size={13} /> Email Support
                 </a>
               </div>
               <div style={{ marginTop: 12, fontSize: 12, color: C.muted }}>
@@ -596,9 +601,9 @@ export default function SettingsPage() {
           fontSize: 14, fontWeight: 600, color: '#4ade80',
           boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
           animation: 'fadeInUp 0.2s ease',
-          fontFamily: 'sans-serif',
+          fontFamily: 'sans-serif', display: 'flex', alignItems: 'center', gap: 6,
         }}>
-          ✅ Changes saved
+          <Check size={14} /> Changes saved
         </div>
       )}
     </DashboardLayout>

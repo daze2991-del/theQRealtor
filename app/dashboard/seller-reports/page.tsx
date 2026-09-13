@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import DashboardLayout from '../../../components/DashboardLayout'
 import Link from 'next/link'
+import { BarChart2, Check, AlertTriangle } from 'lucide-react'
 
 const C = {
   bg:      '#0F0F13',
@@ -120,7 +121,7 @@ export default function SellerReportsPage() {
           </div>
         ) : properties.length === 0 ? (
           <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: '72px 32px', textAlign: 'center' }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>📊</div>
+            <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center', color: C.muted }}><BarChart2 size={48} /></div>
             <div style={{ fontSize: 16, fontWeight: 700, color: C.sub, marginBottom: 8 }}>No properties yet</div>
             <div style={{ fontSize: 14, color: C.muted }}>Add a property to generate your first seller report.</div>
           </div>
@@ -165,9 +166,10 @@ export default function SellerReportsPage() {
                         border: `1px solid ${copied ? '#166534' : C.purple + '40'}`,
                         borderRadius: 8, padding: '8px 14px', cursor: 'pointer',
                         fontFamily: 'sans-serif', transition: 'all 0.15s', whiteSpace: 'nowrap',
+                        display: 'inline-flex', alignItems: 'center', gap: 5,
                       }}
                     >
-                      {copied ? '✓ Copied' : 'Copy Link'}
+                      {copied ? <><Check size={12} /> Copied</> : 'Copy Link'}
                     </button>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                       <button
@@ -183,9 +185,10 @@ export default function SellerReportsPage() {
                           cursor: busy ? 'not-allowed' : 'pointer',
                           opacity: busy ? 0.6 : 1,
                           fontFamily: 'sans-serif', transition: 'all 0.15s', whiteSpace: 'nowrap',
+                          display: 'inline-flex', alignItems: 'center', gap: 5,
                         }}
                       >
-                        {busy ? '…' : rotated ? '✓ New link' : '⚠ Revoke & Create New'}
+                        {busy ? '…' : rotated ? <><Check size={12} /> New link</> : <><AlertTriangle size={12} /> Revoke & Create New</>}
                       </button>
                       {!rotated && (
                         <span style={{ fontSize: 11, color: C.muted, whiteSpace: 'nowrap' }}>

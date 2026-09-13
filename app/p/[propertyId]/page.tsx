@@ -4,6 +4,10 @@ import { FormEvent, useEffect, useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import { SMS_CONSENT_TEXT } from '../../../lib/smsConsent'
+import {
+  CalendarCheck, MessageCircle, ChevronLeft, ChevronRight, MapPin, X, Phone,
+  Mail, CheckCircle, Signpost, type LucideIcon,
+} from 'lucide-react'
 
 const C = {
   bg:     '#0F0F13',
@@ -18,22 +22,28 @@ const C = {
 }
 
 // ── CTA config ────────────────────────────────────────────────────────────────
-const CTAS = [
+const CTAS: Array<{
+  id: 'showing' | 'question'; icon: LucideIcon;
+  label: string; sub: string;
+  motivation: 'hot' | 'warm'; btnLabel: string;
+  needsPhone: true;
+  color: string; colorBg: string;
+}> = [
   {
-    id: 'showing',  icon: '📅',
+    id: 'showing',  icon: CalendarCheck,
     label: 'Request a Showing', sub: 'Schedule a private tour',
     motivation: 'hot',  btnLabel: 'Request Showing',
     needsPhone: true,
     color: '#FFFFFF', colorBg: '#7C3AED',
   },
   {
-    id: 'question', icon: '💬',
+    id: 'question', icon: MessageCircle,
     label: 'Ask the Listing Agent',    sub: 'Ask a question or request info',
     motivation: 'warm', btnLabel: 'Send Message',
     needsPhone: true,
     color: '#8B5CF6', colorBg: '#1A1A2E',
   },
-] as const
+]
 
 type CtaId = typeof CTAS[number]['id']
 
@@ -340,7 +350,7 @@ export default function PropertyPage() {
           </span>
         </div>
         <div style={{ background: '#EEEDFE', borderRadius: 20, padding: '44px 28px' }}>
-          <div style={{ fontSize: 40, marginBottom: 16 }}>🪧</div>
+          <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center', color: '#7C3AED' }}><Signpost size={40} /></div>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: '#1a1a1a', margin: '0 0 10px', lineHeight: 1.3 }}>
             This sign hasn&apos;t been assigned to a listing yet
           </h1>
@@ -418,10 +428,10 @@ export default function PropertyPage() {
 
             {/* Arrows */}
             {slide > 0 && (
-              <button onClick={goPrev} aria-label="Previous" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', borderRadius: '50%', width: 38, height: 38, fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>‹</button>
+              <button onClick={goPrev} aria-label="Previous" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', borderRadius: '50%', width: 38, height: 38, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}><ChevronLeft size={22} /></button>
             )}
             {slide < photos.length - 1 && (
-              <button onClick={goNext} aria-label="Next" style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', borderRadius: '50%', width: 38, height: 38, fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>›</button>
+              <button onClick={goNext} aria-label="Next" style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', borderRadius: '50%', width: 38, height: 38, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}><ChevronRight size={22} /></button>
             )}
 
             {/* Dots */}
@@ -482,7 +492,7 @@ export default function PropertyPage() {
                 marginBottom: 18,
               }}
             >
-              📍 Take Me There →
+              <MapPin size={15} /> Take Me There →
             </a>
           )}
 
@@ -519,7 +529,7 @@ export default function PropertyPage() {
                       display: 'flex', flexDirection: 'column', gap: 6,
                     }}
                   >
-                    <span style={{ fontSize: 24, lineHeight: 1 }}>{cta.icon}</span>
+                    <cta.icon size={22} color={cta.color} />
                     <span style={{ fontSize: 14, fontWeight: 800, color: cta.color, lineHeight: 1.2 }}>{cta.label}</span>
                     <span style={{ fontSize: 11, color: C.muted, lineHeight: 1.3 }}>{cta.sub}</span>
                   </button>
@@ -566,8 +576,8 @@ export default function PropertyPage() {
                 {/* Header */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
                   <div>
-                    <div style={{ fontSize: 20, fontWeight: 900, color: C.text, lineHeight: 1.2 }}>
-                      {activeCta?.icon} {activeCta?.label}
+                    <div style={{ fontSize: 20, fontWeight: 900, color: C.text, lineHeight: 1.2, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {activeCta && <activeCta.icon size={19} />} {activeCta?.label}
                     </div>
                     {agentName && (
                       <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>
@@ -575,7 +585,7 @@ export default function PropertyPage() {
                       </div>
                     )}
                   </div>
-                  <button type="button" onClick={closeSheet} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: C.muted, borderRadius: '50%', width: 34, height: 34, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>✕</button>
+                  <button type="button" onClick={closeSheet} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: C.muted, borderRadius: '50%', width: 34, height: 34, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><X size={16} /></button>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -654,10 +664,10 @@ export default function PropertyPage() {
                     </span>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                       {[
-                        { value: 'Phone Call', icon: '📞' },
-                        { value: 'Text',       icon: '💬' },
-                        { value: 'Email',      icon: '✉️' },
-                      ].map(({ value, icon }) => {
+                        { value: 'Phone Call', icon: Phone },
+                        { value: 'Text',       icon: MessageCircle },
+                        { value: 'Email',      icon: Mail },
+                      ].map(({ value, icon: Icon }) => {
                         const checked = contactPref.includes(value)
                         return (
                           <label
@@ -672,7 +682,7 @@ export default function PropertyPage() {
                               )}
                               style={{ width: 16, height: 16, accentColor: C.purple, cursor: 'pointer', flexShrink: 0 }}
                             />
-                            <span style={{ fontSize: 14, color: C.text }}>{icon} {value}</span>
+                            <span style={{ fontSize: 14, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon size={14} /> {value}</span>
                           </label>
                         )
                       })}
@@ -730,12 +740,12 @@ export default function PropertyPage() {
               /* ── PHASE 4: Success ── */
               <div style={{ padding: '4px 20px 32px', animation: 'popIn 0.25s ease' }}>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-                  <button onClick={closeSheet} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: C.muted, borderRadius: '50%', width: 34, height: 34, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                  <button onClick={closeSheet} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: C.muted, borderRadius: '50%', width: 34, height: 34, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={16} /></button>
                 </div>
 
                 {/* Confirmation */}
                 <div style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.35)', borderRadius: 14, padding: '18px 18px 16px', marginBottom: 20 }}>
-                  <div style={{ fontSize: 24, marginBottom: 8 }}>✅</div>
+                  <div style={{ marginBottom: 8, color: '#4ade80' }}><CheckCircle size={24} /></div>
                   <div style={{ fontSize: 18, fontWeight: 900, color: C.text, marginBottom: 6 }}>
                     {activeCta?.id === 'question' ? 'Message Sent!' : 'Showing Requested!'}
                   </div>
@@ -751,12 +761,12 @@ export default function PropertyPage() {
                       Agent's Direct Number
                     </div>
                     <a href={`tel:${agentPhone}`} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(74,222,128,0.09)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 12, padding: '13px 16px', textDecoration: 'none', marginBottom: 8 }}>
-                      <span style={{ fontSize: 20 }}>📞</span>
+                      <Phone size={18} color="#4ade80" />
                       <span style={{ fontSize: 17, fontWeight: 800, color: '#4ade80', flex: 1 }}>{agentPhone}</span>
                       <span style={{ fontSize: 12, fontWeight: 700, color: '#4ade80', background: 'rgba(74,222,128,0.15)', borderRadius: 6, padding: '3px 9px' }}>Call</span>
                     </a>
                     <a href={`sms:${agentPhone}`} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 12, padding: '13px 16px', textDecoration: 'none' }}>
-                      <span style={{ fontSize: 20 }}>💬</span>
+                      <MessageCircle size={18} color={C.purpleL} />
                       <span style={{ fontSize: 15, fontWeight: 700, color: C.purpleL, flex: 1 }}>Send a Text Message</span>
                     </a>
                   </div>
@@ -765,7 +775,7 @@ export default function PropertyPage() {
                 {/* Request Showing CTA (if not already chosen) */}
                 {activeCta?.id !== 'showing' && agentPhone && (
                   <a href={`tel:${agentPhone}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: C.purple, color: '#fff', borderRadius: 12, padding: '14px 18px', textDecoration: 'none', fontSize: 15, fontWeight: 900 }}>
-                    📅 Request a Showing
+                    <CalendarCheck size={16} /> Request a Showing
                   </a>
                 )}
               </div>

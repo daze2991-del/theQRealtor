@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
+import { Home, CheckCircle } from 'lucide-react'
 
 const C = {
   bg:     '#0F0F13',
@@ -154,8 +155,8 @@ export default function OpenHouseCheckInPage() {
             />
           </div>
         ) : (
-          <div style={{ height: 120, background: C.card, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40 }}>
-            🏠
+          <div style={{ height: 120, background: C.card, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.muted }}>
+            <Home size={40} />
           </div>
         )}
 
@@ -192,7 +193,7 @@ export default function OpenHouseCheckInPage() {
         <div style={{ padding: '0 20px 20px' }}>
           {submitted ? (
             <div style={{ animation: 'fadeIn 0.25s ease', background: `${C.amber}12`, border: `1px solid ${C.amber}40`, borderRadius: 16, padding: '32px 24px', textAlign: 'center', marginTop: 8 }}>
-              <div style={{ fontSize: 44, marginBottom: 14 }}>✅</div>
+              <div style={{ marginBottom: 14, display: 'flex', justifyContent: 'center', color: C.amberL }}><CheckCircle size={44} /></div>
               <div style={{ fontSize: 20, fontWeight: 900, color: C.text, marginBottom: 12, lineHeight: 1.3 }}>
                 Thanks for visiting!
               </div>

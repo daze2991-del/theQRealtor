@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { QRCodeSVG } from 'qrcode.react'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
+import { Printer } from 'lucide-react'
 
 export default function PrintPage() {
   const params = useParams()
@@ -57,9 +58,9 @@ export default function PrintPage() {
         </span>
         <button
           onClick={() => window.print()}
-          style={{ background: '#000', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 18px', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+          style={{ background: '#000', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 18px', fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
         >
-          🖨 Print
+          <Printer size={14} /> Print
         </button>
       </div>
 

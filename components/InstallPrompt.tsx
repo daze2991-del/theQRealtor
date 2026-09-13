@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Share, X } from 'lucide-react'
 
 type Mode = 'android' | 'ios' | null
 
@@ -74,7 +75,7 @@ export default function InstallPrompt() {
         {mode === 'ios' ? (
           <div style={{ fontSize: 13, color: '#9CA3AF', lineHeight: 1.5 }}>
             Tap <strong style={{ color: '#F0F2F5' }}>Share</strong>{' '}
-            <span style={{ fontSize: 15 }}>⎙</span> then{' '}
+            <span style={{ display: 'inline-flex', verticalAlign: -3 }}><Share size={15} /></span> then{' '}
             <strong style={{ color: '#F0F2F5' }}>Add to Home Screen</strong>.
           </div>
         ) : (
@@ -113,11 +114,10 @@ export default function InstallPrompt() {
         aria-label="Dismiss"
         style={{
           background: 'none', border: 'none', color: '#4B5563',
-          cursor: 'pointer', fontSize: 22, lineHeight: 1,
-          padding: 0, flexShrink: 0,
+          cursor: 'pointer', padding: 0, flexShrink: 0, display: 'flex',
         }}
       >
-        ×
+        <X size={20} />
       </button>
     </div>
   )

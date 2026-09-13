@@ -8,7 +8,7 @@ import {
   Home, CalendarCheck, Calendar, MessageCircle, Repeat, Images, Smartphone,
   Eye, Check, Download, Printer, Copy, Flame, TrendingUp,
   TrendingDown, Minus, BarChart2, Trophy, Users, HelpCircle, Sparkles, Zap,
-  type LucideIcon,
+  ChevronRight, type LucideIcon,
 } from 'lucide-react'
 import { calcPropertyInterest } from '../../../lib/propertyInterest'
 import { timeAgo } from '../../../lib/timeAgo'
@@ -399,7 +399,7 @@ export default function SellerReportPage() {
         {/* Breadcrumb */}
         <div className="rpt-nav-center" style={{ fontSize: 12, color: C.muted, textAlign: 'center' }}>
           <Link href="/dashboard/properties" style={{ color: C.muted, textDecoration: 'none' }}>Seller Reports</Link>
-          <span style={{ margin: '0 6px' }}>›</span>
+          <span style={{ display: 'inline-flex', verticalAlign: -2, margin: '0 4px' }}><ChevronRight size={12} /></span>
           <span style={{ color: C.sub, fontWeight: 600 }}>{property.address}</span>
         </div>
 

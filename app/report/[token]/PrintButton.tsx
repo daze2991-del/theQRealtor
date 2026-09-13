@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { Download } from 'lucide-react'
 
 export default function PrintButton() {
   useEffect(() => {
@@ -20,9 +21,10 @@ export default function PrintButton() {
         border: 'none', borderRadius: 8,
         padding: '7px 13px', cursor: 'pointer',
         letterSpacing: '-0.01em', whiteSpace: 'nowrap',
+        display: 'inline-flex', alignItems: 'center', gap: 6,
       }}
     >
-      ⬇ Download PDF
+      <Download size={13} /> Download PDF
     </button>
   )
 }

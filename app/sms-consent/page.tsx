@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { Home } from 'lucide-react'
 
 export const metadata: Metadata = {
   title: 'SMS Opt-In Consent — theqrealtor',
@@ -45,7 +46,7 @@ export default function SmsConsentPage() {
         position: 'sticky', top: 0, zIndex: 10,
       }}>
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
-          <span style={{ fontSize: 22 }}>🏠</span>
+          <span style={{ display: 'flex', color: '#534AB7' }}><Home size={22} /></span>
           <span style={{ fontFamily: "-apple-system, 'Helvetica Neue', Arial, sans-serif", fontSize: '22px', letterSpacing: '-0.5px', lineHeight: 1 }}>
             <span style={{ fontWeight: 300, color: '#fff' }}>the</span>
             <span style={{ fontWeight: 600, color: '#534AB7' }}>qr</span>

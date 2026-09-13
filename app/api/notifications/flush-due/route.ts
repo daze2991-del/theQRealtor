@@ -24,6 +24,6 @@ export async function POST() {
   }
 
   const admin = createAdminSupabase()
-  const { processed, sent } = await flushDueNotifications(admin, { agentId: user.id, limit: 20 })
-  return NextResponse.json({ processed, sent })
+  const { processed, sent, failed, abandoned } = await flushDueNotifications(admin, { agentId: user.id, limit: 20 })
+  return NextResponse.json({ processed, sent, failed, abandoned })
 }

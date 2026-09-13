@@ -260,15 +260,24 @@ export async function queueOrSendAgentSms(opts: {
 // pending_notifications_due_idx (on scheduled_for where sent_at is null)
 // covers the scan and the .eq('agent_id', …) filter is applied on top of it.
 // Omit agentId for the global sweep the cron job runs.
+// A send that genuinely failed (Twilio error, bad credentials, unreachable
+// number) is left unsent so the next flush retries it. That retry has to be
+// bounded, though, or a permanently undeliverable row is reattempted forever
+// and — because the query is ordered oldest-first under a LIMIT — a pile of
+// them would crowd newer, deliverable messages out of every batch. After this
+// long past its scheduled time we give up and stamp it, with a loud log.
+const ABANDON_AFTER_MS = 3 * 86_400_000 // 3 days
+
 export async function flushDueNotifications(
   admin: Admin,
   opts: { agentId?: string; limit?: number } = {}
-): Promise<{ processed: number; sent: number; error?: string }> {
-  const nowIso = new Date().toISOString()
+): Promise<{ processed: number; sent: number; failed: number; abandoned: number; error?: string }> {
+  const now = new Date()
+  const nowIso = now.toISOString()
 
   let query = admin
     .from('pending_notifications')
-    .select('id, agent_id, message')
+    .select('id, agent_id, message, scheduled_for')
     .is('sent_at', null)
     .lte('scheduled_for', nowIso)
     .order('scheduled_for', { ascending: true })
@@ -281,18 +290,51 @@ export async function flushDueNotifications(
   const { data: due, error } = await query
   if (error) {
     console.error('[twilio] flushDueNotifications query error:', error.message)
-    return { processed: 0, sent: 0, error: error.message }
+    return { processed: 0, sent: 0, failed: 0, abandoned: 0, error: error.message }
   }
 
-  let sent = 0
+  const markSent = (id: string) =>
+    admin.from('pending_notifications').update({ sent_at: new Date().toISOString() }).eq('id', id)
+
+  let sent = 0, failed = 0, abandoned = 0
   for (const n of due ?? []) {
     const phone = await resolveAgentPhone(admin, n.agent_id)
-    if (phone) { await sendSms(phone, n.message); sent++ }
-    // Stamp sent regardless so a missing phone doesn't wedge the queue forever.
-    await admin.from('pending_notifications').update({ sent_at: new Date().toISOString() }).eq('id', n.id)
+
+    // No phone on file: retrying can never succeed, so stamp it rather than
+    // letting it sit in the queue forever.
+    if (!phone) {
+      console.warn('[twilio] flush: no phone for agent', n.agent_id, '— marking notification', n.id, 'undeliverable')
+      await markSent(n.id)
+      abandoned++
+      continue
+    }
+
+    // Only treat it as delivered when Twilio actually returned a message SID.
+    // sendSms() swallows every error and returns null, so ignoring this value
+    // is what previously let failed sends be stamped as delivered and lost.
+    const sid = await sendSms(phone, n.message)
+    if (sid) {
+      await markSent(n.id)
+      sent++
+      continue
+    }
+
+    const overdueMs = now.getTime() - new Date(n.scheduled_for).getTime()
+    if (overdueMs >= ABANDON_AFTER_MS) {
+      console.error(
+        '[twilio] flush: giving up on notification', n.id, 'for agent', n.agent_id,
+        `— still undelivered ${Math.floor(overdueMs / 86_400_000)}d after it was due`,
+      )
+      await markSent(n.id)
+      abandoned++
+    } else {
+      // Left unsent on purpose: the next flush (opportunistic or cron) retries.
+      console.warn('[twilio] flush: send failed for notification', n.id, '— leaving queued for retry')
+      failed++
+    }
   }
 
-  return { processed: due?.length ?? 0, sent }
+  return { processed: due?.length ?? 0, sent, failed, abandoned }
 }
 
 // ── Message templates ─────────────────────────────────────────────────────────

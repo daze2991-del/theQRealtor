@@ -16,6 +16,20 @@
 // real-world latency improvement — this route is the worst-case bound, not
 // the common case.
 //
+// SCHEDULE — "0 17 * * *" (17:00 UTC). Cron schedules are UTC, but
+// quiet_hours_end defaults to 08:00 AGENT-LOCAL (America/Los_Angeles), which is
+// 15:00 UTC in PDT and 16:00 UTC in PST. This previously ran at 08:00 UTC —
+// 01:00 Pacific, hours BEFORE anything became due — so the tick that looked
+// like it was meant to catch the overnight backlog always missed it, and the
+// backlog waited for the following day's tick instead: ~16–17h late.
+//
+// 17:00 UTC clears the later (PST) due time by an hour and the PDT one by two,
+// so it lands after quiet hours end in both halves of the year. 16:00 UTC ties
+// the PST due time exactly and 15:00 UTC misses PST by 23h, so neither is safe.
+// An agent who sets quiet_hours_end later than ~09:00 local can still miss this
+// tick and wait for the next one — inherent to a once-daily cron, and the
+// opportunistic flushes above are what actually cover that case.
+//
 // If CRON_SECRET is set, the request must present it (Vercel Cron sends it as a
 // Bearer token automatically); otherwise the endpoint is open (best-effort).
 
@@ -33,13 +47,15 @@ async function flush(request: Request) {
   }
 
   const admin = createAdminSupabase()
-  const { processed, sent, error } = await flushDueNotifications(admin)
+  const { processed, sent, failed, abandoned, error } = await flushDueNotifications(admin)
   if (error) {
     return NextResponse.json({ error }, { status: 500 })
   }
 
-  console.log('[cron/flush] processed', processed, '| sent', sent)
-  return NextResponse.json({ processed, sent })
+  // failed > 0 means those rows are still queued and will be retried on the
+  // next tick; abandoned > 0 means we gave up on them permanently.
+  console.log('[cron/flush] processed', processed, '| sent', sent, '| failed', failed, '| abandoned', abandoned)
+  return NextResponse.json({ processed, sent, failed, abandoned })
 }
 
 // Vercel Cron issues GET; allow POST for manual triggering too.

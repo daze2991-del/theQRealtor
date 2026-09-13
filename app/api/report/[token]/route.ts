@@ -2,6 +2,27 @@ import { NextResponse } from 'next/server'
 import { createAdminSupabase } from '../../../../lib/supabase-admin'
 import { isReportExpired } from '../../../../lib/propertyStatus'
 
+// REQUIRED — do not remove. Without it this handler's Supabase reads land in
+// Next's persistent fetch Data Cache (.next/cache/fetch-cache), which survives
+// restarts and redeploys, and the report serves a seller permanently stale
+// numbers. Confirmed in practice: scans climbed 0→3 in the DB while
+// totalScanCount / uniqueVisitCount / the whole lead-quality breakdown stayed
+// frozen at their first-ever values.
+//
+// The staleness hid behind one accident: the scanEvents query filters on
+// `created_at >= Date.now() - 365d`, so its URL differs every request and it
+// always missed the cache. The chart data therefore looked live while the
+// headline KPIs beside it were frozen — the two disagreeing inside a single
+// response is the signature of this bug.
+//
+// force-dynamic sets revalidate = 0, which is the condition Next's
+// patch-fetch needs (alongside the Authorization header Supabase already
+// sends) to bypass the cache. Every other GET route in app/api is either
+// session-gated — reading cookies forces dynamic rendering on its own — or
+// filters on a moving timestamp; this public, token-addressed route was the
+// one read path with neither protection.
+export const dynamic = 'force-dynamic'
+
 // Public seller report data. The URL segment is properties.report_token — a
 // PRIVATE credential, distinct from properties.id (which is semi-public: it is
 // printed on QR signage and handed to buyers via /open-house/{propertyId}).

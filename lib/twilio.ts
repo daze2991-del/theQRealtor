@@ -21,6 +21,10 @@ export function leadUrl(leadId: string): string {
   return `${siteUrl()}/dashboard/leads/${leadId}`
 }
 
+export function billingUrl(): string {
+  return `${siteUrl()}/dashboard/billing`
+}
+
 // ── Sending ───────────────────────────────────────────────────────────────────
 export function smsConfigured(): boolean {
   return !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER)
@@ -364,8 +368,28 @@ export const msg = {
     `💬 New question from ${buyer} re: ${address}. View lead: ${leadUrl(leadId)}. Reply STOP to opt out.`,
   hotAlert: (buyer: string, address: string, leadId: string, contactPreference?: string | null, buyerPhone?: string | null) =>
     `🔥 ${buyer} just hit Hot engagement on ${address}. Phone: ${(buyerPhone || '').trim() || 'n/a'}. Preferred contact: ${contactVerb(contactPreference)}. View lead: ${leadUrl(leadId)}. Reply STOP to opt out.`,
+  // ── Expired-trial teasers ──────────────────────────────────────────────────
+  // Sent to an agent whose trial has lapsed, in place of the full-detail alerts
+  // above. The lead itself is still captured and stored in full — only what we
+  // push to the agent's phone is withheld, so the value is visible but the
+  // contact details require a subscription.
+  //
+  // Deliberately carry NO buyer-identifying data: no name, no phone, no email,
+  // no message text. Property address only — it is the agent's own listing, not
+  // buyer PII, and without it the alert is not actionable enough to convert.
+  // The link points at billing rather than the lead, since the lead view itself
+  // is gated for these agents.
+  showingAlertTeaser: (address: string) =>
+    `🏠 New showing request on ${address}. Subscribe to view contact info and respond: ${billingUrl()}. Reply STOP to opt out.`,
+  questionAlertTeaser: (address: string) =>
+    `💬 New question on ${address}. Subscribe to view contact info and respond: ${billingUrl()}. Reply STOP to opt out.`,
+  hotAlertTeaser: (address: string) =>
+    `🔥 A buyer just hit Hot engagement on ${address}. Subscribe to view contact info and respond: ${billingUrl()}. Reply STOP to opt out.`,
+
   // Buyer-facing (not agent-facing): leads with the business name so the
   // recipient can identify who is texting them from an unknown number.
+  // NEVER gated on the agent's trial/billing state — the buyer is not the one
+  // who owes us money, and they opted in to hear back.
   buyerConfirmation: (buyerName: string, address: string, agentName?: string | null) => {
     const who = firstName(agentName) || 'The agent'
     return `theqrealtor: Hi ${firstName(buyerName) || 'there'}, thanks for your interest in ${address}. ${who} will reach out shortly. Reply STOP to opt out.`

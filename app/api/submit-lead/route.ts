@@ -4,6 +4,7 @@ import { computeIntent, type EngagementData } from '../../../lib/leadScoring'
 import { computeScoreV2, isLikelyBot, type EngagementInputV2 } from '../../../lib/leadScoringV2'
 import { sendSms, resolveAgentPhone, queueOrSendAgentSms, flushDueNotifications, msg } from '../../../lib/twilio'
 import { SMS_CONSENT_TEXT, SMS_CONSENT_TEXT_MAX } from '../../../lib/smsConsent'
+import { getTrialStatus } from '../../../lib/trial'
 
 // ─── rate limiter ─────────────────────────────────────────────────────────────
 // Best-effort in-memory window per IP. Works for single-instance deployments;
@@ -184,7 +185,7 @@ export async function POST(request: Request) {
   try {
     const { data: agentProfile } = await supabase
       .from('profiles')
-      .select('id, name, notify_showing, notify_question, notify_hot_lead, quiet_hours_enabled, quiet_hours_start, quiet_hours_end')
+      .select('id, name, notify_showing, notify_question, notify_hot_lead, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, beta_joined_at, plan')
       .eq('id', property.user_id)
       .single()
 
@@ -199,13 +200,30 @@ export async function POST(request: Request) {
       const dispatch = (message: string, alertType: string) =>
         queueOrSendAgentSms({ admin: supabase, agent, agentPhone, leadId, message, alertType })
 
+      // Expired trial → teaser alerts with no buyer detail. Grandfathered
+      // cohorts are exempt inside getTrialStatus(), so they always get the full
+      // alert regardless of how old their join date is. The lead is captured in
+      // full either way — this only changes what we push to the agent's phone.
+      const trialExpired = getTrialStatus(
+        agentProfile.beta_joined_at as string | null,
+        agentProfile.plan as string | null,
+      ).expired
+
       // Showing request
       if (cta === 'showing' && agentProfile.notify_showing !== false) {
-        await dispatch(msg.showingAlert(trimName, address, leadId, trimmedPhone, trimmedEmail, (contactPreference as string)?.trim() || null), 'showingAlert')
+        await dispatch(
+          trialExpired
+            ? msg.showingAlertTeaser(address)
+            : msg.showingAlert(trimName, address, leadId, trimmedPhone, trimmedEmail, (contactPreference as string)?.trim() || null),
+          'showingAlert',
+        )
       }
       // Question / info request
       if (cta === 'question' && agentProfile.notify_question !== false) {
-        await dispatch(msg.questionAlert(trimName, address, leadId), 'questionAlert')
+        await dispatch(
+          trialExpired ? msg.questionAlertTeaser(address) : msg.questionAlert(trimName, address, leadId),
+          'questionAlert',
+        )
       }
       // Hot tier crossed — fire once per lead (guarded by hot_notified_at)
       if (v2Score.tier === 'hot' && agentProfile.notify_hot_lead !== false) {
@@ -215,7 +233,12 @@ export async function POST(request: Request) {
           .eq('id', leadId).is('hot_notified_at', null)
           .select('id')
         if (hotRows && hotRows.length > 0) {
-          await dispatch(msg.hotAlert(trimName, address, leadId, (contactPreference as string)?.trim() || null, trimmedPhone), 'hotAlert')
+          await dispatch(
+            trialExpired
+              ? msg.hotAlertTeaser(address)
+              : msg.hotAlert(trimName, address, leadId, (contactPreference as string)?.trim() || null, trimmedPhone),
+            'hotAlert',
+          )
         }
       }
     } else {

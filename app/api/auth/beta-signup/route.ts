@@ -140,7 +140,11 @@ export async function POST(req: Request) {
   // Columns we set explicitly:
   //   id            — required; PK, ties the profile to the auth user
   //   name          — from the signup form
-  //   plan          — 'founding' is the source of truth for QR limits and UI
+  //   plan          — 'trial' starts the 45-day clock and is the source of
+  //                   truth for QR limits and UI. NOT 'founding'/'alpha':
+  //                   those are grandfathered (never expire) and reserved for
+  //                   the founder's own accounts, so assigning one here would
+  //                   hand every new signup a permanent free account.
   //   account_status — 'beta' identifies beta cohort membership
   //   beta_joined_at — timestamp of this signup
   //   phone          — normalized E.164; unique index enforces anti-abuse constraint
@@ -163,7 +167,7 @@ export async function POST(req: Request) {
       {
         id: userId,
         name: name.trim(),
-        plan: 'founding',
+        plan: 'trial',
         account_status: 'beta',
         beta_joined_at: new Date().toISOString(),
         phone: normalizedPhone,

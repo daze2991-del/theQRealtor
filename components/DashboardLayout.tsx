@@ -22,11 +22,12 @@ const C = {
   muted:   '#6B7280',
 } as const
 
-type Plan = 'founding' | 'alpha' | 'free' | 'starter' | 'pro' | 'elite'
+type Plan = 'founding' | 'alpha' | 'trial' | 'free' | 'starter' | 'pro' | 'elite'
 
 const PLAN_LABELS: Record<Plan, string> = {
   founding: 'Beta Agent',
   alpha:    'Alpha',
+  trial:    'Free Trial',
   free:     'Free Plan',
   starter:  'Starter',
   pro:      'Pro',
@@ -333,6 +334,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [newLeadCount, setNewLeadCount] = useState(0)
   const [mobileOpen, setMobileOpen]     = useState(false)
   const [betaJoinedAt, setBetaJoinedAt] = useState<string | null>(null)
+  // False until plan AND betaJoinedAt both hold real values. The trial banner
+  // renders nothing while this is false — a banner derived from default state
+  // is a guess, and a wrong guess here is a red 'trial has ended' alarm shown
+  // to an account that never expires.
+  const [trialLoaded, setTrialLoaded] = useState(false)
   // Per-stage dismissal. Deliberately NOT one shared boolean: the trial warning
   // escalates (10 days → 3 days), and dismissing the earlier, softer notice must
   // not also silence the urgent one a week later. Keyed by stage so each is
@@ -387,7 +393,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }
 
         const rawPlan = (profile?.plan as string) || 'free'
-        const KNOWN_PLANS: Plan[] = ['founding', 'alpha', 'free', 'starter', 'pro', 'elite']
+        const KNOWN_PLANS: Plan[] = ['founding', 'alpha', 'trial', 'free', 'starter', 'pro', 'elite']
         let resolvedPlan: Plan = (KNOWN_PLANS.includes(rawPlan as Plan) ? rawPlan : 'free') as Plan
 
         if (resolvedPlan === 'free') {
@@ -412,7 +418,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         // never be blocked or fail because of notification plumbing.
         fetch('/api/notifications/flush-due', { method: 'POST' }).catch(() => {})
 
-        setBetaJoinedAt(profile?.beta_joined_at ?? null)
         // Server-authoritative admin check: /api/admin/whoami runs the same
         // adminGate() against the server-only ADMIN_USER_ID and returns just a
         // boolean. This only decides whether to render the founder link — the
@@ -424,7 +429,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             setIsAdmin(!!ok)
           }
         } catch { /* default: non-admin, link stays hidden */ }
+
+        // plan + betaJoinedAt MUST be set together, in one synchronous block, and
+        // AFTER every await above. The trial banner is a function of both, so
+        // committing one without the other renders a state that is not real.
+        //
+        // This caused a live bug: setBetaJoinedAt used to run BEFORE the
+        // whoami fetch, so for the whole round-trip React rendered the true
+        // join date against the still-default plan 'free'. 'free' is not
+        // grandfathered, so a grandfathered account with an old join date
+        // evaluated as expired and flashed the red "trial has ended" banner for
+        // ~1s before the real plan arrived and corrected it.
+        //
+        // trialLoaded gates the banner so nothing renders until both are real.
+        // It stays false if load() returns early (no session) or throws, which
+        // is the right failure mode: show no banner rather than a guessed one.
+        setBetaJoinedAt(profile?.beta_joined_at ?? null)
         setPlan(resolvedPlan)
+        setTrialLoaded(true)
         setPropertyCount(propertyIds.length)
         setSignCount(signCnt)
         setNewLeadCount(newLeadCnt)
@@ -474,13 +496,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </Link>
           </div>
           {(() => {
-            const { expired, daysRemaining, grandfathered } = getTrialStatus(betaJoinedAt, plan)
+            // Nothing until the real profile has landed — see trialLoaded above.
+            if (!trialLoaded) return null
 
-            // Grandfathered cohorts have no trial clock at all — never warn them.
+            const { expired, daysRemaining, exempt } = getTrialStatus(betaJoinedAt, plan)
+
+            // Exempt plans have no trial clock at all — never warn them.
             // getTrialStatus already reports expired=false with a full-length
             // daysRemaining for these, so this is belt-and-braces, but it keeps
             // the intent obvious at the render site.
-            if (grandfathered) return null
+            if (exempt) return null
 
             if (expired) {
               return (

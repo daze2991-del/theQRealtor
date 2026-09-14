@@ -29,8 +29,8 @@ export interface AgentSummary {
   accountAgeDays: number
   daysRemaining:  number
   expired:        boolean
-  /** Grandfathered cohort (founding/alpha) — exempt from trial expiry entirely. */
-  grandfathered:  boolean
+  /** No trial clock applies (grandfathered cohort, paying tier, or 'free'). */
+  exempt:         boolean
   lastActive:     string | null   // ISO, all-time (not range-bound) so "inactive" is meaningful
   activeListings: number
   totalScans:     number
@@ -205,7 +205,7 @@ export async function getBetaOverview(range: OverviewRange = {}): Promise<BetaOv
 
   // ── Shape per-agent rows ────────────────────────────────────────────────────
   const agents: AgentSummary[] = profiles.map((p: any) => {
-    const { daysRemaining, expired, grandfathered } = getTrialStatus(p.beta_joined_at, p.plan)
+    const { daysRemaining, expired, exempt } = getTrialStatus(p.beta_joined_at, p.plan)
     const scans = scansByUser.get(p.id) ?? { count: 0, last: null }
     const leads = leadsByUser.get(p.id) ?? { count: 0, last: null, hot: 0, warm: 0, cold: 0 }
     const lastActive = scans.last && leads.last
@@ -225,7 +225,7 @@ export async function getBetaOverview(range: OverviewRange = {}): Promise<BetaOv
       accountAgeDays,
       daysRemaining,
       expired,
-      grandfathered,
+      exempt,
       lastActive,
       activeListings: active,
       totalScans: scans.count,

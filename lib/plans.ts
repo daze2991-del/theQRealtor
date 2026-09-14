@@ -11,7 +11,7 @@
 //     one of them gates anything until an enforcement point actually reads it.
 //     The only limits with real enforcement are documented per-field below.
 
-export type PlanId = 'founding' | 'alpha' | 'starter' | 'pro' | 'elite' | 'free'
+export type PlanId = 'founding' | 'alpha' | 'trial' | 'starter' | 'pro' | 'elite' | 'free'
 
 export interface PlanFeatures {
   leadScoring: boolean
@@ -31,6 +31,17 @@ export interface PlanConfig {
   /** True for the closed-beta cohorts we are grandfathering. Their limits must
    *  not be changed by paid-tier repricing. */
   grandfathered: boolean
+  /** Whether the 45-day trial clock (lib/trial.ts) applies to this plan.
+   *  TRUE FOR 'trial' ONLY. Everything else is exempt, for two different
+   *  reasons that happen to need the same behaviour:
+   *    • founding/alpha — grandfathered cohorts, permanent by definition
+   *    • starter/pro/elite — they are paying; expiring a paying customer
+   *      because their original signup date is old would be a billing bug
+   *    • free — already the most restricted tier, and the fallback that
+   *      planConfig() returns for an unknown/typo'd plan string. Exempting it
+   *      means a bad plan value costs us revenue rather than locking a real
+   *      agent out of their own leads, which is the safer way to be wrong. */
+  subjectToTrialExpiry: boolean
 }
 
 const ALL_FEATURES: PlanFeatures = {
@@ -45,8 +56,16 @@ export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
   // Both live agents today are on these. Deliberately left at their original
   // 10-sign / unlimited-listing entitlement and full feature access. Paid-tier
   // changes must never reduce these.
-  founding: { maxActiveSigns: 10, maxActiveListings: null, features: ALL_FEATURES, grandfathered: true },
-  alpha:    { maxActiveSigns: 10, maxActiveListings: null, features: ALL_FEATURES, grandfathered: true },
+  founding: { maxActiveSigns: 10, maxActiveListings: null, features: ALL_FEATURES, grandfathered: true, subjectToTrialExpiry: false },
+  alpha:    { maxActiveSigns: 10, maxActiveListings: null, features: ALL_FEATURES, grandfathered: true, subjectToTrialExpiry: false },
+
+  // ── Active trial ──────────────────────────────────────────────────────────
+  // What every NEW signup gets. Entitlements deliberately match the
+  // founding/alpha cohorts (10 signs, unlimited listings, every feature) so a
+  // trial shows the real product rather than a crippled preview — but unlike
+  // those cohorts this one is NOT grandfathered and the 45-day clock DOES
+  // apply, so it actually counts down and then restricts.
+  trial:    { maxActiveSigns: 10, maxActiveListings: null, features: ALL_FEATURES, grandfathered: false, subjectToTrialExpiry: true },
 
   // ── Paid tiers (not sold yet — billing is manual and Stripe is inert) ─────
   starter: {
@@ -59,18 +78,21 @@ export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
       advancedBuyerInsights: false,
     },
     grandfathered: false,
+    subjectToTrialExpiry: false,
   },
   pro: {
     maxActiveSigns: 25,
     maxActiveListings: null, // practically unrestricted, per the pricing model
     features: ALL_FEATURES,
     grandfathered: false,
+    subjectToTrialExpiry: false,
   },
   elite: {
     maxActiveSigns: null,
     maxActiveListings: null,
     features: ALL_FEATURES,
     grandfathered: false,
+    subjectToTrialExpiry: false,
   },
 
   // ── Fallback ──────────────────────────────────────────────────────────────
@@ -87,6 +109,7 @@ export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
       advancedBuyerInsights: false,
     },
     grandfathered: false,
+    subjectToTrialExpiry: false,
   },
 }
 

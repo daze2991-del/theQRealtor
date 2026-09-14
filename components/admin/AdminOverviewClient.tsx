@@ -267,10 +267,10 @@ export default function AdminOverviewClient({ initial }: { initial: BetaOverview
                     <span style={{ color: C.blue }}>{a.cold}</span>
                   </td>
                   <td style={{ ...TD, textAlign: 'right' }}>
-                    {/* Grandfathered cohorts have no trial clock — showing a day
-                        count for them would imply a countdown that never runs. */}
-                    {a.grandfathered ? (
-                      <span style={{ fontWeight: 600, color: C.muted }} title="Grandfathered plan — never expires">
+                    {/* Exempt plans have no trial clock — showing a day count
+                        would imply a countdown that never runs. */}
+                    {a.exempt ? (
+                      <span style={{ fontWeight: 600, color: C.muted }} title="No trial clock on this plan (grandfathered, paid, or free)">
                         Exempt
                       </span>
                     ) : (

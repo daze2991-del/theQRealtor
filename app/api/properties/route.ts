@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { createAdminSupabase } from '@/lib/supabase-admin'
-import { getBetaStatus } from '@/lib/beta'
+import { getTrialStatus } from '@/lib/trial'
 import { propertyLimitForPlan } from '@/lib/plans'
 
 // The single server-side creation point for properties. app/dashboard/onboarding
@@ -20,9 +20,9 @@ export async function POST(req: Request) {
     .eq('id', user.id)
     .single()
 
-  const { expired } = getBetaStatus(profile?.beta_joined_at)
+  const { expired } = getTrialStatus(profile?.beta_joined_at, profile?.plan)
   if (expired) {
-    return NextResponse.json({ error: 'Your beta has ended.', betaExpired: true }, { status: 403 })
+    return NextResponse.json({ error: 'Your trial has ended.', betaExpired: true }, { status: 403 })
   }
 
   // ── Per-plan listing limit ──────────────────────────────────────────────────

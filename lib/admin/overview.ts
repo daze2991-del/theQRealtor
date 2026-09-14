@@ -1,6 +1,6 @@
 import 'server-only'
 import { createServiceSupabase } from '../supabase-service'
-import { getBetaStatus } from '../beta'
+import { getTrialStatus } from '../trial'
 import { assertAdmin } from './auth'
 
 // ── Beta Overview data path (READ-ONLY, aggregates only) ────────────────────────
@@ -29,6 +29,8 @@ export interface AgentSummary {
   accountAgeDays: number
   daysRemaining:  number
   expired:        boolean
+  /** Grandfathered cohort (founding/alpha) — exempt from trial expiry entirely. */
+  grandfathered:  boolean
   lastActive:     string | null   // ISO, all-time (not range-bound) so "inactive" is meaningful
   activeListings: number
   totalScans:     number
@@ -203,7 +205,7 @@ export async function getBetaOverview(range: OverviewRange = {}): Promise<BetaOv
 
   // ── Shape per-agent rows ────────────────────────────────────────────────────
   const agents: AgentSummary[] = profiles.map((p: any) => {
-    const { daysRemaining, expired } = getBetaStatus(p.beta_joined_at)
+    const { daysRemaining, expired, grandfathered } = getTrialStatus(p.beta_joined_at, p.plan)
     const scans = scansByUser.get(p.id) ?? { count: 0, last: null }
     const leads = leadsByUser.get(p.id) ?? { count: 0, last: null, hot: 0, warm: 0, cold: 0 }
     const lastActive = scans.last && leads.last
@@ -223,6 +225,7 @@ export async function getBetaOverview(range: OverviewRange = {}): Promise<BetaOv
       accountAgeDays,
       daysRemaining,
       expired,
+      grandfathered,
       lastActive,
       activeListings: active,
       totalScans: scans.count,

@@ -3,7 +3,7 @@ import { adminGate } from '../../lib/admin/auth'
 import { getBetaOverview } from '../../lib/admin/overview'
 import AdminOverviewClient from '../../components/admin/AdminOverviewClient'
 
-// God Mode — Beta Overview. Top-level /admin route, fully independent of the
+// God Mode — Trial Overview. Top-level /admin route, fully independent of the
 // normal /dashboard data path. This is layer 1 of 3 of the authorization check
 // (the getBetaOverview data fn and the /api/admin/overview route each re-verify).
 //

@@ -199,7 +199,7 @@ function OnboardingWizard() {
     const int = (v: string) => (v.trim() && !isNaN(parseInt(v, 10)) ? parseInt(v, 10) : null)
 
     // Goes through /api/properties rather than inserting directly, so the
-    // per-plan listing limit (and the beta gate) apply here too. A direct
+    // per-plan listing limit (and the trial gate) apply here too. A direct
     // client insert would satisfy RLS and bypass both.
     const res = await fetch('/api/properties', {
       method: 'POST',

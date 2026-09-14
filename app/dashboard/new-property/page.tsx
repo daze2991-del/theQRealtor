@@ -4,7 +4,7 @@ import { useCallback, useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserSupabase } from "@/lib/supabase-browser";
 import DashboardLayout from "@/components/DashboardLayout";
-import { getBetaStatus } from "@/lib/beta";
+import { getTrialStatus } from "@/lib/trial";
 import { propertyLimitForPlan } from "@/lib/plans";
 import { PRICING_TIERS, PRICING_CLARIFIER, pricingTierConfig, type PricingTier } from "@/lib/pricing";
 import { Hourglass, Lock, ChevronRight, Check, CheckCircle, X, Loader2, Camera } from "lucide-react";
@@ -88,7 +88,7 @@ export default function NewPropertyPage() {
         setBlockedPlan(plan);
         setBlocked(true);
       }
-      if (getBetaStatus(profile?.beta_joined_at).expired) {
+      if (getTrialStatus(profile?.beta_joined_at, profile?.plan).expired) {
         setBetaExpired(true);
       }
     };
@@ -119,9 +119,9 @@ export default function NewPropertyPage() {
     });
     const body = await res.json();
     if (!res.ok) {
-      // Both the beta gate and the plan-limit gate answer 403, so branch on the
+      // Both the trial gate and the plan-limit gate answer 403, so branch on the
       // flag rather than the status — otherwise a limit rejection would render
-      // as "your beta has ended".
+      // as "your trial has ended".
       if (body.limitReached) {
         if (body.plan) setBlockedPlan(body.plan);
         setBlocked(true);
@@ -220,7 +220,7 @@ export default function NewPropertyPage() {
             textAlign: 'center', fontFamily: 'sans-serif',
           }}>
             <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center', color: C.muted }}><Hourglass size={48} /></div>
-            <h2 style={{ fontSize: 20, fontWeight: 800, color: C.text, marginBottom: 8 }}>Your beta has ended</h2>
+            <h2 style={{ fontSize: 20, fontWeight: 800, color: C.text, marginBottom: 8 }}>Your trial has ended</h2>
             <p style={{ color: C.muted, marginBottom: 28, fontSize: 14 }}>
               Reach out to continue using theqrealtor.
             </p>

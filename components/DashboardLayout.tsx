@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createBrowserSupabase } from '../lib/supabase-browser'
-import { getBetaStatus } from '../lib/beta'
+import { getTrialStatus, TRIAL_WARN_DAYS, TRIAL_URGENT_DAYS } from '../lib/trial'
 import { signLimitForPlan } from '../lib/plans'
 import { isEligibleLead } from '../lib/leadEligibility'
 import FeedbackPrompt from './FeedbackPrompt'
@@ -168,7 +168,7 @@ function NavLinks({ pathname, onClose, newLeadCount, isAdmin }: {
             <span style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
               <NavIcon name="admin" />
             </span>
-            <span style={{ flex: 1 }}>Beta Overview</span>
+            <span style={{ flex: 1 }}>Trial Overview</span>
             <span style={{
               fontSize: 9, fontWeight: 800, lineHeight: 1, letterSpacing: '0.06em',
               textTransform: 'uppercase', color: '#78350F', background: '#F59E0B',
@@ -333,7 +333,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [newLeadCount, setNewLeadCount] = useState(0)
   const [mobileOpen, setMobileOpen]     = useState(false)
   const [betaJoinedAt, setBetaJoinedAt] = useState<string | null>(null)
-  const [warningDismissed, setWarningDismissed] = useState(false)
+  // Per-stage dismissal. Deliberately NOT one shared boolean: the trial warning
+  // escalates (10 days → 3 days), and dismissing the earlier, softer notice must
+  // not also silence the urgent one a week later. Keyed by stage so each is
+  // dismissed independently.
+  const [dismissedStages, setDismissedStages] = useState<Record<'warn' | 'urgent', boolean>>({
+    warn: false,
+    urgent: false,
+  })
+  const dismissStage = (stage: 'warn' | 'urgent') =>
+    setDismissedStages(prev => ({ ...prev, [stage]: true }))
   const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
@@ -465,7 +474,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </Link>
           </div>
           {(() => {
-            const { expired, daysRemaining } = getBetaStatus(betaJoinedAt)
+            const { expired, daysRemaining, grandfathered } = getTrialStatus(betaJoinedAt, plan)
+
+            // Grandfathered cohorts have no trial clock at all — never warn them.
+            // getTrialStatus already reports expired=false with a full-length
+            // daysRemaining for these, so this is belt-and-braces, but it keeps
+            // the intent obvious at the render site.
+            if (grandfathered) return null
+
             if (expired) {
               return (
                 <div style={{
@@ -475,7 +491,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   fontFamily: 'sans-serif',
                 }}>
                   <span style={{ fontSize: 13.5, color: '#FCA5A5', fontWeight: 500 }}>
-                    Your beta has ended — reach out to continue.
+                    Your trial has ended — upgrade to continue.
                   </span>
                   <Link href="/dashboard/billing" style={{
                     fontSize: 12.5, fontWeight: 700, color: '#F87171',
@@ -487,41 +503,57 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </div>
               )
             }
-            if (!warningDismissed && daysRemaining > 0 && daysRemaining <= 14) {
-              return (
-                <div style={{
-                  background: '#1C1400', borderBottom: '1px solid #78350F',
-                  padding: '12px 24px', display: 'flex', alignItems: 'center',
-                  justifyContent: 'space-between', gap: 16, flexShrink: 0,
-                  fontFamily: 'sans-serif',
-                }}>
-                  <span style={{ fontSize: 13.5, color: '#FCD34D', fontWeight: 500 }}>
-                    Your beta ends in {daysRemaining} day{daysRemaining === 1 ? '' : 's'}.
-                  </span>
-                  {/* Grouped so the banner keeps its text-left / actions-right
-                      layout under justifyContent: space-between. */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                    <Link href="/dashboard/billing" style={{
-                      fontSize: 12.5, fontWeight: 700, color: '#FCD34D',
-                      textDecoration: 'none', whiteSpace: 'nowrap',
-                      border: '1px solid #78350F', borderRadius: 6, padding: '4px 10px',
-                    }}>
-                      View billing →
-                    </Link>
-                    <button
-                      onClick={() => setWarningDismissed(true)}
-                      style={{
-                        background: 'transparent', border: 'none', color: '#92400E',
-                        cursor: 'pointer', padding: '2px 4px',
-                        flexShrink: 0, display: 'flex',
-                      }}
-                      aria-label="Dismiss"
-                    ><X size={16} /></button>
-                  </div>
+
+            // Stage 2 (urgent) is checked FIRST: ≤3 days is a subset of ≤10, so
+            // testing the wider window first would mean the urgent banner never
+            // renders.
+            const stage: 'urgent' | 'warn' | null =
+              daysRemaining > 0 && daysRemaining <= TRIAL_URGENT_DAYS ? 'urgent'
+              : daysRemaining > 0 && daysRemaining <= TRIAL_WARN_DAYS ? 'warn'
+              : null
+
+            if (!stage || dismissedStages[stage]) return null
+
+            const theme = stage === 'urgent'
+              ? { bg: '#2A0E00', border: '#9A3412', text: '#FDBA74', dismiss: '#9A3412' }
+              : { bg: '#1C1400', border: '#78350F', text: '#FCD34D', dismiss: '#92400E' }
+
+            const dayLabel = `${daysRemaining} day${daysRemaining === 1 ? '' : 's'}`
+
+            return (
+              <div style={{
+                background: theme.bg, borderBottom: `1px solid ${theme.border}`,
+                padding: '12px 24px', display: 'flex', alignItems: 'center',
+                justifyContent: 'space-between', gap: 16, flexShrink: 0,
+                fontFamily: 'sans-serif',
+              }}>
+                <span style={{ fontSize: 13.5, color: theme.text, fontWeight: stage === 'urgent' ? 700 : 500 }}>
+                  {stage === 'urgent'
+                    ? `Only ${dayLabel} left in your trial — upgrade to keep access to your leads.`
+                    : `Your trial ends in ${dayLabel}.`}
+                </span>
+                {/* Grouped so the banner keeps its text-left / actions-right
+                    layout under justifyContent: space-between. */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                  <Link href="/dashboard/billing" style={{
+                    fontSize: 12.5, fontWeight: 700, color: theme.text,
+                    textDecoration: 'none', whiteSpace: 'nowrap',
+                    border: `1px solid ${theme.border}`, borderRadius: 6, padding: '4px 10px',
+                  }}>
+                    {stage === 'urgent' ? 'Upgrade now →' : 'View billing →'}
+                  </Link>
+                  <button
+                    onClick={() => dismissStage(stage)}
+                    style={{
+                      background: 'transparent', border: 'none', color: theme.dismiss,
+                      cursor: 'pointer', padding: '2px 4px',
+                      flexShrink: 0, display: 'flex',
+                    }}
+                    aria-label="Dismiss"
+                  ><X size={16} /></button>
                 </div>
-              )
-            }
-            return null
+              </div>
+            )
           })()}
           {children}
         </div>

@@ -112,7 +112,7 @@ export default function AdminOverviewClient({ initial }: { initial: BetaOverview
 
   const t = data.totals
   const statCards = [
-    { label: 'Beta Agents', value: t.totalBetaAgents, color: C.purpleL },
+    { label: 'Trial Agents', value: t.totalBetaAgents, color: C.purpleL },
     { label: 'Active (14d)', value: t.activeAgents, color: C.green },
     { label: 'Total Scans', value: t.totalScans, color: C.amber },
     { label: 'Leads Captured', value: t.leadsCaptured, color: C.green },
@@ -132,7 +132,7 @@ export default function AdminOverviewClient({ initial }: { initial: BetaOverview
         </Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, margin: 0, letterSpacing: '-0.02em' }}>
-            Beta Overview
+            Trial Overview
           </h1>
           <span style={{ fontSize: 10.5, fontWeight: 700, color: C.purpleL, background: 'rgba(124,58,237,0.15)', border: `1px solid ${C.border}`, borderRadius: 20, padding: '3px 10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             Read-only
@@ -267,9 +267,17 @@ export default function AdminOverviewClient({ initial }: { initial: BetaOverview
                     <span style={{ color: C.blue }}>{a.cold}</span>
                   </td>
                   <td style={{ ...TD, textAlign: 'right' }}>
-                    <span style={{ fontWeight: 700, color: a.expired ? C.red : a.daysRemaining <= 14 ? C.amber : C.green }}>
-                      {a.expired ? 'Expired' : `${a.daysRemaining}d`}
-                    </span>
+                    {/* Grandfathered cohorts have no trial clock — showing a day
+                        count for them would imply a countdown that never runs. */}
+                    {a.grandfathered ? (
+                      <span style={{ fontWeight: 600, color: C.muted }} title="Grandfathered plan — never expires">
+                        Exempt
+                      </span>
+                    ) : (
+                      <span style={{ fontWeight: 700, color: a.expired ? C.red : a.daysRemaining <= 14 ? C.amber : C.green }}>
+                        {a.expired ? 'Expired' : `${a.daysRemaining}d`}
+                      </span>
+                    )}
                   </td>
                   <td style={{ ...TD, textAlign: 'center' }}>
                     {a.latestFeedback != null ? (

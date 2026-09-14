@@ -40,7 +40,7 @@ export function getTrialStatus(
   // subject to the clock — see subjectToTrialExpiry in lib/plans.ts for why
   // each of the others is exempt. This is what lets an agent upgrade out of an
   // already-expired trial and regain full access immediately: the moment their
-  // plan becomes starter/pro/elite, expiry stops applying, without anyone
+  // plan becomes starter/pro, expiry stops applying, without anyone
   // having to touch beta_joined_at.
   //
   // planConfig() falls back to 'free' for a null/unknown plan string, and

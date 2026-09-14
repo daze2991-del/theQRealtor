@@ -22,7 +22,7 @@ const C = {
   muted:   '#6B7280',
 } as const
 
-type Plan = 'founding' | 'alpha' | 'trial' | 'free' | 'starter' | 'pro' | 'elite'
+type Plan = 'founding' | 'alpha' | 'trial' | 'free' | 'starter' | 'pro'
 
 const PLAN_LABELS: Record<Plan, string> = {
   founding: 'Beta Agent',
@@ -31,15 +31,13 @@ const PLAN_LABELS: Record<Plan, string> = {
   free:     'Free Plan',
   starter:  'Starter',
   pro:      'Pro',
-  elite:    'Elite',
 }
 
 // Per-plan sidebar usage. QR-based plans cap signs (one sign = one QR code
-// in this product); free caps properties; elite is unlimited (usage hidden
-// — returns null).
+// in this product); free caps properties. A null limit (unlimited) hides the
+// meter entirely via the return below.
 function planUsage(plan: Plan, propertyCount: number, signCount: number):
   { used: number; limit: number; noun: string } | null {
-  if (plan === 'elite') return null
   if (plan === 'free')  return { used: propertyCount, limit: 1, noun: 'properties' }
   const limit = signLimitForPlan(plan)
   return limit === null ? null : { used: signCount, limit, noun: 'QR/Signs' }
@@ -393,7 +391,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }
 
         const rawPlan = (profile?.plan as string) || 'free'
-        const KNOWN_PLANS: Plan[] = ['founding', 'alpha', 'trial', 'free', 'starter', 'pro', 'elite']
+        const KNOWN_PLANS: Plan[] = ['founding', 'alpha', 'trial', 'free', 'starter', 'pro']
         let resolvedPlan: Plan = (KNOWN_PLANS.includes(rawPlan as Plan) ? rawPlan : 'free') as Plan
 
         if (resolvedPlan === 'free') {

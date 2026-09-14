@@ -34,7 +34,6 @@ function planDisplayName(plan: PlanId): string {
   if (isPricingTier(plan)) return pricingTierConfig(plan).displayName
   if (plan === 'founding' || plan === 'alpha') return 'Beta Agent'
   if (plan === 'trial') return 'Free Trial'
-  if (plan === 'elite') return 'Elite'
   return 'Free'
 }
 

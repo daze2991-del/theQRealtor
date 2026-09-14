@@ -232,7 +232,7 @@ export default function NewPropertyPage() {
 
   if (blocked) {
     // The only two plans with a non-null listing limit are 'free' and
-    // 'starter' (see lib/plans.ts) — pro/elite/founding/alpha are all null
+    // 'starter' (see lib/plans.ts) — pro/founding/alpha/trial are all null
     // and can never reach this blocked state, so these are the only two
     // branches that exist.
     const proCfg = pricingTierConfig('pro');

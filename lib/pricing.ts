@@ -46,7 +46,7 @@ export const PRICING_CATALOG: Record<PricingTier, PricingTierConfig> = {
       month: 'STRIPE_PRICE_ID_STARTER_MONTHLY',
       year:  'STRIPE_PRICE_ID_STARTER_YEARLY',
     },
-    copy: 'Up to 3 active listings and 5 active signs.',
+    copy: 'Up to 3 active listings and 10 active signs.',
     maxActiveListings: planConfig('starter').maxActiveListings,
     maxActiveSigns:    planConfig('starter').maxActiveSigns,
   },

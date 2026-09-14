@@ -11,7 +11,7 @@
 //     one of them gates anything until an enforcement point actually reads it.
 //     The only limits with real enforcement are documented per-field below.
 
-export type PlanId = 'founding' | 'alpha' | 'trial' | 'starter' | 'pro' | 'elite' | 'free'
+export type PlanId = 'founding' | 'alpha' | 'trial' | 'starter' | 'pro' | 'free'
 
 export interface PlanFeatures {
   leadScoring: boolean
@@ -35,7 +35,7 @@ export interface PlanConfig {
    *  TRUE FOR 'trial' ONLY. Everything else is exempt, for two different
    *  reasons that happen to need the same behaviour:
    *    • founding/alpha — grandfathered cohorts, permanent by definition
-   *    • starter/pro/elite — they are paying; expiring a paying customer
+   *    • starter/pro — they are paying; expiring a paying customer
    *      because their original signup date is old would be a billing bug
    *    • free — already the most restricted tier, and the fallback that
    *      planConfig() returns for an unknown/typo'd plan string. Exempting it
@@ -69,7 +69,10 @@ export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
 
   // ── Paid tiers (not sold yet — billing is manual and Stripe is inert) ─────
   starter: {
-    maxActiveSigns: 5,
+    // 10, matching 'trial' on purpose: converting from a trial to the entry
+    // paid tier must never be a downgrade that forces an agent to archive
+    // working signs.
+    maxActiveSigns: 10,
     maxActiveListings: 3,
     features: {
       leadScoring: true,
@@ -87,14 +90,6 @@ export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
     grandfathered: false,
     subjectToTrialExpiry: false,
   },
-  elite: {
-    maxActiveSigns: null,
-    maxActiveListings: null,
-    features: ALL_FEATURES,
-    grandfathered: false,
-    subjectToTrialExpiry: false,
-  },
-
   // ── Fallback ──────────────────────────────────────────────────────────────
   // Also what an unrecognized/typo'd plan string resolves to. Deliberately
   // restrictive rather than permissive, but note the failure mode: a typo in

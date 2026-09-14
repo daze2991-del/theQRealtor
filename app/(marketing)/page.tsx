@@ -695,7 +695,7 @@ function FinalCta() {
           Start seeing the <span style={{ color: '#534AB7' }}>buyer interest</span> you&apos;ve been missing.
         </h2>
         <p className="text-gray-500 leading-relaxed max-w-md mx-auto mb-8">
-          Join the free private beta. No credit card required. Up to 10 QR codes. Your inquiries, always yours.
+          Join the free private beta. No credit card required. Up to 5 QR codes. Your inquiries, always yours.
         </p>
         <Link
           href="/auth?tab=signup"
@@ -704,7 +704,7 @@ function FinalCta() {
           Request beta access
         </Link>
         <p className="text-xs text-gray-400 mt-4">
-          Free for beta agents · Up to 10 QR codes · No card required
+          Free for beta agents · Up to 5 QR codes · No card required
         </p>
       </motion.div>
     </section>

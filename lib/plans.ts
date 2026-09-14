@@ -60,12 +60,20 @@ export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
   alpha:    { maxActiveSigns: 10, maxActiveListings: null, features: ALL_FEATURES, grandfathered: true, subjectToTrialExpiry: false },
 
   // ── Active trial ──────────────────────────────────────────────────────────
-  // What every NEW signup gets. Entitlements deliberately match the
-  // founding/alpha cohorts (10 signs, unlimited listings, every feature) so a
-  // trial shows the real product rather than a crippled preview — but unlike
-  // those cohorts this one is NOT grandfathered and the 45-day clock DOES
-  // apply, so it actually counts down and then restricts.
-  trial:    { maxActiveSigns: 10, maxActiveListings: null, features: ALL_FEATURES, grandfathered: false, subjectToTrialExpiry: true },
+  // What every NEW signup gets. Sized for EVALUATION, not production use: a
+  // trialling agent is testing the product on a single property, so one active
+  // listing is enough, and 5 signs on it is enough to experiment with labelling
+  // (yard sign vs. open house vs. directional) without handing out a full
+  // working allowance.
+  //
+  // Every feature is on — the trial should show the real product, just at
+  // smaller scale. Deliberately BELOW starter (3 listings / 10 signs) on both
+  // dimensions, so converting to the entry paid tier is a genuine upgrade
+  // either way you look at it and never forces an agent to archive anything.
+  //
+  // Not grandfathered, and the 45-day clock DOES apply — it counts down and
+  // then restricts.
+  trial:    { maxActiveSigns: 5, maxActiveListings: 1, features: ALL_FEATURES, grandfathered: false, subjectToTrialExpiry: true },
 
   // ── Paid tiers (not sold yet — billing is manual and Stripe is inert) ─────
   starter: {

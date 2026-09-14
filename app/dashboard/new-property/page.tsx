@@ -231,10 +231,11 @@ export default function NewPropertyPage() {
   }
 
   if (blocked) {
-    // The only two plans with a non-null listing limit are 'free' and
-    // 'starter' (see lib/plans.ts) — pro/founding/alpha/trial are all null
-    // and can never reach this blocked state, so these are the only two
-    // branches that exist.
+    // Plans with a non-null listing limit — and so the only ones that can
+    // reach this blocked state — are 'free' (1), 'trial' (1) and 'starter' (3).
+    // pro/founding/alpha are unlimited and never land here. 'trial' joined this
+    // list when it gained a listing cap, which is why the non-starter branch
+    // below has to name the plan rather than assume "Free".
     const proCfg = pricingTierConfig('pro');
     return (
       <DashboardLayout>
@@ -271,10 +272,12 @@ export default function NewPropertyPage() {
               // Free/unpaid agent: both tiers shown neutrally, never pre-selected.
               <>
                 <h2 style={{ fontSize: 20, fontWeight: 800, color: C.text, marginBottom: 8 }}>
-                  Free plan limit reached
+                  {blockedPlan === 'trial' ? 'Trial limit reached' : 'Free plan limit reached'}
                 </h2>
                 <p style={{ color: C.muted, marginBottom: 28, fontSize: 14 }}>
-                  Choose a plan to add more listings and signs.
+                  {blockedPlan === 'trial'
+                    ? `Your free trial includes ${propertyLimitForPlan('trial')} active listing. Choose a plan to add more.`
+                    : 'Choose a plan to add more listings and signs.'}
                 </p>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, textAlign: 'left' }}>
                   {PRICING_TIERS.map(tierKey => {

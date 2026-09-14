@@ -15,6 +15,8 @@ import {
   Clock,
 } from 'lucide-react'
 import { pricingTierConfig, PRICING_CLARIFIER } from '../../lib/pricing'
+import { TRIAL_DAYS } from '../../lib/trial'
+import { propertyLimitForPlan, signLimitForPlan } from '../../lib/plans'
 
 const PURPLE = '#534AB7'
 
@@ -682,6 +684,14 @@ function Pricing() {
 }
 
 function FinalCta() {
+  // Sourced from the same entitlement config the app enforces, rather than
+  // restated as literals — see lib/pricing.ts's header comment for why that
+  // matters: a hand-typed number here is exactly what went stale after the
+  // trial's listing/sign limits changed twice in one day.
+  const trialListings = propertyLimitForPlan('trial')
+  const trialSigns = signLimitForPlan('trial')
+  const listingWord = trialListings === 1 ? 'listing' : 'listings'
+
   return (
     <section className="border-b border-solid border-gray-100">
       <motion.div
@@ -695,7 +705,7 @@ function FinalCta() {
           Start seeing the <span style={{ color: '#534AB7' }}>buyer interest</span> you&apos;ve been missing.
         </h2>
         <p className="text-gray-500 leading-relaxed max-w-md mx-auto mb-8">
-          Join the free private beta. No credit card required. Up to 5 QR codes. Your inquiries, always yours.
+          Join the free private beta — a {TRIAL_DAYS}-day trial with {trialListings} {listingWord} and up to {trialSigns} QR codes. No credit card required. Your inquiries, always yours.
         </p>
         <Link
           href="/auth?tab=signup"
@@ -704,7 +714,7 @@ function FinalCta() {
           Request beta access
         </Link>
         <p className="text-xs text-gray-400 mt-4">
-          Free for beta agents · Up to 5 QR codes · No card required
+          {TRIAL_DAYS}-day free trial · {trialListings} {listingWord} to test drive · Up to {trialSigns} QR codes · No card required
         </p>
       </motion.div>
     </section>

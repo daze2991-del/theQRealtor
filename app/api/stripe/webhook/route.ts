@@ -3,6 +3,7 @@ import Stripe from 'stripe'
 import { getStripe } from '../../../../lib/stripe'
 import { createAdminSupabase } from '../../../../lib/supabase-admin'
 import { billingAutomationEnabled } from '../../../../lib/billing'
+import { subscriptionPatch } from '../../../../lib/subscription'
 
 // ── Stripe webhook — OBSERVE-ONLY while billing automation is disabled ────────
 //
@@ -83,10 +84,15 @@ export async function POST(request: Request) {
   }
 
   // ── Entitlement application (unreachable while the switch is off) ──────────
-  // Intentionally minimal and additive-only for now. Upgrade/downgrade,
-  // cancellation, dunning and trial handling are deliberately NOT implemented
-  // pending legal review of California's ARL — see the deferred list. Events
-  // that arrive without a handler here are recorded in the ledger and ignored.
+  // Records what Stripe reports about a subscription's status, period and
+  // scheduled cancellation. Events that arrive without a handler here are
+  // recorded in the ledger and ignored.
+  //
+  // STILL DELIBERATELY NOT IMPLEMENTED: nothing below writes profiles.plan.
+  // Auto-upgrade and auto-downgrade remain parked pending legal review of
+  // California's ARL — see lib/billing.ts and the TODO(ARL) in the checkout
+  // route. These handlers fill in status/period data only. An agent's
+  // entitlements still come from plan/account_status, still set by hand.
   let acted = false
 
   if (event.type === 'checkout.session.completed') {
@@ -111,6 +117,97 @@ export async function POST(request: Request) {
     }
   }
 
+  // ── Subscription lifecycle ─────────────────────────────────────────────────
+  // created / updated / deleted all carry a complete Subscription object, so
+  // one handler covers all three. A cancellation is NOT a .deleted event —
+  // verified live 2026-09-16: cancelling via the billing portal emits .updated
+  // with status still 'active' and cancel_at set. .deleted arrives only when
+  // the subscription actually ends (or the customer is removed).
+  if (
+    event.type === 'customer.subscription.created' ||
+    event.type === 'customer.subscription.updated' ||
+    event.type === 'customer.subscription.deleted'
+  ) {
+    const sub = event.data.object as Stripe.Subscription
+    const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer?.id ?? null
+
+    const agentId = await resolveAgentId(supabase, {
+      metadataAgentId: sub.metadata?.agent_id ?? null,
+      subscriptionId: sub.id,
+      customerId,
+    })
+
+    if (agentId) {
+      // stripe_customer_id / stripe_subscription_id are written here as well as
+      // in checkout.session.completed, and that redundancy is load-bearing:
+      // delivery order between those two events is NOT guaranteed. Measured on
+      // 2026-09-16, customer.subscription.created arrived 76ms BEFORE
+      // checkout.session.completed on one checkout and in the same millisecond
+      // on another. Whichever lands first leaves the row complete; the second
+      // writes identical values.
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          ...subscriptionPatch(sub),
+          stripe_customer_id: customerId,
+          stripe_subscription_id: sub.id,
+        })
+        .eq('id', agentId)
+
+      if (error) console.error(`[stripe/webhook] ${event.type} profile update failed:`, error.message)
+      else acted = true
+    } else {
+      console.warn(
+        `[stripe/webhook] ${event.type} — no profile matches metadata.agent_id, subscription ${sub.id}, or customer ${customerId}. Logged, not applied.`
+      )
+    }
+  }
+
+  // ── Failed payment ─────────────────────────────────────────────────────────
+  // Records THAT a renewal charge failed and when. Deliberately does not write
+  // subscription_status: the customer.subscription.updated that accompanies
+  // this event carries Stripe's authoritative status (past_due / unpaid), and
+  // inferring a status here would race with it and could overwrite the real one
+  // with a guess. This is not a dunning system — no retry schedule, no access
+  // change, no email. It only stops the event from vanishing.
+  if (event.type === 'invoice.payment_failed') {
+    const invoice = event.data.object as Stripe.Invoice
+    // On API version 2026-04-22.dahlia the invoice's subscription is NOT at the
+    // root — it is nested under parent.subscription_details. `invoice.subscription`
+    // does not exist in the SDK's Invoice interface on this version.
+    const subDetails = invoice.parent?.subscription_details ?? null
+    const subRef = subDetails?.subscription ?? null
+    const customerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id ?? null
+
+    // Stripe snapshots the subscription's metadata onto the invoice at
+    // finalization, so agent_id is available here without a Stripe round-trip.
+    // This is load-bearing, not a nicety: measured 2026-09-18, this event
+    // arrived while the profile still had no stripe_customer_id or
+    // stripe_subscription_id, because customer.subscription.created had not
+    // been processed yet. Resolving by those columns alone found no profile and
+    // dropped the write — the same ordering race the subscription handler
+    // already defends against.
+    const agentId = await resolveAgentId(supabase, {
+      metadataAgentId: subDetails?.metadata?.agent_id ?? null,
+      subscriptionId: typeof subRef === 'string' ? subRef : subRef?.id ?? null,
+      customerId,
+    })
+
+    if (agentId) {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ last_payment_failed_at: new Date(event.created * 1000).toISOString() })
+        .eq('id', agentId)
+
+      if (error) console.error('[stripe/webhook] invoice.payment_failed update failed:', error.message)
+      else acted = true
+    } else {
+      console.warn(
+        `[stripe/webhook] invoice.payment_failed — no profile matches subscription ${String(subRef)} or customer ${customerId}. Logged, not applied.`
+      )
+    }
+  }
+
   if (acted) {
     await supabase.from('stripe_webhook_events').update({ acted: true }).eq('event_id', event.id)
   }
@@ -118,15 +215,68 @@ export async function POST(request: Request) {
   return NextResponse.json({ ok: true, acted })
 }
 
+// ── Agent attribution ────────────────────────────────────────────────────────
+// Tries the identifiers in descending order of reliability and returns the
+// first that matches a REAL profile row:
+//
+//   1. subscription.metadata.agent_id — stamped by the checkout route onto the
+//      subscription itself, so it survives regardless of event ordering.
+//      Absent on any subscription created before that was added.
+//   2. stripe_subscription_id
+//   3. stripe_customer_id
+//
+// Every candidate is confirmed against profiles before being returned, so a
+// stale id from a deleted test account reports "not applied" instead of
+// silently updating zero rows and claiming success.
+async function resolveAgentId(
+  supabase: ReturnType<typeof createAdminSupabase>,
+  ids: { metadataAgentId: string | null; subscriptionId: string | null; customerId: string | null }
+): Promise<string | null> {
+  const candidates: Array<{ column: string; value: string }> = []
+  if (ids.metadataAgentId) candidates.push({ column: 'id', value: ids.metadataAgentId })
+  if (ids.subscriptionId) candidates.push({ column: 'stripe_subscription_id', value: ids.subscriptionId })
+  if (ids.customerId) candidates.push({ column: 'stripe_customer_id', value: ids.customerId })
+
+  for (const { column, value } of candidates) {
+    const { data, error } = await supabase.from('profiles').select('id').eq(column, value).limit(1)
+    if (error) {
+      console.error(`[stripe/webhook] agent lookup by ${column} failed:`, error.message)
+      continue
+    }
+    if (data && data.length > 0) return data[0].id as string
+  }
+  return null
+}
+
 // Small, non-sensitive digest for the ledger. Never store full payloads — they
 // can contain customer PII we have no reason to retain.
 function summarize(event: Stripe.Event): Record<string, unknown> {
   const obj = event.data.object as unknown as Record<string, unknown>
+
+  // Where the subscription id lives depends on the object type, and on API
+  // version 2026-04-22.dahlia none of them is a root `subscription` string on
+  // the two shapes we care about most:
+  //   • a Subscription   → the id IS the object's own id
+  //   • an Invoice       → parent.subscription_details.subscription
+  //   • everything else  → a root `subscription` string, when present at all
+  // Reading only the last case is why every invoice row in the ledger before
+  // this change recorded a null subscription.
+  let subscription: string | null = null
+  if (obj.object === 'subscription') {
+    subscription = typeof obj.id === 'string' ? obj.id : null
+  } else if (obj.object === 'invoice') {
+    const parent = obj.parent as { subscription_details?: { subscription?: unknown } } | null | undefined
+    const ref = parent?.subscription_details?.subscription
+    subscription = typeof ref === 'string' ? ref : (ref as { id?: string } | undefined)?.id ?? null
+  } else if (typeof obj.subscription === 'string') {
+    subscription = obj.subscription
+  }
+
   return {
     object: (obj.object as string) ?? null,
     status: (obj.status as string) ?? null,
     customer: typeof obj.customer === 'string' ? obj.customer : null,
-    subscription: typeof obj.subscription === 'string' ? obj.subscription : null,
+    subscription,
     created: event.created,
   }
 }

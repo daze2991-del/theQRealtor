@@ -92,6 +92,15 @@ export async function POST(request: Request) {
         : { customer_email: user.email }),
       client_reference_id: agentId,
       metadata: { agent_id: agentId, tier },
+      // Session metadata does NOT propagate to the Subscription object — it has
+      // to be stamped separately. Without this, customer.subscription.* events
+      // can only be attributed by looking up stripe_customer_id, which is
+      // written by checkout.session.completed — and the two deliveries are not
+      // ordered. Measured 2026-09-16: customer.subscription.created arrived
+      // 76ms BEFORE checkout.session.completed, so that lookup would have found
+      // no profile and dropped the write. This makes the subscription
+      // self-attributing and removes the dependency on ordering entirely.
+      subscription_data: { metadata: { agent_id: agentId, tier } },
     })
     return NextResponse.json({ url: session.url })
   } catch (err: any) {

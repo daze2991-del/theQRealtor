@@ -77,9 +77,9 @@ export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
 
   // ── Paid tiers (not sold yet — billing is manual and Stripe is inert) ─────
   starter: {
-    // 10, matching 'trial' on purpose: converting from a trial to the entry
+    // 10, deliberately ABOVE trial's 5: converting from a trial to the entry
     // paid tier must never be a downgrade that forces an agent to archive
-    // working signs.
+    // working signs. Keep this >= trial.maxActiveSigns for that reason.
     maxActiveSigns: 10,
     maxActiveListings: 3,
     features: {

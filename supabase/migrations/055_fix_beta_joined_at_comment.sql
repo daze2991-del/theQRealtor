@@ -1,0 +1,32 @@
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 055 — Correct the stale column comment on profiles.beta_joined_at.
+--
+-- COMMENT ONLY. No column is added, dropped, or altered; no data is touched;
+-- no policy, grant, trigger or index changes. Running this cannot affect
+-- behaviour — it only changes what psql \d+ and the Supabase table editor
+-- display.
+--
+-- WHY: migration 052 set a comment describing a 90-DAY clock evaluated by
+-- lib/beta.ts. Both details are now wrong:
+--
+--   • The trial is 45 days, not 90. lib/trial.ts TRIAL_DAYS = 45 is the sole
+--     input to the clock, and app/api/signs/create is unaffected by it.
+--   • lib/beta.ts no longer exists — it was renamed to lib/trial.ts, and
+--     getBetaStatus() to getTrialStatus().
+--   • The clock is no longer unconditional. It applies ONLY to plan='trial'
+--     (PLAN_CONFIG.subjectToTrialExpiry in lib/plans.ts). The grandfathered
+--     cohorts (founding/alpha), the paid tiers (starter/pro) and the 'free'
+--     fallback are all exempt, so for those plans this column's value has no
+--     bearing on access at all.
+--
+-- The NULL-fails-open behaviour described in 052 is still accurate and is
+-- restated below, with the corrected day count.
+--
+-- The column name itself stays beta_joined_at. Renaming it to match the
+-- "trial" language would touch every reader (lib/trial.ts, the signup route,
+-- DashboardLayout, the cap count in lib/signup.ts) for a cosmetic gain, and is
+-- deliberately not done here.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+comment on column public.profiles.beta_joined_at is
+  'UTC instant this agent joined. Sole input to the 45-day trial clock (lib/trial.ts TRIAL_DAYS), computed on the fly by getTrialStatus(); there is no stored expiry date. Applies ONLY to plan=''trial'' — founding/alpha (grandfathered), starter/pro (paying) and free are exempt via PLAN_CONFIG.subjectToTrialExpiry, so for those plans this value does not gate access. Set once by /api/auth/beta-signup. NULL fails OPEN (treated as a full 45 days remaining), so rows created outside that route are never locked out.';

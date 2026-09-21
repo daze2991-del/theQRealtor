@@ -30,6 +30,11 @@ function AuthForm() {
   const [phone, setPhone] = useState("");
   const [dre, setDre] = useState("");
   const [message, setMessage] = useState("");
+  // Signup was refused because the beta is closed to this person — either they
+  // are not on the allowlist, or the agent cap is full. Kept separate from
+  // `message` because that renders in red as a form error, and this is not an
+  // error: nothing the user typed was wrong and there is nothing to retry.
+  const [inviteOnly, setInviteOnly] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
   const [codeSent, setCodeSent] = useState(false);
@@ -115,6 +120,16 @@ function AuthForm() {
           setPhoneVerifyToken(null);
           setCode("");
         }
+        // 403 from this route means exactly one thing: the beta is closed to
+        // this person right now. It is returned by the allowlist gate and by
+        // the agent-cap gate, and by nothing else — every other refusal is 400,
+        // 409 or 500. Both gates deliberately return identical text so a caller
+        // cannot tell which one refused them, so we deliberately do not try to
+        // distinguish them here either.
+        if (res.status === 403) {
+          setInviteOnly(true);
+          return;
+        }
         setMessage(body.error ?? 'Something went wrong. Please try again.');
         return;
       }
@@ -190,6 +205,31 @@ function AuthForm() {
           background: C.card, border: `1px solid ${C.border}`,
           borderRadius: 24, padding: '36px 32px',
         }}>
+          {inviteOnly ? (
+            // Deliberately replaces the whole form rather than appending a
+            // message to it. Leaving a filled-in form on screen next to "you
+            // can't sign up" invites the user to keep resubmitting something
+            // that cannot succeed, which is the dead end this screen exists to
+            // remove. No red, no "error" — purple accent and normal body text,
+            // because this is information, not a failure.
+            <div>
+              <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, margin: '0 0 10px', letterSpacing: '-0.02em' }}>
+                Thanks for your interest
+              </h1>
+              <p style={{ fontSize: 14, color: C.sub, margin: '0 0 24px', lineHeight: 1.6 }}>
+                theqrealtor is currently invite-only while we&apos;re in private beta.
+                We&apos;ll be in touch as we open up more spots.
+              </p>
+              <button
+                style={ghostBtn}
+                type="button"
+                onClick={() => { setInviteOnly(false); setMode("signin"); setMessage(""); }}
+              >
+                Back to sign in
+              </button>
+            </div>
+          ) : (
+          <>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, margin: '0 0 6px', letterSpacing: '-0.02em' }}>
             {mode === "signin" ? "Welcome back" : "Create your account"}
           </h1>
@@ -361,13 +401,15 @@ function AuthForm() {
             <button
               style={ghostBtn}
               type="button"
-              onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setMessage(""); }}
+              onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setMessage(""); setInviteOnly(false); }}
             >
               {mode === "signin"
                 ? <>Need an account? <span style={{ color: C.purpleL, fontWeight: 700 }}>Sign up free</span></>
                 : <>Already have an account? <span style={{ color: C.purpleL, fontWeight: 700 }}>Sign in</span></>}
             </button>
           </form>
+          </>
+          )}
         </div>
       </div>
     </div>

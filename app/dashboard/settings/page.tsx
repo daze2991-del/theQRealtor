@@ -523,7 +523,7 @@ export default function SettingsPage() {
                   <div style={{ fontSize: 13, color: C.muted }}>Have a question or need help? We're here for you.</div>
                 </div>
                 <a
-                  href="mailto:support@theqrealtor.com"
+                  href="mailto:hello@theqrealtor.com"
                   style={{
                     background: 'transparent', color: C.purpleL,
                     border: `1px solid ${C.purple}55`, borderRadius: 9,
@@ -536,7 +536,7 @@ export default function SettingsPage() {
                 </a>
               </div>
               <div style={{ marginTop: 12, fontSize: 12, color: C.muted }}>
-                support@theqrealtor.com — we typically respond within 24 hours.
+                hello@theqrealtor.com — we typically respond within 24 hours.
               </div>
             </Section>
 
@@ -584,7 +584,7 @@ export default function SettingsPage() {
                 </button>
               </div>
               <div style={{ marginTop: 10, fontSize: 12, color: C.muted }}>
-                To delete your account, contact support@theqrealtor.com.
+                To delete your account, contact hello@theqrealtor.com.
               </div>
             </Section>
 

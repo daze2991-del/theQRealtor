@@ -206,8 +206,8 @@ export default function SmsConsentPage() {
           </div>
           <div style={{ fontSize: 14, color: L.sub }}>
             For support:{' '}
-            <a href="mailto:support@theqrealtor.com" style={{ color: L.purple, textDecoration: 'none' }}>
-              support@theqrealtor.com
+            <a href="mailto:hello@theqrealtor.com" style={{ color: L.purple, textDecoration: 'none' }}>
+              hello@theqrealtor.com
             </a>
           </div>
         </div>

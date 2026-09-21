@@ -145,7 +145,7 @@ export default function PrivacyPage() {
 
         <Section title="5. Data Retention">
           <p style={{ margin: 0 }}>
-            Lead data is retained for as long as the associated agent account is active. Agents may delete individual leads at any time. Upon account deletion, data retention will be handled in accordance with our data retention practices. Contact support@theqrealtor.com for data deletion requests.
+            Lead data is retained for as long as the associated agent account is active. Agents may delete individual leads at any time. Upon account deletion, data retention will be handled in accordance with our data retention practices. Contact hello@theqrealtor.com for data deletion requests.
           </p>
         </Section>
 
@@ -157,7 +157,7 @@ export default function PrivacyPage() {
 
         <Section title="7. Age and Eligibility">
           <p style={{ margin: 0 }}>
-            theqrealtor is intended for licensed real estate professionals and individuals of legal age to enter into contracts in their jurisdiction. We do not knowingly collect personal information from individuals under 18 unless they hold a valid real estate license issued by their state. If you believe an unlicensed minor has submitted information through our platform, please contact us at support@theqrealtor.com and we will delete it promptly.
+            theqrealtor is intended for licensed real estate professionals and individuals of legal age to enter into contracts in their jurisdiction. We do not knowingly collect personal information from individuals under 18 unless they hold a valid real estate license issued by their state. If you believe an unlicensed minor has submitted information through our platform, please contact us at hello@theqrealtor.com and we will delete it promptly.
           </p>
         </Section>
 
@@ -170,8 +170,8 @@ export default function PrivacyPage() {
         <Section title="9. Buyer Rights">
           <p style={{ margin: 0 }}>
             Buyers may request access to or deletion of personal information we maintain, subject to applicable law. Requests can be made by contacting{' '}
-            <a href="mailto:support@theqrealtor.com" style={{ color: C.purpleL, textDecoration: 'none' }}>
-              support@theqrealtor.com
+            <a href="mailto:hello@theqrealtor.com" style={{ color: C.purpleL, textDecoration: 'none' }}>
+              hello@theqrealtor.com
             </a>.
           </p>
         </Section>
@@ -179,8 +179,8 @@ export default function PrivacyPage() {
         <Section title="10. Contact Us">
           <p style={{ margin: 0 }}>
             If you have questions or concerns about this Privacy Policy, or to request deletion of your data, please contact us at{' '}
-            <a href="mailto:support@theqrealtor.com" style={{ color: C.purpleL, textDecoration: 'none' }}>
-              support@theqrealtor.com
+            <a href="mailto:hello@theqrealtor.com" style={{ color: C.purpleL, textDecoration: 'none' }}>
+              hello@theqrealtor.com
             </a>.
           </p>
         </Section>

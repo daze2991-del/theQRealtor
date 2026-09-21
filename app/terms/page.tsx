@@ -105,7 +105,7 @@ export default function TermsPage() {
           </p>
           <p style={{ margin: 0 }}>
             You are responsible for maintaining the security of your account credentials. You are liable for all activity that occurs under your account. Notify us immediately at{' '}
-            <a href="mailto:support@theqrealtor.com" style={{ color: C.purpleL, textDecoration: 'none' }}>support@theqrealtor.com</a>{' '}
+            <a href="mailto:hello@theqrealtor.com" style={{ color: C.purpleL, textDecoration: 'none' }}>hello@theqrealtor.com</a>{' '}
             if you suspect unauthorized access.
           </p>
         </Section>
@@ -143,7 +143,7 @@ export default function TermsPage() {
           </p>
           <p style={{ margin: '0 0 12px' }}>
             <strong style={{ color: C.text }}>For help:</strong> Reply <strong style={{ color: C.text }}>HELP</strong> to any message, or contact us at{' '}
-            <a href="mailto:support@theqrealtor.com" style={{ color: C.purpleL, textDecoration: 'none' }}>support@theqrealtor.com</a>.
+            <a href="mailto:hello@theqrealtor.com" style={{ color: C.purpleL, textDecoration: 'none' }}>hello@theqrealtor.com</a>.
           </p>
           <p style={{ margin: 0 }}>
             For full details on the opt-in process and compliance information, see our{' '}
@@ -220,8 +220,8 @@ export default function TermsPage() {
         <Section title="14. Contact">
           <p style={{ margin: 0 }}>
             For questions about these Terms, please contact us at{' '}
-            <a href="mailto:support@theqrealtor.com" style={{ color: C.purpleL, textDecoration: 'none' }}>
-              support@theqrealtor.com
+            <a href="mailto:hello@theqrealtor.com" style={{ color: C.purpleL, textDecoration: 'none' }}>
+              hello@theqrealtor.com
             </a>.
           </p>
         </Section>

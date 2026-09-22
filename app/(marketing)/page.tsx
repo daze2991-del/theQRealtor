@@ -224,6 +224,21 @@ function Hero() {
           </button>
         </motion.div>
 
+        <div className="flex justify-center mb-5 px-4">
+          <div
+            className="flex items-start gap-3 rounded-2xl border border-solid px-5 py-3.5 text-sm max-w-xl"
+            style={{ background: '#EEEDFE', borderColor: 'rgba(83,74,183,0.25)' }}
+          >
+            <span className="text-lg leading-none flex-shrink-0 mt-0.5">🔥</span>
+            <p className="text-left leading-snug" style={{ color: '#3C3489', margin: 0 }}>
+              <span className="font-bold">Your sign just generated a lead.</span>{' '}
+              <span className="font-semibold" style={{ color: '#534AB7' }}>Hot Buyer</span>
+              {' — 1400 Bayfront Terrace. Requested a showing. '}
+              <span className="font-bold" style={{ color: '#534AB7' }}>SMS alert sent →</span>
+            </p>
+          </div>
+        </div>
+
         <motion.div variants={fadeUp}>
           <div className="-mx-8 px-4 sm:mx-auto sm:px-0 sm:max-w-5xl">
             <div className="relative">

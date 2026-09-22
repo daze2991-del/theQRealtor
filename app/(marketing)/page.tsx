@@ -173,7 +173,7 @@ function Hero() {
   return (
     <section className="border-b border-solid border-gray-100 bg-[#f8f7fc]">
       <motion.div
-        className="max-w-3xl mx-auto py-16 px-8"
+        className="max-w-5xl mx-auto py-16 px-8"
         initial="hidden"
         animate="show"
         variants={{ hidden: {}, show: { transition: { staggerChildren: 0.1 } } }}
@@ -225,10 +225,10 @@ function Hero() {
         </motion.div>
 
         <motion.div variants={fadeUp}>
-          <div className="-mx-8 px-4 sm:mx-auto sm:px-0 sm:max-w-3xl">
+          <div className="-mx-8 px-4 sm:mx-auto sm:px-0 sm:max-w-5xl">
             <div className="relative">
               <div className="absolute -inset-4 bg-[#534AB7] opacity-10 blur-3xl rounded-3xl" />
-              <img src="/lead-feed-desktop-v3.png" alt="Lead activity feed" className="relative w-full rounded-2xl shadow-[0_25px_60px_-15px_rgba(83,74,183,0.35)]" />
+              <img src="/dashboardmock-v4.png" alt="Lead activity feed" className="relative w-full rounded-2xl shadow-[0_25px_60px_-15px_rgba(83,74,183,0.35)]" />
             </div>
             <p className="text-center text-xs text-gray-400 italic mt-3">
               Sample data shown for demonstration purposes only.
@@ -532,7 +532,7 @@ function BuyerExperience() {
             <div className="flex-1 flex items-center justify-center" style={{ padding: '0 8px 12px', overflow: 'hidden' }}>
               <div className="transition-transform duration-200 group-hover:scale-[1.02]" style={{ borderRadius: 12, overflow: 'hidden' }}>
                 <img
-                  src="/dashboardmock-v4.png"
+                  src="/dashboardmock-v2.png"
                   alt="Agent dashboard showing buyer interest and new leads"
                   style={{ width: 'auto', maxWidth: '100%', display: 'block', objectFit: 'contain', maxHeight: 420 }}
                 />

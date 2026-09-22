@@ -40,6 +40,22 @@ function AuthForm() {
   const [verifyingCode, setVerifyingCode] = useState(false);
   const [phoneMessage, setPhoneMessage] = useState("");
 
+  // Return the phone step to its initial state: field re-enabled, code
+  // cleared, token discarded, "Send verification code" button back.
+  //
+  // Single definition on purpose. Two separate call sites need this — a failed
+  // submit and the user choosing a different number — and the original bug was
+  // precisely that one reset path (the phone input's onChange) cleared some of
+  // this state but not phoneVerified. Resetting in one place stops the two
+  // paths drifting apart again.
+  function resetPhoneVerification() {
+    setPhoneVerified(false);
+    setPhoneVerifyToken(null);
+    setCodeSent(false);
+    setCode("");
+    setPhoneMessage("");
+  }
+
   async function handleSendCode() {
     setPhoneMessage("");
     if (!phone.trim()) { setPhoneMessage("Enter a phone number first."); return; }
@@ -109,11 +125,23 @@ function AuthForm() {
       });
       const body = await res.json();
       if (!res.ok) {
-        if (body.phoneVerificationRequired) {
-          setCodeSent(false);
-          setPhoneVerified(false);
-          setPhoneVerifyToken(null);
-          setCode("");
+        // Any 400 puts the phone step back to square one, not just the
+        // expired-token case (phoneVerificationRequired).
+        //
+        // THE DEAD END THIS FIXES: the phone input is disabled while
+        // phoneVerified is true, and the only other reset lives on that
+        // input's onChange — which a disabled field never fires. So a 400
+        // that left phoneVerified set stranded the user with a verified
+        // number they could not change and a submit that could not succeed.
+        // Reloading the page was the only way out. The likeliest trigger is
+        // the phone-uniqueness rejection, which returns a generic 400 with no
+        // phoneVerificationRequired flag.
+        //
+        // Scoped to 400 deliberately. A 403 (invite-only / at capacity) and a
+        // 500 are not the user's input to fix, and clearing a good
+        // verification there would cost them a second SMS for nothing.
+        if (res.status === 400) {
+          resetPhoneVerification();
         }
         setMessage(body.error ?? 'Something went wrong. Please try again.');
         return;
@@ -259,9 +287,25 @@ function AuthForm() {
                 </p>
 
                 {phoneVerified ? (
-                  <p style={{ margin: '10px 0 0', fontSize: 12.5, color: '#34D399', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <Check size={13} /> Phone verified
-                  </p>
+                  // The badge alone used to be terminal: the input above is
+                  // disabled while verified, so without this control there was
+                  // no way to change the number short of reloading the page.
+                  <div style={{ margin: '10px 0 0', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <p style={{ fontSize: 12.5, color: '#34D399', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5, margin: 0 }}>
+                      <Check size={13} /> Phone verified
+                    </p>
+                    <button
+                      type="button"
+                      onClick={resetPhoneVerification}
+                      style={{
+                        background: 'none', border: 'none', padding: 0,
+                        font: 'inherit', fontSize: 12.5, fontWeight: 600,
+                        color: C.purpleL, textDecoration: 'underline', cursor: 'pointer',
+                      }}
+                    >
+                      Use a different number
+                    </button>
+                  </div>
                 ) : !codeSent ? (
                   <button
                     type="button"

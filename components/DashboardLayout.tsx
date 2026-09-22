@@ -486,7 +486,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
           <div className="db-mobile-header" style={{ position: 'sticky', top: 0, zIndex: 20, height: 52, background: C.sidebar, borderBottom: `1px solid ${C.border}`, alignItems: 'center', gap: 12, padding: '0 16px', flexShrink: 0 }}>
-            <button onClick={() => setMobileOpen(true)} aria-label="Open menu" style={{ background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, width: 34, height: 34, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.text, cursor: 'pointer' }}><Menu size={16} /></button>
+            <button
+              onClick={() => setMobileOpen(true)}
+              aria-label="Open menu"
+              style={{
+                // 44x44 minimum touch target (Apple HIG / WCAG 2.5.5).
+                // Fits the 52px header with 4px clearance top and bottom.
+                width: 44,
+                height: 44,
+                flexShrink: 0,
+                padding: 0,
+                // Lifted off the header: C.card (#1A1A24) sits above the
+                // header's C.sidebar (#13131A), and the border is lighter than
+                // C.border (#252533), which was nearly invisible against it.
+                background: C.card,
+                border: '1px solid #3A3A4A',
+                borderRadius: 10,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: C.text,
+                cursor: 'pointer',
+              }}
+            >
+              <Menu size={24} />
+            </button>
             <Link href="/dashboard" style={{ fontFamily: "-apple-system, 'Helvetica Neue', Arial, sans-serif", letterSpacing: '-0.5px', textDecoration: 'none' }}>
               <span style={{ fontSize: '18px', fontWeight: 300, color: '#ffffff' }}>the</span>
               <span style={{ fontSize: '18px', fontWeight: 700, color: '#534AB7' }}>qr</span>

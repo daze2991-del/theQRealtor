@@ -752,7 +752,7 @@ function Pricing() {
             Simple, predictable pricing.
           </h2>
           <p className="text-sm text-gray-500 max-w-md mx-auto">
-            Beta access is free while we&apos;re in early testing.
+            Free for your first {TRIAL_DAYS} days, then choose a plan.
           </p>
         </motion.div>
 

@@ -297,7 +297,27 @@ function Hero() {
           <div className="-mx-8 px-4 sm:mx-auto sm:px-0 sm:max-w-5xl">
             <div className="relative">
               <div className="absolute -inset-4 bg-[#534AB7] opacity-10 blur-3xl rounded-3xl" />
-              <img src="/dashboardmock-v4.png" alt="Lead activity feed" className="relative w-full rounded-2xl shadow-[0_25px_60px_-15px_rgba(83,74,183,0.35)]" />
+              {/* Crop window: shows only the top ~61% of the full screenshot
+                  (KPI row + Needs Your Attention), clipping Lead Health, Live
+                  Activity, Seller Report Preview, and Your Properties below
+                  it. 61%, not a rounder number, because Seller Report Preview
+                  (right column) starts a few pixels ABOVE where Needs Your
+                  Attention (left column) ends — the two columns flow
+                  independently, so no crop line perfectly includes all of one
+                  and none of the other. 61% sits right at Seller Report
+                  Preview's top edge, trading a sliver of Needs Your
+                  Attention's own bottom margin for a clean cut with nothing
+                  from the next section visible. Fixed aspect ratio
+                  (2934/1010, from the source image's real 2934x1656
+                  dimensions) rather than a fixed pixel height, so the crop
+                  fraction stays constant at every viewport width. The image
+                  file itself is untouched — this only changes how much of it
+                  is visible. rounded-2xl + the drop shadow live here rather
+                  than on the img, since this is the actual visible card
+                  boundary. */}
+              <div className="relative overflow-hidden rounded-2xl shadow-[0_25px_60px_-15px_rgba(83,74,183,0.35)]" style={{ aspectRatio: '2934 / 1010' }}>
+                <img src="/dashboardmock-v4.png" alt="Lead activity feed" className="relative w-full" />
+              </div>
             </div>
             <p className="text-center text-xs text-gray-400 italic mt-3">
               Sample data shown for demonstration purposes only.

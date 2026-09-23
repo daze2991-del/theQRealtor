@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { motion, AnimatePresence, type Variants } from 'framer-motion'
+import { motion, AnimatePresence, useScroll, useTransform, type Variants } from 'framer-motion'
 import {
   ArrowRight,
   QrCode,
@@ -218,6 +218,29 @@ function LiveActivityTicker() {
   )
 }
 
+// Scroll-LINKED (not scroll-triggered) fade + parallax drift — opacity and
+// vertical position are continuous functions of this element's own scroll
+// progress through the viewport, not a one-shot animation. Unlike
+// whileInView, this stays visibly active even for content that's already
+// above the fold on page load, since it's driven by actual scroll position
+// rather than a single viewport-entry event.
+function ScrollParallaxImage({ children }: { children: React.ReactNode }) {
+  const ref = useRef(null)
+  // 0 when this element's top edge reaches the bottom of the viewport
+  // (about to enter), 1 when its bottom edge reaches the top of the
+  // viewport (fully exited) — i.e. progress across its entire journey
+  // through the screen, not global page-scroll progress.
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] })
+  const opacity = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0, 1, 1, 0])
+  const y = useTransform(scrollYProgress, [0, 1], [24, -24])
+
+  return (
+    <motion.div ref={ref} style={{ opacity, y }}>
+      {children}
+    </motion.div>
+  )
+}
+
 function Hero() {
   const scrollToHow = () => {
     document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })
@@ -277,6 +300,18 @@ function Hero() {
           </button>
         </motion.div>
 
+        {/* Moved here from MarketingPage's top-level render list (was
+            <RevealSection><StatsBar /></RevealSection> / <TwoMoments />,
+            rendered after the whole hero). RevealSection dropped on the
+            move — it defaults to invisible until scrolled into view via
+            IntersectionObserver, which would reintroduce the same
+            "nothing visibly happens, it's already on screen at load"
+            problem just fixed for the hero images, now that these sit
+            above/near the fold. Their own internal whileInView animations
+            on individual elements are untouched and still fire normally. */}
+        <StatsBar />
+        <TwoMoments />
+
         <div className="flex flex-wrap items-start justify-center gap-3 mb-6 px-4">
           <div
             className="flex items-start gap-3 rounded-2xl border border-solid px-5 py-3.5 text-sm max-w-xl"
@@ -293,8 +328,8 @@ function Hero() {
           <LiveActivityTicker />
         </div>
 
-        <motion.div variants={fadeUp}>
-          <div className="-mx-8 px-4 sm:mx-auto sm:px-0 sm:max-w-5xl mb-6">
+        <ScrollParallaxImage>
+          <div className="-mx-8 px-4 sm:mx-auto sm:px-0 sm:max-w-3xl mb-6">
             <div className="relative">
               <div className="absolute -inset-4 bg-[#534AB7] opacity-10 blur-3xl rounded-3xl" />
               <img
@@ -304,10 +339,10 @@ function Hero() {
               />
             </div>
           </div>
-        </motion.div>
+        </ScrollParallaxImage>
 
-        <motion.div variants={fadeUp}>
-          <div className="-mx-8 px-4 sm:mx-auto sm:px-0 sm:max-w-5xl">
+        <ScrollParallaxImage>
+          <div className="-mx-8 px-4 sm:mx-auto sm:px-0 sm:max-w-3xl">
             <div className="relative">
               <div className="absolute -inset-4 bg-[#534AB7] opacity-10 blur-3xl rounded-3xl" />
               {/* Crop window: shows the top ~90% of the full screenshot —
@@ -336,7 +371,7 @@ function Hero() {
               Sample data shown for demonstration purposes only.
             </p>
           </div>
-        </motion.div>
+        </ScrollParallaxImage>
       </motion.div>
     </section>
   )
@@ -889,8 +924,6 @@ export default function MarketingPage() {
       <Nav />
       <main>
         <Hero />
-        <RevealSection><StatsBar /></RevealSection>
-        <RevealSection><TwoMoments /></RevealSection>
         <RevealSection><HowItWorks /></RevealSection>
         <RevealSection><Features /></RevealSection>
         <RevealSection><BuyerExperience /></RevealSection>

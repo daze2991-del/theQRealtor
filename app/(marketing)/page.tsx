@@ -294,28 +294,41 @@ function Hero() {
         </div>
 
         <motion.div variants={fadeUp}>
+          <div className="-mx-8 px-4 sm:mx-auto sm:px-0 sm:max-w-5xl mb-6">
+            <div className="relative">
+              <div className="absolute -inset-4 bg-[#534AB7] opacity-10 blur-3xl rounded-3xl" />
+              <img
+                src="/scanqr.png"
+                alt="Buyer scanning a theqrealtor yard sign with their phone — the three steps: buyer scans your sign, shows interest, you get alerted"
+                className="relative w-full rounded-2xl shadow-[0_25px_60px_-15px_rgba(83,74,183,0.35)]"
+              />
+            </div>
+          </div>
+        </motion.div>
+
+        <motion.div variants={fadeUp}>
           <div className="-mx-8 px-4 sm:mx-auto sm:px-0 sm:max-w-5xl">
             <div className="relative">
               <div className="absolute -inset-4 bg-[#534AB7] opacity-10 blur-3xl rounded-3xl" />
-              {/* Crop window: shows only the top ~61% of the full screenshot
-                  (KPI row + Needs Your Attention), clipping Lead Health, Live
-                  Activity, Seller Report Preview, and Your Properties below
-                  it. 61%, not a rounder number, because Seller Report Preview
-                  (right column) starts a few pixels ABOVE where Needs Your
-                  Attention (left column) ends — the two columns flow
-                  independently, so no crop line perfectly includes all of one
-                  and none of the other. 61% sits right at Seller Report
-                  Preview's top edge, trading a sliver of Needs Your
-                  Attention's own bottom margin for a clean cut with nothing
-                  from the next section visible. Fixed aspect ratio
-                  (2934/1010, from the source image's real 2934x1656
-                  dimensions) rather than a fixed pixel height, so the crop
-                  fraction stays constant at every viewport width. The image
-                  file itself is untouched — this only changes how much of it
-                  is visible. rounded-2xl + the drop shadow live here rather
-                  than on the img, since this is the actual visible card
-                  boundary. */}
-              <div className="relative overflow-hidden rounded-2xl shadow-[0_25px_60px_-15px_rgba(83,74,183,0.35)]" style={{ aspectRatio: '2934 / 1010' }}>
+              {/* Crop window: shows the top ~90% of the full screenshot —
+                  KPI row, Needs Your Attention / Lead Health / Live Activity
+                  (now fully clear of the row, not cut mid-card like the
+                  earlier 61% version), plus the headers and several rows of
+                  Your Properties and Seller Report Preview below. Widened
+                  from the earlier tight 61% crop at the user's request for
+                  a fuller, more substantial screenshot. 90% rather than
+                  100%, so the last property row doesn't risk landing right
+                  at the source image's own native bottom edge. This cut
+                  point is a best-effort estimate from the screenshot, not
+                  pixel-verified — worth a look and easy to adjust, it's a
+                  single ratio value. Fixed aspect ratio (2934/1490, from the
+                  source image's real 2934x1656 dimensions) rather than a
+                  fixed pixel height, so the crop fraction stays constant at
+                  every viewport width. The image file itself is untouched —
+                  this only changes how much of it is visible. rounded-2xl +
+                  the drop shadow live here rather than on the img, since
+                  this is the actual visible card boundary. */}
+              <div className="relative overflow-hidden rounded-2xl shadow-[0_25px_60px_-15px_rgba(83,74,183,0.35)]" style={{ aspectRatio: '2934 / 1490' }}>
                 <img src="/dashboardmock-v4.png" alt="Lead activity feed" className="relative w-full" />
               </div>
             </div>

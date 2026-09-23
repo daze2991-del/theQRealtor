@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { motion, type Variants } from 'framer-motion'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import {
   ArrowRight,
   QrCode,
@@ -165,6 +165,59 @@ function DashboardMockup() {
   )
 }
 
+// Same three concepts as the Features section below (QrCode / Flame /
+// MessageSquare), reused here so the icon language stays consistent across
+// the page rather than introducing a separate set for this widget.
+const LIVE_EVENTS = [
+  { Icon: QrCode, text: 'Buyer scanned your sign', detail: '1400 Bayfront Terrace' },
+  { Icon: Flame, text: 'Buyer became HOT', detail: 'Requested a showing' },
+  { Icon: MessageSquare, text: 'SMS alert sent to agent', detail: null },
+] as const
+
+// Self-contained, no backend — cycles independently on its own timer,
+// unrelated to the banner above it.
+function LiveActivityTicker() {
+  const [index, setIndex] = useState(0)
+
+  useEffect(() => {
+    const id = setInterval(() => setIndex(i => (i + 1) % LIVE_EVENTS.length), 2600)
+    return () => clearInterval(id)
+  }, [])
+
+  const { Icon, text, detail } = LIVE_EVENTS[index]
+
+  return (
+    <div aria-hidden="true" className="w-52 flex-shrink-0">
+      <div
+        className="rounded-2xl border border-solid bg-white px-3.5 py-3 shadow-[0_12px_30px_-8px_rgba(83,74,183,0.4)]"
+        style={{ borderColor: 'rgba(83,74,183,0.25)' }}
+      >
+        <div className="flex items-center gap-1.5 mb-2">
+          {/* #4ade80 matches the real dashboard's own Live Activity dot */}
+          <span className="w-1.5 h-1.5 rounded-full bg-[#4ade80] animate-pulse" />
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Live Activity</span>
+        </div>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.35, ease: 'easeOut' }}
+            className="flex items-start gap-2"
+          >
+            <Icon size={15} className="flex-shrink-0 mt-0.5" style={{ color: '#534AB7' }} />
+            <div>
+              <div className="text-xs font-semibold text-gray-900 leading-snug">{text}</div>
+              {detail && <div className="text-[11px] text-gray-400 leading-snug">{detail}</div>}
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </div>
+  )
+}
+
 function Hero() {
   const scrollToHow = () => {
     document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })
@@ -224,19 +277,20 @@ function Hero() {
           </button>
         </motion.div>
 
-        <div className="flex justify-center mb-5 px-4">
+        <div className="flex flex-wrap items-start justify-center gap-3 mb-6 px-4">
           <div
             className="flex items-start gap-3 rounded-2xl border border-solid px-5 py-3.5 text-sm max-w-xl"
             style={{ background: '#EEEDFE', borderColor: 'rgba(83,74,183,0.25)' }}
           >
             <span className="text-lg leading-none flex-shrink-0 mt-0.5">🔥</span>
             <p className="text-left leading-snug" style={{ color: '#3C3489', margin: 0 }}>
-              <span className="font-bold">Your sign just generated a lead.</span>{' '}
-              <span className="font-semibold" style={{ color: '#534AB7' }}>Hot Buyer</span>
-              {' — 1400 Bayfront Terrace. Requested a showing. '}
+              <span className="font-bold">New</span>{' '}
+              <span className="font-bold" style={{ color: '#534AB7' }}>Hot Buyer</span>
+              {' — 1400 Bayfront Terrace. Showing requested · '}
               <span className="font-bold" style={{ color: '#534AB7' }}>SMS alert sent →</span>
             </p>
           </div>
+          <LiveActivityTicker />
         </div>
 
         <motion.div variants={fadeUp}>
@@ -514,6 +568,9 @@ function BuyerExperience() {
                 style={{ maxHeight: 420, width: 'auto', maxWidth: '100%', objectFit: 'contain', borderRadius: 12 }}
               />
             </div>
+            <p className="text-center text-[11px] text-gray-400 italic" style={{ padding: '0 16px 14px' }}>
+              *Sign rider not included — QR code only
+            </p>
           </div>
 
           {/* Panel 2 — Phone */}

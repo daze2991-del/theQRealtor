@@ -178,9 +178,9 @@ function SignCard({ sign, origin, onRename, onOpenAssign, onUnassign, unassignin
             <span style={{ fontSize: 11, fontWeight: 700, color: '#4ade80' }}>Assigned</span>
           </span>
         ) : (
-          <span style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, background: '#18181F', border: '1px solid #374151', borderRadius: 20, padding: '4px 10px' }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#6B7280' }} />
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#6B7280' }}>Unassigned</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, background: '#3B0D0D', border: '1px solid #EF444435', borderRadius: 20, padding: '4px 10px' }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#EF4444' }} />
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#EF4444' }}>Unassigned</span>
           </span>
         )}
       </div>

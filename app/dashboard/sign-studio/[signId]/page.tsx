@@ -136,12 +136,11 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 // resolved inside `renderSignToCanvas`, the only place a ctx exists — both the
 // live preview and the download still funnel through that one function, so
 // they can't drift from each other.
-const BAR_SAFE_MARGIN = 75 // 0.25in @300dpi — print-shop trim safety inset
+const SAFE_MARGIN = 75 // 0.25in @300dpi — print-shop trim safety inset
 
 interface Layout {
   unit: number
   longSide: number
-  barH: number
   qrSize: number
   qrX: number
   contentTop: number
@@ -159,19 +158,14 @@ function computeLayout(width: number, height: number, holderZone = 0): Layout {
   const unit     = Math.min(width, usableHeight)
   const longSide = Math.max(width, usableHeight)
 
-  // Absolute floor (24px = 0.08in), not just a fraction of unit — this is what
-  // guarantees the bar reads as a visible accent rather than vanishing on a
-  // canvas whose short side is small relative to its long side.
-  const barH   = Math.max(24, Math.round(unit * 0.025))
   const qrSize = Math.max(40, Math.round(unit * 0.5))
   const qrX = Math.round((width - qrSize) / 2)
 
-  const gapBelowBar = Math.round(unit * 0.03)
-  const contentTop    = BAR_SAFE_MARGIN + barH + gapBelowBar
-  const contentBottom = usableHeight - BAR_SAFE_MARGIN - barH - gapBelowBar
-  const usableWidth   = Math.max(1, width - BAR_SAFE_MARGIN * 2)
+  const contentTop    = SAFE_MARGIN
+  const contentBottom = usableHeight - SAFE_MARGIN
+  const usableWidth   = Math.max(1, width - SAFE_MARGIN * 2)
 
-  return { unit, longSide, barH, qrSize, qrX, contentTop, contentBottom, usableWidth }
+  return { unit, longSide, qrSize, qrX, contentTop, contentBottom, usableWidth }
 }
 
 // ── the one shared renderer ───────────────────────────────────────────────────
@@ -184,6 +178,7 @@ async function renderSignToCanvas(
   height: number,
   qrSvgEl: SVGSVGElement,
   holderZone = 0,
+  label = '',
 ) {
   canvas.width = width
   canvas.height = height
@@ -192,15 +187,6 @@ async function renderSignToCanvas(
 
   ctx.fillStyle = '#FFFFFF'
   ctx.fillRect(0, 0, width, height)
-
-  // Purple bars — inset BAR_SAFE_MARGIN from every edge they'd otherwise touch
-  // (previously ran flush to 0,0/width,height with no trim safety at all). The
-  // bottom bar also stays above `holderZone`, so on the Yard Sign nothing is
-  // positioned where a physical sign-holder clip would sit.
-  const barW = Math.max(1, width - BAR_SAFE_MARGIN * 2)
-  ctx.fillStyle = C.purple
-  ctx.fillRect(BAR_SAFE_MARGIN, BAR_SAFE_MARGIN, barW, L.barH)
-  ctx.fillRect(BAR_SAFE_MARGIN, height - holderZone - BAR_SAFE_MARGIN - L.barH, barW, L.barH)
 
   // ── Title: the real ceiling on how big "Scan for Photos & Details" can get
   // is how much HORIZONTAL space it has, not a coefficient — a fixed phrase
@@ -244,12 +230,41 @@ async function renderSignToCanvas(
   let titleLineH  = Math.round(titleSize * 1.2)
   let titleBlockH = titleSize + (titleLines.length - 1) * titleLineH
   let wmSize = Math.max(10, Math.round(titleSize * 0.55))
-  let gap1 = Math.round(titleSize * 1.0)
   let gap2 = Math.round(titleSize * 0.7)
   let qrSize = L.qrSize
   let qrX = L.qrX
 
-  let contentH = qrSize + gap1 + titleBlockH + gap2 + wmSize
+  // Small, muted sign-name caption between the QR and the title — lets an
+  // agent tell printouts apart once they're stacked. Sized off wmSize (the
+  // smallest existing text) so it stays visually recessive, never competing
+  // with the QR/title. Shrinks to fit like the watermark; if even the floor
+  // size overflows (a very long label on a narrow custom width), truncates
+  // with an ellipsis rather than wrapping or overrunning the margin.
+  const LABEL_TEXT = (label || '').trim()
+  let labelSize = LABEL_TEXT ? Math.max(9, Math.round(wmSize * 0.85)) : 0
+  let labelLine = LABEL_TEXT
+  if (LABEL_TEXT) {
+    ctx.font = `600 ${labelSize}px sans-serif`
+    let labelWidth = ctx.measureText(LABEL_TEXT).width
+    if (labelWidth > L.usableWidth) {
+      labelSize = Math.max(8, Math.floor(labelSize * (L.usableWidth / labelWidth)))
+      ctx.font = `600 ${labelSize}px sans-serif`
+      labelWidth = ctx.measureText(LABEL_TEXT).width
+      if (labelWidth > L.usableWidth) {
+        let truncated = LABEL_TEXT
+        while (truncated.length > 1 && ctx.measureText(truncated + '…').width > L.usableWidth) {
+          truncated = truncated.slice(0, -1)
+        }
+        labelLine = truncated + '…'
+      }
+    }
+  }
+  // Same gap the title used to sit at directly under the QR, when there's no
+  // label to make room for.
+  let gapQrLabel = LABEL_TEXT ? Math.round(titleSize * 0.4) : Math.round(titleSize * 1.0)
+  let gapLabelTitle = LABEL_TEXT ? Math.round(titleSize * 0.6) : 0
+
+  let contentH = qrSize + gapQrLabel + labelSize + gapLabelTitle + titleBlockH + gap2 + wmSize
   const availableSpan = L.contentBottom - L.contentTop
 
   // Emergency uniform shrink — only reachable on an extreme custom aspect
@@ -258,14 +273,16 @@ async function renderSignToCanvas(
   // vertically regardless of what an agent types into the custom-size fields.
   if (contentH > availableSpan && availableSpan > 0) {
     const scale = availableSpan / contentH
-    qrSize     = Math.max(20, Math.round(qrSize * scale))
-    titleSize  = Math.max(8, Math.round(titleSize * scale))
-    wmSize     = Math.max(6, Math.round(wmSize * scale))
-    gap1       = Math.round(gap1 * scale)
-    gap2       = Math.round(gap2 * scale)
+    qrSize        = Math.max(20, Math.round(qrSize * scale))
+    titleSize     = Math.max(8, Math.round(titleSize * scale))
+    wmSize        = Math.max(6, Math.round(wmSize * scale))
+    labelSize     = LABEL_TEXT ? Math.max(6, Math.round(labelSize * scale)) : 0
+    gapQrLabel    = Math.round(gapQrLabel * scale)
+    gapLabelTitle = Math.round(gapLabelTitle * scale)
+    gap2          = Math.round(gap2 * scale)
     titleLineH  = Math.round(titleSize * 1.2)
     titleBlockH = titleSize + (titleLines.length - 1) * titleLineH
-    contentH    = qrSize + gap1 + titleBlockH + gap2 + wmSize
+    contentH    = qrSize + gapQrLabel + labelSize + gapLabelTitle + titleBlockH + gap2 + wmSize
     qrX = Math.round((width - qrSize) / 2)
   }
 
@@ -281,10 +298,21 @@ async function renderSignToCanvas(
   const qrImg = await svgToImage(qrSvgEl)
   ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize)
 
+  let labelBaseline = qrY + qrSize
+  if (LABEL_TEXT) {
+    ctx.fillStyle = C.muted
+    ctx.font = `600 ${labelSize}px sans-serif`
+    ctx.textAlign = 'center'
+    labelBaseline = qrY + qrSize + gapQrLabel + labelSize
+    ctx.fillText(labelLine, width / 2, labelBaseline)
+  }
+
   ctx.fillStyle = '#111827'
   ctx.font = `bold ${titleSize}px sans-serif`
   ctx.textAlign = 'center'
-  const firstTitleBaseline = qrY + qrSize + gap1 + titleSize
+  const firstTitleBaseline = LABEL_TEXT
+    ? labelBaseline + gapLabelTitle + titleSize
+    : qrY + qrSize + gapQrLabel + titleSize
   titleLines.forEach((line, i) => {
     ctx.fillText(line, width / 2, firstTitleBaseline + i * titleLineH)
   })
@@ -326,17 +354,17 @@ const PREVIEW_MAX_W = 420
 const PREVIEW_MAX_H = 560
 
 function SignPreview({
-  width, height, qrSvgEl, qrUrl, holderZone,
+  width, height, qrSvgEl, qrUrl, holderZone, label,
 }: {
-  width: number; height: number; qrSvgEl: SVGSVGElement | null; qrUrl: string; holderZone: number
+  width: number; height: number; qrSvgEl: SVGSVGElement | null; qrUrl: string; holderZone: number; label: string
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas || !qrSvgEl || !qrUrl) return
-    renderSignToCanvas(canvas, width, height, qrSvgEl, holderZone).catch(() => { /* image load failed, leave prior frame */ })
-  }, [width, height, qrSvgEl, qrUrl, holderZone])
+    renderSignToCanvas(canvas, width, height, qrSvgEl, holderZone, label).catch(() => { /* image load failed, leave prior frame */ })
+  }, [width, height, qrSvgEl, qrUrl, holderZone, label])
 
   const scale = Math.min(PREVIEW_MAX_W / width, PREVIEW_MAX_H / height)
   const dispW = Math.round(width * scale)
@@ -455,7 +483,7 @@ export default function SignStudioPage() {
     setDownloading(true)
     try {
       const canvas = document.createElement('canvas')
-      await renderSignToCanvas(canvas, width, height, svgEl, holderZone)
+      await renderSignToCanvas(canvas, width, height, svgEl, holderZone, sign?.label ?? '')
       const a = document.createElement('a')
       a.download = `sign-${signId}-${width}x${height}.png`
       a.href = canvas.toDataURL('image/png')
@@ -526,7 +554,7 @@ export default function SignStudioPage() {
                   not split across cards, so the download action reads as the
                   natural next step after seeing the sign, not a buried extra. */}
               <div style={{ ...card, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-                <SignPreview width={width} height={height} qrSvgEl={qrSourceEl} qrUrl={qrUrl} holderZone={holderZone} />
+                <SignPreview width={width} height={height} qrSvgEl={qrSourceEl} qrUrl={qrUrl} holderZone={holderZone} label={sign?.label ?? ''} />
 
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>

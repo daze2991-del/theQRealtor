@@ -62,9 +62,16 @@ export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
   // ── Active trial ──────────────────────────────────────────────────────────
   // What every NEW signup gets. Sized for EVALUATION, not production use: a
   // trialling agent is testing the product on a single property, so one active
-  // listing is enough, and 5 signs on it is enough to experiment with labelling
+  // listing is enough, and 3 signs on it is enough to experiment with labelling
   // (yard sign vs. open house vs. directional) without handing out a full
   // working allowance.
+  //
+  // maxActiveSigns lowered from 5 to 3 as a BETA-PERIOD decision, not a
+  // permanent one: agents were getting confused managing multiple QR codes
+  // before they understood the product, and 3 is easier to grasp during
+  // onboarding. Revisit and likely raise this again (back to 5, or another
+  // number) once onboarding or help content exists to explain multiple QR
+  // codes — this is a stopgap, not the intended long-term ceiling.
   //
   // Every feature is on — the trial should show the real product, just at
   // smaller scale. Deliberately BELOW starter (3 listings / 10 signs) on both
@@ -73,7 +80,7 @@ export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
   //
   // Not grandfathered, and the 45-day clock DOES apply — it counts down and
   // then restricts.
-  trial:    { maxActiveSigns: 5, maxActiveListings: 1, features: ALL_FEATURES, grandfathered: false, subjectToTrialExpiry: true },
+  trial:    { maxActiveSigns: 3, maxActiveListings: 1, features: ALL_FEATURES, grandfathered: false, subjectToTrialExpiry: true },
 
   // ── Paid tiers (not sold yet — billing is manual and Stripe is inert) ─────
   starter: {

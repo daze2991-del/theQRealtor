@@ -301,16 +301,15 @@ function Hero() {
         </motion.div>
 
         {/* Moved here from MarketingPage's top-level render list (was
-            <RevealSection><StatsBar /></RevealSection> / <TwoMoments />,
-            rendered after the whole hero). RevealSection dropped on the
-            move — it defaults to invisible until scrolled into view via
-            IntersectionObserver, which would reintroduce the same
-            "nothing visibly happens, it's already on screen at load"
-            problem just fixed for the hero images, now that these sit
-            above/near the fold. Their own internal whileInView animations
-            on individual elements are untouched and still fire normally. */}
+            <RevealSection><StatsBar /></RevealSection>, rendered after the
+            whole hero). RevealSection dropped on the move — it defaults to
+            invisible until scrolled into view via IntersectionObserver,
+            which would reintroduce the same "nothing visibly happens, it's
+            already on screen at load" problem just fixed for the hero
+            images, now that this sits above/near the fold. Its own
+            internal whileInView animations on individual elements are
+            untouched and still fire normally. */}
         <StatsBar />
-        <TwoMoments />
 
         <div className="flex flex-wrap items-start justify-center gap-3 mb-6 px-4">
           <div
@@ -403,7 +402,26 @@ function StatsBar() {
   )
 }
 
-function TwoMoments() {
+function WhyNotPhoneNumber() {
+  const pairs = [
+    {
+      old: 'Call me if interested.',
+      next: 'See the property details first.',
+    },
+    {
+      old: 'Buyer must contact the agent before knowing anything.',
+      next: 'Buyer explores property info on their own first.',
+    },
+    {
+      old: 'Agent waits and hopes for an inbound call.',
+      next: 'Agent gets an actionable lead the moment a buyer takes action.',
+    },
+    {
+      old: 'Only works for buyers who are ready to talk right now.',
+      next: "Also captures buyers who aren't ready to talk yet, so they're not lost.",
+    },
+  ]
+
   return (
     <section className="border-b border-solid border-gray-100">
       <div className="max-w-3xl mx-auto py-16 px-8">
@@ -415,48 +433,61 @@ function TwoMoments() {
           className="text-center mb-10"
         >
           <div className="text-xs font-semibold uppercase tracking-widest text-[#534AB7] mb-3">
-            The difference
+            Why not just a phone number?
           </div>
-          <h2 className="text-3xl font-bold tracking-tight text-gray-900">
-            Two moments. Both yours.
+          <h2 className="text-3xl font-bold tracking-tight text-gray-900 mb-4">
+            A phone number isn&apos;t a lead capture system.
           </h2>
+          <p className="text-gray-500 leading-relaxed max-w-xl mx-auto">
+            Before a buyer ever calls, a plain sign already lost the moment. theQRealtor captures interest from the first scan — every photo viewed, every return visit — and hands you their details the instant they&apos;re ready to talk.
+          </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-          <motion.div
-            className="bg-gray-50 rounded-xl p-6"
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={viewportOnce}
-            transition={{ duration: 0.5, ease: 'easeOut', delay: 0 }}
-          >
-            <div className="text-sm font-semibold text-gray-900 mb-3">Before they reach out</div>
-            <p className="text-sm text-gray-500 leading-relaxed">
-              Every scan, every photo viewed, every return visit builds an activity history. You see engagement in real time. No name. No contact. Just signal.
-            </p>
-          </motion.div>
+        {/* Column labels — desktop only; on mobile each card carries its own labels */}
+        <div className="hidden sm:grid grid-cols-2 gap-4 mb-3 px-6">
+          <div className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+            Traditional sign
+          </div>
+          <div className="text-xs font-semibold uppercase tracking-widest text-[#534AB7]">
+            theQRealtor
+          </div>
+        </div>
 
-          <motion.div
-            className="rounded-xl p-6"
-            style={{ background: '#534AB7' }}
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={viewportOnce}
-            transition={{ duration: 0.5, ease: 'easeOut', delay: 0.15 }}
-          >
-            <div className="text-sm font-semibold text-white mb-3">When they decide</div>
-            <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.8)' }}>
-              The moment a buyer requests a showing or asks a question, their details land in your dashboard. No marketplace. No middleman. Directly to you.
-            </p>
-          </motion.div>
+        <div className="flex flex-col gap-4">
+          {pairs.map((p, i) => (
+            <motion.div
+              key={p.old}
+              className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-4 rounded-xl sm:rounded-none overflow-hidden sm:overflow-visible"
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={viewportOnce}
+              transition={{ duration: 0.5, ease: 'easeOut', delay: i * 0.1 }}
+            >
+              <div className="bg-gray-50 sm:rounded-xl p-6">
+                <div className="sm:hidden text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
+                  Traditional sign
+                </div>
+                <p className="text-sm text-gray-500 leading-relaxed">{p.old}</p>
+              </div>
+              <div className="sm:rounded-xl p-6" style={{ background: PURPLE }}>
+                <div
+                  className="sm:hidden text-xs font-semibold uppercase tracking-widest mb-2"
+                  style={{ color: 'rgba(255,255,255,0.7)' }}
+                >
+                  theQRealtor
+                </div>
+                <p className="text-sm font-medium text-white leading-relaxed">{p.next}</p>
+              </div>
+            </motion.div>
+          ))}
         </div>
 
         <motion.p
-          className="text-center text-sm text-gray-400"
+          className="text-center text-sm text-gray-400 mt-8"
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={viewportOnce}
-          transition={{ duration: 0.5, ease: 'easeOut', delay: 0.3 }}
+          transition={{ duration: 0.5, ease: 'easeOut', delay: 0.4 }}
         >
           Most agents only hear from buyers who call. You see every buyer who was ever interested.
         </motion.p>
@@ -924,6 +955,7 @@ export default function MarketingPage() {
       <Nav />
       <main>
         <Hero />
+        <RevealSection><WhyNotPhoneNumber /></RevealSection>
         <RevealSection><HowItWorks /></RevealSection>
         <RevealSection><Features /></RevealSection>
         <RevealSection><BuyerExperience /></RevealSection>

@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { normalizePhone } from '../../../../lib/phone'
 import { verifyPhoneVerifyToken } from '../../../../lib/phoneVerifyToken'
+import { openSignupEnabled, MAX_ENROLLED_AGENTS } from '../../../../lib/signup'
 
 // Generic failure message for anything that must not reveal which field or
 // condition caused the failure (e.g. phone collisions). Must stay identical
@@ -65,29 +66,53 @@ export async function POST(req: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Check allowlist — service role bypasses RLS; anon/authenticated are locked out
-  const { data: allowRow } = await supabase
-    .from('beta_allowlist')
-    .select('approved')
-    .eq('email', e)
-    .single()
+  // ── Gate 1: invitation ────────────────────────────────────────────────────
+  // Skipped entirely when OPEN_SIGNUP_ENABLED is on (lib/signup.ts, fails
+  // closed). That switch turns this route into real self-service registration;
+  // nothing else below changes, and Gate 2 still applies.
+  const openSignup = openSignupEnabled()
 
-  if (!allowRow || allowRow.approved !== true) {
-    return NextResponse.json(
-      { error: 'This is a private beta. Access is by invitation only.' },
-      { status: 403 }
-    )
+  if (!openSignup) {
+    // Service role bypasses RLS; anon/authenticated are locked out of this table.
+    const { data: allowRow } = await supabase
+      .from('beta_allowlist')
+      .select('approved')
+      .eq('email', e)
+      .single()
+
+    if (!allowRow || allowRow.approved !== true) {
+      return NextResponse.json(
+        { error: 'This is a private beta. Access is by invitation only.' },
+        { status: 403 }
+      )
+    }
   }
 
-  // Enforce hard cap on enrolled beta agents
+  // ── Gate 2: hard cap on enrolled agents ───────────────────────────────────
+  // ALWAYS enforced, on both paths — this is the backstop that stops an
+  // accidental switch flip from enrolling unbounded agents, so it must never
+  // sit behind the openSignup branch above.
+  //
+  // Counted from profiles.beta_joined_at rather than beta_allowlist.joined_at.
+  // An open signup writes no allowlist row, so a cap keyed on that table would
+  // never increment — inert exactly when it matters. See lib/signup.ts for the
+  // drift this also fixes on the invite-only path.
   const { count } = await supabase
-    .from('beta_allowlist')
+    .from('profiles')
     .select('*', { count: 'exact', head: true })
-    .not('joined_at', 'is', null)
+    .not('beta_joined_at', 'is', null)
 
-  if (count !== null && count >= 25) {
+  if (count !== null && count >= MAX_ENROLLED_AGENTS) {
     return NextResponse.json(
-      { error: 'This is a private beta. Access is by invitation only.' },
+      {
+        // In invite-only mode this stays byte-identical to the allowlist
+        // rejection above, so a caller cannot tell which gate refused them.
+        // Once signup is open there is no allowlist to probe, so a truthful
+        // capacity message is safe and far less confusing.
+        error: openSignup
+          ? 'We have reached capacity for new accounts right now. Please check back soon.'
+          : 'This is a private beta. Access is by invitation only.',
+      },
       { status: 403 }
     )
   }
@@ -197,7 +222,9 @@ export async function POST(req: Request) {
     )
   }
 
-  // Record when this allowlist slot was claimed
+  // Record when this allowlist slot was claimed. A no-op on the open-signup
+  // path (no row matches), which is intended: the allowlist stays a record of
+  // invitations, and enrolment is counted from profiles.beta_joined_at above.
   await supabase
     .from('beta_allowlist')
     .update({ joined_at: new Date().toISOString() })

@@ -26,8 +26,14 @@ export function billingUrl(): string {
 }
 
 // ── Sending ───────────────────────────────────────────────────────────────────
+// Sent via the Messaging Service (TWILIO_MESSAGING_SERVICE_SID), not a bare
+// `from:` number — the Messaging Service's sender pool replaces the single
+// TWILIO_PHONE_NUMBER sender this used before, and Advanced Opt-Out (STOP/HELP
+// handling on Twilio's side) is a Messaging Service feature only, so `from:`
+// never engaged it. See lib/smsConsent.ts / app/api/sms/inbound/route.ts for
+// the app-level side of opt-out, which this does not change.
 export function smsConfigured(): boolean {
-  return !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER)
+  return !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_MESSAGING_SERVICE_SID)
 }
 
 // Never throws — SMS failures must never block lead capture. Returns the message
@@ -35,11 +41,11 @@ export function smsConfigured(): boolean {
 export async function sendSms(to: string | null | undefined, body: string): Promise<string | null> {
   const sid = process.env.TWILIO_ACCOUNT_SID
   const token = process.env.TWILIO_AUTH_TOKEN
-  const from = process.env.TWILIO_PHONE_NUMBER
-  if (!sid || !token || !from) { console.warn('[twilio] not configured — skipping send'); return null }
+  const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID
+  if (!sid || !token || !messagingServiceSid) { console.warn('[twilio] not configured — skipping send'); return null }
   if (!to || !to.trim()) { console.warn('[twilio] no destination — skipping send'); return null }
   try {
-    const msg = await twilio(sid, token).messages.create({ to: to.trim(), from, body })
+    const msg = await twilio(sid, token).messages.create({ to: to.trim(), messagingServiceSid, body })
     console.log('[twilio] sent', msg.sid, '|', msg.status, '→', to)
     return msg.sid
   } catch (err: any) {
@@ -51,7 +57,8 @@ export async function sendSms(to: string | null | undefined, body: string): Prom
 // ── Phone verification (Twilio Verify) ────────────────────────────────────────
 // Verify holds its own pending-code state on Twilio's side — no local table
 // needed. Uses the Verify Service (TWILIO_VERIFY_SERVICE_SID), a separate
-// resource from the TWILIO_PHONE_NUMBER sender used by sendSms() above.
+// resource from the Messaging Service (TWILIO_MESSAGING_SERVICE_SID) used by
+// sendSms() above.
 export function verifyConfigured(): boolean {
   return !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_VERIFY_SERVICE_SID)
 }

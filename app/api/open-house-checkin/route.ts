@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminSupabase } from '../../../lib/supabase-admin'
 import { computeScoreV2, isLikelyBot, type EngagementInputV2 } from '../../../lib/leadScoringV2'
+import { normalizePhone } from '../../../lib/phone'
 
 const rateMap = new Map<string, number[]>()
 const LIMIT = 10
@@ -67,11 +68,20 @@ export async function POST(request: Request) {
 
   const doNotContact = working_with_agent === true
 
+  // leads.phone keeps exactly what the buyer typed; leads.phone_e164 is the
+  // normalized form SMS opt-out matching keys on. A phone that won't parse
+  // never blocks the check-in — phone_e164 just stays NULL.
+  const phoneE164 = trimmedPhone ? normalizePhone(trimmedPhone) : null
+  if (trimmedPhone && !phoneE164) {
+    console.warn('[open-house-checkin] phone did not normalize to E.164 — saving lead with phone_e164=NULL | phone: ***-***-' + (trimmedPhone.replace(/\D/g, '').slice(-4) || '****'))
+  }
+
   const { error: insertError } = await supabase.from('leads').insert({
     property_id:        propertyId,
     qr_id:              null,
     name:               trimmedName,
     phone:              trimmedPhone,
+    phone_e164:         phoneE164,
     email:              trimmedEmail,
     agent_id:           property.user_id || null,
     source:             'open_house_checkin',

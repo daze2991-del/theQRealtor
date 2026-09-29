@@ -5,6 +5,7 @@ import { computeScoreV2, isLikelyBot, type EngagementInputV2 } from '../../../li
 import { sendSms, resolveAgentPhone, queueOrSendAgentSms, flushDueNotifications, msg } from '../../../lib/twilio'
 import { SMS_CONSENT_TEXT, SMS_CONSENT_TEXT_MAX } from '../../../lib/smsConsent'
 import { getTrialStatus } from '../../../lib/trial'
+import { normalizePhone } from '../../../lib/phone'
 
 // ─── rate limiter ─────────────────────────────────────────────────────────────
 // Best-effort in-memory window per IP. Works for single-instance deployments;
@@ -128,6 +129,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Property not found.' }, { status: 404 })
   }
 
+  // ── normalized phone ────────────────────────────────────────────────────────
+  // leads.phone keeps exactly what the buyer typed; leads.phone_e164 is the
+  // normalized form SMS opt-out matching keys on. A phone that won't parse
+  // never blocks the lead — phone_e164 just stays NULL.
+  const phoneE164 = trimmedPhone ? normalizePhone(trimmedPhone) : null
+  if (trimmedPhone && !phoneE164) {
+    console.warn('[submit-lead] phone did not normalize to E.164 — saving lead with phone_e164=NULL | phone: ***-***-' + (trimmedPhone.replace(/\D/g, '').slice(-4) || '****'))
+  }
+
   // ── insert lead ─────────────────────────────────────────────────────────────
   const { data: insertedLead, error: insertError } = await supabase.from('leads').insert({
     property_id:        propertyId,
@@ -135,6 +145,7 @@ export async function POST(request: Request) {
     sign_id:            (signId as string) || null,
     name:               (name as string).trim(),
     phone:              trimmedPhone,
+    phone_e164:         phoneE164,
     email:              trimmedEmail,
     contact_quality:    contactQuality,
     motivation:         computedMotivation,   // V1 field — kept for compat

@@ -4,7 +4,8 @@
 // Server-side only — uses the Twilio REST API and the Supabase admin client.
 
 import twilio from 'twilio'
-import type { createAdminSupabase } from './supabase-admin'
+import { createAdminSupabase } from './supabase-admin'
+import { normalizePhone } from './phone'
 
 type Admin = ReturnType<typeof createAdminSupabase>
 
@@ -30,28 +31,126 @@ export function billingUrl(): string {
 // `from:` number — the Messaging Service's sender pool replaces the single
 // TWILIO_PHONE_NUMBER sender this used before, and Advanced Opt-Out (STOP/HELP
 // handling on Twilio's side) is a Messaging Service feature only, so `from:`
-// never engaged it. See lib/smsConsent.ts / app/api/sms/inbound/route.ts for
-// the app-level side of opt-out, which this does not change.
+// never engaged it. The app-level side of opt-out is enforced in
+// sendSmsDetailed() below (see "Opt-out suppression"); opt-outs are recorded
+// by app/api/sms/inbound/route.ts.
 export function smsConfigured(): boolean {
   return !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_MESSAGING_SERVICE_SID)
 }
 
-// Never throws — SMS failures must never block lead capture. Returns the message
-// SID on success, or null if skipped/failed (with a server-side log).
-export async function sendSms(to: string | null | undefined, body: string): Promise<string | null> {
+// ── Opt-out suppression ───────────────────────────────────────────────────────
+// public.sms_contacts is the source of truth for SMS consent (written by
+// app/api/sms/inbound). EVERY outbound text passes through the check below
+// before Twilio is called: an opted-out number is never texted. This is what
+// enforces freeform opt-outs ("please stop texting me"), which Twilio's
+// Advanced Opt-Out does not see; keyword opt-outs are also blocked by Twilio
+// itself (error 21610).
+//
+// The check FAILS CLOSED: if the lookup errors, nothing is sent. Missing a
+// text is recoverable; texting someone who opted out is not.
+
+export type SmsSuppressionReason = 'invalid_number' | 'opted_out' | 'check_failed' | 'twilio_blocked'
+export type SmsFailureReason = 'not_configured' | 'no_destination' | 'send_failed'
+
+/**
+ * Result of sendSmsDetailed(). Discriminate on `sent`, then `suppressed`:
+ *   • sent: true                   — Twilio accepted it; `sid` is the message SID.
+ *   • sent: false, suppressed: true — deliberately NOT sent (opted out,
+ *     unusable number, consent check failed, or blocked by Twilio). Retrying
+ *     won't help, except for reason 'check_failed', which is transient.
+ *   • sent: false, suppressed: false — not sent for an operational reason
+ *     (Twilio not configured, no destination, Twilio/network error).
+ */
+export type SendSmsResult =
+  | { sent: true; suppressed: false; sid: string }
+  | { sent: false; suppressed: true; reason: SmsSuppressionReason }
+  | { sent: false; suppressed: false; reason: SmsFailureReason; errorCode?: string | number }
+
+const E164 = /^\+[1-9][0-9]{7,14}$/
+
+/** Last 4 digits only — never log a full phone number. */
+export function maskPhone(phone: string | null | undefined): string {
+  return '***-***-' + ((phone ?? '').replace(/\D/g, '').slice(-4) || '****')
+}
+
+/** E.164 form of `to`, or null if it can't be made into one. */
+function toE164(to: string): string | null {
+  const trimmed = to.trim()
+  return normalizePhone(trimmed) ?? (E164.test(trimmed) ? trimmed : null)
+}
+
+/**
+ * Opt-out gate on its own, for callers that need to know BEFORE doing other
+ * work (e.g. deciding whether to queue a quiet-hours alert). sendSmsDetailed()
+ * always runs it again right before sending, so a queued text is re-checked
+ * at the moment it actually goes out.
+ */
+export async function checkSmsSuppression(
+  to: string,
+): Promise<{ suppressed: false; toE164: string } | { suppressed: true; reason: SmsSuppressionReason }> {
+  const e164 = toE164(to)
+  if (!e164) {
+    console.warn('[twilio] SMS_SUPPRESSED invalid_number |', maskPhone(to))
+    return { suppressed: true, reason: 'invalid_number' }
+  }
+
+  const { data, error } = await createAdminSupabase()
+    .from('sms_contacts')
+    .select('status')
+    .eq('phone_e164', e164)
+    .maybeSingle()
+  if (error) {
+    console.error('[twilio] SMS_SUPPRESSION_CHECK_FAILED |', maskPhone(e164), '|', error.message)
+    return { suppressed: true, reason: 'check_failed' }
+  }
+  if (data?.status === 'opted_out') {
+    console.warn('[twilio] SMS_SUPPRESSED opted_out |', maskPhone(e164))
+    return { suppressed: true, reason: 'opted_out' }
+  }
+  // 'opted_in', or no row (never opted out).
+  return { suppressed: false, toE164: e164 }
+}
+
+// Never throws — SMS failures must never block lead capture.
+export async function sendSmsDetailed(to: string | null | undefined, body: string): Promise<SendSmsResult> {
   const sid = process.env.TWILIO_ACCOUNT_SID
   const token = process.env.TWILIO_AUTH_TOKEN
   const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID
-  if (!sid || !token || !messagingServiceSid) { console.warn('[twilio] not configured — skipping send'); return null }
-  if (!to || !to.trim()) { console.warn('[twilio] no destination — skipping send'); return null }
-  try {
-    const msg = await twilio(sid, token).messages.create({ to: to.trim(), messagingServiceSid, body })
-    console.log('[twilio] sent', msg.sid, '|', msg.status, '→', to)
-    return msg.sid
-  } catch (err: any) {
-    console.error('[twilio] send error — code:', err?.code, '| message:', err?.message)
-    return null
+  if (!sid || !token || !messagingServiceSid) {
+    console.warn('[twilio] not configured — skipping send')
+    return { sent: false, suppressed: false, reason: 'not_configured' }
   }
+  if (!to || !to.trim()) {
+    console.warn('[twilio] no destination — skipping send')
+    return { sent: false, suppressed: false, reason: 'no_destination' }
+  }
+
+  const gate = await checkSmsSuppression(to)
+  if (gate.suppressed) return { sent: false, suppressed: true, reason: gate.reason }
+
+  try {
+    // Send to exactly the number that was checked.
+    const msg = await twilio(sid, token).messages.create({ to: gate.toE164, messagingServiceSid, body })
+    console.log('[twilio] sent', msg.sid, '|', msg.status, '→', maskPhone(gate.toE164))
+    return { sent: true, suppressed: false, sid: msg.sid }
+  } catch (err: any) {
+    if (Number(err?.code) === 21610) {
+      // Recipient replied STOP at the Twilio level (keyword opt-out).
+      console.warn('[twilio] SMS_BLOCKED_BY_TWILIO_21610 |', maskPhone(gate.toE164))
+      return { sent: false, suppressed: true, reason: 'twilio_blocked' }
+    }
+    console.error('[twilio] send error — code:', err?.code, '| message:', err?.message, '| to:', maskPhone(gate.toE164))
+    return { sent: false, suppressed: false, reason: 'send_failed', errorCode: err?.code }
+  }
+}
+
+// Backward-compatible wrapper: the message SID on a real send, otherwise null
+// (suppressed, skipped or failed). Callers that need to know WHY a text didn't
+// go out use sendSmsDetailed(). This must stay string | null — callers do
+// `if (sid)`, and an object here would be truthy even for a suppressed send.
+export async function sendSms(to: string | null | undefined, body: string): Promise<string | null> {
+  const result = await sendSmsDetailed(to, body)
+  return result.sent ? result.sid : null
 }
 
 // ── Phone verification (Twilio Verify) ────────────────────────────────────────
@@ -226,6 +325,15 @@ async function logAndMaybeAlarm(admin: Admin, agentId: string, alertType: string
 
 // Sends immediately, or queues into pending_notifications when inside quiet hours
 // (held, not dropped — the cron flush sends it at quiet_hours_end).
+//
+// Only a text that actually went out (or was queued to go out) counts toward
+// the sms_send_log founder alarm — a suppressed or failed send never does.
+//   'sent'       — Twilio accepted it; counted.
+//   'queued'     — held for quiet hours; counted at queue time (as before).
+//                  The flush re-checks opt-out when it actually sends.
+//   'suppressed' — agent's number is opted out / unusable; not queued, not counted.
+//   'failed'     — Twilio/config error; not counted.
+//   'skipped'    — no agent phone on file.
 export async function queueOrSendAgentSms(opts: {
   admin: Admin
   agent: AgentNotifyProfile
@@ -234,7 +342,7 @@ export async function queueOrSendAgentSms(opts: {
   message: string
   alertType: string
   now?: Date
-}): Promise<'sent' | 'queued' | 'skipped'> {
+}): Promise<'sent' | 'queued' | 'skipped' | 'suppressed' | 'failed'> {
   const { admin, agent, agentPhone, leadId, message } = opts
   const now = opts.now ?? new Date()
   if (!agentPhone) return 'skipped'
@@ -244,6 +352,12 @@ export async function queueOrSendAgentSms(opts: {
   // fields hold, so a stale/default 21:00-08:00 window can never hold a
   // message while the agent has explicitly disabled quiet hours.
   if (agent.quiet_hours_enabled && isQuietHours(now, agent.quiet_hours_start, agent.quiet_hours_end)) {
+    // Don't queue for a number that has definitively opted out (or can't be
+    // texted). A consent-check FAILURE still queues: the flush re-checks, and
+    // fails closed there, so a transient DB error can't lose the alert.
+    const gate = await checkSmsSuppression(agentPhone)
+    if (gate.suppressed && gate.reason !== 'check_failed') return 'suppressed'
+
     const scheduledFor = nextSendTime(now, agent.quiet_hours_end)
     const { error } = await admin.from('pending_notifications').insert({
       agent_id: agent.id, lead_id: leadId, message,
@@ -255,7 +369,8 @@ export async function queueOrSendAgentSms(opts: {
     return 'queued'
   }
 
-  await sendSms(agentPhone, message)
+  const result = await sendSmsDetailed(agentPhone, message)
+  if (!result.sent) return result.suppressed ? 'suppressed' : 'failed'
   await logAndMaybeAlarm(admin, agent.id, opts.alertType)
   return 'sent'
 }
@@ -282,7 +397,7 @@ const ABANDON_AFTER_MS = 3 * 86_400_000 // 3 days
 export async function flushDueNotifications(
   admin: Admin,
   opts: { agentId?: string; limit?: number } = {}
-): Promise<{ processed: number; sent: number; failed: number; abandoned: number; error?: string }> {
+): Promise<{ processed: number; sent: number; failed: number; abandoned: number; suppressed: number; error?: string }> {
   const now = new Date()
   const nowIso = now.toISOString()
 
@@ -301,13 +416,13 @@ export async function flushDueNotifications(
   const { data: due, error } = await query
   if (error) {
     console.error('[twilio] flushDueNotifications query error:', error.message)
-    return { processed: 0, sent: 0, failed: 0, abandoned: 0, error: error.message }
+    return { processed: 0, sent: 0, failed: 0, abandoned: 0, suppressed: 0, error: error.message }
   }
 
   const markSent = (id: string) =>
     admin.from('pending_notifications').update({ sent_at: new Date().toISOString() }).eq('id', id)
 
-  let sent = 0, failed = 0, abandoned = 0
+  let sent = 0, failed = 0, abandoned = 0, suppressed = 0
   for (const n of due ?? []) {
     const phone = await resolveAgentPhone(admin, n.agent_id)
 
@@ -320,13 +435,26 @@ export async function flushDueNotifications(
       continue
     }
 
-    // Only treat it as delivered when Twilio actually returned a message SID.
-    // sendSms() swallows every error and returns null, so ignoring this value
-    // is what previously let failed sends be stamped as delivered and lost.
-    const sid = await sendSms(phone, n.message)
-    if (sid) {
+    // Only treat it as delivered when Twilio actually returned a message SID —
+    // ignoring the result is what previously let failed sends be stamped as
+    // delivered and lost.
+    const result = await sendSmsDetailed(phone, n.message)
+    if (result.sent) {
       await markSent(n.id)
       sent++
+      continue
+    }
+
+    // Deliberately not sent (opted out, unusable number, blocked by Twilio):
+    // retrying can never succeed, so stamp it handled now rather than retrying
+    // it for 3 days. sent_at is this table's only "done" marker — it is
+    // already stamped the same way for undeliverable/abandoned rows above and
+    // below. A consent-check FAILURE is transient, so it falls through to the
+    // normal retry path.
+    if (result.suppressed && result.reason !== 'check_failed') {
+      console.warn('[twilio] flush: notification', n.id, 'suppressed (', result.reason, ') — marked handled, not sent')
+      await markSent(n.id)
+      suppressed++
       continue
     }
 
@@ -345,7 +473,7 @@ export async function flushDueNotifications(
     }
   }
 
-  return { processed: due?.length ?? 0, sent, failed, abandoned }
+  return { processed: due?.length ?? 0, sent, failed, abandoned, suppressed }
 }
 
 // ── Message templates ─────────────────────────────────────────────────────────

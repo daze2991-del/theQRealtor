@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminSupabase } from '../../../lib/supabase-admin'
 import { computeIntent, type EngagementData } from '../../../lib/leadScoring'
 import { computeScoreV2, isLikelyBot, type EngagementInputV2 } from '../../../lib/leadScoringV2'
-import { sendSms, resolveAgentPhone, queueOrSendAgentSms, flushDueNotifications, msg } from '../../../lib/twilio'
+import { sendSmsDetailed, resolveAgentPhone, queueOrSendAgentSms, flushDueNotifications, msg } from '../../../lib/twilio'
 import { SMS_CONSENT_TEXT, SMS_CONSENT_TEXT_MAX } from '../../../lib/smsConsent'
 import { getTrialStatus } from '../../../lib/trial'
 import { normalizePhone } from '../../../lib/phone'
@@ -261,10 +261,18 @@ export async function POST(request: Request) {
     // consent means the lead is still saved; we just never text the buyer.
     if ((cta === 'showing' || cta === 'question') && trimmedPhone && hasSmsConsent) {
       const agentName = (property.agent_name as string) || null
-      const sid = await sendSms(trimmedPhone, msg.buyerConfirmation(buyerName, address, agentName))
-      if (sid) {
-        await supabase.from('leads').update({ buyer_texted_at: new Date().toISOString() }).eq('id', leadId)
+      const result = await sendSmsDetailed(trimmedPhone, msg.buyerConfirmation(cta, address, agentName))
+      if (result.sent) {
+        // buyer_texted_from: which of OUR numbers sent it, as Twilio reported it.
+        // Via a Messaging Service Twilio usually hasn't picked the sender yet at
+        // this point (see SendSmsResult), so this is often NULL. Only a real
+        // E.164 value is stored, so it can never trip the column's CHECK.
+        const from = result.from && /^\+[1-9][0-9]{7,14}$/.test(result.from) ? result.from : null
+        await supabase.from('leads')
+          .update({ buyer_texted_at: new Date().toISOString(), buyer_texted_from: from })
+          .eq('id', leadId)
       }
+      // Suppressed or failed: buyer_texted_at / buyer_texted_from stay NULL.
     }
 
     // Opportunistic delivery: a new lead is exactly the moment this agent's

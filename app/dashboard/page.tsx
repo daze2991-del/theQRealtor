@@ -5,8 +5,9 @@ import { createBrowserSupabase } from '../../lib/supabase-browser'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DashboardLayout from '../../components/DashboardLayout'
+import { useSignOut } from '../../components/useSignOut'
 import { LineChart, Line, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-import { QrCode, Users, CalendarCheck, Flame, BarChart2, Home, Bell, Calendar, Share2, Download, RotateCcw, AlertCircle, Info, Check } from 'lucide-react'
+import { QrCode, Users, CalendarCheck, Flame, BarChart2, Home, Bell, Calendar, Share2, Download, RotateCcw, AlertCircle, Info, Check, LogOut } from 'lucide-react'
 import { calcPropertyInterest } from '../../lib/propertyInterest'
 import { timeAgo } from '../../lib/timeAgo'
 import { motivationToTierV2, requestedShowing } from '../../lib/leadScoringV2'
@@ -154,6 +155,7 @@ function CardHead({ title, action }: { title: React.ReactNode; action?: React.Re
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const router = useRouter()
+  const { signOut, signingOut } = useSignOut()
 
   const [properties,       setProperties]       = useState<any[]>([])
   const [agentId,          setAgentId]           = useState('')
@@ -368,6 +370,9 @@ export default function Dashboard() {
         .db-hover:hover { background: #1E1E2A !important; }
         .db-kpi-card { transition: border-color 0.12s, background 0.12s; }
         .db-kpi-card:hover { border-color: #7C3AED66 !important; background: #131A2E !important; }
+        .db-signout { transition: border-color 0.12s, background 0.12s; }
+        .db-signout:hover:not(:disabled) { border-color: #534AB7 !important; background: #534AB71F !important; }
+        .db-signout:focus-visible { outline: 2px solid #534AB7; outline-offset: 2px; }
         @media (max-width: 1100px) {
           .db-layout { grid-template-columns: 1fr !important; }
         }
@@ -377,6 +382,8 @@ export default function Dashboard() {
         }
         @media (max-width: 500px) {
           .db-kpi4  { grid-template-columns: 1fr 1fr !important; }
+          .db-signout-label { display: none; }
+          .db-signout { width: 36px; padding: 0 !important; justify-content: center; }
         }
       `}</style>
 
@@ -412,6 +419,18 @@ export default function Dashboard() {
                   <div style={{ position: 'absolute', top: -4, right: -4, background: '#EF4444', color: '#fff', fontSize: 10, fontWeight: 800, borderRadius: 10, minWidth: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>{showingRequestsCount}</div>
                 )}
               </div>
+              {/* Same sign-out as the sidebar control (components/useSignOut). */}
+              <button
+                type="button"
+                className="db-signout"
+                onClick={signOut}
+                disabled={signingOut}
+                aria-label="Sign out"
+                style={{ height: 36, display: 'flex', alignItems: 'center', gap: 7, background: C.card, border: `1px solid ${C.border}`, borderRadius: 9, padding: '0 12px', color: C.sub, fontSize: 12, fontWeight: 600, cursor: signingOut ? 'not-allowed' : 'pointer', opacity: signingOut ? 0.6 : 1 }}
+              >
+                <LogOut size={16} color={C.sub} aria-hidden="true" />
+                <span className="db-signout-label">Sign out</span>
+              </button>
             </div>
           </div>
 

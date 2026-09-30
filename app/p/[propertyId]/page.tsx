@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import { SMS_CONSENT_TEXT } from '../../../lib/smsConsent'
+import SmsConfirmationReminder from './SmsConfirmationReminder'
 import {
   CalendarCheck, MessageCircle, ChevronLeft, ChevronRight, MapPin, X, Phone,
   Mail, CheckCircle, Signpost, type LucideIcon,
@@ -752,6 +753,10 @@ export default function PropertyPage() {
                   <p style={{ fontSize: 14, color: C.soft, margin: 0, lineHeight: 1.55 }}>
                     {agentName ? `${agentName} will` : 'The listing agent will'} be in touch with you shortly.
                   </p>
+                  {/* Same line for every buyer who consented and gave a phone —
+                      decided from this form's own state only, never from an
+                      API or opt-out lookup. */}
+                  <SmsConfirmationReminder show={smsConsent && phone.trim() !== ''} />
                 </div>
 
                 {/* Agent direct contact — revealed */}

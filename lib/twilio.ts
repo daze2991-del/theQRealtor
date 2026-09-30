@@ -55,6 +55,9 @@ export type SmsFailureReason = 'not_configured' | 'no_destination' | 'send_faile
 /**
  * Result of sendSmsDetailed(). Discriminate on `sent`, then `suppressed`:
  *   • sent: true                   — Twilio accepted it; `sid` is the message SID.
+ *     `from` is the sending number as Twilio reported it at creation. With a
+ *     Messaging Service Twilio picks the sender from the pool AFTER accepting
+ *     the message (status 'accepted' → 'queued'), so this is usually null.
  *   • sent: false, suppressed: true — deliberately NOT sent (opted out,
  *     unusable number, consent check failed, or blocked by Twilio). Retrying
  *     won't help, except for reason 'check_failed', which is transient.
@@ -62,7 +65,7 @@ export type SmsFailureReason = 'not_configured' | 'no_destination' | 'send_faile
  *     (Twilio not configured, no destination, Twilio/network error).
  */
 export type SendSmsResult =
-  | { sent: true; suppressed: false; sid: string }
+  | { sent: true; suppressed: false; sid: string; from: string | null }
   | { sent: false; suppressed: true; reason: SmsSuppressionReason }
   | { sent: false; suppressed: false; reason: SmsFailureReason; errorCode?: string | number }
 
@@ -132,7 +135,7 @@ export async function sendSmsDetailed(to: string | null | undefined, body: strin
     // Send to exactly the number that was checked.
     const msg = await twilio(sid, token).messages.create({ to: gate.toE164, messagingServiceSid, body })
     console.log('[twilio] sent', msg.sid, '|', msg.status, '→', maskPhone(gate.toE164))
-    return { sent: true, suppressed: false, sid: msg.sid }
+    return { sent: true, suppressed: false, sid: msg.sid, from: msg.from ?? null }
   } catch (err: any) {
     if (Number(err?.code) === 21610) {
       // Recipient replied STOP at the Twilio level (keyword opt-out).
@@ -525,8 +528,13 @@ export const msg = {
   // recipient can identify who is texting them from an unknown number.
   // NEVER gated on the agent's trial/billing state — the buyer is not the one
   // who owes us money, and they opted in to hear back.
-  buyerConfirmation: (buyerName: string, address: string, agentName?: string | null) => {
-    const who = firstName(agentName) || 'The agent'
-    return `theqrealtor: Hi ${firstName(buyerName) || 'there'}, thanks for your interest in ${address}. ${who} will reach out shortly. Reply STOP to opt out.`
+  // Buyer confirmation. The number is send-only, so the text invites no reply
+  // other than STOP. Address and agent name come from the same properties
+  // columns the buyer page (app/p/[propertyId]) displays.
+  buyerConfirmation: (kind: 'showing' | 'question', address?: string | null, agentName?: string | null) => {
+    const where = (address ?? '').trim() || 'this property'
+    const who = (agentName ?? '').trim() || 'the listing agent'
+    const what = kind === 'showing' ? 'Your showing request for' : 'Your question about'
+    return `theqrealtor: ${what} ${where} was sent to ${who}, who will contact you soon. Reply STOP to opt out.`
   },
 }

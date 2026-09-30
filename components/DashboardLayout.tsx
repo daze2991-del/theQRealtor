@@ -1,13 +1,14 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { createBrowserSupabase } from '../lib/supabase-browser'
 import { getTrialStatus, TRIAL_WARN_DAYS, TRIAL_URGENT_DAYS } from '../lib/trial'
 import { signLimitForPlan } from '../lib/plans'
 import { isEligibleLead } from '../lib/leadEligibility'
 import FeedbackPrompt from './FeedbackPrompt'
+import { useSignOut } from './useSignOut'
 import { X, Menu } from 'lucide-react'
 
 const C = {
@@ -187,14 +188,7 @@ function NavLinksWithParams({ pathname, onClose, newLeadCount, isAdmin }: {
 }
 
 function SignOutButton() {
-  const router = useRouter()
-  const [loading, setLoading] = useState(false)
-  const handleSignOut = async () => {
-    setLoading(true)
-    const supabase = createBrowserSupabase()
-    await supabase.auth.signOut()
-    router.push('/')
-  }
+  const { signOut: handleSignOut, signingOut: loading } = useSignOut()
   return (
     <button
       onClick={handleSignOut}

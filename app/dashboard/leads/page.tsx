@@ -12,8 +12,11 @@ import DashboardLayout from '../../../components/DashboardLayout'
 import {
   Flame, Minus, ChevronDown, Phone, MessageCircle, Mail, Download, FileText,
   Ban, CheckSquare, Square, Check, Inbox, Home, MapPin, Zap, Tag, StickyNote,
-  ArchiveRestore, RefreshCw, type LucideIcon,
+  ArchiveRestore, RefreshCw, MessageSquareOff, type LucideIcon,
 } from 'lucide-react'
+import TextsOffBadge from '../../../components/TextsOffBadge'
+import { useSmsOptOutStatus } from '../../../components/useSmsOptOutStatus'
+import { filterTextsOffLeads, TEXTS_OFF_TOOLTIP } from '../../../lib/textsOff'
 import { computeCallPriority, motivationToTierV2, urgencyLabel, topSignalLabel, TIER_V2_CFG, type LeadTierV2 } from '../../../lib/leadScoringV2'
 import { timeAgo } from '../../../lib/timeAgo'
 
@@ -176,11 +179,16 @@ function LeadsPageInner() {
 
   // Filters + sort
   const [filterDisclosures, setFilterDisclosures] = useState(false)
+  const [filterTextsOff,  setFilterTextsOff]  = useState(false)
   const [filterTemp,     setFilterTemp]     = useState<LeadTierV2[]>(initialTemp)
   const [filterStatus,   setFilterStatus]   = useState<string[]>(initialStatus)
   const [filterProperty, setFilterProperty] = useState('')
   const [filterDays,     setFilterDays]     = useState('all')
   const [sortMode,       setSortMode]       = useState<'recent' | 'priority' | 'contacted'>('recent')
+
+  // SMS opt-out ("Texts off") — ids of this agent's own opted-out leads,
+  // looked up server-side. Display + filter only.
+  const { textsOffLeadIds } = useSmsOptOutStatus()
 
   // Per-lead UI state
   const [localLeads,     setLocalLeads]     = useState<Record<string, Partial<any>>>({})
@@ -383,6 +391,9 @@ function LeadsPageInner() {
       return filterStatus.includes(s)
     })
 
+    // "Texts off": narrows whatever else is selected to opted-out buyers.
+    r = filterTextsOffLeads(r, textsOffLeadIds, filterTextsOff)
+
     // Property + date filters
     if (filterProperty) r = r.filter(l => l.property_id === filterProperty)
     if (filterDays !== 'all') {
@@ -412,7 +423,7 @@ function LeadsPageInner() {
       arr.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     }
     return arr
-  }, [allLeads, filterDisclosures, filterTemp, filterStatus, filterProperty, filterDays, sortMode, localLeads, scanEventByQr, viewSpam])
+  }, [allLeads, filterDisclosures, filterTextsOff, textsOffLeadIds, filterTemp, filterStatus, filterProperty, filterDays, sortMode, localLeads, scanEventByQr, viewSpam])
 
   const downloadCSV = async () => {
     if (leads.length === 0) return
@@ -461,7 +472,7 @@ function LeadsPageInner() {
 
   const allTempOn   = filterTemp.length === TEMP_CHIPS.length
   const allStatusOn = filterStatus.length === STATUS_OPTIONS.length
-  const isFiltered  = !allTempOn || !allStatusOn || !!filterProperty || filterDays !== 'all' || filterDisclosures
+  const isFiltered  = !allTempOn || !allStatusOn || !!filterProperty || filterDays !== 'all' || filterDisclosures || filterTextsOff
 
   return (
     <DashboardLayout>
@@ -562,6 +573,21 @@ function LeadsPageInner() {
                 <FileText size={12} /> Disclosures
               </button>
               <button className="chip-btn"
+                onClick={() => setFilterTextsOff(v => !v)}
+                aria-pressed={filterTextsOff}
+                title={TEXTS_OFF_TOOLTIP}
+                style={{
+                  padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                  background: filterTextsOff ? '#64748B' + '22' : 'transparent',
+                  border: `1px solid ${filterTextsOff ? '#94A3B8' : C.border}`,
+                  color: filterTextsOff ? '#CBD5E1' : C.muted,
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                }}
+              >
+                <MessageSquareOff size={12} /> Texts off
+                {textsOffLeadIds.size > 0 && <span style={{ marginLeft: 1, fontSize: 10, opacity: 0.7 }}>{textsOffLeadIds.size}</span>}
+              </button>
+              <button className="chip-btn"
                 onClick={() => { setViewSpam(v => !v); setSpamConfirmId(null) }}
                 style={{
                   padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
@@ -642,7 +668,7 @@ function LeadsPageInner() {
 
             {isFiltered && (
               <button
-                onClick={() => { setFilterDisclosures(false); setFilterTemp(['hot','warm','cold']); setFilterStatus([...STATUS_OPTIONS]); setFilterProperty(''); setFilterDays('all') }}
+                onClick={() => { setFilterDisclosures(false); setFilterTextsOff(false); setFilterTemp(['hot','warm','cold']); setFilterStatus([...STATUS_OPTIONS]); setFilterProperty(''); setFilterDays('all') }}
                 style={{ background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, color: C.muted, fontSize: 12, padding: '6px 12px', cursor: 'pointer', fontFamily: 'sans-serif' }}
               >Clear all</button>
             )}
@@ -711,6 +737,7 @@ function LeadsPageInner() {
                                   <Ban size={10} /> Do Not Contact
                                 </span>
                               )}
+                              {textsOffLeadIds.has(lead.id) && <TextsOffBadge />}
                               <TierBadge tier={tier} />
 
                               {/* Status badge + per-lead dropdown */}

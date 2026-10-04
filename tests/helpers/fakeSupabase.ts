@@ -59,6 +59,7 @@ export function makeFakeDb() {
       insert(p: Row) { st.op = 'insert'; st.payload = p; return b },
       update(p: Row) { st.op = 'update'; st.payload = p; return b },
       eq: (c: string, v: unknown) => filter(`${c}=${v}`, r => r[c] === v),
+      in: (c: string, vs: unknown[]) => filter(`${c} in [${vs.join(',')}]`, r => vs.includes(r[c])),
       is: (c: string, v: unknown) => filter(`${c} is ${v}`, r => (r[c] ?? null) === v),
       not: (c: string, _op: string, v: unknown) => filter(`${c} not ${v}`, r => (r[c] ?? null) !== v),
       lte: (c: string, v: any) => filter(`${c}<=${v}`, r => r[c] <= v),

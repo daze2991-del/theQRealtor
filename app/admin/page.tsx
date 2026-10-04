@@ -2,6 +2,8 @@ import { redirect, notFound } from 'next/navigation'
 import { adminGate } from '../../lib/admin/auth'
 import { getBetaOverview } from '../../lib/admin/overview'
 import AdminOverviewClient from '../../components/admin/AdminOverviewClient'
+import { getSmsOptOutOverview } from '../../lib/admin/smsOptOuts'
+import SmsOptOutsPanel from '../../components/admin/SmsOptOutsPanel'
 
 // God Mode — Trial Overview. Top-level /admin route, fully independent of the
 // normal /dashboard data path. This is layer 1 of 3 of the authorization check
@@ -17,11 +19,13 @@ export default async function AdminPage() {
   if (gate.status === 'unauthed') redirect('/auth')
   if (gate.status === 'forbidden') notFound()
 
-  const overview = await getBetaOverview()
+  const [overview, smsOptOuts] = await Promise.all([getBetaOverview(), getSmsOptOutOverview()])
 
   return (
     <div style={{ minHeight: '100vh', background: '#0F0F13' }}>
       <AdminOverviewClient initial={overview} />
+      {/* Read-only; numbers arrive already masked to the last 4 digits. */}
+      <SmsOptOutsPanel data={smsOptOuts} />
     </div>
   )
 }

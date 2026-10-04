@@ -6,6 +6,8 @@ import { User, RotateCcw, MapPin, CheckCircle2, X, ChevronDown } from 'lucide-re
 import { createBrowserSupabase } from '../../lib/supabase-browser'
 import { TIER_V2_CFG, motivationToTierV2 } from '../../lib/leadScoringV2'
 import { needsAttention } from '../../lib/leadEligibility'
+import TextsOffBadge from '../TextsOffBadge'
+import { useSmsOptOutStatus } from '../useSmsOptOutStatus'
 import { timeAgo, parseTimestamp } from '../../lib/timeAgo'
 
 // ── Tokens (mirrors the dashboard page's local palette) ───────────────────────
@@ -63,6 +65,7 @@ export default function NeedsAttention({
   properties: Array<{ id: string; address: string }>
 }) {
   const [items,      setItems]      = useState<Item[] | null>(null)
+  const { textsOffLeadIds } = useSmsOptOutStatus()
   const [dismissing, setDismissing] = useState<string | null>(null)
   const [showScrollHint, setShowScrollHint] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -239,6 +242,7 @@ export default function NeedsAttention({
                         <span style={{ fontSize: 10, fontWeight: 700, color: badge.color, background: badge.bg, border: `1px solid ${badge.border}40`, borderRadius: 5, padding: '2px 7px', whiteSpace: 'nowrap' }}>
                           {badge.label}
                         </span>
+                        {textsOffLeadIds.has(item.id) && <TextsOffBadge />}
                       </div>
                       {contact && (
                         <div style={{ fontSize: 10, color: C.sub, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{contact}</div>

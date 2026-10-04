@@ -9,7 +9,9 @@ import { signLimitForPlan } from '../lib/plans'
 import { isEligibleLead } from '../lib/leadEligibility'
 import FeedbackPrompt from './FeedbackPrompt'
 import { useSignOut } from './useSignOut'
-import { X, Menu } from 'lucide-react'
+import { X, Menu, BellOff } from 'lucide-react'
+import { useSmsOptOutStatus } from './useSmsOptOutStatus'
+import { ALERTS_PAUSED_BANNER } from '../lib/textsOff'
 
 const C = {
   bg:      '#0F0F13',
@@ -321,6 +323,7 @@ function Sidebar({ email, plan, propertyCount, signCount, newLeadCount, isAdmin,
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [email, setEmail]               = useState('')
   const [plan, setPlan]                 = useState<Plan>('free')
+  const smsStatus = useSmsOptOutStatus()
   const [propertyCount, setPropertyCount] = useState(0)
   const [signCount, setSignCount]       = useState(0)
   const [newLeadCount, setNewLeadCount] = useState(0)
@@ -596,6 +599,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
             )
           })()}
+          {/* Agent's OWN alert number replied STOP. Looked up server-side
+              (app/api/sms/opt-out-status); renders nothing otherwise. */}
+          {smsStatus.ownAlertsPaused && (
+            <div role="status" style={{
+              background: '#1C1400', borderBottom: '1px solid #78350F',
+              padding: '12px 24px', display: 'flex', alignItems: 'center', gap: 10,
+              flexShrink: 0, fontFamily: 'sans-serif',
+            }}>
+              <BellOff size={16} color="#FCD34D" aria-hidden="true" style={{ flexShrink: 0 }} />
+              <span style={{ fontSize: 13.5, color: '#FCD34D', fontWeight: 500 }}>{ALERTS_PAUSED_BANNER}</span>
+            </div>
+          )}
           {children}
         </div>
       </div>

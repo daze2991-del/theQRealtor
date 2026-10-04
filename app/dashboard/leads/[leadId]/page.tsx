@@ -4,6 +4,9 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createBrowserSupabase } from '../../../../lib/supabase-browser'
 import DashboardLayout from '../../../../components/DashboardLayout'
+import TextsOffBadge from '../../../../components/TextsOffBadge'
+import { useSmsOptOutStatus } from '../../../../components/useSmsOptOutStatus'
+import { TEXTS_OFF_TOOLTIP } from '../../../../lib/textsOff'
 import Link from 'next/link'
 import {
   Home, Star, Pencil, Check, MessageCircle, Mail, Phone, Clipboard, Link2, Trash2,
@@ -85,6 +88,7 @@ function DropdownItem({
 export default function LeadDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const { textsOffLeadIds } = useSmsOptOutStatus()
   const leadId = params.leadId as string
 
   const [lead,           setLead]           = useState<any>(null)
@@ -425,6 +429,13 @@ export default function LeadDetailPage() {
                     <span title="Favorite" style={{ display: 'flex', cursor: 'default', opacity: 0.4, color: C.muted }}><Star size={16} /></span>
                     <span title="Edit" style={{ display: 'flex', cursor: 'default', opacity: 0.4, color: C.muted }}><Pencil size={13} /></span>
                   </div>
+                  {/* SMS opt-out — display only; separate from status/tier. */}
+                  {textsOffLeadIds.has(lead.id) && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                      <TextsOffBadge size="md" />
+                      <span style={{ fontSize: 12, color: C.muted }}>{TEXTS_OFF_TOOLTIP}</span>
+                    </div>
+                  )}
                   {/* Address */}
                   {fullAddr && (
                     <div style={{ fontSize: 13, color: C.sub, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>

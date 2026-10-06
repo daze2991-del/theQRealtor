@@ -24,7 +24,7 @@ export async function POST(request: Request) {
   const {
     name, phone, smsEnabled, agentPhone,
     dre, brokerage, photoUrl,
-    notifyShowing, notifyQuestion, notifyHotLead,
+    notifyShowing, notifyQuestion,
     quietHoursEnabled, quietHoursStart, quietHoursEnd,
   } = body
   console.log('[update-profile] body keys:', Object.keys(body))
@@ -56,7 +56,8 @@ export async function POST(request: Request) {
   if (typeof photoUrl  === 'string') profileUpdate.photo_url = photoUrl.trim() || null
   if (typeof notifyShowing  === 'boolean') profileUpdate.notify_showing  = notifyShowing
   if (typeof notifyQuestion === 'boolean') profileUpdate.notify_question = notifyQuestion
-  if (typeof notifyHotLead  === 'boolean') profileUpdate.notify_hot_lead = notifyHotLead
+  // notifyHotLead removed (final decision) — the Hot-lead SMS alert is gone.
+  // profiles.notify_hot_lead is left in place, unused.
   if (typeof quietHoursEnabled === 'boolean') profileUpdate.quiet_hours_enabled = quietHoursEnabled
   // Same "omitted vs explicitly empty" distinction as dre/brokerage/photoUrl
   // above: typeof check gates whether the column is touched at all, so an

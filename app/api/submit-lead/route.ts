@@ -196,7 +196,7 @@ export async function POST(request: Request) {
   try {
     const { data: agentProfile } = await supabase
       .from('profiles')
-      .select('id, name, notify_showing, notify_question, notify_hot_lead, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, beta_joined_at, plan')
+      .select('id, name, notify_showing, notify_question, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, beta_joined_at, plan')
       .eq('id', property.user_id)
       .single()
 
@@ -236,22 +236,12 @@ export async function POST(request: Request) {
           'questionAlert',
         )
       }
-      // Hot tier crossed — fire once per lead (guarded by hot_notified_at)
-      if (v2Score.tier === 'hot' && agentProfile.notify_hot_lead !== false) {
-        const { data: hotRows } = await supabase
-          .from('leads')
-          .update({ hot_notified_at: new Date().toISOString() })
-          .eq('id', leadId).is('hot_notified_at', null)
-          .select('id')
-        if (hotRows && hotRows.length > 0) {
-          await dispatch(
-            trialExpired
-              ? msg.hotAlertTeaser(address)
-              : msg.hotAlert(trimName, address, leadId, (contactPreference as string)?.trim() || null, trimmedPhone),
-            'hotAlert',
-          )
-        }
-      }
+      // Hot-lead SMS alert removed (final decision) — agents are texted only
+      // for showing requests and questions, above. The Hot tier itself is
+      // unaffected everywhere else (scoring, Lead Health, Needs Your
+      // Attention, etc.) — this was the alert text only.
+      // hot_notified_at and profiles.notify_hot_lead are left in the DB,
+      // unused, by design — no migration.
     } else {
       console.warn('[submit-lead] no agent profile for', property.user_id, '— agent alerts skipped')
     }

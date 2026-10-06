@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import { SMS_CONSENT_TEXT } from '../../../lib/smsConsent'
+import RequestsPausedNotice from '../../../components/RequestsPausedNotice'
 import SmsConfirmationReminder from './SmsConfirmationReminder'
 import {
   CalendarCheck, MessageCircle, ChevronLeft, ChevronRight, MapPin, X, Phone,
@@ -91,6 +92,9 @@ export default function PropertyPage() {
   const [property,  setProperty]  = useState<any>(null)
   const [photos,    setPhotos]    = useState<any[]>([])
   const [loading,   setLoading]   = useState(true)
+  // false = not taking requests (lib/planLock.ts): listing info stays, the
+  // request buttons/form are replaced. Nothing renders until it's known.
+  const [accepting, setAccepting] = useState<boolean | null>(null)
 
   // Carousel
   const [slide,     setSlide]     = useState(0)
@@ -167,16 +171,27 @@ export default function PropertyPage() {
     if (!propertyId) return
     const load = async () => {
       const sb = createBrowserSupabase()
-      const [{ data: prop }, { data: pics }] = await Promise.all([
-        sb.from('properties').select('*').eq('id', propertyId).single(),
+      const [{ data: prop }, { data: pics }, availability] = await Promise.all([
+        // Explicit columns: buyer pages never fetch the plan-lock column.
+        sb.from('properties')
+          .select('id, address, city, state, price, beds, baths, description, agent_name, agent_phone, deleted_at')
+          .eq('id', propertyId).single(),
         sb.from('property_photos').select('*').eq('property_id', propertyId).order('sort_order', { ascending: true }),
+        fetch('/api/listing-availability', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ propertyId, signId }),
+        }).then(r => (r.ok ? r.json() : null)).catch(() => null),
       ])
       setProperty(prop)
       setPhotos(pics || [])
+      // A failed availability check leaves the buttons up. submit-lead still
+      // refuses a locked submission (423), which flips this to false.
+      setAccepting(availability?.acceptingRequests !== false)
       setLoading(false)
     }
     load()
-  }, [propertyId])
+  }, [propertyId, signId])
 
   // Return-visit detection + scan_event creation
   useEffect(() => {
@@ -312,6 +327,7 @@ export default function PropertyPage() {
         }),
       })
       if (res.status === 429) { setError('Too many submissions. Please wait a minute.'); setSubmitting(false); return }
+      if (res.status === 423) { setAccepting(false); setIntent(null); setSubmitting(false); return }
       if (!res.ok) {
         const { error: msg } = await res.json().catch(() => ({}))
         setError(msg || 'Something went wrong. Please try again.')
@@ -512,6 +528,8 @@ export default function PropertyPage() {
             }}>
               This property is no longer available.
             </div>
+          ) : accepting === false ? (
+            <RequestsPausedNotice border={C.border} color={C.muted} />
           ) : (
             <>
               <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
@@ -546,7 +564,7 @@ export default function PropertyPage() {
       </div>
 
       {/* ── PHASE 3 & 4: Form / Success bottom sheet ── */}
-      {intent !== null && (
+      {intent !== null && accepting !== false && (
         <div
           className="form-sheet-wrap"
           onClick={closeSheet}

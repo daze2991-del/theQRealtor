@@ -14,6 +14,7 @@ type SignRow = {
   id: string
   label: string
   created_at: string
+  plan_locked_at: string | null
   sign_assignments: AssignmentRow[]
 }
 
@@ -29,7 +30,7 @@ export async function GET() {
   const admin = createAdminSupabase()
   const { data, error } = await admin
     .from('signs')
-    .select('id, label, created_at, sign_assignments(id, property_id, assigned_at, unassigned_at, properties(id, address, city, state))')
+    .select('id, label, created_at, plan_locked_at, sign_assignments(id, property_id, assigned_at, unassigned_at, properties(id, address, city, state))')
     .eq('agent_id', user.id)
     .order('created_at', { ascending: false })
 
@@ -47,6 +48,8 @@ export async function GET() {
       id: sign.id,
       label: sign.label,
       created_at: sign.created_at,
+      // Not one of the signs kept active on the agent's plan (migration 060).
+      locked: !!sign.plan_locked_at,
       current_assignment: current,
       history,
     }

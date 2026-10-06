@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminSupabase } from '../../../lib/supabase-admin'
 import { computeScoreV2, isLikelyBot, type EngagementInputV2 } from '../../../lib/leadScoringV2'
 import { normalizePhone } from '../../../lib/phone'
+import { isAcceptingRequests, REQUESTS_PAUSED_COPY } from '../../../lib/planLock'
 
 const rateMap = new Map<string, number[]>()
 const LIMIT = 10
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
   }
 
-  const { propertyId, name, phone, email, working_with_agent, sms_consent } =
+  const { propertyId, name, phone, email, working_with_agent, sms_consent, signId: signIdRaw } =
     body as Record<string, unknown>
 
   const trimmedName  = (name  as string)?.trim() || ''
@@ -53,6 +54,12 @@ export async function POST(request: Request) {
 
   if (propError || !property || !property.active) {
     return NextResponse.json({ error: 'Property not found.' }, { status: 404 })
+  }
+
+  // Plan lock (lib/planLock.ts) — refused before anything is saved.
+  const signId = typeof signIdRaw === 'string' && signIdRaw.trim() ? signIdRaw.trim() : null
+  if (!(await isAcceptingRequests(supabase, propertyId as string, signId))) {
+    return NextResponse.json({ error: REQUESTS_PAUSED_COPY, requestsPaused: true }, { status: 423 })
   }
 
   // Same base V2 scoring as submit-lead for a brand-new lead with no engagement data

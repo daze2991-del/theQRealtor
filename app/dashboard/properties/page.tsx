@@ -10,6 +10,7 @@ import {
   Camera, Signpost, Pencil, FileText, Trash2, Download,
 } from 'lucide-react'
 import { propertyLimitForPlan } from '../../../lib/plans'
+import NotTakingRequestsBadge from '../../../components/NotTakingRequestsBadge'
 import { deactivationPatch } from '../../../lib/propertyStatus'
 import { motivationToTierV2 } from '../../../lib/leadScoringV2'
 
@@ -218,7 +219,8 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
     }
     const { error } = await supabase.from('properties').update(updates).eq('id', prop.id)
     if (error) {
-      setEditError('Failed to save. Please try again.')
+      // 42501 = going live would exceed the plan's listing limit (migration 060).
+      setEditError(error.code === '42501' ? error.message : 'Failed to save. Please try again.')
     } else {
       onEdit({ ...prop, ...updates })
       setEditOpen(false)
@@ -260,6 +262,9 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
               <div style={{ fontSize: 12.5, color: C.muted, marginBottom: 4 }}>{location}</div>
             ) : (
               <div style={{ fontSize: 12, color: '#FB923C', fontWeight: 600, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}><AlertTriangle size={12} /> Missing Location</div>
+            )}
+            {prop.plan_locked_at && (
+              <div style={{ marginBottom: 4 }}><NotTakingRequestsBadge /></div>
             )}
             <Link href={`/p/${prop.id}`} target="_blank" style={{ fontSize: 12, fontWeight: 600, color: C.purpleL, textDecoration: 'none' }}>
               Preview public page →
@@ -593,6 +598,7 @@ export default function PropertiesPage() {
   const [deleteTarget, setDeleteTarget]   = useState<any | null>(null)
   const [deleteModal, setDeleteModal]     = useState<'confirm' | null>(null)
   const [exportingCsv, setExportingCsv]   = useState(false)
+  const [pageNotice, setPageNotice]       = useState('')
 
   useEffect(() => { setOrigin(window.location.origin) }, [])
 
@@ -664,6 +670,8 @@ export default function PropertiesPage() {
       const patch = { active: nextActive, ...deactivationPatch(!!prop.active, nextActive) }
       const { error } = await supabase.from('properties').update(patch).eq('id', prop.id)
       if (!error) setProperties(prev => prev.map(p => p.id === prop.id ? { ...p, ...patch } : p))
+      // 42501 = going live would exceed the plan's listing limit (migration 060).
+      else if (error.code === '42501') setPageNotice(error.message)
     } finally {
       setTogglingId(null)
     }
@@ -751,7 +759,9 @@ export default function PropertiesPage() {
   })
 
   const propertyLimit = propertyLimitForPlan(plan)
-  const canAddProperty = propertyLimit === null || properties.length < propertyLimit
+  // Counted as app/api/properties enforces it: live, not deleted, not plan-locked.
+  const countedListings = properties.filter((p: any) => p.active && !p.plan_locked_at).length
+  const canAddProperty = propertyLimit === null || countedListings < propertyLimit
 
   return (
     <DashboardLayout>
@@ -785,6 +795,18 @@ export default function PropertiesPage() {
           </div>
 
           <div style={{ padding: '24px 28px' }}>
+            {pageNotice && (
+              <div role="alert" style={{ background: '#1C0A0A', border: '1px solid #7F1D1D', borderRadius: 10, padding: '10px 16px', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: 13, color: '#FCA5A5' }}>{pageNotice}</span>
+                <button onClick={() => setPageNotice('')} aria-label="Dismiss" style={{ background: 'none', border: 'none', color: '#FCA5A5', cursor: 'pointer', fontSize: 13 }}>✕</button>
+              </div>
+            )}
+            {plan === 'free' && properties.some((p: any) => p.plan_locked_at) && (
+              <p style={{ fontSize: 13, color: C.muted, margin: '0 0 16px' }}>
+                On Free, one listing takes buyer requests.{' '}
+                <Link href="/dashboard/settings#free-plan" style={{ color: C.purpleL, fontWeight: 600, textDecoration: 'none' }}>Change which one →</Link>
+              </p>
+            )}
             {/* FIX 6 — Search + Sort */}
             {properties.length > 0 && (
               <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>

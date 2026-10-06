@@ -7,6 +7,7 @@ import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import { useRouter, useSearchParams } from 'next/navigation'
 import DashboardLayout from '../../../components/DashboardLayout'
 import { Check, X, Pencil, Signpost } from 'lucide-react'
+import NotTakingRequestsBadge from '../../../components/NotTakingRequestsBadge'
 
 const C = {
   bg:      '#0F0F13',
@@ -33,6 +34,8 @@ type Sign = {
   id: string
   label: string
   created_at: string
+  /** Plan-locked (migration 060): buyers can't send requests through it. */
+  locked?: boolean
   current_assignment: Assignment | null
   history: Assignment[]
 }
@@ -171,6 +174,7 @@ function SignCard({ sign, origin, onRename, onOpenAssign, onUnassign, unassignin
           <div style={{ fontSize: 12, color: C.muted, marginTop: 7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {assigned ? assignmentAddress(assigned) : 'Created ' + formatDate(sign.created_at)}
           </div>
+          {sign.locked && <div style={{ marginTop: 7 }}><NotTakingRequestsBadge /></div>}
         </div>
         {assigned ? (
           <span style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, background: '#062014', border: '1px solid #166534', borderRadius: 20, padding: '4px 10px' }}>
@@ -428,7 +432,7 @@ function SignsPageInner() {
               setPageError(assignBody.error || "Sign created, but couldn't be assigned automatically — assign it below.")
             } else {
               const assigned = normalizeSign(assignBody.sign as RawSign)
-              setSigns(prev => prev.map(s => (s.id === assigned.id ? assigned : s)))
+              setSigns(prev => prev.map(s => (s.id === assigned.id ? { ...assigned, locked: s.locked } : s)))
               setAutoAssignNotice(
                 assigned.current_assignment
                   ? `Assigned to ${assignmentAddress(assigned.current_assignment)}`
@@ -487,7 +491,7 @@ function SignsPageInner() {
         setAssignError(body.error || 'Failed to assign the sign. Please try again.')
       } else {
         const updated = normalizeSign(body.sign as RawSign)
-        setSigns(prev => prev.map(s => s.id === updated.id ? updated : s))
+        setSigns(prev => prev.map(s => s.id === updated.id ? { ...updated, locked: s.locked } : s))
         setAssignSign(null)
       }
     } catch {
@@ -611,6 +615,13 @@ function SignsPageInner() {
                 <span style={{ fontSize: 13, color: '#4ade80', display: 'flex', alignItems: 'center', gap: 5 }}><Check size={13} /> {autoAssignNotice}</span>
                 <button onClick={() => setAutoAssignNotice('')} style={{ background: 'none', border: 'none', color: '#4ade80', cursor: 'pointer', display: 'flex', flexShrink: 0 }}><X size={15} /></button>
               </div>
+            )}
+
+            {signs.some(s => s.locked) && (
+              <p style={{ fontSize: 13, color: C.muted, margin: '0 0 16px' }}>
+                Some signs aren&apos;t taking buyer requests on your current plan.{' '}
+                <Link href="/dashboard/settings#free-plan" style={{ color: C.purpleL, fontWeight: 600, textDecoration: 'none' }}>Change which signs are active →</Link>
+              </p>
             )}
 
             {/* Create sign */}

@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import { Home, CheckCircle } from 'lucide-react'
+import RequestsPausedNotice from '../../../components/RequestsPausedNotice'
 
 const C = {
   bg:     '#0F0F13',
@@ -42,6 +43,10 @@ export default function OpenHouseCheckInPage() {
   const [property,   setProperty]   = useState<any>(null)
   const [heroPhoto,  setHeroPhoto]  = useState<string | null>(null)
   const [loading,    setLoading]    = useState(true)
+  // false = not taking requests (lib/planLock.ts). The form is not rendered
+  // until this is known.
+  const [accepting,  setAccepting]  = useState<boolean | null>(null)
+  const [signId,     setSignId]     = useState<string | null>(null)
 
   const [name,              setName]              = useState('')
   const [phone,             setPhone]             = useState('')
@@ -58,16 +63,28 @@ export default function OpenHouseCheckInPage() {
     if (!propertyId) return
     const load = async () => {
       const sb = createBrowserSupabase()
-      const [{ data: prop }, { data: pics }] = await Promise.all([
-        sb.from('properties').select('*').eq('id', propertyId).single(),
+      // Set by /q for an open-house sign, so a plan-locked sign is honoured.
+      const sign = new URLSearchParams(window.location.search).get('sign')
+      setSignId(sign)
+      const [{ data: prop }, { data: pics }, availability] = await Promise.all([
+        // Explicit columns: buyer pages never fetch the plan-lock column.
+        sb.from('properties').select('id, address, price, beds, baths').eq('id', propertyId).single(),
         sb.from('property_photos')
           .select('url')
           .eq('property_id', propertyId)
           .order('sort_order', { ascending: true })
           .limit(1),
+        fetch('/api/listing-availability', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ propertyId, signId: sign }),
+        }).then(r => (r.ok ? r.json() : null)).catch(() => null),
       ])
       setProperty(prop)
       setHeroPhoto(pics && pics.length > 0 ? pics[0].url : null)
+      // A failed availability check leaves the form up. The server still
+      // refuses a locked submission, and that copy is shown as the error.
+      setAccepting(availability?.acceptingRequests !== false)
       setLoading(false)
     }
     load()
@@ -99,9 +116,11 @@ export default function OpenHouseCheckInPage() {
           phone:              phone.trim(),
           email:              email.trim() || undefined,
           working_with_agent: workingWithAgent,
+          signId:             signId || undefined,
         }),
       })
       if (res.status === 429) { setError('Too many submissions. Please wait a minute.'); setSubmitting(false); return }
+      if (res.status === 423) { setAccepting(false); setSubmitting(false); return }
       if (!res.ok) {
         const { error: msg } = await res.json().catch(() => ({}))
         setError(msg || 'Something went wrong. Please try again.')
@@ -191,7 +210,9 @@ export default function OpenHouseCheckInPage() {
 
         {/* Form / Confirmation */}
         <div style={{ padding: '0 20px 20px' }}>
-          {submitted ? (
+          {accepting === false ? (
+            <RequestsPausedNotice border={C.border} color={C.muted} />
+          ) : submitted ? (
             <div style={{ animation: 'fadeIn 0.25s ease', background: `${C.amber}12`, border: `1px solid ${C.amber}40`, borderRadius: 16, padding: '32px 24px', textAlign: 'center', marginTop: 8 }}>
               <div style={{ marginBottom: 14, display: 'flex', justifyContent: 'center', color: C.amberL }}><CheckCircle size={44} /></div>
               <div style={{ fontSize: 20, fontWeight: 900, color: C.text, marginBottom: 12, lineHeight: 1.3 }}>

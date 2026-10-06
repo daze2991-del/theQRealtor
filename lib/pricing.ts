@@ -40,7 +40,7 @@ export const PRICING_CLARIFIER =
 // Card body copy, built from the enforced limits so the numbers can never
 // drift from lib/plans.ts. A null listing limit reads "All your active
 // listings" — customer-facing copy never says "unlimited".
-function tierCopy(tier: PricingTier): string {
+function tierCopy(tier: PricingTier | 'free'): string {
   const { maxActiveListings: l, maxActiveSigns: s } = planConfig(tier)
   const signs = s === null ? 'all your active signs' : `${s} active sign${s === 1 ? '' : 's'}`
   if (l === null) return `All your active listings, up to ${signs}.`
@@ -85,6 +85,16 @@ export const PRICING_CATALOG: Record<PricingTier, PricingTierConfig> = {
     maxActiveSigns:    planConfig('pro').maxActiveSigns,
   },
 }
+
+/** Free tier as shown in the end-of-trial chooser. Not a Stripe tier, so it
+ *  is not in PRICING_CATALOG. Limits come from lib/plans.ts like the others. */
+export const FREE_TIER_DISPLAY = {
+  displayName: 'Free',
+  displayPrice: '$0',
+  copy: tierCopy('free'),
+  maxActiveListings: planConfig('free').maxActiveListings,
+  maxActiveSigns: planConfig('free').maxActiveSigns,
+} as const
 
 export function isPricingTier(value: unknown): value is PricingTier {
   return value === 'starter' || value === 'pro'

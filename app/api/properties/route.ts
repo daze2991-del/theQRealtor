@@ -45,6 +45,7 @@ export async function POST(req: Request) {
       .eq('user_id', user.id)
       .eq('active', true)
       .is('deleted_at', null)
+      .is('plan_locked_at', null) // locked listings don't use a slot (migration 060)
     if (countError) {
       console.error('[properties] count error:', countError)
       return NextResponse.json({ error: 'Failed to create property. Please try again.' }, { status: 500 })

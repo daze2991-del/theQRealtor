@@ -111,11 +111,13 @@ function OnboardingWizard() {
 
       const properties = props || []
       let pid = '', addr = '', signExists = false
-      // Total signs owned by this agent — what the plan limit meter counts
-      // against (signs, not qrcodes — see lib/plans.ts signLimitForPlan).
+      // Signs that count toward the plan limit, exactly as app/api/signs/create
+      // counts them: not archived and not plan-locked (migration 060).
       const { count: signCnt } = await supabase
         .from('signs').select('id', { count: 'exact', head: true })
         .eq('agent_id', session.user.id)
+        .is('archived_at', null)
+        .is('plan_locked_at', null)
       setSignCount(signCnt || 0)
 
       if (properties.length > 0) {

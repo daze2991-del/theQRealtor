@@ -41,7 +41,7 @@ export async function PATCH(
 
   const { data: sign } = await admin
     .from('signs')
-    .select('id, archived_at')
+    .select('id, archived_at, plan_locked_at')
     .eq('id', params.signId)
     .eq('agent_id', user.id)
     .maybeSingle()
@@ -57,7 +57,8 @@ export async function PATCH(
     // UN-archiving pulls a sign back into active inventory, so it has to pass
     // the same limit check as creating one. Without this, archive → create →
     // unarchive would walk straight past the plan limit.
-    if (!archiving && sign.archived_at !== null) {
+    // A plan-locked sign stays locked when unarchived, so it never takes a slot.
+    if (!archiving && sign.archived_at !== null && !sign.plan_locked_at) {
       const { data: profile } = await admin
         .from('profiles').select('plan').eq('id', user.id).maybeSingle()
       const limit = signLimitForPlan(typeof profile?.plan === 'string' ? profile.plan : 'free')
@@ -67,6 +68,7 @@ export async function PATCH(
           .select('id', { count: 'exact', head: true })
           .eq('agent_id', user.id)
           .is('archived_at', null)
+          .is('plan_locked_at', null) // locked signs don't use a slot (migration 060)
         if (countError) {
           console.error('[signs/patch] count error:', countError)
           return NextResponse.json({ error: 'Failed to update the sign. Please try again.' }, { status: 500 })

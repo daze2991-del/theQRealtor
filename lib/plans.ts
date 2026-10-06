@@ -24,8 +24,9 @@ export interface PlanConfig {
   /** Active (non-archived) signs allowed. null = unlimited.
    *  ENFORCED server-side in app/api/signs/create/route.ts. */
   maxActiveSigns: number | null
-  /** Non-deleted properties allowed. null = unlimited.
-   *  NOT enforced server-side — advisory only, surfaced in the dashboard UI. */
+  /** ACTIVE listings allowed (active = true and not soft-deleted). null = no cap.
+   *  ENFORCED server-side in app/api/properties/route.ts, which every
+   *  property-creation path (including onboarding) posts through. */
   maxActiveListings: number | null
   features: PlanFeatures
   /** True for the closed-beta cohorts we are grandfathering. Their limits must
@@ -60,34 +61,25 @@ export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
   alpha:    { maxActiveSigns: 10, maxActiveListings: null, features: ALL_FEATURES, grandfathered: true, subjectToTrialExpiry: false },
 
   // ── Active trial ──────────────────────────────────────────────────────────
-  // What every NEW signup gets. Sized for EVALUATION, not production use: a
-  // trialling agent is testing the product on a single property, so one active
-  // listing is enough, and 3 signs on it is enough to experiment with labelling
-  // (yard sign vs. open house vs. directional) without handing out a full
-  // working allowance.
+  // What every NEW signup gets. Final tier decision (2026-10): the trial gets
+  // exactly Starter's limits — 3 active listings, 15 active signs — so an agent
+  // evaluates the real working allowance, and converting to Starter never
+  // forces them to archive a listing or a sign. This supersedes the earlier
+  // "deliberately below Starter" sizing and the beta-period 3-sign cap.
   //
-  // maxActiveSigns lowered from 5 to 3 as a BETA-PERIOD decision, not a
-  // permanent one: agents were getting confused managing multiple QR codes
-  // before they understood the product, and 3 is easier to grasp during
-  // onboarding. Revisit and likely raise this again (back to 5, or another
-  // number) once onboarding or help content exists to explain multiple QR
-  // codes — this is a stopgap, not the intended long-term ceiling.
+  // The difference between trial and Starter is time, not capacity: the 45-day
+  // clock (lib/trial.ts) applies here and nowhere else — it counts down and
+  // then blocks new listings.
   //
-  // Every feature is on — the trial should show the real product, just at
-  // smaller scale. Deliberately BELOW starter (3 listings / 10 signs) on both
-  // dimensions, so converting to the entry paid tier is a genuine upgrade
-  // either way you look at it and never forces an agent to archive anything.
-  //
-  // Not grandfathered, and the 45-day clock DOES apply — it counts down and
-  // then restricts.
-  trial:    { maxActiveSigns: 3, maxActiveListings: 1, features: ALL_FEATURES, grandfathered: false, subjectToTrialExpiry: true },
+  // Every feature is on — the trial should show the real product.
+  trial:    { maxActiveSigns: 15, maxActiveListings: 3, features: ALL_FEATURES, grandfathered: false, subjectToTrialExpiry: true },
 
   // ── Paid tiers (not sold yet — billing is manual and Stripe is inert) ─────
   starter: {
-    // 10, matching 'trial' on purpose: converting from a trial to the entry
+    // Same limits as 'trial' on purpose: converting from a trial to the entry
     // paid tier must never be a downgrade that forces an agent to archive
-    // working signs.
-    maxActiveSigns: 10,
+    // working listings or signs.
+    maxActiveSigns: 15,
     maxActiveListings: 3,
     features: {
       leadScoring: true,
@@ -99,8 +91,10 @@ export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
     subjectToTrialExpiry: false,
   },
   pro: {
-    maxActiveSigns: 25,
-    maxActiveListings: null, // practically unrestricted, per the pricing model
+    maxActiveSigns: 50,
+    // No cap — customer-facing copy says "All your active listings", never
+    // "unlimited".
+    maxActiveListings: null,
     features: ALL_FEATURES,
     grandfathered: false,
     subjectToTrialExpiry: false,
@@ -108,9 +102,9 @@ export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
   // ── Fallback ──────────────────────────────────────────────────────────────
   // Also what an unrecognized/typo'd plan string resolves to. Deliberately
   // restrictive rather than permissive, but note the failure mode: a typo in
-  // profiles.plan silently lands an agent here with 1 sign and 1 listing.
+  // profiles.plan silently lands an agent here with 1 listing and 3 signs.
   free: {
-    maxActiveSigns: 1,
+    maxActiveSigns: 3,
     maxActiveListings: 1,
     features: {
       leadScoring: true, // already computed unconditionally in submit-lead
@@ -134,7 +128,7 @@ export function signLimitForPlan(plan: string): number | null {
   return planConfig(plan).maxActiveSigns
 }
 
-/** Active-property limit. null = unlimited. Advisory (UI-only) today. */
+/** Active-listing limit. null = no cap. Enforced in app/api/properties. */
 export function propertyLimitForPlan(plan: string): number | null {
   return planConfig(plan).maxActiveListings
 }

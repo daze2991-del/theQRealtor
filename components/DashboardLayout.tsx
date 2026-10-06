@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { createBrowserSupabase } from '../lib/supabase-browser'
 import { getTrialStatus, TRIAL_WARN_DAYS, TRIAL_URGENT_DAYS } from '../lib/trial'
-import { signLimitForPlan } from '../lib/plans'
+import { planUsageMeters, SEGMENTED_METER_MAX } from '../lib/planUsage'
 import { isEligibleLead } from '../lib/leadEligibility'
 import FeedbackPrompt from './FeedbackPrompt'
 import { useSignOut } from './useSignOut'
@@ -36,15 +36,8 @@ const PLAN_LABELS: Record<Plan, string> = {
   pro:      'Pro',
 }
 
-// Per-plan sidebar usage. QR-based plans cap signs (one sign = one QR code
-// in this product); free caps properties. A null limit (unlimited) hides the
-// meter entirely via the return below.
-function planUsage(plan: Plan, propertyCount: number, signCount: number):
-  { used: number; limit: number; noun: string } | null {
-  if (plan === 'free')  return { used: propertyCount, limit: 1, noun: 'properties' }
-  const limit = signLimitForPlan(plan)
-  return limit === null ? null : { used: signCount, limit, noun: 'QR/Signs' }
-}
+// Per-plan sidebar usage meters (listings and/or signs) come from
+// lib/planUsage.ts, which reads the enforced limits in lib/plans.ts.
 
 function NavIcon({ name }: { name: string }) {
   const p = {
@@ -215,12 +208,12 @@ function SignOutButton() {
   )
 }
 
-function Sidebar({ email, plan, propertyCount, signCount, newLeadCount, isAdmin, onClose }: {
-  email: string; plan: Plan; propertyCount: number; signCount: number;
+function Sidebar({ email, plan, activeListingCount, signCount, newLeadCount, isAdmin, onClose }: {
+  email: string; plan: Plan; activeListingCount: number; signCount: number;
   newLeadCount: number; isAdmin?: boolean; onClose?: () => void
 }) {
   const pathname = usePathname()
-  const usage = planUsage(plan, propertyCount, signCount)
+  const meters = planUsageMeters(plan, activeListingCount, signCount)
   const initials = email ? email.slice(0, 2).toUpperCase() : '??'
 
   return (
@@ -265,23 +258,30 @@ function Sidebar({ email, plan, propertyCount, signCount, newLeadCount, isAdmin,
           <div style={{ fontSize: 12, fontWeight: 600, color: C.sub, marginBottom: 10 }}>
             {PLAN_LABELS[plan]}
           </div>
-          {usage && (
-            <>
+          {meters.map(m => (
+            <div key={m.key}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
-                <span style={{ fontSize: 11, color: C.muted }}>QR/Signs used</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: C.sub }}>{usage.used} / {usage.limit}</span>
+                <span style={{ fontSize: 11, color: C.muted }}>{m.label}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: C.sub }}>{m.used} / {m.limit}</span>
               </div>
-              {/* Segmented meter */}
-              <div style={{ display: 'flex', gap: 3, marginBottom: 12 }}>
-                {Array.from({ length: usage.limit }, (_, i) => (
-                  <div key={i} style={{
-                    flex: 1, height: 4, borderRadius: 100,
-                    background: i < usage.used ? '#8B5CF6' : 'rgba(255,255,255,0.08)',
-                  }} />
-                ))}
-              </div>
-            </>
-          )}
+              {m.limit <= SEGMENTED_METER_MAX ? (
+                /* Segmented meter — one segment per unit */
+                <div style={{ display: 'flex', gap: 3, marginBottom: 12 }}>
+                  {Array.from({ length: m.limit }, (_, i) => (
+                    <div key={i} style={{
+                      flex: 1, height: 4, borderRadius: 100,
+                      background: i < m.used ? '#8B5CF6' : 'rgba(255,255,255,0.08)',
+                    }} />
+                  ))}
+                </div>
+              ) : (
+                /* Large limits (e.g. 50) — same look, one continuous bar */
+                <div style={{ height: 4, borderRadius: 100, background: 'rgba(255,255,255,0.08)', marginBottom: 12, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', borderRadius: 100, background: '#8B5CF6', width: `${Math.min(100, (m.used / m.limit) * 100)}%` }} />
+                </div>
+              )}
+            </div>
+          ))}
           <Link
             href="/dashboard/billing"
             onClick={onClose}
@@ -324,7 +324,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [email, setEmail]               = useState('')
   const [plan, setPlan]                 = useState<Plan>('free')
   const smsStatus = useSmsOptOutStatus()
-  const [propertyCount, setPropertyCount] = useState(0)
+  const [activeListingCount, setActiveListingCount] = useState(0)
   const [signCount, setSignCount]       = useState(0)
   const [newLeadCount, setNewLeadCount] = useState(0)
   const [mobileOpen, setMobileOpen]     = useState(false)
@@ -356,12 +356,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         const [{ data: profile, error: profileErr }, { data: props }] = await Promise.all([
           supabase.from('profiles').select('plan, beta_joined_at').eq('id', session.user.id).single(),
-          supabase.from('properties').select('id').eq('user_id', session.user.id).is('deleted_at', null),
+          supabase.from('properties').select('id, active').eq('user_id', session.user.id).is('deleted_at', null),
         ])
 
         if (profileErr) console.error('[DashboardLayout] profile query error:', profileErr)
 
         const propertyIds = (props || []).map((p: any) => p.id)
+        // Counted exactly as app/api/properties enforces the listing limit:
+        // active AND not soft-deleted (deleted_at is already filtered above).
+        const activeListingCnt = (props || []).filter((p: any) => p.active === true).length
 
         // signs is RLS-scoped to the owning agent, so this only ever counts
         // the caller's own rows — this is also exactly what SIGN_LIMITS
@@ -387,24 +390,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           newLeadCnt = (eligibleLeadsData || []).filter(isEligibleLead).length
         }
 
+        // Display only — the browser never writes profiles.plan. A plan changes
+        // only via the Stripe webhook (server) or a manual edit in Supabase;
+        // the protect_profile_entitlements trigger (migration 024) rejects any
+        // plan write from a signed-in session anyway.
         const rawPlan = (profile?.plan as string) || 'free'
         const KNOWN_PLANS: Plan[] = ['founding', 'alpha', 'trial', 'free', 'starter', 'pro']
-        let resolvedPlan: Plan = (KNOWN_PLANS.includes(rawPlan as Plan) ? rawPlan : 'free') as Plan
-
-        if (resolvedPlan === 'free') {
-          try {
-            const res = await fetch('/api/stripe/subscription')
-            if (res.ok) {
-              const { subscription } = await res.json()
-              if (subscription?.status === 'active' || subscription?.status === 'trialing') {
-                resolvedPlan = 'pro'
-                await supabase.from('profiles').update({ plan: 'pro' }).eq('id', session.user.id)
-              }
-            }
-          } catch (stripeErr) {
-            console.error('[DashboardLayout] stripe cross-check error:', stripeErr)
-          }
-        }
+        const resolvedPlan: Plan = (KNOWN_PLANS.includes(rawPlan as Plan) ? rawPlan : 'free') as Plan
 
         // Opportunistic delivery: if this agent has any due, unsent
         // pending_notifications (held during quiet hours, now past
@@ -442,7 +434,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setBetaJoinedAt(profile?.beta_joined_at ?? null)
         setPlan(resolvedPlan)
         setTrialLoaded(true)
-        setPropertyCount(propertyIds.length)
+        setActiveListingCount(activeListingCnt)
         setSignCount(signCnt)
         setNewLeadCount(newLeadCnt)
       } catch (err) {
@@ -472,14 +464,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <>
           <div onClick={() => setMobileOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 40 }} />
           <div style={{ position: 'fixed', top: 0, left: 0, height: '100vh', zIndex: 50 }}>
-            <Sidebar email={email} plan={plan} propertyCount={propertyCount} signCount={signCount} newLeadCount={newLeadCount} isAdmin={isAdmin} onClose={() => setMobileOpen(false)} />
+            <Sidebar email={email} plan={plan} activeListingCount={activeListingCount} signCount={signCount} newLeadCount={newLeadCount} isAdmin={isAdmin} onClose={() => setMobileOpen(false)} />
           </div>
         </>
       )}
 
       <div style={{ display: 'flex', minHeight: '100vh', background: C.bg, fontFamily: 'sans-serif' }}>
         <div className="db-sidebar">
-          <Sidebar email={email} plan={plan} propertyCount={propertyCount} signCount={signCount} newLeadCount={newLeadCount} isAdmin={isAdmin} />
+          <Sidebar email={email} plan={plan} activeListingCount={activeListingCount} signCount={signCount} newLeadCount={newLeadCount} isAdmin={isAdmin} />
         </div>
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
           <div className="db-mobile-header" style={{ position: 'sticky', top: 0, zIndex: 20, height: 52, background: C.sidebar, borderBottom: `1px solid ${C.border}`, alignItems: 'center', gap: 12, padding: '0 16px', flexShrink: 0 }}>

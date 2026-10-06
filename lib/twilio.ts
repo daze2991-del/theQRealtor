@@ -427,6 +427,20 @@ export async function flushDueNotifications(
 
   let sent = 0, failed = 0, abandoned = 0, suppressed = 0
   for (const n of due ?? []) {
+    // Defense-in-depth: the Hot-lead SMS alert is removed (final decision,
+    // nothing queues one anymore — see app/api/submit-lead/route.ts), but if a
+    // row from before that change is somehow still sitting here, it must never
+    // go out. "Hot engagement" appears in both former hot-alert templates
+    // (lib/twilio.ts msg.hotAlert/hotAlertTeaser, now deleted) and nowhere
+    // else — confirmed by grepping every other template. Marked handled, not
+    // retried, same as the other never-deliverable cases below.
+    if (n.message.includes('Hot engagement')) {
+      console.warn('[twilio] flush: notification', n.id, 'is a Hot-lead alert (removed) — marked handled, not sent')
+      await markSent(n.id)
+      abandoned++
+      continue
+    }
+
     const phone = await resolveAgentPhone(admin, n.agent_id)
 
     // No phone on file: retrying can never succeed, so stamp it rather than
@@ -504,8 +518,8 @@ export const msg = {
   },
   questionAlert: (buyer: string, address: string, leadId: string) =>
     `💬 New question from ${buyer} re: ${address}. View lead: ${leadUrl(leadId)}. Reply STOP to opt out.`,
-  hotAlert: (buyer: string, address: string, leadId: string, contactPreference?: string | null, buyerPhone?: string | null) =>
-    `🔥 ${buyer} just hit Hot engagement on ${address}. Phone: ${(buyerPhone || '').trim() || 'n/a'}. Preferred contact: ${contactVerb(contactPreference)}. View lead: ${leadUrl(leadId)}. Reply STOP to opt out.`,
+  // hotAlert removed (final decision) — the Hot-lead SMS alert is gone.
+  // Agents are texted only for showing requests and questions, above.
   // ── Expired-trial teasers ──────────────────────────────────────────────────
   // Sent to an agent whose trial has lapsed, in place of the full-detail alerts
   // above. The lead itself is still captured and stored in full — only what we
@@ -521,8 +535,7 @@ export const msg = {
     `🏠 New showing request on ${address}. Subscribe to view contact info and respond: ${billingUrl()}. Reply STOP to opt out.`,
   questionAlertTeaser: (address: string) =>
     `💬 New question on ${address}. Subscribe to view contact info and respond: ${billingUrl()}. Reply STOP to opt out.`,
-  hotAlertTeaser: (address: string) =>
-    `🔥 A buyer just hit Hot engagement on ${address}. Subscribe to view contact info and respond: ${billingUrl()}. Reply STOP to opt out.`,
+  // hotAlertTeaser removed along with hotAlert, above.
 
   // Buyer-facing (not agent-facing): leads with the business name so the
   // recipient can identify who is texting them from an unknown number.

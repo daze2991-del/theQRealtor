@@ -97,7 +97,6 @@ export default function SettingsPage() {
   // Lead notification preferences (stored on profiles)
   const [notifyShowing,  setNotifyShowing]  = useState(true)
   const [notifyQuestion, setNotifyQuestion] = useState(true)
-  const [notifyHotLead,  setNotifyHotLead]  = useState(true)
   const [quietEnabled,   setQuietEnabled]   = useState(true)
   const [quietStart,     setQuietStart]     = useState('21:00')
   const [quietEnd,       setQuietEnd]       = useState('08:00')
@@ -136,7 +135,7 @@ export default function SettingsPage() {
           { data: props },
         ] = await Promise.all([
           supabase.from('profiles')
-            .select('name, plan, phone, dre, brokerage, photo_url, notify_showing, notify_question, notify_hot_lead, quiet_hours_enabled, quiet_hours_start, quiet_hours_end')
+            .select('name, plan, phone, dre, brokerage, photo_url, notify_showing, notify_question, quiet_hours_enabled, quiet_hours_start, quiet_hours_end')
             .eq('id', uid).single(),
           supabase.from('properties').select('id').eq('user_id', uid).is('deleted_at', null),
         ])
@@ -152,7 +151,6 @@ export default function SettingsPage() {
           setPhotoUrl(profile.photo_url || '')
           if (typeof profile.notify_showing  === 'boolean') setNotifyShowing(profile.notify_showing)
           if (typeof profile.notify_question === 'boolean') setNotifyQuestion(profile.notify_question)
-          if (typeof profile.notify_hot_lead === 'boolean') setNotifyHotLead(profile.notify_hot_lead)
           if (typeof profile.quiet_hours_enabled === 'boolean') setQuietEnabled(profile.quiet_hours_enabled)
           if (profile.quiet_hours_start) setQuietStart(String(profile.quiet_hours_start).slice(0, 5))
           if (profile.quiet_hours_end)   setQuietEnd(String(profile.quiet_hours_end).slice(0, 5))
@@ -196,7 +194,7 @@ export default function SettingsPage() {
         body: JSON.stringify({
           name: name.trim(), phone: phone.trim(), smsEnabled, agentPhone,
           dre: dre.trim(), brokerage: brokerage.trim(), photoUrl: photoUrl.trim(),
-          notifyShowing, notifyQuestion, notifyHotLead,
+          notifyShowing, notifyQuestion,
           quietHoursEnabled: quietEnabled,
           quietHoursStart: quietStart, quietHoursEnd: quietEnd,
         }),
@@ -410,7 +408,7 @@ export default function SettingsPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 4 }}>SMS Lead Alerts</div>
-                  <div style={{ fontSize: 13, color: C.muted }}>Receive a text message when a buyer scans your QR code and submits their info. Requires a phone number above.</div>
+                  <div style={{ fontSize: 13, color: C.muted }}>Get a text when a buyer requests a showing or asks a question.</div>
                 </div>
                 <Toggle checked={smsEnabled} onChange={setSmsEnabled} disabled={!phone.trim()} />
               </div>
@@ -465,7 +463,6 @@ export default function SettingsPage() {
               {[
                 { key: 'showing',  title: 'Showing requests',          hint: "A buyer clicked 'Request a Showing' — your highest-intent signal. Recommended on.",                                                                                                             hintColor: C.purpleL, checked: notifyShowing,  set: setNotifyShowing },
                 { key: 'question', title: 'Questions / info requests',  hint: 'A buyer submitted a question or requested disclosures. Moderate intent. Recommended on for most agents.',                                                                                                   hintColor: C.muted,   checked: notifyQuestion, set: setNotifyQuestion },
-                { key: 'hot',      title: 'Hot lead alerts',            hint: "Fires once when a buyer's behavior crosses the Hot threshold — multiple scans, saved property, or showing request. If you have many active listings, consider turning this off to reduce noise.",  hintColor: C.muted,   checked: notifyHotLead,  set: setNotifyHotLead },
               ].map(row => (
                 <div key={row.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 16 }}>
                   <div style={{ flex: 1 }}>

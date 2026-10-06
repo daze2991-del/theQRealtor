@@ -440,3 +440,43 @@ describe('founder (alpha) behaviour unchanged', () => {
     expect(db.tables.leads).toHaveLength(1)
   })
 })
+
+// ── Migration 061 follow-ups ─────────────────────────────────────────────────
+describe('061: unlock trigger also fires on starter → pro', () => {
+  const sql = src('supabase/migrations/061_plan_lock_hardening.sql')
+  const when = sql.slice(sql.indexOf('create trigger trg_unlock_plan_locks_on_upgrade'))
+  it('keeps the free/trial upgrade case and adds starter → pro', () => {
+    expect(when).toContain("(old.plan in ('free', 'trial') and new.plan in ('starter', 'pro', 'founding', 'alpha'))")
+    expect(when).toContain("or (old.plan = 'starter' and new.plan = 'pro')")
+    expect(when).toContain('execute function public.unlock_plan_locks_on_upgrade()')
+  })
+  it('unlocks up to Pro’s limits: the function reads plan_limits(new.plan), and Pro has no listing cap and 50 signs', () => {
+    expect(src('supabase/migrations/060_plan_locking.sql')).toContain('from public.plan_limits(new.plan)')
+    expect([PLAN_CONFIG.pro.maxActiveListings, PLAN_CONFIG.pro.maxActiveSigns]).toEqual([null, 50])
+  })
+  it('does not fire on a downgrade (pro → starter, anything → free)', () => {
+    expect(when).not.toMatch(/old\.plan = 'pro'/)
+    expect(when).not.toMatch(/new\.plan (=|in \([^)]*)'free'/)
+  })
+  it('revokes EXECUTE on both trigger functions and pins protect_profile_entitlements search_path', () => {
+    expect(sql).toContain('revoke all on function public.protect_property_plan_lock()   from public, anon, authenticated;')
+    expect(sql).toContain('revoke all on function public.unlock_plan_locks_on_upgrade() from public, anon, authenticated;')
+    expect(sql).toContain('alter function public.protect_profile_entitlements() set search_path = public;')
+  })
+})
+
+describe('"change what\'s active" links are shown only to Free agents', () => {
+  it.each([
+    ['app/dashboard/signs/page.tsx', '{isFreePlan && signs.some(s => s.locked) && ('],
+    ['app/dashboard/properties/page.tsx', '{isFreePlan && properties.some((p: any) => p.plan_locked_at) && ('],
+  ])('%s', (file, gate) => {
+    const s = src(file)
+    expect(s).toContain("setIsFreePlan(profile?.plan === 'free')")   // exact match, no 'free' fallback
+    expect(s).toContain(gate)
+    // Every link to the Free swap panel sits behind that gate
+    const links = s.split('/dashboard/settings#free-plan').length - 1
+    expect(links).toBe(1)
+    expect(s.indexOf(gate)).toBeLessThan(s.indexOf('/dashboard/settings#free-plan'))
+    expect(s.indexOf('/dashboard/settings#free-plan') - s.indexOf(gate)).toBeLessThan(600)
+  })
+})

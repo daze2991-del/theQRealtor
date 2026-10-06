@@ -368,7 +368,7 @@ export default function BillingPageClient({ paidPlansEnabled }: { paidPlansEnabl
                   <div style={{ ...label, marginBottom: 14, display: 'block' }}>Your Beta Agent Plan</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
                     {[
-                      'Unlimited properties',
+                      'All your active listings',
                       'Buyer lead capture',
                       'QR sign tracking',
                       'Buyer interest scoring (Hot/Warm/Cold)',

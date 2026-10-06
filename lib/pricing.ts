@@ -7,7 +7,7 @@
 // reads from PRICING_CATALOG picks it up automatically.
 //
 // After this file exists, no other file in the repo should contain a
-// literal price string ($39, $79, etc.) — they read displayPrice from here.
+// literal price string ($39, $69, etc.) — they read displayPrice from here.
 
 import { planConfig } from './plans'
 
@@ -37,6 +37,22 @@ export interface PricingTierConfig {
 export const PRICING_CLARIFIER =
   'Listings and signs are separate. A listing can have multiple signs, and each active sign can capture buyer engagement and inquiries.'
 
+// Card body copy, built from the enforced limits so the numbers can never
+// drift from lib/plans.ts. A null listing limit reads "All your active
+// listings" — customer-facing copy never says "unlimited".
+function tierCopy(tier: PricingTier): string {
+  const { maxActiveListings: l, maxActiveSigns: s } = planConfig(tier)
+  const signs = s === null ? 'all your active signs' : `${s} active sign${s === 1 ? '' : 's'}`
+  if (l === null) return `All your active listings, up to ${signs}.`
+  return `Up to ${l} active listing${l === 1 ? '' : 's'} and ${signs}.`
+}
+
+// TODO(annual): annual display/billing is inert while ANNUAL_BILLING_ENABLED
+// is off. When annual billing is built, annual price = 20% off monthly
+// (12 × monthly × 0.8 — Starter $374.40/yr, Pro $662.40/yr at today's
+// monthly prices) — recalculate from the then-current monthly prices and
+// create matching Stripe Prices; nothing here displays an annual price today.
+
 export const PRICING_CATALOG: Record<PricingTier, PricingTierConfig> = {
   starter: {
     tier: 'starter',
@@ -46,19 +62,25 @@ export const PRICING_CATALOG: Record<PricingTier, PricingTierConfig> = {
       month: 'STRIPE_PRICE_ID_STARTER_MONTHLY',
       year:  'STRIPE_PRICE_ID_STARTER_YEARLY',
     },
-    copy: 'Up to 3 active listings and 10 active signs.',
+    copy: tierCopy('starter'),
     maxActiveListings: planConfig('starter').maxActiveListings,
     maxActiveSigns:    planConfig('starter').maxActiveSigns,
   },
   pro: {
     tier: 'pro',
     displayName: 'Pro',
-    displayPrice: '$79/mo',
+    // ⚠️ DISPLAY price only. The live Stripe Price behind
+    // STRIPE_PRICE_ID_PRO_MONTHLY still charges the OLD $79. Before
+    // PAID_PLANS_ENABLED is turned on, create a NEW $69 Stripe Price and point
+    // STRIPE_PRICE_ID_PRO_MONTHLY at its new Price ID. Never edit the old
+    // Price — Stripe Prices are immutable, and existing subscriptions keep
+    // the Price they were created with.
+    displayPrice: '$69/mo',
     priceEnvVar: {
       month: 'STRIPE_PRICE_ID_PRO_MONTHLY',
       year:  'STRIPE_PRICE_ID_PRO_YEARLY',
     },
-    copy: 'All your active listings, up to 25 active signs.',
+    copy: tierCopy('pro'),
     maxActiveListings: planConfig('pro').maxActiveListings,
     maxActiveSigns:    planConfig('pro').maxActiveSigns,
   },

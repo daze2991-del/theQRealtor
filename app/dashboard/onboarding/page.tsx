@@ -589,7 +589,7 @@ function OnboardingWizard() {
               <div style={{ background: C.input, border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 14px', marginBottom: 18 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: C.sub }}>
                   <span>QR codes used</span>
-                  <span style={{ fontWeight: 700 }}>{limit === null ? `${signCount} · Unlimited` : `${signCount} of ${limit}`}</span>
+                  <span style={{ fontWeight: 700 }}>{limit === null ? `${signCount} active` : `${signCount} of ${limit}`}</span>
                 </div>
                 {limit !== null && (
                   <div style={{ height: 4, background: C.border, borderRadius: 4, overflow: 'hidden', marginTop: 8 }}>

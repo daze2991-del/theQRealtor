@@ -317,6 +317,8 @@ function SignsPageInner() {
   const [loading, setLoading]                   = useState(true)
   const [origin, setOrigin]                     = useState('')
   const [pageError, setPageError]               = useState('')
+  // The swap link goes to a Free-only Settings panel, so only Free agents see it.
+  const [isFreePlan, setIsFreePlan]             = useState(false)
 
   const [createLabel, setCreateLabel] = useState('')
   const [creating, setCreating]       = useState(false)
@@ -345,7 +347,7 @@ function SignsPageInner() {
         const { data: { session } } = await supabase.auth.getSession()
         if (!session) { routerRef.current.push('/auth'); return }
 
-        const [signsRes, { data: props }] = await Promise.all([
+        const [signsRes, { data: props }, { data: profile }] = await Promise.all([
           fetch('/api/signs'),
           supabase.from('properties')
             .select('id, address, city, state')
@@ -353,9 +355,11 @@ function SignsPageInner() {
             .eq('active', true)
             .is('deleted_at', null)
             .order('created_at', { ascending: false }),
+          supabase.from('profiles').select('plan').eq('id', session.user.id).maybeSingle(),
         ])
 
         if (cancelled) return
+        setIsFreePlan(profile?.plan === 'free')
         if (!signsRes.ok) {
           const body = await signsRes.json().catch(() => ({} as { error?: string }))
           setPageError(body.error || 'Failed to load signs. Please try again.')
@@ -617,7 +621,7 @@ function SignsPageInner() {
               </div>
             )}
 
-            {signs.some(s => s.locked) && (
+            {isFreePlan && signs.some(s => s.locked) && (
               <p style={{ fontSize: 13, color: C.muted, margin: '0 0 16px' }}>
                 Some signs aren&apos;t taking buyer requests on your current plan.{' '}
                 <Link href="/dashboard/settings#free-plan" style={{ color: C.purpleL, fontWeight: 600, textDecoration: 'none' }}>Change which signs are active →</Link>

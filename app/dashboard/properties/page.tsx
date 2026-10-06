@@ -599,6 +599,9 @@ export default function PropertiesPage() {
   const [deleteModal, setDeleteModal]     = useState<'confirm' | null>(null)
   const [exportingCsv, setExportingCsv]   = useState(false)
   const [pageNotice, setPageNotice]       = useState('')
+  // Exact match on the stored plan. `plan` above falls back to 'free' for a
+  // missing value, which must not reveal the Free-only swap link.
+  const [isFreePlan, setIsFreePlan]       = useState(false)
 
   useEffect(() => { setOrigin(window.location.origin) }, [])
 
@@ -618,6 +621,7 @@ export default function PropertiesPage() {
 
         if (cancelled) return
         setPlan(profile?.plan || 'free')
+        setIsFreePlan(profile?.plan === 'free')
         setProperties(props || [])
 
         if (props && props.length > 0) {
@@ -801,7 +805,7 @@ export default function PropertiesPage() {
                 <button onClick={() => setPageNotice('')} aria-label="Dismiss" style={{ background: 'none', border: 'none', color: '#FCA5A5', cursor: 'pointer', fontSize: 13 }}>✕</button>
               </div>
             )}
-            {plan === 'free' && properties.some((p: any) => p.plan_locked_at) && (
+            {isFreePlan && properties.some((p: any) => p.plan_locked_at) && (
               <p style={{ fontSize: 13, color: C.muted, margin: '0 0 16px' }}>
                 On Free, one listing takes buyer requests.{' '}
                 <Link href="/dashboard/settings#free-plan" style={{ color: C.purpleL, fontWeight: 600, textDecoration: 'none' }}>Change which one →</Link>

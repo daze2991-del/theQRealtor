@@ -66,6 +66,7 @@ export async function POST(req: Request) {
       .select('id', { count: 'exact', head: true })
       .eq('agent_id', user.id)
       .is('archived_at', null)
+      .is('plan_locked_at', null) // locked signs don't use a slot (migration 060)
     if (countError) {
       console.error('[signs/create] count error:', countError)
       return NextResponse.json({ error: 'Failed to create sign. Please try again.' }, { status: 500 })

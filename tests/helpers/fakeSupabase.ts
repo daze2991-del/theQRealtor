@@ -7,6 +7,10 @@ export function makeFakeDb() {
   const tables: Record<string, Row[]> = {}
   const failReads = new Set<string>()
   const queries: { table: string; op: string; filters: string[] }[] = []
+  // rpc(name, args): tests register a handler per function name. Calls are
+  // recorded; an unregistered name returns an error like PostgREST would.
+  const rpcs: Record<string, (args: any) => { data?: any; error?: { message: string } | null }> = {}
+  const rpcCalls: { name: string; args: any }[] = []
   let seq = 0
 
   function from(table: string) {
@@ -72,5 +76,12 @@ export function makeFakeDb() {
     }
     return b
   }
-  return { client: { from } as any, tables, failReads, queries }
+  const rpc = (name: string, args: any) => {
+    rpcCalls.push({ name, args })
+    const h = rpcs[name]
+    if (!h) return Promise.resolve({ data: null, error: { message: `function ${name} not registered in fake` } })
+    const out = h(args)
+    return Promise.resolve({ data: out.data ?? null, error: out.error ?? null })
+  }
+  return { client: { from, rpc } as any, tables, failReads, queries, rpcs, rpcCalls }
 }

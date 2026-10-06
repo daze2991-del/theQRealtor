@@ -6,6 +6,7 @@ import { sendSmsDetailed, resolveAgentPhone, queueOrSendAgentSms, flushDueNotifi
 import { SMS_CONSENT_TEXT, SMS_CONSENT_TEXT_MAX } from '../../../lib/smsConsent'
 import { getTrialStatus } from '../../../lib/trial'
 import { normalizePhone } from '../../../lib/phone'
+import { isAcceptingRequests, REQUESTS_PAUSED_COPY } from '../../../lib/planLock'
 
 // ─── rate limiter ─────────────────────────────────────────────────────────────
 // Best-effort in-memory window per IP. Works for single-instance deployments;
@@ -127,6 +128,16 @@ export async function POST(request: Request) {
 
   if (propError || !property || !property.active) {
     return NextResponse.json({ error: 'Property not found.' }, { status: 404 })
+  }
+
+  // ── plan lock ───────────────────────────────────────────────────────────────
+  // Locked listing, locked sign, or the agent's trial ended with no plan chosen
+  // (lib/planLock.ts). Refused BEFORE the lead insert, so no lead is saved and
+  // no text goes to the agent or the buyer. This also makes the expired-trial
+  // teaser alerts below unreachable, by design. The response is the buyer-facing
+  // copy: no plan or trial wording.
+  if (!(await isAcceptingRequests(supabase, propertyId as string, (signId as string) || null))) {
+    return NextResponse.json({ error: REQUESTS_PAUSED_COPY, requestsPaused: true }, { status: 423 })
   }
 
   // ── normalized phone ────────────────────────────────────────────────────────

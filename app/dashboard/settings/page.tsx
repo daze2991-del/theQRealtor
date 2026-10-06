@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import { useRouter } from 'next/navigation'
 import DashboardLayout from '../../../components/DashboardLayout'
+import FreeSelection from '../../../components/FreeSelection'
 import { Check, Zap, Lock, Moon, Sun, Monitor, Mail } from 'lucide-react'
 
 const C = {
@@ -103,6 +104,9 @@ export default function SettingsPage() {
 
   // account summary
   const [plan, setPlan]               = useState<'free' | 'pro'>('free')
+  // Exact plan string. `plan` above collapses everything but 'pro' to 'free'
+  // for the badge, so it can't tell a real Free agent from a trial.
+  const [rawPlan, setRawPlan]         = useState<string | null>(null)
   const [propCount, setPropCount]     = useState(0)
   const [qrCount, setQrCount]         = useState(0)
   const [leadCount, setLeadCount]     = useState(0)
@@ -144,6 +148,7 @@ export default function SettingsPage() {
         if (profile) {
           setName(profile.name || '')
           setPlan(profile.plan === 'pro' ? 'pro' : 'free')
+          setRawPlan(typeof profile.plan === 'string' ? profile.plan : null)
           // Prefer profiles.phone; fall back to the auth metadata phone.
           if (profile.phone) setPhone(profile.phone)
           setDre(profile.dre || '')
@@ -536,6 +541,16 @@ export default function SettingsPage() {
                 hello@theqrealtor.com — we typically respond within 24 hours.
               </div>
             </Section>
+
+            {/* Free plan: change which listing / signs take buyer requests
+                (POST /api/plan/free-swap; max 1 listing, 3 signs, server-enforced). */}
+            {rawPlan === 'free' && (
+              <div id="free-plan">
+                <Section title="What's active on Free">
+                  <FreeSelection mode="swap" onDone={() => window.location.reload()} />
+                </Section>
+              </div>
+            )}
 
             {/* Sign Out */}
             <Section title="Sign Out">

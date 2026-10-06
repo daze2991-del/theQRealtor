@@ -13,6 +13,7 @@ import {
 import { calcPropertyInterest } from '../../../../lib/propertyInterest'
 import { timeAgo } from '../../../../lib/timeAgo'
 import { deactivationPatch } from '../../../../lib/propertyStatus'
+import NotTakingRequestsBadge from '../../../../components/NotTakingRequestsBadge'
 import { motivationToTierV2, requestedShowing } from '../../../../lib/leadScoringV2'
 
 const C = {
@@ -253,7 +254,9 @@ export default function PropertyIntelligencePage() {
       ...deactivationPatch(!!property.active, editForm.active),
     }
     const { error } = await supabase.from('properties').update(updates).eq('id', propertyId)
-    if (error) { setEditError('Failed to save. Please try again.') }
+    // 42501 here = turning the listing back on would exceed the plan's listing
+    // limit (trg_protect_property_plan_lock, migration 060); its message says so.
+    if (error) { setEditError(error.code === '42501' ? error.message : 'Failed to save. Please try again.') }
     else { setProperty((p: any) => ({ ...p, ...updates })); setEditOpen(false) }
     setEditSaving(false)
   }
@@ -448,6 +451,7 @@ export default function PropertyIntelligencePage() {
               }}>
                 {healthCfg.badgeLabel}
               </span>
+              {property.plan_locked_at && !isArchived && <NotTakingRequestsBadge size="md" />}
             </div>
             <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>
               {location && <span>{location} · </span>}

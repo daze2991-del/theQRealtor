@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { createBrowserSupabase } from '../lib/supabase-browser'
 import { getTrialStatus, TRIAL_WARN_DAYS, TRIAL_URGENT_DAYS } from '../lib/trial'
 import { planUsageMeters, SEGMENTED_METER_MAX } from '../lib/planUsage'
+import { CHOOSE_PLAN_BANNER, trialEndingBanner } from '../lib/planLock'
+import PlanChooser from './PlanChooser'
 import { isEligibleLead } from '../lib/leadEligibility'
 import FeedbackPrompt from './FeedbackPrompt'
 import { useSignOut } from './useSignOut'
@@ -345,6 +347,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const dismissStage = (stage: 'warn' | 'urgent') =>
     setDismissedStages(prev => ({ ...prev, [stage]: true }))
   const [isAdmin, setIsAdmin] = useState(false)
+  // End-of-trial chooser. Opens on load (every dashboard page) while the trial
+  // is expired and no plan has been chosen. Closable; the banner reopens it.
+  const [chooserOpen, setChooserOpen] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -356,15 +361,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         const [{ data: profile, error: profileErr }, { data: props }] = await Promise.all([
           supabase.from('profiles').select('plan, beta_joined_at').eq('id', session.user.id).single(),
-          supabase.from('properties').select('id, active').eq('user_id', session.user.id).is('deleted_at', null),
+          supabase.from('properties').select('id, active, plan_locked_at').eq('user_id', session.user.id).is('deleted_at', null),
         ])
 
         if (profileErr) console.error('[DashboardLayout] profile query error:', profileErr)
 
         const propertyIds = (props || []).map((p: any) => p.id)
         // Counted exactly as app/api/properties enforces the listing limit:
-        // active AND not soft-deleted (deleted_at is already filtered above).
-        const activeListingCnt = (props || []).filter((p: any) => p.active === true).length
+        // active AND not soft-deleted (deleted_at is already filtered above)
+        // AND not plan-locked (locked listings don't use a slot, migration 060).
+        const activeListingCnt = (props || []).filter((p: any) => p.active === true && !p.plan_locked_at).length
 
         // signs is RLS-scoped to the owning agent, so this only ever counts
         // the caller's own rows — this is also exactly what SIGN_LIMITS
@@ -376,6 +382,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           .from('signs').select('id', { count: 'exact', head: true })
           .eq('agent_id', session.user.id)
           .is('archived_at', null)
+          .is('plan_locked_at', null)
         const signCnt = sc || 0
 
         // New/uncontacted lead count for the Leads nav badge. Intentionally
@@ -434,6 +441,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setBetaJoinedAt(profile?.beta_joined_at ?? null)
         setPlan(resolvedPlan)
         setTrialLoaded(true)
+        setChooserOpen(getTrialStatus(profile?.beta_joined_at ?? null, resolvedPlan).expired)
         setActiveListingCount(activeListingCnt)
         setSignCount(signCnt)
         setNewLeadCount(newLeadCnt)
@@ -519,23 +527,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             if (exempt) return null
 
             if (expired) {
+              // Expired trial, no plan chosen: buyer requests are paused
+              // (lib/planLock.ts). The chooser modal opens on every dashboard
+              // page. Closing it leaves this banner, which reopens it.
               return (
-                <div style={{
+                <div role="status" style={{
                   background: '#1C0A0A', borderBottom: '1px solid #7F1D1D',
                   padding: '12px 24px', display: 'flex', alignItems: 'center',
                   justifyContent: 'space-between', gap: 16, flexShrink: 0,
                   fontFamily: 'sans-serif',
                 }}>
                   <span style={{ fontSize: 13.5, color: '#FCA5A5', fontWeight: 500 }}>
-                    Your trial has ended — upgrade to continue.
+                    {CHOOSE_PLAN_BANNER}
                   </span>
-                  <Link href="/dashboard/billing" style={{
-                    fontSize: 12.5, fontWeight: 700, color: '#F87171',
-                    textDecoration: 'none', whiteSpace: 'nowrap',
+                  <button onClick={() => setChooserOpen(true)} style={{
+                    fontSize: 12.5, fontWeight: 700, color: '#F87171', background: 'transparent',
+                    whiteSpace: 'nowrap', cursor: 'pointer',
                     border: '1px solid #7F1D1D', borderRadius: 6, padding: '4px 10px',
                   }}>
-                    View billing →
-                  </Link>
+                    Choose a plan →
+                  </button>
                 </div>
               )
             }
@@ -554,8 +565,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               ? { bg: '#2A0E00', border: '#9A3412', text: '#FDBA74', dismiss: '#9A3412' }
               : { bg: '#1C1400', border: '#78350F', text: '#FCD34D', dismiss: '#92400E' }
 
-            const dayLabel = `${daysRemaining} day${daysRemaining === 1 ? '' : 's'}`
-
             return (
               <div style={{
                 background: theme.bg, borderBottom: `1px solid ${theme.border}`,
@@ -564,9 +573,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 fontFamily: 'sans-serif',
               }}>
                 <span style={{ fontSize: 13.5, color: theme.text, fontWeight: stage === 'urgent' ? 700 : 500 }}>
-                  {stage === 'urgent'
-                    ? `Only ${dayLabel} left in your trial — upgrade to keep access to your leads.`
-                    : `Your trial ends in ${dayLabel}.`}
+                  {trialEndingBanner(daysRemaining)}
                 </span>
                 {/* Grouped so the banner keeps its text-left / actions-right
                     layout under justifyContent: space-between. */}
@@ -576,7 +583,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     textDecoration: 'none', whiteSpace: 'nowrap',
                     border: `1px solid ${theme.border}`, borderRadius: 6, padding: '4px 10px',
                   }}>
-                    {stage === 'urgent' ? 'Upgrade now →' : 'View billing →'}
+                    View plans →
                   </Link>
                   <button
                     onClick={() => dismissStage(stage)}
@@ -607,6 +614,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </div>
 
+      {chooserOpen && <PlanChooser onClose={() => setChooserOpen(false)} />}
       <FeedbackPrompt />
     </>
   )

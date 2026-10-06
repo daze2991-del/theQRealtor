@@ -49,7 +49,10 @@ export async function GET(
         .is('unassigned_at', null)
         .maybeSingle()
       if (assignment?.property_id) {
-        return NextResponse.redirect(new URL(`/open-house/${assignment.property_id}`, request.url))
+        // ?sign= lets check-in honour a plan-locked sign (lib/planLock.ts).
+        const checkin = new URL(`/open-house/${assignment.property_id}`, request.url)
+        checkin.searchParams.set('sign', qrCode.sign_id)
+        return NextResponse.redirect(checkin)
       }
       // No active assignment — the buyer page shows the unassigned-sign state.
       return NextResponse.redirect(new URL(`/p/${qrCode.sign_id}`, request.url))

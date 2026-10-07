@@ -487,6 +487,13 @@ export default function PropertyPage() {
           <h1 style={{ fontSize: 24, fontWeight: 900, margin: '0 0 4px', lineHeight: 1.15, color: C.text }}>{property.address}</h1>
           {location && <p style={{ color: C.muted, fontSize: 14, margin: '0 0 14px' }}>{location}</p>}
 
+          {/* Privacy notice — visible on load, including when the listing is
+              paused (tracking starts before any form is submitted). */}
+          <p style={{ color: C.muted, fontSize: 12, lineHeight: 1.5, margin: '0 0 14px' }}>
+            This page records your visit (return visits, photos viewed, time on page) to show the listing agent how interested buyers are. Anything you submit goes only to this listing agent.{' '}
+            <a href="/privacy#notice-at-collection" style={{ color: C.muted, textDecoration: 'underline' }}>Privacy notice</a>
+          </p>
+
           {(beds || baths) && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
               {[beds, baths].filter(Boolean).map(stat => (
@@ -743,18 +750,13 @@ export default function PropertyPage() {
 
                   {/* Privacy notice */}
                   <p style={{ fontSize: 11, color: C.muted, textAlign: 'center', margin: 0, lineHeight: 1.55 }}>
-                    Your information is shared only with the listing agent.{' '}
+                    Your information goes only to the listing agent for this property — never to other agents or advertisers.{' '}
                     <a href="/privacy" style={{ color: C.muted, textDecoration: 'underline' }}>See our Privacy Policy.</a>
                   </p>
 
                   {/* Consent line */}
                   <p style={{ fontSize: 11, color: C.muted, textAlign: 'center', margin: 0, lineHeight: 1.55 }}>
                     By submitting, you authorize the listing agent to contact you using the methods you selected. Standard message and data rates may apply.
-                  </p>
-
-                  {/* Trust line */}
-                  <p style={{ fontSize: 11, color: C.muted, textAlign: 'center', margin: 0, lineHeight: 1.55 }}>
-                    Your info goes only to the listing agent for this property — not shared with other agents.
                   </p>
                 </div>
               </form>

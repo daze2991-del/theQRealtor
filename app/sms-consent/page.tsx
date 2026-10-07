@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { Home } from 'lucide-react'
+import SmsAgentConsentText from '../../components/SmsAgentConsentText'
+import { msg } from '../../lib/twilio'
 
 export const metadata: Metadata = {
   title: 'SMS Opt-In Consent — theqrealtor',
@@ -20,6 +22,11 @@ const L = {
   green:    '#16A34A',
   greenBg:  '#F0FDF4',
 }
+
+// Real showing-request alert, generated from the same template function
+// (lib/twilio.ts msg.showingAlert) agents actually receive — placeholder
+// buyer/lead details only, so this page can never drift from what's sent.
+const EXAMPLE_SMS = msg.showingAlert('John Buyer', '123 Main St', 'example-lead-id', '(555) 010-1234', null, 'Phone Call')
 
 function Step({ n, children }: { n: number; children: React.ReactNode }) {
   return (
@@ -103,6 +110,10 @@ export default function SmsConsentPage() {
           <Step n={6}>
             Agent must affirmatively enable the toggle to complete opt-in. No SMS is sent without this action.
           </Step>
+
+          <p style={{ fontSize: 14, color: L.muted, margin: '4px 0 0', lineHeight: 1.6 }}>
+            Agents receive alerts only when a buyer requests a showing or asks a question.
+          </p>
         </div>
 
         {/* 3. Consent Language */}
@@ -120,9 +131,7 @@ export default function SmsConsentPage() {
             color: L.sub,
             lineHeight: 1.75,
           }}>
-            By enabling SMS Lead Alerts, you agree to receive text message notifications from theqrealtor
-            when new buyer leads are captured for your listings. Message frequency varies based on lead
-            activity. Msg &amp; Data rates may apply. Reply STOP at any time to opt out. Reply HELP for help.
+            <SmsAgentConsentText color={L.purple} />
           </div>
         </div>
 
@@ -162,9 +171,7 @@ export default function SmsConsentPage() {
             lineHeight: 1.65,
             maxWidth: '80%',
           }}>
-            theqrealtor Alert: New buyer lead for 123 Main St. Name: Mike Davis | Phone: (310) 555-0789 |
-            Email: mike@email.com. Log in to your dashboard to view full lead details.
-            Reply STOP to opt out.
+            {EXAMPLE_SMS}
           </div>
         </div>
 
@@ -186,7 +193,7 @@ export default function SmsConsentPage() {
             </li>
           </ul>
           <p style={{ fontSize: 15, color: L.sub, lineHeight: 1.65, margin: 0 }}>
-            SMS messages will immediately cease upon opt-out.
+            No further alert texts are sent after you opt out.
           </p>
         </div>
 

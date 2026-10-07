@@ -187,9 +187,17 @@ export default function OpenHouseCheckInPage() {
           <div style={{ fontSize: 12, fontWeight: 700, color: C.amberL, textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 6 }}>
             Open House
           </div>
-          <h1 style={{ fontSize: 22, fontWeight: 900, margin: '0 0 14px', lineHeight: 1.2, color: C.text }}>
+          <h1 style={{ fontSize: 22, fontWeight: 900, margin: '0 0 4px', lineHeight: 1.2, color: C.text }}>
             Welcome to {property.address}
           </h1>
+
+          {/* Privacy notice — visible on load, including when the listing is
+              paused (tracking starts before any form is submitted). */}
+          <p style={{ color: C.muted, fontSize: 12, lineHeight: 1.5, margin: '0 0 14px' }}>
+            This page records your visit (return visits, photos viewed, time on page) to show the listing agent how interested buyers are. Anything you submit goes only to this listing agent.{' '}
+            <a href="/privacy#notice-at-collection" style={{ color: C.muted, textDecoration: 'underline' }}>Privacy notice</a>
+          </p>
+
           {(price || beds || baths) && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
               {price && (

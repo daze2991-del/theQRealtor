@@ -443,6 +443,16 @@ function AuthForm() {
                 ? "Sign in →"
                 : phoneVerified ? "Create account →" : "Verify your phone to continue"}
             </button>
+
+            {mode === "signup" && (
+              <p style={{ fontSize: 12, color: C.muted, textAlign: 'center', margin: 0, lineHeight: 1.5 }}>
+                By creating an account, you agree to our{' '}
+                <a href="/terms" style={{ color: C.muted, textDecoration: 'underline' }}>Terms of Service</a>
+                {' '}and{' '}
+                <a href="/privacy" style={{ color: C.muted, textDecoration: 'underline' }}>Privacy Policy</a>.
+              </p>
+            )}
+
             <button
               style={ghostBtn}
               type="button"

@@ -5,6 +5,7 @@ import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import { useRouter } from 'next/navigation'
 import DashboardLayout from '../../../components/DashboardLayout'
 import FreeSelection from '../../../components/FreeSelection'
+import SmsAgentConsentText from '../../../components/SmsAgentConsentText'
 import { Check, Zap, Lock, Moon, Sun, Monitor, Mail } from 'lucide-react'
 
 const C = {
@@ -419,12 +420,7 @@ export default function SettingsPage() {
               </div>
               {(smsEnabled || !!phone.trim()) && (
                 <p style={{ margin: '14px 0 0', fontSize: 11, color: C.muted, lineHeight: 1.65 }}>
-                  By enabling SMS alerts, you consent to receive automated lead notification text messages
-                  from theqrealtor at the number provided. Message frequency varies. Msg &amp; Data rates
-                  may apply. Reply STOP to unsubscribe at any time or HELP for help. View our{' '}
-                  <a href="https://theqrealtor.com/privacy" target="_blank" rel="noopener noreferrer" style={{ color: C.purpleL, textDecoration: 'none' }}>Privacy Policy</a>
-                  {' '}and{' '}
-                  <a href="https://theqrealtor.com/terms" target="_blank" rel="noopener noreferrer" style={{ color: C.purpleL, textDecoration: 'none' }}>Terms</a>.
+                  <SmsAgentConsentText color={C.purpleL} />
                 </p>
               )}
               {!phone.trim() && (

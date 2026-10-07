@@ -67,7 +67,7 @@ export async function POST(req: Request) {
 
   const { data: updated, error: fetchError } = await admin
     .from('signs')
-    .select('id, label, created_at, sign_assignments(id, property_id, assigned_at, unassigned_at, properties(id, address, city, state))')
+    .select('id, label, created_at, sign_assignments(id, property_id, assigned_at, unassigned_at, properties(id, address, city, state, plan_locked_at))')
     .eq('id', signId)
     .single()
   if (fetchError || !updated) {

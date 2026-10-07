@@ -1,14 +1,16 @@
 import { PauseCircle } from 'lucide-react'
-import { NOT_TAKING_REQUESTS_LABEL, NOT_TAKING_REQUESTS_TOOLTIP } from '../lib/planLock'
+import { NOT_TAKING_REQUESTS_LABEL, NOT_TAKING_REQUESTS_TOOLTIPS, type PausedReason } from '../lib/planLock'
 
-// Neutral grey pill for a plan-locked listing or sign (migration 060). Same
-// shape and palette as TextsOffBadge, and deliberately not red: nothing is
-// wrong or lost, it just isn't one of the items kept active on the plan.
-export default function NotTakingRequestsBadge({ size = 'sm' }: { size?: 'sm' | 'md' }) {
+// Neutral grey pill for a listing or sign buyers can't send requests through
+// (lib/planLock.ts requestsPausedReason). Replaces the green Active/Assigned
+// pill and is never shown alongside it. Same shape and palette as
+// TextsOffBadge, and deliberately not red: nothing is wrong or lost.
+export default function NotTakingRequestsBadge({ size = 'sm', reason = 'locked' }: { size?: 'sm' | 'md'; reason?: PausedReason }) {
   const md = size === 'md'
+  const tooltip = NOT_TAKING_REQUESTS_TOOLTIPS[reason]
   return (
     <span
-      title={NOT_TAKING_REQUESTS_TOOLTIP}
+      title={tooltip}
       data-testid="not-taking-requests"
       style={{
         fontSize: md ? 12 : 10, fontWeight: 700,
@@ -20,7 +22,7 @@ export default function NotTakingRequestsBadge({ size = 'sm' }: { size?: 'sm' | 
       <PauseCircle size={md ? 12 : 10} aria-hidden="true" />
       {NOT_TAKING_REQUESTS_LABEL}
       <span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>
-        {' — '}{NOT_TAKING_REQUESTS_TOOLTIP}
+        {' — '}{tooltip}
       </span>
     </span>
   )

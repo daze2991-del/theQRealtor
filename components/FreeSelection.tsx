@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { rankByActivity, FREE_MAX_LISTINGS, FREE_MAX_SIGNS } from '../lib/planLock'
+import { rankByActivity, FREE_MAX_LISTINGS, FREE_MAX_SIGNS, swapTooSoonMessage } from '../lib/planLock'
 import type { ChoiceListing, ChoiceSign } from '../lib/planChoice'
 
 // "Choose what stays active on Free". Used in two places:
@@ -107,7 +107,15 @@ export default function FreeSelection({ mode, onDone, onBack }: {
         body: JSON.stringify({ listingIds: listingId ? [listingId] : [], signIds }),
       })
       const body = await res.json().catch(() => ({}))
-      if (!res.ok) { setError(body.error || 'Something went wrong. Please try again.'); setSaving(false); return }
+      if (!res.ok) {
+        // 429 = 30-day swap limit (migration 062). Re-format the date in the
+        // viewer's own timezone rather than the server's UTC wording.
+        setError(res.status === 429 && typeof body.nextChangeAt === 'string'
+          ? swapTooSoonMessage(body.nextChangeAt)
+          : body.error || 'Something went wrong. Please try again.')
+        setSaving(false)
+        return
+      }
       onDone()
     } catch {
       setError('Network error. Please try again.')
@@ -144,6 +152,7 @@ export default function FreeSelection({ mode, onDone, onBack }: {
       <p style={{ fontSize: 13, color: C.sub, margin: '0 0 18px', lineHeight: 1.55 }}>
         Free keeps {FREE_MAX_LISTINGS} listing and up to {FREE_MAX_SIGNS} signs taking buyer requests. Everything else stays in your
         dashboard with all its leads and history. Buyers just can&apos;t send requests through it.
+        {mode === 'swap' && ' You can change your active listing, or swap out a sign, once every 30 days. If your listing goes offline or a sign is archived, you can replace it right away.'}
       </p>
 
       {loadError && <p style={{ color: '#F87171', fontSize: 13 }}>{loadError}</p>}

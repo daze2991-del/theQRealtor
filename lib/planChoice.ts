@@ -1,4 +1,4 @@
-import { buildActivityStats, RANKING_WINDOW_DAYS, FREE_MAX_LISTINGS, FREE_MAX_SIGNS, type ActivityStats } from './planLock'
+import { buildActivityStats, RANKING_WINDOW_DAYS, FREE_MAX_LISTINGS, FREE_MAX_SIGNS, parseSwapTooSoon, swapTooSoonMessage, type ActivityStats } from './planLock'
 import { getTrialStatus } from './trial'
 
 // Server-side pieces of "Choose what stays active on Free". Used by:
@@ -103,12 +103,51 @@ export function parseSelection(body: unknown):
   return { ok: true, listingId: uniqueListings[0] ?? null, signIds: uniqueSigns }
 }
 
-/** Map an apply_free_selection() exception to an HTTP response shape. */
-export function selectionErrorResponse(message: string | undefined): { status: number; error: string } {
+/** Map an apply_free_selection() exception to an HTTP response shape.
+ *  A 30-day swap-limit refusal (migration 062) is 429 with nextChangeAt
+ *  (ISO, UTC); the UI re-formats that date in the viewer's own timezone. */
+export function selectionErrorResponse(message: string | undefined): { status: number; error: string; nextChangeAt?: string } {
   const m = message ?? ''
+  const next = parseSwapTooSoon(m)
+  if (next) return { status: 429, error: swapTooSoonMessage(next, 'en-US', 'UTC'), nextChangeAt: next }
   if (m.includes('invalid_listing')) return { status: 400, error: 'That listing can’t be kept active. Choose one of your live listings.' }
   if (m.includes('invalid_sign')) return { status: 400, error: 'Choose signs on the selected listing, or unassigned signs.' }
   if (m.includes('too_many_signs')) return { status: 400, error: `Free keeps up to ${FREE_MAX_SIGNS} signs active.` }
   if (m.includes('not_trial') || m.includes('not_free')) return { status: 409, error: 'Your plan changed. Refresh the page and try again.' }
   return { status: 500, error: 'Something went wrong. Please try again.' }
+}
+
+// ── Swap availability (migration 062) ────────────────────────────────────────
+export interface SwapStatus {
+  /** ISO time the active LISTING can next be changed; null = now. */
+  listingNextAt: string | null
+  /** ISO time an active SIGN can next be replaced; null = now. */
+  signsNextAt: string | null
+  /** Empty Free sign slots. Filling one is always allowed. */
+  signSlotsOpen: number
+}
+
+type Rpc = { rpc: (fn: string, args: Record<string, unknown>) => any }
+
+/** free_swap_availability() plus the open sign-slot count. Free agents only. */
+export async function loadSwapStatus(admin: Db & Rpc, agentId: string): Promise<SwapStatus> {
+  const [{ data: avail, error: availErr }, { count, error: countErr }] = await Promise.all([
+    admin.rpc('free_swap_availability', { p_agent: agentId }),
+    admin.from('signs').select('id', { count: 'exact', head: true })
+      .eq('agent_id', agentId).is('archived_at', null).is('plan_locked_at', null),
+  ])
+  if (availErr || countErr) throw new Error((availErr ?? countErr).message)
+  const row = (Array.isArray(avail) ? avail[0] : avail) ?? {}
+  const iso = (v: unknown) => (typeof v === 'string' && v ? new Date(v).toISOString() : null)
+  return {
+    listingNextAt: iso(row.listing_next_at),
+    signsNextAt: iso(row.signs_next_at),
+    signSlotsOpen: Math.max(0, FREE_MAX_SIGNS - (count ?? 0)),
+  }
+}
+
+/** The swap link is shown as a date (not clickable) only while nothing could change. */
+export function signLinkBlockedUntil(s: SwapStatus | null): string | null {
+  if (!s || !s.signsNextAt || s.signSlotsOpen > 0) return null
+  return s.signsNextAt
 }

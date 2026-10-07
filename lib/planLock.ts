@@ -23,10 +23,15 @@ export function trialEndingBanner(daysRemaining: number): string {
 //
 // Columns and protection: supabase/migrations/060_plan_locking.sql.
 
-/** Shown to buyers in place of the request buttons and form.
+/** Shown to buyers in place of the request buttons and form. agentName comes
+ *  from the server (properties.agent_name — the same name buyer confirmation
+ *  texts use); falls back to "the listing agent" when there isn't one. Never
+ *  pass phone, email, plan or trial state — only the display name.
  *  PROVISIONAL — pending attorney review. */
-export const REQUESTS_PAUSED_COPY =
-  "This listing isn't taking requests through this page right now. Please contact the listing agent directly."
+export function requestsPausedCopy(agentName?: string | null): string {
+  const name = agentName && agentName.trim() ? agentName.trim() : 'the listing agent'
+  return `This listing isn't taking requests through this page right now. Please contact ${name} using the contact details on the sign.`
+}
 
 /** Dashboard badge on a listing or sign that buyers can't send requests through. */
 export const NOT_TAKING_REQUESTS_LABEL = 'Not taking requests'

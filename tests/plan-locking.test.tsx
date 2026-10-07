@@ -26,7 +26,7 @@ const create = vi.fn()
 vi.mock('twilio', () => ({ default: vi.fn(() => ({ messages: { create } })) }))
 
 const planLock = await import('../lib/planLock')
-const { REQUESTS_PAUSED_COPY, isAcceptingRequests, rankByActivity, buildActivityStats, trialEndingBanner, TRIAL_ENDED_INTRO, CHOOSE_PLAN_BANNER } = planLock
+const { requestsPausedCopy, isAcceptingRequests, rankByActivity, buildActivityStats, trialEndingBanner, TRIAL_ENDED_INTRO, CHOOSE_PLAN_BANNER } = planLock
 const { choiceEligibility, parseSelection } = await import('../lib/planChoice')
 const { PLAN_CONFIG } = await import('../lib/plans')
 const { getTrialStatus } = await import('../lib/trial')
@@ -88,16 +88,23 @@ beforeEach(() => {
 
 // ── Copy ─────────────────────────────────────────────────────────────────────
 describe('buyer-facing locked copy', () => {
-  it('is exactly the approved string, marked provisional', () => {
-    expect(REQUESTS_PAUSED_COPY).toBe("This listing isn't taking requests through this page right now. Please contact the listing agent directly.")
+  it('names the agent, or falls back to "the listing agent"; marked provisional', () => {
+    expect(requestsPausedCopy('Jane Smith')).toBe(
+      "This listing isn't taking requests through this page right now. Please contact Jane Smith using the contact details on the sign.")
+    expect(requestsPausedCopy(null)).toBe(
+      "This listing isn't taking requests through this page right now. Please contact the listing agent using the contact details on the sign.")
+    expect(requestsPausedCopy(undefined)).toBe(requestsPausedCopy(null))
+    expect(requestsPausedCopy('   ')).toBe(requestsPausedCopy(null))   // blank name treated as none
     expect(src('lib/planLock.ts')).toMatch(/PROVISIONAL — pending attorney review/)
-    expect(REQUESTS_PAUSED_COPY).not.toMatch(FORBIDDEN_BUYER_WORDS)
+    expect(requestsPausedCopy('Jane Smith')).not.toMatch(FORBIDDEN_BUYER_WORDS)
   })
 
-  it('the notice renders only that sentence: no phone, no consent box', () => {
-    const html = renderToStaticMarkup(createElement(RequestsPausedNotice))
-    expect(html).toContain('This listing isn&#x27;t taking requests through this page right now.')
+  it('the notice renders only that sentence, with the agent name when given: no phone, no consent box', () => {
+    const html = renderToStaticMarkup(createElement(RequestsPausedNotice, { agentName: 'Jane Smith' }))
+    expect(html).toContain('Please contact Jane Smith using the contact details on the sign.')
     expect(html).not.toMatch(/tel:|sms:|mailto:|checkbox|consent/i)
+    const fallback = renderToStaticMarkup(createElement(RequestsPausedNotice))
+    expect(fallback).toContain('Please contact the listing agent using the contact details on the sign.')
   })
 })
 
@@ -110,18 +117,25 @@ describe('expired trial with no plan chosen: buyers are locked out, agent keeps 
     expect(db.tables.properties[0].plan_locked_at).toBeNull()
   })
 
-  it('listing-availability returns only a neutral boolean', async () => {
+  it('listing-availability returns agentName (and nothing else sensitive) when paused', async () => {
     const res = await post(availability, '/api/listing-availability', { propertyId: P1 })
     const text = await res.text()
-    expect(JSON.parse(text)).toEqual({ acceptingRequests: false })
+    expect(JSON.parse(text)).toEqual({ acceptingRequests: false, agentName: 'Agent' })
     expect(text).not.toMatch(FORBIDDEN_BUYER_WORDS)
+    expect(text).not.toMatch(/phone|email/i)
+  })
+
+  it('listing-availability omits agentName when accepting requests', async () => {
+    seed('trial', daysAgo(10))
+    const res = await post(availability, '/api/listing-availability', { propertyId: P1 })
+    expect(await res.json()).toEqual({ acceptingRequests: true })
   })
 
   it('submit-lead rejects (423): no lead, no text to agent or buyer, so the teaser alert cannot fire', async () => {
     const res = await submit()
     expect(res.status).toBe(423)
     const body = await res.json()
-    expect(body.error).toBe(REQUESTS_PAUSED_COPY)
+    expect(body.error).toBe(requestsPausedCopy('Agent'))
     expect(JSON.stringify(body)).not.toMatch(/trial|subscri|billing|plan\b/i)
     expect(db.tables.leads).toHaveLength(0)
     expect(create).not.toHaveBeenCalled()
@@ -130,7 +144,7 @@ describe('expired trial with no plan chosen: buyers are locked out, agent keeps 
   it('open-house-checkin rejects (423): no lead', async () => {
     const res = await checkin()
     expect(res.status).toBe(423)
-    expect((await res.json()).error).toBe(REQUESTS_PAUSED_COPY)
+    expect((await res.json()).error).toBe(requestsPausedCopy('Agent'))
     expect(db.tables.leads).toHaveLength(0)
   })
 
@@ -165,7 +179,7 @@ describe('locked listing / locked sign', () => {
     expect((await checkin({ signId: S1 })).status).toBe(423)
     expect(db.tables.leads).toHaveLength(0)
     const res = await post(availability, '/api/listing-availability', { propertyId: P1, signId: S1 })
-    expect(await res.json()).toEqual({ acceptingRequests: false })
+    expect(await res.json()).toEqual({ acceptingRequests: false, agentName: 'Agent' })
     // Same listing without the locked sign is open
     expect((await submit()).status).toBe(200)
   })

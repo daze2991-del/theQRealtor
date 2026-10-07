@@ -628,6 +628,20 @@ function SignsPageInner() {
           </div>
 
           <div style={{ padding: '24px 28px' }}>
+            {/* Layout fix: this notice sits directly below the sticky header,
+                with no other banner able to land above it — on a narrow
+                viewport, pageError/autoAssignNotice appearing first could
+                otherwise push it up against (or under) the sticky topbar.
+                Matches the Properties page's equivalent notice position. */}
+            {isFreePlan && signs.some(s => s.locked) && (
+              <p style={{ fontSize: 13, color: C.muted, margin: '0 0 16px' }}>
+                Some signs aren&apos;t taking buyer requests on your current plan.{' '}
+                {signLinkBlockedUntil(swapStatus)
+                  ? <span style={{ color: C.sub }}>You can change which signs are active on {formatChangeDate(signLinkBlockedUntil(swapStatus)!)}.</span>
+                  : <Link href="/dashboard/settings#free-plan" style={{ color: C.purpleL, fontWeight: 600, textDecoration: 'none' }}>Change which signs are active →</Link>}
+              </p>
+            )}
+
             {pageError && (
               <div style={{ background: '#1C0A0A', border: '1px solid #7F1D1D', borderRadius: 10, padding: '10px 16px', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
                 <span style={{ fontSize: 13, color: '#FCA5A5' }}>{pageError}</span>
@@ -643,15 +657,6 @@ function SignsPageInner() {
                 <span style={{ fontSize: 13, color: '#4ade80', display: 'flex', alignItems: 'center', gap: 5 }}><Check size={13} /> {autoAssignNotice}</span>
                 <button onClick={() => setAutoAssignNotice('')} style={{ background: 'none', border: 'none', color: '#4ade80', cursor: 'pointer', display: 'flex', flexShrink: 0 }}><X size={15} /></button>
               </div>
-            )}
-
-            {isFreePlan && signs.some(s => s.locked) && (
-              <p style={{ fontSize: 13, color: C.muted, margin: '0 0 16px' }}>
-                Some signs aren&apos;t taking buyer requests on your current plan.{' '}
-                {signLinkBlockedUntil(swapStatus)
-                  ? <span style={{ color: C.sub }}>You can change which signs are active on {formatChangeDate(signLinkBlockedUntil(swapStatus)!)}.</span>
-                  : <Link href="/dashboard/settings#free-plan" style={{ color: C.purpleL, fontWeight: 600, textDecoration: 'none' }}>Change which signs are active →</Link>}
-              </p>
             )}
 
             {/* Create sign */}

@@ -6,6 +6,10 @@ export type Row = Record<string, any>
 export function makeFakeDb() {
   const tables: Record<string, Row[]> = {}
   const failReads = new Set<string>()
+  // Simulate a specific write failure (e.g. a unique_violation race) on the
+  // NEXT insert/update to this table, then clear itself. { code, message }
+  // matches the shape callers read off a real postgrest-js error.
+  const failWrites = new Map<string, { code?: string; message: string }>()
   const queries: { table: string; op: string; filters: string[] }[] = []
   // rpc(name, args): tests register a handler per function name. Calls are
   // recorded; an unregistered name returns an error like PostgREST would.
@@ -15,8 +19,9 @@ export function makeFakeDb() {
 
   function from(table: string) {
     const st = {
-      op: 'select' as 'select' | 'insert' | 'update',
+      op: 'select' as 'select' | 'insert' | 'update' | 'upsert',
       payload: null as Row | null,
+      onConflict: 'id',
       filters: [] as ((r: Row) => boolean)[],
       filterDesc: [] as string[],
       order: null as { c: string; asc: boolean } | null,
@@ -45,10 +50,25 @@ export function makeFakeDb() {
         }
         return { data: out, error: null }
       }
+      if (st.op === 'insert' || st.op === 'update' || st.op === 'upsert') {
+        const failure = failWrites.get(table)
+        if (failure) { failWrites.delete(table); return { data: null, error: failure } }
+      }
       if (st.op === 'insert') {
         const row = { id: `row-${++seq}`, created_at: new Date().toISOString(), ...st.payload }
         rows.push(row)
         return { data: st.returning ? (st.single ? row : [row]) : null, error: null }
+      }
+      if (st.op === 'upsert') {
+        const key = st.onConflict
+        const existing = rows.find(r => r[key] === st.payload![key])
+        if (existing) {
+          Object.assign(existing, st.payload)
+          return { data: st.returning ? existing : null, error: null }
+        }
+        const row = { id: `row-${++seq}`, created_at: new Date().toISOString(), ...st.payload }
+        rows.push(row)
+        return { data: st.returning ? row : null, error: null }
       }
       const hit = matched()
       hit.forEach(r => Object.assign(r, st.payload))
@@ -62,6 +82,7 @@ export function makeFakeDb() {
       },
       insert(p: Row) { st.op = 'insert'; st.payload = p; return b },
       update(p: Row) { st.op = 'update'; st.payload = p; return b },
+      upsert(p: Row, opts?: { onConflict?: string }) { st.op = 'upsert'; st.payload = p; st.onConflict = opts?.onConflict ?? 'id'; st.returning = true; return b },
       eq: (c: string, v: unknown) => filter(`${c}=${v}`, r => r[c] === v),
       in: (c: string, vs: unknown[]) => filter(`${c} in [${vs.join(',')}]`, r => vs.includes(r[c])),
       is: (c: string, v: unknown) => filter(`${c} is ${v}`, r => (r[c] ?? null) === v),
@@ -83,5 +104,5 @@ export function makeFakeDb() {
     const out = h(args)
     return Promise.resolve({ data: out.data ?? null, error: out.error ?? null })
   }
-  return { client: { from, rpc } as any, tables, failReads, queries, rpcs, rpcCalls }
+  return { client: { from, rpc } as any, tables, failReads, failWrites, queries, rpcs, rpcCalls }
 }

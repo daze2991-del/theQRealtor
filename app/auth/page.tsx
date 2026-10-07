@@ -139,8 +139,9 @@ function AuthForm() {
         // that left phoneVerified set stranded the user with a verified
         // number they could not change and a submit that could not succeed.
         // Reloading the page was the only way out. The likeliest trigger is
-        // the phone-uniqueness rejection, which returns a generic 400 with no
-        // phoneVerificationRequired flag.
+        // the phone-uniqueness rejection, which returns a specific 400
+        // ("already linked to an account") with no phoneVerificationRequired
+        // flag — body.error below renders it as-is.
         //
         // Scoped to 400 deliberately. A 403 (invite-only / at capacity) and a
         // 500 are not the user's input to fix, and clearing a good

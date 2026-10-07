@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminSupabase } from '../../../lib/supabase-admin'
 import { computeScoreV2, isLikelyBot, type EngagementInputV2 } from '../../../lib/leadScoringV2'
 import { normalizePhone } from '../../../lib/phone'
-import { isAcceptingRequests, REQUESTS_PAUSED_COPY } from '../../../lib/planLock'
+import { isAcceptingRequests, requestsPausedCopy } from '../../../lib/planLock'
 
 const rateMap = new Map<string, number[]>()
 const LIMIT = 10
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
 
   const { data: property, error: propError } = await supabase
     .from('properties')
-    .select('id, address, user_id, active')
+    .select('id, address, user_id, active, agent_name')
     .eq('id', propertyId)
     .single()
 
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
   // Plan lock (lib/planLock.ts) — refused before anything is saved.
   const signId = typeof signIdRaw === 'string' && signIdRaw.trim() ? signIdRaw.trim() : null
   if (!(await isAcceptingRequests(supabase, propertyId as string, signId))) {
-    return NextResponse.json({ error: REQUESTS_PAUSED_COPY, requestsPaused: true }, { status: 423 })
+    return NextResponse.json({ error: requestsPausedCopy(property.agent_name as string | null), requestsPaused: true }, { status: 423 })
   }
 
   // Same base V2 scoring as submit-lead for a brand-new lead with no engagement data

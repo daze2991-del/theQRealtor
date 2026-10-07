@@ -95,6 +95,8 @@ export default function PropertyPage() {
   // false = not taking requests (lib/planLock.ts): listing info stays, the
   // request buttons/form are replaced. Nothing renders until it's known.
   const [accepting, setAccepting] = useState<boolean | null>(null)
+  // Only ever set when paused; server-supplied, no phone/email/plan/trial.
+  const [pausedAgentName, setPausedAgentName] = useState<string | null>(null)
 
   // Carousel
   const [slide,     setSlide]     = useState(0)
@@ -188,6 +190,7 @@ export default function PropertyPage() {
       // A failed availability check leaves the buttons up. submit-lead still
       // refuses a locked submission (423), which flips this to false.
       setAccepting(availability?.acceptingRequests !== false)
+      setPausedAgentName(availability?.agentName ?? null)
       setLoading(false)
     }
     load()
@@ -529,7 +532,7 @@ export default function PropertyPage() {
               This property is no longer available.
             </div>
           ) : accepting === false ? (
-            <RequestsPausedNotice border={C.border} color={C.muted} />
+            <RequestsPausedNotice border={C.border} color={C.muted} agentName={pausedAgentName} />
           ) : (
             <>
               <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>

@@ -28,10 +28,39 @@ export function trialEndingBanner(daysRemaining: number): string {
 export const REQUESTS_PAUSED_COPY =
   "This listing isn't taking requests through this page right now. Please contact the listing agent directly."
 
-/** Dashboard badge on a locked listing or sign. */
+/** Dashboard badge on a listing or sign that buyers can't send requests through. */
 export const NOT_TAKING_REQUESTS_LABEL = 'Not taking requests'
-export const NOT_TAKING_REQUESTS_TOOLTIP =
-  "Buyers can still view this, but can't send requests through it. It isn't one of the items kept active on your plan."
+export const NOT_TAKING_REQUESTS_TOOLTIPS: Record<PausedReason, string> = {
+  locked: "Buyers can still view this, but can't send requests through it. It isn't one of the items kept active on your plan.",
+  trial_ended: "Buyers can still view this, but can't send requests through it until you choose a plan.",
+}
+export const NOT_TAKING_REQUESTS_TOOLTIP = NOT_TAKING_REQUESTS_TOOLTIPS.locked
+
+// ── One decision, used by buyers AND the dashboard ───────────────────────────
+// requestsPausedReason() is the single rule. The buyer-facing check below
+// (isAcceptingRequests) and every dashboard badge call it, so the dashboard can
+// never show "Active" on something a buyer would find paused, or the reverse.
+//
+// A sign is paused if it is locked, if the listing it currently points to is
+// locked, or if the owner's trial has ended. That matches what a buyer scanning
+// it gets on /p.
+
+export type PausedReason = 'locked' | 'trial_ended'
+
+export interface PauseInputs {
+  /** properties.plan_locked_at of the listing (or of the sign's current listing). */
+  listingLockedAt?: string | null
+  /** signs.plan_locked_at, when asking about a sign. */
+  signLockedAt?: string | null
+  /** Owning agent. Omit (or pass null) when unknown. Unknown never pauses. */
+  owner?: { plan: string | null | undefined; beta_joined_at: string | null | undefined } | null
+}
+
+export function requestsPausedReason({ listingLockedAt, signLockedAt, owner }: PauseInputs): PausedReason | null {
+  if (listingLockedAt || signLockedAt) return 'locked'
+  if (owner && getTrialStatus(owner.beta_joined_at, owner.plan).expired) return 'trial_ended'
+  return null
+}
 
 // Minimal structural type so both the real admin client and the test fake fit.
 type Db = { from: (table: string) => any }
@@ -57,8 +86,8 @@ export async function isAcceptingRequests(
     return true
   }
   if (!property) return true // not found is the caller's 404, not a lock
-  if (property.plan_locked_at) return false
 
+  let signLockedAt: string | null = null
   if (signId) {
     const { data: sign, error: signError } = await admin
       .from('signs')
@@ -66,23 +95,43 @@ export async function isAcceptingRequests(
       .eq('id', signId)
       .maybeSingle()
     if (signError) console.error('[planLock] sign lookup error:', signError.message)
-    else if (sign?.plan_locked_at) return false
+    else signLockedAt = sign?.plan_locked_at ?? null
   }
 
+  let owner: PauseInputs['owner'] = null
   if (property.user_id) {
-    const { data: owner, error: ownerError } = await admin
+    const { data, error: ownerError } = await admin
       .from('profiles')
       .select('plan, beta_joined_at')
       .eq('id', property.user_id)
       .maybeSingle()
-    if (ownerError) {
-      console.error('[planLock] owner lookup error:', ownerError.message)
-    } else if (owner && getTrialStatus(owner.beta_joined_at, owner.plan).expired) {
-      return false
-    }
+    if (ownerError) console.error('[planLock] owner lookup error:', ownerError.message)
+    else owner = data ?? null
   }
 
-  return true
+  return requestsPausedReason({ listingLockedAt: property.plan_locked_at, signLockedAt, owner }) === null
+}
+
+// ── Free swap limit (migration 062) ──────────────────────────────────────────
+// apply_free_selection() refuses a counted swap inside 30 days with the
+// message 'swap_too_soon:<ISO UTC>'. The date is formatted in the viewer's
+// locale and timezone, at the moment the change becomes allowed.
+
+export const FREE_SWAP_DAYS = 30
+
+export function formatChangeDate(iso: string, locale?: string, timeZone?: string): string {
+  return new Date(iso).toLocaleDateString(locale ?? 'en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone })
+}
+
+/** "You can change this again on {date}." */
+export function swapTooSoonMessage(iso: string, locale?: string, timeZone?: string): string {
+  return `You can change this again on ${formatChangeDate(iso, locale, timeZone)}.`
+}
+
+/** Parse the SQL refusal; null if the message isn't a swap-limit refusal. */
+export function parseSwapTooSoon(message: string | null | undefined): string | null {
+  const m = /swap_too_soon:(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)/.exec(message ?? '')
+  return m ? m[1] : null
 }
 
 // ── "Choose what stays active on Free": recommendation ranking ───────────────

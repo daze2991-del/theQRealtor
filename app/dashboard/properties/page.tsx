@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { propertyLimitForPlan } from '../../../lib/plans'
 import NotTakingRequestsBadge from '../../../components/NotTakingRequestsBadge'
+import { requestsPausedReason, formatChangeDate, type PausedReason } from '../../../lib/planLock'
 import { deactivationPatch } from '../../../lib/propertyStatus'
 import { motivationToTierV2 } from '../../../lib/leadScoringV2'
 
@@ -47,8 +48,10 @@ function StatusBadge({ active, toggling, onToggle }: { active: boolean; toggling
   )
 }
 
-function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onToggle, onDelete, onEdit, deleting, userId, origin, thumbnail }: {
+function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onToggle, onDelete, onEdit, deleting, userId, origin, thumbnail, pausedReason }: {
   prop: any; scanCount: number; leadCount: number; hotLeadCount: number;
+  /** Non-null = buyers can't send requests (lib/planLock.ts). Replaces the green badge. */
+  pausedReason: PausedReason | null;
   toggling: boolean; onToggle: () => void;
   onDelete: () => void; onEdit: (updated: any) => void;
   deleting: boolean; userId: string; origin: string; thumbnail?: string;
@@ -263,15 +266,17 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
             ) : (
               <div style={{ fontSize: 12, color: '#FB923C', fontWeight: 600, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}><AlertTriangle size={12} /> Missing Location</div>
             )}
-            {prop.plan_locked_at && (
-              <div style={{ marginBottom: 4 }}><NotTakingRequestsBadge /></div>
-            )}
             <Link href={`/p/${prop.id}`} target="_blank" style={{ fontSize: 12, fontWeight: 600, color: C.purpleL, textDecoration: 'none' }}>
               Preview public page →
             </Link>
           </div>
         </div>
-        <StatusBadge active={!!prop.active} toggling={toggling} onToggle={onToggle} />
+        {/* Paused (locked, or trial ended with no plan) shows ONLY the grey
+            badge, never the green "Active" one. Take Offline / Go Live stays
+            available from the card's action buttons. */}
+        {pausedReason
+          ? <NotTakingRequestsBadge reason={pausedReason} />
+          : <StatusBadge active={!!prop.active} toggling={toggling} onToggle={onToggle} />}
       </div>
 
       {/* Analytics strip — Scans · Leads · Buyer Interest */}
@@ -602,6 +607,10 @@ export default function PropertiesPage() {
   // Exact match on the stored plan. `plan` above falls back to 'free' for a
   // missing value, which must not reveal the Free-only swap link.
   const [isFreePlan, setIsFreePlan]       = useState(false)
+  // Owner, for the same pause rule buyers get (lib/planLock.ts).
+  const [owner, setOwner]                 = useState<{ plan: string | null; beta_joined_at: string | null } | null>(null)
+  // Free only: when the active listing can next be changed (migration 062).
+  const [listingNextAt, setListingNextAt] = useState<string | null>(null)
 
   useEffect(() => { setOrigin(window.location.origin) }, [])
 
@@ -615,13 +624,20 @@ export default function PropertiesPage() {
         setUserId(session.user.id)
 
         const [{ data: profile }, { data: props }] = await Promise.all([
-          supabase.from('profiles').select('plan').eq('id', session.user.id).single(),
+          supabase.from('profiles').select('plan, beta_joined_at').eq('id', session.user.id).single(),
           supabase.from('properties').select('*').eq('user_id', session.user.id).is('deleted_at', null).order('created_at', { ascending: false }),
         ])
 
         if (cancelled) return
         setPlan(profile?.plan || 'free')
         setIsFreePlan(profile?.plan === 'free')
+        setOwner(profile ? { plan: profile.plan ?? null, beta_joined_at: profile.beta_joined_at ?? null } : null)
+        if (profile?.plan === 'free') {
+          fetch('/api/plan/free-swap-status')
+            .then(r => (r.ok ? r.json() : null))
+            .then(st => { if (!cancelled && st) setListingNextAt(st.listingNextAt ?? null) })
+            .catch(() => {})
+        }
         setProperties(props || [])
 
         if (props && props.length > 0) {
@@ -808,7 +824,9 @@ export default function PropertiesPage() {
             {isFreePlan && properties.some((p: any) => p.plan_locked_at) && (
               <p style={{ fontSize: 13, color: C.muted, margin: '0 0 16px' }}>
                 On Free, one listing takes buyer requests.{' '}
-                <Link href="/dashboard/settings#free-plan" style={{ color: C.purpleL, fontWeight: 600, textDecoration: 'none' }}>Change which one →</Link>
+                {listingNextAt
+                  ? <span style={{ color: C.sub }}>You can change which one on {formatChangeDate(listingNextAt)}.</span>
+                  : <Link href="/dashboard/settings#free-plan" style={{ color: C.purpleL, fontWeight: 600, textDecoration: 'none' }}>Change which one →</Link>}
               </p>
             )}
             {/* FIX 6 — Search + Sort */}
@@ -860,6 +878,7 @@ export default function PropertiesPage() {
                     userId={userId}
                     origin={origin}
                     thumbnail={propThumbs[prop.id]}
+                    pausedReason={requestsPausedReason({ listingLockedAt: prop.plan_locked_at, owner })}
                   />
                 ))}
               </div>

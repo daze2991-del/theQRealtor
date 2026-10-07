@@ -6,6 +6,8 @@ import { parseSelection, selectionErrorResponse } from '@/lib/planChoice'
 // Free agents only: change which listing (max 1) and signs (max 3) stay
 // active. The new selection is unlocked and everything else live is locked,
 // in one transaction (apply_free_selection 'swap', migration 060). Never deletes.
+// At most one counted listing change and one counted sign change per 30 days
+// (migration 062). A refusal is 429 with nextChangeAt (ISO).
 export async function POST(req: Request) {
   const supabase = createServerSupabase()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -36,7 +38,10 @@ export async function POST(req: Request) {
   if (error) {
     const mapped = selectionErrorResponse(error.message)
     if (mapped.status === 500) console.error('[plan/free-swap] rpc error:', error.message)
-    return NextResponse.json({ error: mapped.error }, { status: mapped.status })
+    return NextResponse.json(
+      mapped.nextChangeAt ? { error: mapped.error, nextChangeAt: mapped.nextChangeAt } : { error: mapped.error },
+      { status: mapped.status },
+    )
   }
   return NextResponse.json({ ok: true, result: data ?? null })
 }

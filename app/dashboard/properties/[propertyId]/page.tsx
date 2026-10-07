@@ -14,6 +14,7 @@ import { calcPropertyInterest } from '../../../../lib/propertyInterest'
 import { timeAgo } from '../../../../lib/timeAgo'
 import { deactivationPatch } from '../../../../lib/propertyStatus'
 import NotTakingRequestsBadge from '../../../../components/NotTakingRequestsBadge'
+import { requestsPausedReason, type PauseInputs } from '../../../../lib/planLock'
 import { motivationToTierV2, requestedShowing } from '../../../../lib/leadScoringV2'
 
 const C = {
@@ -149,6 +150,7 @@ export default function PropertyIntelligencePage() {
   const propertyId = params.propertyId as string
 
   const [property,        setProperty]        = useState<any>(null)
+  const [owner,           setOwner]           = useState<PauseInputs['owner']>(null)
   const [photos,          setPhotos]          = useState<any[]>([])
   const [scanEvents,      setScanEvents]      = useState<any[]>([])
   const [allTimeScanCount, setAllTimeScanCount] = useState(0)
@@ -174,9 +176,13 @@ export default function PropertyIntelligencePage() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.push('/auth'); return }
 
-      const { data: prop } = await supabase.from('properties').select('*').eq('id', propertyId).single()
+      const [{ data: prop }, { data: ownerRow }] = await Promise.all([
+        supabase.from('properties').select('*').eq('id', propertyId).single(),
+        supabase.from('profiles').select('plan, beta_joined_at').eq('id', session.user.id).maybeSingle(),
+      ])
       if (!prop || prop.user_id !== session.user.id) { router.push('/dashboard/properties'); return }
       setProperty(prop)
+      setOwner(ownerRow ?? null)
 
       const sixtyDaysAgo = new Date(Date.now() - 60 * 86400000).toISOString()
 
@@ -293,6 +299,8 @@ export default function PropertyIntelligencePage() {
 
   // ── Derived values ────────────────────────────────────────────────────────
   const isArchived   = !!property.deleted_at
+  // Same rule buyers get on /p (locked, or trial ended with no plan chosen).
+  const pausedReason = requestsPausedReason({ listingLockedAt: property.plan_locked_at, owner })
   const heroPhoto    = photos[0]?.url ?? null
   const location     = [property.city, property.state].filter(Boolean).join(', ')
   const now          = new Date()
@@ -451,12 +459,16 @@ export default function PropertyIntelligencePage() {
               }}>
                 {healthCfg.badgeLabel}
               </span>
-              {property.plan_locked_at && !isArchived && <NotTakingRequestsBadge size="md" />}
+              {pausedReason && !isArchived && <NotTakingRequestsBadge size="md" reason={pausedReason} />}
             </div>
             <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>
               {location && <span>{location} · </span>}
-              <span>{isArchived ? 'Archived' : property.active ? 'Active Listing' : 'Offline'}</span>
-              <span> · Created {fmtDate(property.created_at)}</span>
+              {/* "Active Listing" is never shown on a paused listing: the grey
+                  badge above says what buyers actually get (lib/planLock.ts). */}
+              {(isArchived || !pausedReason || !property.active) && (
+                <span>{isArchived ? 'Archived' : property.active ? 'Active Listing' : 'Offline'} · </span>
+              )}
+              <span>Created {fmtDate(property.created_at)}</span>
             </div>
           </div>
 

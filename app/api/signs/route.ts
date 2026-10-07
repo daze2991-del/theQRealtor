@@ -7,7 +7,7 @@ type AssignmentRow = {
   property_id: string
   assigned_at: string
   unassigned_at: string | null
-  properties: { id: string; address: string; city: string | null; state: string | null } | null
+  properties: { id: string; address: string; city: string | null; state: string | null; plan_locked_at: string | null } | null
 }
 
 type SignRow = {
@@ -30,7 +30,7 @@ export async function GET() {
   const admin = createAdminSupabase()
   const { data, error } = await admin
     .from('signs')
-    .select('id, label, created_at, plan_locked_at, sign_assignments(id, property_id, assigned_at, unassigned_at, properties(id, address, city, state))')
+    .select('id, label, created_at, plan_locked_at, sign_assignments(id, property_id, assigned_at, unassigned_at, properties(id, address, city, state, plan_locked_at))')
     .eq('agent_id', user.id)
     .order('created_at', { ascending: false })
 

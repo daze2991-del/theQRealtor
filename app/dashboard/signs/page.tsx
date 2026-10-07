@@ -8,6 +8,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import DashboardLayout from '../../../components/DashboardLayout'
 import { Check, X, Pencil, Signpost } from 'lucide-react'
 import NotTakingRequestsBadge from '../../../components/NotTakingRequestsBadge'
+import { requestsPausedReason, formatChangeDate, type PausedReason, type PauseInputs } from '../../../lib/planLock'
+import { signLinkBlockedUntil, type SwapStatus } from '../../../lib/planChoice'
 
 const C = {
   bg:      '#0F0F13',
@@ -20,7 +22,7 @@ const C = {
   muted:   '#6B7280',
 } as const
 
-type AssignmentProperty = { id: string; address: string; city: string | null; state: string | null }
+type AssignmentProperty = { id: string; address: string; city: string | null; state: string | null; plan_locked_at?: string | null }
 
 type Assignment = {
   id: string
@@ -73,13 +75,15 @@ function assignmentAddress(a: Assignment): string {
   return location ? `${a.properties.address} — ${location}` : a.properties.address
 }
 
-function SignCard({ sign, origin, onRename, onOpenAssign, onUnassign, unassigning }: {
+function SignCard({ sign, origin, onRename, onOpenAssign, onUnassign, unassigning, pausedReason }: {
   sign: Sign
   origin: string
   onRename: (label: string) => Promise<string | null>
   onOpenAssign: () => void
   onUnassign: () => void
   unassigning: boolean
+  /** Non-null = buyers can't send requests through this sign (lib/planLock.ts). */
+  pausedReason: PausedReason | null
 }) {
   const [editing, setEditing]     = useState(false)
   const [editLabel, setEditLabel] = useState(sign.label)
@@ -174,9 +178,13 @@ function SignCard({ sign, origin, onRename, onOpenAssign, onUnassign, unassignin
           <div style={{ fontSize: 12, color: C.muted, marginTop: 7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {assigned ? assignmentAddress(assigned) : 'Created ' + formatDate(sign.created_at)}
           </div>
-          {sign.locked && <div style={{ marginTop: 7 }}><NotTakingRequestsBadge /></div>}
+          {!assigned && pausedReason && <div style={{ marginTop: 7 }}><NotTakingRequestsBadge reason={pausedReason} /></div>}
         </div>
-        {assigned ? (
+        {/* A paused sign never shows the green "Assigned" pill: the grey badge
+            takes its place, matching what a buyer scanning it gets. */}
+        {assigned && pausedReason ? (
+          <NotTakingRequestsBadge reason={pausedReason} />
+        ) : assigned ? (
           <span style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, background: '#062014', border: '1px solid #166534', borderRadius: 20, padding: '4px 10px' }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4ade80' }} />
             <span style={{ fontSize: 11, fontWeight: 700, color: '#4ade80' }}>Assigned</span>
@@ -319,6 +327,15 @@ function SignsPageInner() {
   const [pageError, setPageError]               = useState('')
   // The swap link goes to a Free-only Settings panel, so only Free agents see it.
   const [isFreePlan, setIsFreePlan]             = useState(false)
+  const [owner, setOwner]                       = useState<PauseInputs['owner']>(null)
+  // Free only: when a sign can next be swapped out (migration 062).
+  const [swapStatus, setSwapStatus]             = useState<SwapStatus | null>(null)
+  // Same rule buyers get on /p: sign locked, its listing locked, or trial ended.
+  const pausedReasonFor = (sign: Sign) => requestsPausedReason({
+    signLockedAt: sign.locked ? 'locked' : null,
+    listingLockedAt: sign.current_assignment?.properties?.plan_locked_at ?? null,
+    owner,
+  })
 
   const [createLabel, setCreateLabel] = useState('')
   const [creating, setCreating]       = useState(false)
@@ -355,11 +372,18 @@ function SignsPageInner() {
             .eq('active', true)
             .is('deleted_at', null)
             .order('created_at', { ascending: false }),
-          supabase.from('profiles').select('plan').eq('id', session.user.id).maybeSingle(),
+          supabase.from('profiles').select('plan, beta_joined_at').eq('id', session.user.id).maybeSingle(),
         ])
 
         if (cancelled) return
         setIsFreePlan(profile?.plan === 'free')
+        setOwner(profile ? { plan: profile.plan ?? null, beta_joined_at: profile.beta_joined_at ?? null } : null)
+        if (profile?.plan === 'free') {
+          fetch('/api/plan/free-swap-status')
+            .then(r => (r.ok ? r.json() : null))
+            .then(st => { if (!cancelled && st) setSwapStatus(st as SwapStatus) })
+            .catch(() => {})
+        }
         if (!signsRes.ok) {
           const body = await signsRes.json().catch(() => ({} as { error?: string }))
           setPageError(body.error || 'Failed to load signs. Please try again.')
@@ -624,7 +648,9 @@ function SignsPageInner() {
             {isFreePlan && signs.some(s => s.locked) && (
               <p style={{ fontSize: 13, color: C.muted, margin: '0 0 16px' }}>
                 Some signs aren&apos;t taking buyer requests on your current plan.{' '}
-                <Link href="/dashboard/settings#free-plan" style={{ color: C.purpleL, fontWeight: 600, textDecoration: 'none' }}>Change which signs are active →</Link>
+                {signLinkBlockedUntil(swapStatus)
+                  ? <span style={{ color: C.sub }}>You can change which signs are active on {formatChangeDate(signLinkBlockedUntil(swapStatus)!)}.</span>
+                  : <Link href="/dashboard/settings#free-plan" style={{ color: C.purpleL, fontWeight: 600, textDecoration: 'none' }}>Change which signs are active →</Link>}
               </p>
             )}
 
@@ -682,6 +708,7 @@ function SignsPageInner() {
                           onOpenAssign={() => openAssign(sign)}
                           onUnassign={() => unassignSign(sign)}
                           unassigning={unassigningId === sign.id}
+                          pausedReason={pausedReasonFor(sign)}
                         />
                       ))}
                     </div>
@@ -703,6 +730,7 @@ function SignsPageInner() {
                           onOpenAssign={() => openAssign(sign)}
                           onUnassign={() => unassignSign(sign)}
                           unassigning={unassigningId === sign.id}
+                          pausedReason={pausedReasonFor(sign)}
                         />
                       ))}
                     </div>

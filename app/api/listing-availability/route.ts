@@ -4,8 +4,10 @@ import { isAcceptingRequests } from '@/lib/planLock'
 
 // Public: can buyers send requests on this listing (optionally via this sign)?
 // Used by the buyer page (/p) and the open-house check-in page before they
-// render request buttons or a form. Returns a single neutral boolean, never a
-// reason. Plan, billing and trial state stay server-side.
+// render request buttons or a form. The reason itself stays server-side
+// (no plan, billing or trial wording); the only extra field is agentName,
+// and ONLY when paused — properties.agent_name, the same display name buyer
+// confirmation texts already use. Never phone, email, plan or trial state.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export async function POST(req: Request) {
@@ -21,6 +23,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid listing.' }, { status: 400 })
   }
 
-  const acceptingRequests = await isAcceptingRequests(createAdminSupabase(), propertyId, signId)
-  return NextResponse.json({ acceptingRequests })
+  const admin = createAdminSupabase()
+  const acceptingRequests = await isAcceptingRequests(admin, propertyId, signId)
+  if (acceptingRequests) {
+    return NextResponse.json({ acceptingRequests: true })
+  }
+
+  const { data: property } = await admin
+    .from('properties')
+    .select('agent_name')
+    .eq('id', propertyId)
+    .maybeSingle()
+  return NextResponse.json({ acceptingRequests: false, agentName: property?.agent_name ?? null })
 }

@@ -46,6 +46,8 @@ export default function OpenHouseCheckInPage() {
   // false = not taking requests (lib/planLock.ts). The form is not rendered
   // until this is known.
   const [accepting,  setAccepting]  = useState<boolean | null>(null)
+  // Only ever set when paused; server-supplied, no phone/email/plan/trial.
+  const [pausedAgentName, setPausedAgentName] = useState<string | null>(null)
   const [signId,     setSignId]     = useState<string | null>(null)
 
   const [name,              setName]              = useState('')
@@ -85,6 +87,7 @@ export default function OpenHouseCheckInPage() {
       // A failed availability check leaves the form up. The server still
       // refuses a locked submission, and that copy is shown as the error.
       setAccepting(availability?.acceptingRequests !== false)
+      setPausedAgentName(availability?.agentName ?? null)
       setLoading(false)
     }
     load()
@@ -211,7 +214,7 @@ export default function OpenHouseCheckInPage() {
         {/* Form / Confirmation */}
         <div style={{ padding: '0 20px 20px' }}>
           {accepting === false ? (
-            <RequestsPausedNotice border={C.border} color={C.muted} />
+            <RequestsPausedNotice border={C.border} color={C.muted} agentName={pausedAgentName} />
           ) : submitted ? (
             <div style={{ animation: 'fadeIn 0.25s ease', background: `${C.amber}12`, border: `1px solid ${C.amber}40`, borderRadius: 16, padding: '32px 24px', textAlign: 'center', marginTop: 8 }}>
               <div style={{ marginBottom: 14, display: 'flex', justifyContent: 'center', color: C.amberL }}><CheckCircle size={44} /></div>

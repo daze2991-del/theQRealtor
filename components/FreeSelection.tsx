@@ -32,6 +32,13 @@ function activityLine(i: { scans30: number; leads30: number }) {
   return `${s} · ${l} in the last 30 days`
 }
 
+/** Recommended tag only appears when an item has real buyer activity. With no
+ *  activity, the pre-selection stays the same (ranking still picks a top item
+ *  deterministically) but nothing is tagged "Recommended". */
+export function hasRecentActivity(i: { scans30: number; leads30: number }): boolean {
+  return i.scans30 > 0 || i.leads30 > 0
+}
+
 /** Signs eligible for a listing, on-listing first (ranked), then unassigned (ranked). */
 export function eligibleSigns(signs: ChoiceSign[], listingId: string | null) {
   const onListing = listingId ? rankByActivity(signs.filter(s => s.assignedPropertyId === listingId)) : []
@@ -52,9 +59,13 @@ export default function FreeSelection({ mode, onDone, onBack }: {
   const [error, setError] = useState('')
 
   const rankedListings = useMemo(() => rankByActivity(opts?.listings ?? []), [opts])
-  const recommendedListingId = rankedListings[0]?.id ?? null
+  // Tag only the pre-selected top listing, and only if it has activity.
+  const recommendedListingId = rankedListings[0] && hasRecentActivity(rankedListings[0]) ? rankedListings[0].id : null
   const { onListing, unassigned } = useMemo(() => eligibleSigns(opts?.signs ?? [], listingId), [opts, listingId])
-  const recommendedSignIds = useMemo(() => new Set(onListing.slice(0, FREE_MAX_SIGNS).map(s => s.id)), [onListing])
+  const recommendedSignIds = useMemo(
+    () => new Set(onListing.slice(0, FREE_MAX_SIGNS).filter(hasRecentActivity).map(s => s.id)),
+    [onListing],
+  )
 
   useEffect(() => {
     let cancelled = false

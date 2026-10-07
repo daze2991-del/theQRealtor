@@ -4,11 +4,14 @@ import { normalizePhone } from '../../../../lib/phone'
 import { verifyPhoneVerifyToken } from '../../../../lib/phoneVerifyToken'
 import { openSignupEnabled, MAX_ENROLLED_AGENTS } from '../../../../lib/signup'
 
-// Generic failure message for anything that must not reveal which field or
-// condition caused the failure (e.g. phone collisions). Must stay identical
-// across the pre-check and constraint-violation paths.
-const GENERIC_SIGNUP_ERROR =
-  "We couldn't complete your signup. Please contact support if you believe this is an error."
+// Shown for a duplicate phone, caught either by the pre-check below or by
+// the unique-index race it backstops. By this point the phone has already
+// been verified by SMS code (see verifyPhoneVerifyToken below), so telling
+// its real owner they're already registered is not an enumeration risk the
+// way it would be for an unverified guess — hence a specific message rather
+// than a generic one.
+const DUPLICATE_PHONE_ERROR =
+  'This phone number is already linked to an account. Try signing in instead.'
 
 export async function POST(req: Request) {
   const { name, email, password, phone, dre, phoneVerifyToken } = await req.json()
@@ -131,7 +134,7 @@ export async function POST(req: Request) {
     .maybeSingle()
 
   if (phoneRow) {
-    return NextResponse.json({ error: GENERIC_SIGNUP_ERROR }, { status: 400 })
+    return NextResponse.json({ error: DUPLICATE_PHONE_ERROR }, { status: 400 })
   }
 
   // Create user server-side with email pre-confirmed
@@ -210,10 +213,10 @@ export async function POST(req: Request) {
     // handles PK conflicts internally and never surfaces a 23505 for the PK,
     // so a 23505 here can only originate from profiles_phone_unique_idx — a
     // phone number collision with a concurrent signup that beat the pre-check.
-    // Response must be byte-identical to the pre-check rejection so the two
-    // paths are indistinguishable to a caller.
+    // Same condition as that pre-check, just caught later by the race it
+    // backstops, so it gets the same specific message.
     if (profileError.code === '23505') {
-      return NextResponse.json({ error: GENERIC_SIGNUP_ERROR }, { status: 400 })
+      return NextResponse.json({ error: DUPLICATE_PHONE_ERROR }, { status: 400 })
     }
 
     return NextResponse.json(

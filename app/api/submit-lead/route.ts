@@ -6,7 +6,7 @@ import { sendSmsDetailed, resolveAgentPhone, queueOrSendAgentSms, flushDueNotifi
 import { SMS_CONSENT_TEXT, SMS_CONSENT_TEXT_MAX } from '../../../lib/smsConsent'
 import { getTrialStatus } from '../../../lib/trial'
 import { normalizePhone } from '../../../lib/phone'
-import { isAcceptingRequests, REQUESTS_PAUSED_COPY } from '../../../lib/planLock'
+import { isAcceptingRequests, requestsPausedCopy } from '../../../lib/planLock'
 
 // ─── rate limiter ─────────────────────────────────────────────────────────────
 // Best-effort in-memory window per IP. Works for single-instance deployments;
@@ -137,7 +137,7 @@ export async function POST(request: Request) {
   // teaser alerts below unreachable, by design. The response is the buyer-facing
   // copy: no plan or trial wording.
   if (!(await isAcceptingRequests(supabase, propertyId as string, (signId as string) || null))) {
-    return NextResponse.json({ error: REQUESTS_PAUSED_COPY, requestsPaused: true }, { status: 423 })
+    return NextResponse.json({ error: requestsPausedCopy(property.agent_name as string | null), requestsPaused: true }, { status: 423 })
   }
 
   // ── normalized phone ────────────────────────────────────────────────────────

@@ -1,9 +1,9 @@
-import { REQUESTS_PAUSED_COPY } from '../lib/planLock'
+import { requestsPausedCopy } from '../lib/planLock'
 
 // Replaces the request buttons / form on a buyer-facing page when the listing
-// isn't taking requests (lib/planLock.ts). No agent contact details, no
-// consent box, no reason: just the one sentence.
-export default function RequestsPausedNotice({ border = '#2A2A3A', color = '#9CA3AF' }: { border?: string; color?: string }) {
+// isn't taking requests (lib/planLock.ts). No phone, no consent box, no
+// reason: just the one sentence, with the agent's name when we have it.
+export default function RequestsPausedNotice({ border = '#2A2A3A', color = '#9CA3AF', agentName }: { border?: string; color?: string; agentName?: string | null }) {
   return (
     <div
       role="status"
@@ -14,7 +14,7 @@ export default function RequestsPausedNotice({ border = '#2A2A3A', color = '#9CA
         color, fontSize: 14, lineHeight: 1.6,
       }}
     >
-      {REQUESTS_PAUSED_COPY}
+      {requestsPausedCopy(agentName)}
     </div>
   )
 }

@@ -161,10 +161,11 @@ describe('SMS consent page: other required changes', () => {
     expect(smsConsentHtml).not.toContain('SMS messages will immediately cease upon opt-out')
   })
 
-  it('screenshot captions are unchanged', () => {
-    for (const caption of ['Settings page — phone number field', 'SMS Lead Alerts toggle (default: off)', 'Confirmation state after opt-in enabled']) {
+  it('screenshot captions (2026-10-07: toggle caption updated for the redacted screenshots)', () => {
+    for (const caption of ['Settings page — phone number field', 'SMS Lead Alerts toggle (off by default; shown turned on)', 'Confirmation state after opt-in enabled']) {
       expect(smsConsentHtml).toContain(caption)
     }
+    expect(smsConsentHtml).not.toContain('SMS Lead Alerts toggle (default: off)')
     expect(smsConsentHtml).toContain('/images/sms-consent/settings-phone-field.png')
     expect(smsConsentHtml).toContain('/images/sms-consent/toggle-on.png')
     expect(smsConsentHtml).toContain('/images/sms-consent/full-settings.png')

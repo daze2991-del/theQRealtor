@@ -149,7 +149,7 @@ export default function SmsConsentPage() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, width: '100%' }}>
               <img src="/images/sms-consent/toggle-on.png" alt="SMS Lead Alerts toggle and consent language" style={{ width: '100%', maxWidth: '700px', borderRadius: '8px', border: '1px solid #333' }} />
-              <span style={{ fontSize: 13, color: L.muted, textAlign: 'center' }}>SMS Lead Alerts toggle (default: off)</span>
+              <span style={{ fontSize: 13, color: L.muted, textAlign: 'center' }}>SMS Lead Alerts toggle (off by default; shown turned on)</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, width: '100%' }}>
               <img src="/images/sms-consent/full-settings.png" alt="Full settings page" style={{ width: '100%', maxWidth: '700px', borderRadius: '8px', border: '1px solid #333' }} />

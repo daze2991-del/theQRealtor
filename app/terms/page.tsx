@@ -66,7 +66,7 @@ export default function TermsPage() {
             Terms of Service
           </h1>
           <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>
-            Last updated: June 27, 2026
+            Last updated: October 7, 2026
           </p>
         </div>
 
@@ -80,7 +80,7 @@ export default function TermsPage() {
 
         <Section title="About theqrealtor">
           <p style={{ margin: 0 }}>
-            theqrealtor is a real estate engagement platform that helps buyers connect with listing agents through QR-powered property pages. The platform captures buyer-initiated inquiries, provides analytics to agents, and routes leads securely. It does not conduct automated marketing to buyers. Agents — not the platform — are responsible for all direct communication with buyers.
+            theQRealtor is a real estate engagement platform that helps buyers connect with listing agents through QR-powered listing pages. The platform captures buyer-initiated requests, shows agents how interested each buyer is, and routes requests to the listing agent. It does not send marketing messages to buyers. Apart from one optional confirmation text a buyer can request, agents — not the platform — are responsible for all communication with buyers.
           </p>
         </Section>
 
@@ -89,10 +89,11 @@ export default function TermsPage() {
             theqrealtor ("Service", "we", "us") provides a QR code lead capture platform for real estate agents. The Service allows agents to:
           </p>
           <ul style={{ margin: '0 0 16px', paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <li>Generate property-specific QR codes for placement on yard signs and marketing materials</li>
-            <li>Collect contact information and purchase intent from prospective buyers who scan those codes</li>
-            <li>Receive real-time SMS notifications when a buyer submits their information</li>
-            <li>Track scan analytics and manage leads through a web dashboard</li>
+            <li>Generate QR codes for signs and marketing materials that can be moved between listings</li>
+            <li>Receive showing requests and questions from buyers who scan those codes</li>
+            <li>See each buyer's interest tier and activity to help decide whom to contact first</li>
+            <li>Receive text alerts when a buyer requests a showing or asks a question</li>
+            <li>Track scans and manage leads through a web dashboard</li>
           </ul>
           <p style={{ margin: 0 }}>
             The Service is intended for licensed real estate professionals and related parties operating in lawful capacities.
@@ -130,10 +131,10 @@ export default function TermsPage() {
             <strong style={{ color: C.text }}>Program name:</strong> theqrealtor SMS Lead Alerts
           </p>
           <p style={{ margin: '0 0 12px' }}>
-            By providing a mobile phone number and enabling SMS Lead Alerts in your account Settings, you consent to receive automated text messages from theqrealtor notifying you of new buyer leads. These messages are sent when a buyer scans one of your property QR codes and submits their contact information.
+            By providing a mobile phone number and turning on SMS Lead Alerts in Settings, you agree to receive automated text messages from theQRealtor when a buyer requests a showing or asks a question about one of your listings.
           </p>
           <p style={{ margin: '0 0 12px' }}>
-            <strong style={{ color: C.text }}>Message frequency:</strong> Message frequency varies based on buyer activity. Agents typically receive 1–10 messages per day during active listing periods. No messages are sent when there is no buyer activity.
+            <strong style={{ color: C.text }}>Message frequency:</strong> varies with buyer activity. No messages are sent when there is no new request.
           </p>
           <p style={{ margin: '0 0 12px' }}>
             <strong style={{ color: C.text }}>Msg &amp; data rates may apply</strong> depending on your mobile carrier plan.
@@ -151,9 +152,9 @@ export default function TermsPage() {
           </p>
         </Section>
 
-        <Section title="5. SMS Messaging — Buyer Data">
+        <Section title="5. SMS Messaging — Buyers">
           <p style={{ margin: 0 }}>
-            When a buyer scans a QR code and submits the lead form, they are providing their contact information voluntarily to be shared with the listing agent. The buyer's submission constitutes consent to be contacted by the agent regarding the property. theqrealtor does not initiate SMS contact with buyers; only the agent receives SMS notifications.
+            When a buyer submits a request, they choose to share their contact information with the listing agent, who may contact them about the property using the methods the buyer selected. If the buyer ticks the optional consent box, theQRealtor sends that buyer one text confirming the request. theQRealtor sends buyers no other texts and no marketing. A buyer who replies STOP receives no further texts from theQRealtor. Our number sends messages only and does not forward replies to agents.
           </p>
         </Section>
 

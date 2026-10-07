@@ -16,9 +16,9 @@ const C = {
   muted:   '#6B7280',
 } as const
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ id, title, children }: { id?: string; title: string; children: React.ReactNode }) {
   return (
-    <div style={{ marginBottom: 40 }}>
+    <div id={id} style={{ marginBottom: 40 }}>
       <h2 style={{ fontSize: 18, fontWeight: 700, color: C.text, margin: '0 0 14px', letterSpacing: '-0.01em' }}>
         {title}
       </h2>
@@ -66,7 +66,7 @@ export default function PrivacyPage() {
             Privacy Policy
           </h1>
           <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>
-            Last updated: July 3, 2026
+            Last updated: October 7, 2026
           </p>
         </div>
 
@@ -75,113 +75,100 @@ export default function PrivacyPage() {
           borderRadius: 12, padding: '16px 20px', marginBottom: 44,
           fontSize: 14, color: C.sub, lineHeight: 1.65,
         }}>
-          theqrealtor is a lead capture platform for real estate agents. This policy explains what information we collect, how we use it, and how we protect it.
+          theQRealtor helps real estate agents learn which buyers are interested in their listings. Buyers reach a listing page by scanning a QR code on a sign. This policy explains what we collect, why, who sees it, and how long we keep it.
         </div>
 
-        <Section title="1. Information We Collect">
+        <Section id="notice-at-collection" title="1. Information we collect">
           <p style={{ margin: '0 0 12px' }}>
-            <strong style={{ color: C.text }}>Buyer lead data.</strong> When a prospective buyer scans a QR code and submits the lead form on a property page, we collect:
+            <strong style={{ color: C.text }}>When a buyer views a listing page.</strong> As soon as the page loads, we record activity about that visit, without any name attached:
           </p>
           <ul style={{ margin: '0 0 16px', paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <li>Full name</li>
-            <li>Phone number</li>
-            <li>Email address</li>
-            <li>Self-reported purchase intent / buying timeline</li>
+            <li>which listing and which sign the visit came from</li>
+            <li>whether this is a return visit, and how many days since the first visit, worked out from a small record stored in your own browser for that listing (it is not a cookie and is not used on other websites)</li>
+            <li>how far you look through the photos, how long you stay on the page, and whether you tap &ldquo;Request a Showing&rdquo; or &ldquo;Ask the Listing Agent&rdquo;</li>
           </ul>
           <p style={{ margin: '0 0 12px' }}>
-            <strong style={{ color: C.text }}>Agent account data.</strong> When a real estate agent creates an account, we collect their name, email address, and mobile phone number. We use your phone number for two purposes: (1) to prevent duplicate or fraudulent accounts — beta access is limited to one account per phone number — and (2) to deliver SMS lead alerts, if you separately opt in as described in our SMS Consent policy. Agents may also optionally provide a real estate license number (for example, a California DRE number). We store license numbers for profile completeness and may use them in the future to verify active licensure. We do not currently verify license numbers against any state licensing database, use them for account deduplication, or share them with third parties.
+            <strong style={{ color: C.text }}>When a buyer submits a request.</strong> If you request a showing or ask a question, we collect what you enter: your name, phone number and/or email address, your question (if any), the contact methods you prefer, and, if you tick the box, your consent to one confirmation text. The activity from that visit is then attached to your request.
           </p>
           <p style={{ margin: '0 0 12px' }}>
-            <strong style={{ color: C.text }}>Usage data.</strong> We collect anonymous usage information such as QR code scan counts and page load events to help agents understand their listing performance.
+            <strong style={{ color: C.text }}>Agent accounts.</strong> When an agent signs up we collect their name, email, mobile number and, optionally, a real estate license number. We use the phone number to prevent duplicate accounts and, if the agent turns them on, to send lead alerts. We do not currently verify license numbers.
           </p>
           <p style={{ margin: 0 }}>
-            When a buyer visits a property page, we also record visit timestamp, whether the visit is a return visit, and days since the buyer's first visit to the same listing. This data is used solely to help agents understand buyer engagement patterns and is never sold or shared with third parties. We also collect standard website analytics such as browser type, device type, and approximate location derived from IP address to improve the service and provide listing performance insights.
+            <strong style={{ color: C.text }}>Our hosting provider</strong> keeps standard server logs, including IP addresses, to run and secure the service. We do not use them to profile buyers or to estimate location.
           </p>
         </Section>
 
-        <Section title="2. How We Use Your Information">
+        <Section id="interest-scores" title="2. How we use it: buyer interest scores">
           <p style={{ margin: '0 0 12px' }}>
-            Buyer lead information is used solely to notify the listing agent who placed the QR sign. Specifically:
+            We use a buyer's activity and request to give the listing agent a Hot, Warm or Cold interest tier, a score and a breakdown of how it was calculated. The signals are return visits, photos viewed, time on the page, and whether the buyer requested a showing or asked a question. The score helps the agent decide whom to follow up with first. It does not hide, delete or block any request, and the agent makes every decision.
           </p>
+          <p style={{ margin: 0 }}>
+            We also use this information to show agents how their listings and signs perform, to deliver alerts and confirmation texts, to prevent abuse, and to run the service.
+          </p>
+        </Section>
+
+        <Section id="who-sees-it" title="3. Who sees it">
           <ul style={{ margin: '0 0 16px', paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <li>The buyer's name, phone number, email, and purchase intent are delivered to the agent via SMS alert and displayed in the agent's dashboard.</li>
-            <li>Lead data is stored securely in our database and accessible only to the agent who owns the property listing.</li>
-            <li>Agents may export their leads in CSV format for use in their own CRM systems.</li>
+            <li><strong style={{ color: C.text }}>The listing agent</strong> for that property sees your request, your contact details, your interest tier and score, and your activity on their listing. They can export their leads to their own records.</li>
+            <li><strong style={{ color: C.text }}>No other agent</strong> sees your information. We have no brokerage, team or MLS sharing.</li>
+            <li><strong style={{ color: C.text }}>Service providers</strong> that run the platform for us: Supabase (database and storage), Twilio (text messages), Vercel (hosting) and Stripe (agent billing only; Stripe never receives buyer information). They process data on our behalf under their data processing terms.</li>
+            <li><strong style={{ color: C.text }}>Google Maps</strong> receives nothing unless you tap the &ldquo;Take Me There&rdquo; link yourself.</li>
           </ul>
           <p style={{ margin: 0 }}>
-            Agent account information is used to operate the service, prevent duplicate or fraudulent accounts, process payments, and send lead alert notifications.
+            We do not sell personal information, and we do not share it for advertising.
           </p>
         </Section>
 
-        <Section title="3. SMS Communications">
+        <Section id="text-messages" title="4. Text messages">
           <p style={{ margin: '0 0 12px' }}>
-            Agents who provide a phone number receive SMS notifications when a buyer submits their information. Message frequency varies depending on the number of buyer leads received. Standard message and data rates may apply.
+            <strong style={{ color: C.text }}>Buyers.</strong> If you tick the consent box, we send one text confirming your request. We do not send buyers marketing texts. Reply STOP to opt out; we will not text that number again unless it replies START.
           </p>
           <p style={{ margin: '0 0 12px' }}>
-            To stop receiving SMS notifications, text <strong style={{ color: C.text }}>STOP</strong> to the number from which you received the message, or disable SMS alerts in your account Settings. For help, text <strong style={{ color: C.text }}>HELP</strong>.
+            <strong style={{ color: C.text }}>Agents.</strong> Agents who turn on lead alerts receive a text when a buyer requests a showing or asks a question. Reply STOP to unsubscribe or HELP for help, or turn alerts off in Settings.
           </p>
           <p style={{ margin: 0 }}>
-            Buyer phone numbers are shared with the listing agent only, and are not used by theqrealtor to send marketing messages to buyers.
+            Our number sends messages only. Replies other than STOP, START and HELP are not read or forwarded.
           </p>
         </Section>
 
-        <Section title="4. Data Sharing and Third Parties">
-          <p style={{ margin: '0 0 12px' }}>
-            <strong style={{ color: C.text }}>We do not sell or rent buyer lead information to advertisers, lead marketplaces, or other third parties.</strong>
-          </p>
-          <p style={{ margin: '0 0 12px' }}>
-            We work with the following service providers to operate the platform:
-          </p>
-          <ul style={{ margin: '0 0 16px', paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <li><strong style={{ color: C.text }}>Supabase</strong> — database and file storage hosting</li>
-            <li><strong style={{ color: C.text }}>Twilio</strong> — SMS delivery for agent lead alerts</li>
-            <li><strong style={{ color: C.text }}>Stripe</strong> — payment processing for agent subscriptions</li>
-            <li><strong style={{ color: C.text }}>Vercel</strong> — application hosting and infrastructure</li>
+        <Section id="retention" title="5. How long we keep it">
+          <ul style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <li><strong style={{ color: C.text }}>Buyer requests (leads):</strong> while the listing agent's account is open. The agent can delete a lead at any time.</li>
+            <li><strong style={{ color: C.text }}>Anonymous visit records</strong> (no name attached): 24 months, then deleted.</li>
+            <li><strong style={{ color: C.text }}>Text consent and opt-out records:</strong> 5 years, so we can show that texts were sent with consent and stopped when asked.</li>
+            <li><strong style={{ color: C.text }}>Agent accounts:</strong> while the account is open. Contact us to close an account and request deletion.</li>
           </ul>
+        </Section>
+
+        <Section title="6. Your choices and requests">
           <p style={{ margin: 0 }}>
-            Each provider is bound by their own privacy policies and data processing agreements. We share only the minimum data necessary to deliver the service.
+            You can ask us what information we hold about you, or ask us to delete it, by emailing{' '}
+            <a href="mailto:hello@theqrealtor.com" style={{ color: C.purpleL, textDecoration: 'none' }}>hello@theqrealtor.com</a>.
+            We may need to keep some records, such as text consent and opt-out records, where the law requires or allows it. You can also contact the listing agent directly.
           </p>
         </Section>
 
-        <Section title="5. Data Retention">
+        <Section title="7. Security">
           <p style={{ margin: 0 }}>
-            Lead data is retained for as long as the associated agent account is active. Agents may delete individual leads at any time. Upon account deletion, data retention will be handled in accordance with our data retention practices. Contact hello@theqrealtor.com for data deletion requests.
+            We use encrypted connections, database access rules that keep each agent's data separate, and limited internal access. No system is perfectly secure.
           </p>
         </Section>
 
-        <Section title="6. Security">
+        <Section title="8. Children">
           <p style={{ margin: 0 }}>
-            We use industry-standard measures to protect your data, including encrypted connections (TLS), row-level security on our database, and access controls that ensure agents can only view their own leads. No method of transmission over the internet is 100% secure, and we cannot guarantee absolute security.
+            theQRealtor is not intended for anyone under 18, and we do not knowingly collect their information. If you believe a minor has submitted information, contact us and we will delete it.
           </p>
         </Section>
 
-        <Section title="7. Age and Eligibility">
+        <Section title="9. Changes">
           <p style={{ margin: 0 }}>
-            theqrealtor is intended for licensed real estate professionals and individuals of legal age to enter into contracts in their jurisdiction. We do not knowingly collect personal information from individuals under 18 unless they hold a valid real estate license issued by their state. If you believe an unlicensed minor has submitted information through our platform, please contact us at hello@theqrealtor.com and we will delete it promptly.
+            When we update this policy, we change the date at the top.
           </p>
         </Section>
 
-        <Section title="8. Changes to This Policy">
+        <Section title="10. Contact">
           <p style={{ margin: 0 }}>
-            We may update this Privacy Policy from time to time. When we do, we will update the "Last updated" date above. Continued use of the service after changes take effect constitutes acceptance of the revised policy.
-          </p>
-        </Section>
-
-        <Section title="9. Buyer Rights">
-          <p style={{ margin: 0 }}>
-            Buyers may request access to or deletion of personal information we maintain, subject to applicable law. Requests can be made by contacting{' '}
-            <a href="mailto:hello@theqrealtor.com" style={{ color: C.purpleL, textDecoration: 'none' }}>
-              hello@theqrealtor.com
-            </a>.
-          </p>
-        </Section>
-
-        <Section title="10. Contact Us">
-          <p style={{ margin: 0 }}>
-            If you have questions or concerns about this Privacy Policy, or to request deletion of your data, please contact us at{' '}
-            <a href="mailto:hello@theqrealtor.com" style={{ color: C.purpleL, textDecoration: 'none' }}>
-              hello@theqrealtor.com
-            </a>.
+            <a href="mailto:hello@theqrealtor.com" style={{ color: C.purpleL, textDecoration: 'none' }}>hello@theqrealtor.com</a>
           </p>
         </Section>
 

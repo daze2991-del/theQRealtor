@@ -66,7 +66,7 @@ export default function PrivacyPage() {
             Privacy Policy
           </h1>
           <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>
-            Last updated: October 7, 2026
+            Last updated: October 22, 2026
           </p>
         </div>
 
@@ -135,7 +135,7 @@ export default function PrivacyPage() {
           <ul style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <li><strong style={{ color: C.text }}>Buyer requests (leads):</strong> while the listing agent's account is open. The agent can delete a lead at any time.</li>
             <li><strong style={{ color: C.text }}>Anonymous visit records</strong> (no name attached): 24 months, then deleted.</li>
-            <li><strong style={{ color: C.text }}>Text consent and opt-out records:</strong> 5 years, so we can show that texts were sent with consent and stopped when asked.</li>
+            <li><strong style={{ color: C.text }}>Text consent and opt-out records:</strong> 5 years. We keep a record of each phone number's most recent opt-out or opt-in for as long as needed to honor it.</li>
             <li><strong style={{ color: C.text }}>Agent accounts:</strong> while the account is open. Contact us to close an account and request deletion.</li>
           </ul>
         </Section>

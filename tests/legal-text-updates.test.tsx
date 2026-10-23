@@ -38,7 +38,7 @@ describe('Privacy Policy: full replacement', () => {
   })
 
   it('"Last updated" is today', () => {
-    expect(privacyHtml).toContain('Last updated: October 7, 2026')
+    expect(privacyHtml).toContain('Last updated: October 22, 2026')
   })
 
   it('section 9 uses the shortened override, not the doc\'s longer sentence', () => {
@@ -60,6 +60,10 @@ describe('Privacy Policy: full replacement', () => {
     expect(privacyHtml).toContain('photos viewed, time on the page')
     expect(privacyHtml).toContain('24 months, then deleted')
     expect(privacyHtml).toContain('5 years')
+    // 2026-10-09: consent retention line updated alongside migration 064
+    expect(privacyHtml.replace(/<[^>]+>/g, '')).toContain(
+      "Text consent and opt-out records: 5 years. We keep a record of each phone number's most recent opt-out or opt-in for as long as needed to honor it.")
+    expect(privacyHtml).not.toContain('so we can show that texts were sent with consent and stopped when asked')
     expect(privacyHtml).toContain('No other agent')
     expect(privacyHtml).toContain('Google Maps')
   })

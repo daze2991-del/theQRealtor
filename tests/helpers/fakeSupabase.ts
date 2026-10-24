@@ -5,6 +5,11 @@ export type Row = Record<string, any>
 
 export function makeFakeDb() {
   const tables: Record<string, Row[]> = {}
+  // auth.admin.getUserById — used by app/api/submit-lead's email-alert path
+  // (lib/email.ts) to resolve the agent's account email. Unregistered ids
+  // resolve to no user (email alert then fails safe with 'no_recipient'
+  // rather than throwing), same shape as a real postgrest-style response.
+  const authUsers: Record<string, { email?: string | null }> = {}
   const failReads = new Set<string>()
   // Simulate a specific write failure (e.g. a unique_violation race) on the
   // NEXT insert/update to this table, then clear itself. { code, message }
@@ -104,5 +109,13 @@ export function makeFakeDb() {
     const out = h(args)
     return Promise.resolve({ data: out.data ?? null, error: out.error ?? null })
   }
-  return { client: { from, rpc } as any, tables, failReads, failWrites, queries, rpcs, rpcCalls }
+  const auth = {
+    admin: {
+      getUserById: async (id: string) => ({
+        data: { user: id in authUsers ? { id, ...authUsers[id] } : null },
+        error: null,
+      }),
+    },
+  }
+  return { client: { from, rpc, auth } as any, tables, failReads, failWrites, queries, rpcs, rpcCalls, authUsers }
 }

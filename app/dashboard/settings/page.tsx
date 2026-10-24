@@ -7,6 +7,7 @@ import DashboardLayout from '../../../components/DashboardLayout'
 import FreeSelection from '../../../components/FreeSelection'
 import SmsAgentConsentText from '../../../components/SmsAgentConsentText'
 import { Check, Zap, Lock, Moon, Sun, Monitor, Mail } from 'lucide-react'
+import { featuresForPlan } from '../../../lib/plans'
 
 const C = {
   bg:      '#0F0F13',
@@ -94,7 +95,13 @@ export default function SettingsPage() {
   const [photoUrl, setPhotoUrl]   = useState('')
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [photoError, setPhotoError]         = useState('')
-  const [smsEnabled, setSmsEnabled] = useState(true)
+  // Real master toggles, both stored on profiles (migration 065) — replaces
+  // the old smsEnabled/auth.user_metadata mechanism, which didn't actually
+  // stop sends (profiles.phone was never cleared, and submit-lead never
+  // checked it). queueOrSendAgentSms()/sendAgentAlertEmail() check these
+  // server-side on every send.
+  const [smsAlertsEnabled, setSmsAlertsEnabled] = useState(false)
+  const [emailAlertsEnabled, setEmailAlertsEnabled] = useState(true)
 
   // Lead notification preferences (stored on profiles)
   const [notifyShowing,  setNotifyShowing]  = useState(true)
@@ -130,7 +137,6 @@ export default function SettingsPage() {
 
         const meta = session.user.user_metadata || {}
         setPhone(meta.phone || '')
-        setSmsEnabled(meta.sms_enabled !== false)
 
         const savedTheme = (typeof window !== 'undefined' && localStorage.getItem('qr-theme')) as 'dark' | 'light' | 'system' | null
         if (savedTheme) setTheme(savedTheme)
@@ -140,7 +146,7 @@ export default function SettingsPage() {
           { data: props },
         ] = await Promise.all([
           supabase.from('profiles')
-            .select('name, plan, phone, dre, brokerage, photo_url, notify_showing, notify_question, quiet_hours_enabled, quiet_hours_start, quiet_hours_end')
+            .select('name, plan, phone, dre, brokerage, photo_url, notify_showing, notify_question, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, sms_alerts_enabled, email_alerts_enabled')
             .eq('id', uid).single(),
           supabase.from('properties').select('id').eq('user_id', uid).is('deleted_at', null),
         ])
@@ -157,6 +163,8 @@ export default function SettingsPage() {
           setPhotoUrl(profile.photo_url || '')
           if (typeof profile.notify_showing  === 'boolean') setNotifyShowing(profile.notify_showing)
           if (typeof profile.notify_question === 'boolean') setNotifyQuestion(profile.notify_question)
+          if (typeof profile.sms_alerts_enabled   === 'boolean') setSmsAlertsEnabled(profile.sms_alerts_enabled)
+          if (typeof profile.email_alerts_enabled === 'boolean') setEmailAlertsEnabled(profile.email_alerts_enabled)
           if (typeof profile.quiet_hours_enabled === 'boolean') setQuietEnabled(profile.quiet_hours_enabled)
           if (profile.quiet_hours_start) setQuietStart(String(profile.quiet_hours_start).slice(0, 5))
           if (profile.quiet_hours_end)   setQuietEnd(String(profile.quiet_hours_end).slice(0, 5))
@@ -194,13 +202,14 @@ export default function SettingsPage() {
     setSaved(false)
     setSaveError('')
     try {
-      const agentPhone = smsEnabled && phone.trim() ? phone.trim() : null
       const profileRes = await fetch('/api/update-profile', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: name.trim(), phone: phone.trim(), smsEnabled, agentPhone,
+          name: name.trim(), phone: phone.trim(),
           dre: dre.trim(), brokerage: brokerage.trim(), photoUrl: photoUrl.trim(),
           notifyShowing, notifyQuestion,
+          smsAlertsEnabled: canUseSms ? smsAlertsEnabled : false,
+          emailAlertsEnabled,
           quietHoursEnabled: quietEnabled,
           quietHoursStart: quietStart, quietHoursEnd: quietEnd,
         }),
@@ -278,6 +287,10 @@ export default function SettingsPage() {
     color: theme === t ? C.purpleL : C.muted,
     transition: 'all 0.15s',
   })
+
+  // Free doesn't get SMS alerts (canUseEmailAlerts is true for every plan, so
+  // no gate needed on that section).
+  const canUseSms = featuresForPlan(rawPlan).canUseSms
 
   return (
     <DashboardLayout>
@@ -411,50 +424,67 @@ export default function SettingsPage() {
 
             {/* Notifications */}
             <Section title="Notification Preferences" description="Control when and how you receive lead alerts.">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
+              {/* Email alerts — every plan. */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: canUseSms ? 0 : undefined, paddingBottom: canUseSms ? 20 : 0, borderBottom: canUseSms ? `1px solid ${C.border}` : 'none' }}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 4 }}>SMS Lead Alerts</div>
-                  <div style={{ fontSize: 13, color: C.muted }}>Get a text when a buyer requests a showing or asks a question.</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 4 }}>Email Lead Alerts</div>
+                  <div style={{ fontSize: 13, color: C.muted }}>Get an email when a buyer requests a showing or asks a question.</div>
                 </div>
-                <Toggle checked={smsEnabled} onChange={setSmsEnabled} disabled={!phone.trim()} />
+                <Toggle checked={emailAlertsEnabled} onChange={setEmailAlertsEnabled} />
               </div>
-              {(smsEnabled || !!phone.trim()) && (
-                <p style={{ margin: '14px 0 0', fontSize: 11, color: C.muted, lineHeight: 1.65 }}>
-                  <SmsAgentConsentText color={C.purpleL} />
-                </p>
-              )}
-              {!phone.trim() && (
-                <div style={{ marginTop: 14, fontSize: 12, color: C.muted, background: `${C.purple}12`, border: `1px solid ${C.purple}28`, borderRadius: 8, padding: '8px 12px' }}>
-                  Add a phone number above and save to enable SMS alerts.
-                </div>
-              )}
-              {phone.trim() && (
-                <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
+
+              {canUseSms ? (
+                <div style={{ marginTop: 20 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 4 }}>Send Test SMS</div>
-                      <div style={{ fontSize: 13, color: C.muted }}>Verify your alerts are working by sending a test message to {phone}.</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 4 }}>SMS Lead Alerts</div>
+                      <div style={{ fontSize: 13, color: C.muted }}>Get a text when a buyer requests a showing or asks a question.</div>
                     </div>
-                    <button
-                      onClick={sendTestSMS} disabled={testingSMS}
-                      style={{
-                        background: testSMSResult?.ok ? '#052e16' : `${C.purple}22`,
-                        color: testSMSResult?.ok ? '#4ade80' : C.purpleL,
-                        border: `1px solid ${testSMSResult?.ok ? '#166534' : C.purple + '55'}`,
-                        borderRadius: 9, padding: '8px 18px', fontSize: 13, fontWeight: 600,
-                        cursor: testingSMS ? 'not-allowed' : 'pointer',
-                        opacity: testingSMS ? 0.7 : 1, whiteSpace: 'nowrap', flexShrink: 0, transition: 'all 0.2s',
-                        display: 'inline-flex', alignItems: 'center', gap: 6,
-                      }}
-                    >
-                      {testingSMS ? 'Sending…' : testSMSResult?.ok ? <><Check size={13} /> Sent!</> : 'Send Test SMS'}
-                    </button>
+                    <Toggle checked={smsAlertsEnabled} onChange={setSmsAlertsEnabled} disabled={!phone.trim()} />
                   </div>
-                  {testSMSResult?.error && (
-                    <div style={{ marginTop: 10, fontSize: 12, color: '#FCA5A5', background: '#2D0A0A', border: '1px solid #7F1D1D', borderRadius: 8, padding: '8px 12px' }}>
-                      {testSMSResult.error}
+                  {(smsAlertsEnabled || !!phone.trim()) && (
+                    <p style={{ margin: '14px 0 0', fontSize: 11, color: C.muted, lineHeight: 1.65 }}>
+                      <SmsAgentConsentText color={C.purpleL} />
+                    </p>
+                  )}
+                  {!phone.trim() && (
+                    <div style={{ marginTop: 14, fontSize: 12, color: C.muted, background: `${C.purple}12`, border: `1px solid ${C.purple}28`, borderRadius: 8, padding: '8px 12px' }}>
+                      Add a phone number above and save to enable SMS alerts.
                     </div>
                   )}
+                  {phone.trim() && (
+                    <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 4 }}>Send Test SMS</div>
+                          <div style={{ fontSize: 13, color: C.muted }}>Verify your alerts are working by sending a test message to {phone}.</div>
+                        </div>
+                        <button
+                          onClick={sendTestSMS} disabled={testingSMS}
+                          style={{
+                            background: testSMSResult?.ok ? '#052e16' : `${C.purple}22`,
+                            color: testSMSResult?.ok ? '#4ade80' : C.purpleL,
+                            border: `1px solid ${testSMSResult?.ok ? '#166534' : C.purple + '55'}`,
+                            borderRadius: 9, padding: '8px 18px', fontSize: 13, fontWeight: 600,
+                            cursor: testingSMS ? 'not-allowed' : 'pointer',
+                            opacity: testingSMS ? 0.7 : 1, whiteSpace: 'nowrap', flexShrink: 0, transition: 'all 0.2s',
+                            display: 'inline-flex', alignItems: 'center', gap: 6,
+                          }}
+                        >
+                          {testingSMS ? 'Sending…' : testSMSResult?.ok ? <><Check size={13} /> Sent!</> : 'Send Test SMS'}
+                        </button>
+                      </div>
+                      {testSMSResult?.error && (
+                        <div style={{ marginTop: 10, fontSize: 12, color: '#FCA5A5', background: '#2D0A0A', border: '1px solid #7F1D1D', borderRadius: 8, padding: '8px 12px' }}>
+                          {testSMSResult.error}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div style={{ marginTop: 20, paddingTop: 20, borderTop: `1px solid ${C.border}`, fontSize: 13, color: C.muted }}>
+                  Text alerts are available on paid plans.
                 </div>
               )}
             </Section>

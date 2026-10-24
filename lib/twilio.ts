@@ -6,6 +6,7 @@
 import twilio from 'twilio'
 import { createAdminSupabase } from './supabase-admin'
 import { normalizePhone } from './phone'
+import { featuresForPlan } from './plans'
 
 type Admin = ReturnType<typeof createAdminSupabase>
 
@@ -283,6 +284,12 @@ export interface AgentNotifyProfile {
   quiet_hours_enabled: boolean
   quiet_hours_start: string
   quiet_hours_end: string
+  /** Plan string, read for the canUseSms gate below. */
+  plan: string | null
+  /** profiles.sms_alerts_enabled — the real master toggle (migration 065).
+   *  Checked here, not just at Settings-save time, so it can never be
+   *  bypassed by a stale profiles.phone value. */
+  sms_alerts_enabled: boolean
 }
 
 // Logs each dispatched agent alert and fires a one-time founder alarm at 100/day.
@@ -331,12 +338,19 @@ async function logAndMaybeAlarm(admin: Admin, agentId: string, alertType: string
 //
 // Only a text that actually went out (or was queued to go out) counts toward
 // the sms_send_log founder alarm — a suppressed or failed send never does.
-//   'sent'       — Twilio accepted it; counted.
-//   'queued'     — held for quiet hours; counted at queue time (as before).
-//                  The flush re-checks opt-out when it actually sends.
-//   'suppressed' — agent's number is opted out / unusable; not queued, not counted.
-//   'failed'     — Twilio/config error; not counted.
-//   'skipped'    — no agent phone on file.
+//   'sent'            — Twilio accepted it; counted.
+//   'queued'          — held for quiet hours; counted at queue time (as before).
+//                        The flush re-checks opt-out when it actually sends.
+//   'suppressed'      — agent's number is opted out / unusable; not queued, not counted.
+//   'failed'          — Twilio/config error; not counted.
+//   'skipped'         — no agent phone on file.
+//   'plan_restricted' — agent's plan doesn't include SMS alerts (Free), OR the
+//                        agent has turned sms_alerts_enabled off. Checked here,
+//                        the single chokepoint both showing and question
+//                        alerts dispatch through — never reached by buyer
+//                        confirmation texts, which call sendSmsDetailed()
+//                        directly (app/api/submit-lead/route.ts) and never go
+//                        through this function.
 export async function queueOrSendAgentSms(opts: {
   admin: Admin
   agent: AgentNotifyProfile
@@ -345,9 +359,10 @@ export async function queueOrSendAgentSms(opts: {
   message: string
   alertType: string
   now?: Date
-}): Promise<'sent' | 'queued' | 'skipped' | 'suppressed' | 'failed'> {
+}): Promise<'sent' | 'queued' | 'skipped' | 'suppressed' | 'failed' | 'plan_restricted'> {
   const { admin, agent, agentPhone, leadId, message } = opts
   const now = opts.now ?? new Date()
+  if (!featuresForPlan(agent.plan).canUseSms || !agent.sms_alerts_enabled) return 'plan_restricted'
   if (!agentPhone) return 'skipped'
 
   // Master toggle checked BEFORE the time-window predicate — when off, this

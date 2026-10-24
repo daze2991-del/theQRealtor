@@ -26,6 +26,7 @@
     "react-dom": "^18.3.1",
     "react-rnd": "^10.5.3",
     "recharts": "^3.8.1",
+    "resend": "^6.34.1",
     "server-only": "^0.0.1",
     "stripe": "^22.1.1",
     "twilio": "^5.13.1",

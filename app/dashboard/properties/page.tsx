@@ -14,6 +14,7 @@ import NotTakingRequestsBadge from '../../../components/NotTakingRequestsBadge'
 import { requestsPausedReason, formatChangeDate, type PausedReason } from '../../../lib/planLock'
 import { deactivationPatch } from '../../../lib/propertyStatus'
 import { motivationToTierV2 } from '../../../lib/leadScoringV2'
+import { canSeeScoring } from '../../../lib/scoringAccess'
 
 const C = {
   bg:      '#0F0F13',
@@ -48,8 +49,8 @@ function StatusBadge({ active, toggling, onToggle }: { active: boolean; toggling
   )
 }
 
-function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onToggle, onDelete, onEdit, deleting, userId, origin, thumbnail, pausedReason }: {
-  prop: any; scanCount: number; leadCount: number; hotLeadCount: number;
+function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, plan, toggling, onToggle, onDelete, onEdit, deleting, userId, origin, thumbnail, pausedReason }: {
+  prop: any; scanCount: number; leadCount: number; hotLeadCount: number; plan: string | null;
   /** Non-null = buyers can't send requests (lib/planLock.ts). Replaces the green badge. */
   pausedReason: PausedReason | null;
   toggling: boolean; onToggle: () => void;
@@ -279,14 +280,21 @@ function PropertyCard({ prop, scanCount, leadCount, hotLeadCount, toggling, onTo
           : <StatusBadge active={!!prop.active} toggling={toggling} onToggle={onToggle} />}
       </div>
 
-      {/* Analytics strip — Scans · Leads · Buyer Interest */}
+      {/* Analytics strip — Scans · Leads · Buyer Interest (Buyer Interest is
+          tier-derived, so it's omitted rather than shown as 0 for Free) */}
       <div style={{ display: 'flex' }}>
-        {[
-          { label: 'Scans',          value: scanCount,    color: '#F1F5F9' },
-          { label: 'Leads',          value: leadCount,    color: '#F1F5F9' },
-          { label: 'Buyer Interest', value: hotLeadCount, color: '#8B5CF6' },
-        ].map((s, i) => (
-          <div key={s.label} style={{ flex: 1, textAlign: 'center', borderRight: i < 2 ? '1px solid #1E2340' : 'none' }}>
+        {(canSeeScoring(plan)
+          ? [
+              { label: 'Scans',          value: scanCount,    color: '#F1F5F9' },
+              { label: 'Leads',          value: leadCount,    color: '#F1F5F9' },
+              { label: 'Buyer Interest', value: hotLeadCount, color: '#8B5CF6' },
+            ]
+          : [
+              { label: 'Scans', value: scanCount, color: '#F1F5F9' },
+              { label: 'Leads', value: leadCount, color: '#F1F5F9' },
+            ]
+        ).map((s, i, arr) => (
+          <div key={s.label} style={{ flex: 1, textAlign: 'center', borderRight: i < arr.length - 1 ? '1px solid #1E2340' : 'none' }}>
             <div style={{ fontSize: 20, fontWeight: 700, color: s.color, lineHeight: 1 }}>{s.value}</div>
             <div style={{ fontSize: 11, color: '#64748B', marginTop: 5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{s.label}</div>
           </div>
@@ -645,9 +653,11 @@ export default function PropertiesPage() {
           // Scan counts now come from scan_events (property_id is a required,
           // reliable stamp on every row) instead of qrcodes.scan_count, which
           // lived on the now-empty/retired qrcodes table.
+          // leads_scoped nulls tier for Free agents — hotMap stays empty for
+          // them, which is what gates the "Buyer Interest" stat tile below.
           const [{ data: scanEvents }, { data: leads }, { data: thumbData }] = await Promise.all([
             supabase.from('scan_events').select('property_id').in('property_id', ids),
-            supabase.from('leads').select('property_id, tier').in('property_id', ids),
+            supabase.from('leads_scoped').select('property_id, tier').in('property_id', ids),
             supabase.from('property_photos').select('property_id, url')
               .in('property_id', ids).order('sort_order', { ascending: true }),
           ])
@@ -714,22 +724,25 @@ export default function PropertiesPage() {
     setExportingCsv(true)
     try {
       const supabase = createBrowserSupabase()
+      // leads_scoped: tier/motivation come back null for Free agents — the
+      // Tier column itself is omitted below rather than exported empty.
       const { data: leads, error } = await supabase
-        .from('leads')
+        .from('leads_scoped')
         .select('name, phone, email, status, motivation, tier, notes, created_at')
         .eq('property_id', prop.id)
         .order('created_at', { ascending: false })
       if (error) { console.error('[downloadPropertyLeadsCsv] query failed:', error); return }
       if (!leads || leads.length === 0) return
 
+      const scoringOn = canSeeScoring(plan)
       const rows = [
         // 'Notes' here is leads.notes — the BUYER's submitted message, not agent notes.
-        ['Name', 'Phone', 'Email', 'Status', 'Tier', 'Buyer Message', 'Submitted'],
+        ['Name', 'Phone', 'Email', 'Status', ...(scoringOn ? ['Tier'] : []), 'Buyer Message', 'Submitted'],
         ...leads.map((l: any) => {
           const tier = l.tier && ['hot', 'warm', 'cold'].includes(l.tier) ? l.tier : motivationToTierV2(l.motivation)
           return [
             l.name || '', l.phone || '', l.email || '',
-            l.status || 'new', tier,
+            l.status || 'new', ...(scoringOn ? [tier] : []),
             l.notes || '', new Date(l.created_at).toLocaleString(),
           ]
         }),
@@ -870,6 +883,7 @@ export default function PropertiesPage() {
                     scanCount={scanCounts[prop.id] || 0}
                     leadCount={leadCounts[prop.id] || 0}
                     hotLeadCount={hotLeadCounts[prop.id] || 0}
+                    plan={plan}
                     toggling={togglingId === prop.id}
                     onToggle={() => toggleActive(prop)}
                     onDelete={() => handleDeleteClick(prop)}

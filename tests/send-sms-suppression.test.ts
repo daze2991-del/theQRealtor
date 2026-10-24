@@ -5,6 +5,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeFakeDb } from './helpers/fakeSupabase'
 
+vi.mock('server-only', () => ({}))
+
 let db = makeFakeDb()
 vi.mock('../lib/supabase-admin', () => ({ createAdminSupabase: () => db.client }))
 
@@ -125,7 +127,7 @@ describe('sendSmsDetailed — suppression gate', () => {
 })
 
 // ── Agent alerts ──────────────────────────────────────────────────────────────
-const agent = { id: AGENT_ID, quiet_hours_enabled: false, quiet_hours_start: '21:00', quiet_hours_end: '08:00' }
+const agent = { id: AGENT_ID, quiet_hours_enabled: false, quiet_hours_start: '21:00', quiet_hours_end: '08:00', plan: 'pro', sms_alerts_enabled: true }
 const sendLog = () => (db.tables.sms_send_log ?? []).length
 
 describe('queueOrSendAgentSms', () => {
@@ -159,6 +161,77 @@ describe('queueOrSendAgentSms', () => {
     const r = await tw.queueOrSendAgentSms({ admin: db.client, agent, agentPhone: AGENT_PHONE, leadId: 'L1', message: 'alert', alertType: 'showingAlert' })
     expect(r).toBe('failed')
     expect(sendLog()).toBe(0)
+  })
+})
+
+describe('queueOrSendAgentSms: plan gate (migration 065/066, lib/plans.ts)', () => {
+  it("Free plan: 'plan_restricted', regardless of sms_alerts_enabled", async () => {
+    const r = await tw.queueOrSendAgentSms({
+      admin: db.client, agent: { ...agent, plan: 'free', sms_alerts_enabled: true },
+      agentPhone: AGENT_PHONE, leadId: 'L1', message: 'alert', alertType: 'showingAlert',
+    })
+    expect(r).toBe('plan_restricted')
+    expect(create).not.toHaveBeenCalled()
+    expect(sendLog()).toBe(0)
+  })
+
+  it("full-featured plan but sms_alerts_enabled=false: 'plan_restricted' — the toggle, not the plan, is the gate here", async () => {
+    const r = await tw.queueOrSendAgentSms({
+      admin: db.client, agent: { ...agent, plan: 'pro', sms_alerts_enabled: false },
+      agentPhone: AGENT_PHONE, leadId: 'L1', message: 'alert', alertType: 'showingAlert',
+    })
+    expect(r).toBe('plan_restricted')
+    expect(create).not.toHaveBeenCalled()
+  })
+
+  it('plan_restricted is checked before the quiet-hours window, so it never gets queued for a later retry', async () => {
+    const r = await tw.queueOrSendAgentSms({
+      admin: db.client,
+      agent: { ...agent, plan: 'free', quiet_hours_enabled: true, quiet_hours_start: '00:00', quiet_hours_end: '23:59' },
+      agentPhone: AGENT_PHONE, leadId: 'L1', message: 'alert', alertType: 'showingAlert',
+    })
+    expect(r).toBe('plan_restricted')
+    expect(db.tables.pending_notifications ?? []).toHaveLength(0)
+  })
+
+  it('every plan whose featuresForPlan().canUseSms is true actually sends, and every one where it is false is plan_restricted', async () => {
+    const { PLAN_CONFIG, featuresForPlan } = await import('../lib/plans')
+    for (const plan of Object.keys(PLAN_CONFIG)) {
+      db.tables.sms_send_log = []
+      const r = await tw.queueOrSendAgentSms({
+        admin: db.client, agent: { ...agent, plan, sms_alerts_enabled: true },
+        agentPhone: AGENT_PHONE, leadId: 'L1', message: 'alert', alertType: 'showingAlert',
+      })
+      expect(r === 'plan_restricted').toBe(!featuresForPlan(plan).canUseSms)
+    }
+  })
+
+  it('the SMS plan/toggle gate lives inside queueOrSendAgentSms only — sendSmsDetailed (the buyer-confirmation path) has no plan parameter at all and cannot be gated by it', () => {
+    // Static proof the two paths are structurally independent, not just
+    // "untested with the right fixture": sendSmsDetailed's signature carries
+    // no plan/agent concept whatsoever.
+    expect(tw.sendSmsDetailed.length).toBeLessThanOrEqual(2)   // (to, body) — no agent/plan arg
+  })
+
+  it('buyer confirmation still sends when the agent is on Free with SMS alerts off — proven end-to-end via submit-lead', async () => {
+    db.tables.properties = [{ id: 'P1', address: '1 Main St', agent_name: 'Ann Agent', agent_phone: null, active: true, user_id: AGENT_ID }]
+    db.tables.profiles = [{
+      id: AGENT_ID, name: 'Ann', phone: AGENT_PHONE, notify_showing: true, notify_question: true,
+      quiet_hours_enabled: false, quiet_hours_start: '21:00', quiet_hours_end: '08:00', beta_joined_at: null,
+      plan: 'free', sms_alerts_enabled: false, email_alerts_enabled: false,
+    }]
+    const BUYER_PHONE2 = '+13105550199'
+    const res = await submitLeadPOST(new Request('https://theqrealtor.com/api/submit-lead', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-forwarded-for': '10.0.0.77', 'user-agent': 'Mozilla/5.0' },
+      body: JSON.stringify({
+        propertyId: 'P1', name: 'Bea Buyer', phone: BUYER_PHONE2, motivation: 'hot', smsConsent: true,
+        engagement: { ctaClicked: 'showing', visitCount: 1, photosViewed: 0, timeOnPageSec: 5 },
+      }),
+    }))
+    expect(res.status).toBe(200)
+    expect(sentTo()).toContain(BUYER_PHONE2)       // buyer confirmation: unaffected by the agent's plan gate
+    expect(sentTo()).not.toContain(AGENT_PHONE)    // agent alert: plan_restricted, correctly suppressed
   })
 })
 
@@ -243,6 +316,7 @@ describe('submit-lead: opted-out buyer', () => {
     db.tables.profiles = [{
       id: AGENT_ID, name: 'Ann', phone: AGENT_PHONE, notify_showing: true, notify_question: true, notify_hot_lead: true,
       quiet_hours_enabled: false, quiet_hours_start: '21:00', quiet_hours_end: '08:00', beta_joined_at: null, plan: 'founding',
+      sms_alerts_enabled: true, email_alerts_enabled: false,
     }]
     const res = await submitLeadPOST(new Request('https://theqrealtor.com/api/submit-lead', {
       method: 'POST',

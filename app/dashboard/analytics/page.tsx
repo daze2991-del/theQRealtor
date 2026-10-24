@@ -11,6 +11,8 @@ import { Flame, Home, CalendarCheck, BarChart2, Sparkles, CheckCircle, Minus, Tr
 import { TIER_V2_CFG, motivationToTierV2, requestedShowing } from '../../../lib/leadScoringV2'
 import { isEligibleLead, isUncontacted } from '../../../lib/leadEligibility'
 import { parseTimestamp } from '../../../lib/timeAgo'
+import { canSeeScoring } from '../../../lib/scoringAccess'
+import UpgradeHint from '../../../components/UpgradeHint'
 
 // ── tokens ──────────────────────────────────────────────────────────────────
 
@@ -137,6 +139,7 @@ export default function AnalyticsPage() {
   const [prevLeadCount, setPrevLeadCount] = useState(0)
   const [oldLastSeen, setOldLastSeen]     = useState<string | null>(null)
   const [sessionUserId, setSessionUserId] = useState<string | null>(null)
+  const [plan, setPlan]                   = useState<string | null>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -184,10 +187,16 @@ export default function AnalyticsPage() {
       let scanQuery = supabase.from('scan_events').select('property_id, created_at').in('property_id', propertyIds)
       if (cutoffStr) scanQuery = scanQuery.gte('created_at', cutoffStr)
 
-      let leadQuery = supabase.from('leads').select('id, name, property_id, motivation, tier, intent_score, status, do_not_contact, spam, last_contacted_at, last_activity_at, score_breakdown, created_at').in('property_id', propertyIds)
+      // leads_scoped (migration 066): nulls tier/intent_score/motivation/etc.
+      // for Free agents — the hot-leads briefing cards and leaderboard "needs
+      // attention" flag below degrade safely to "nothing to show" since
+      // they're conditionally-shown (only when count > 0), but the tier
+      // distribution panel is gated explicitly since it unconditionally
+      // renders a hot/warm/cold breakdown.
+      let leadQuery = supabase.from('leads_scoped').select('id, name, property_id, motivation, tier, intent_score, status, do_not_contact, spam, last_contacted_at, last_activity_at, score_breakdown, created_at').in('property_id', propertyIds)
       if (cutoffStr) leadQuery = leadQuery.gte('created_at', cutoffStr)
 
-      const profileQuery = supabase.from('profiles').select('last_seen_analytics_at').eq('id', session.user.id).single()
+      const profileQuery = supabase.from('profiles').select('last_seen_analytics_at, plan').eq('id', session.user.id).single()
 
       const prevScanQuery = (cutoffStr && priorStartStr)
         ? supabase.from('scan_events').select('*', { count: 'exact', head: true }).in('property_id', propertyIds).gte('created_at', priorStartStr).lt('created_at', cutoffStr)
@@ -206,6 +215,7 @@ export default function AnalyticsPage() {
 
       const lastSeen = profileData?.last_seen_analytics_at ?? null
       setOldLastSeen(lastSeen)
+      setPlan(profileData?.plan ?? null)
       setScans(scanData || [])
       setLeads(leadData || [])
       setPrevScanCount(prevScans || 0)
@@ -614,10 +624,15 @@ export default function AnalyticsPage() {
                 }
               </div>
 
-              {/* Tier distribution */}
+              {/* Tier distribution — unconditionally shows a hot/warm/cold
+                  breakdown, so (unlike the briefing cards above, which only
+                  ever render when a real hot count exists) it's gated
+                  explicitly rather than left to degrade on its own. */}
               <div style={card}>
                 <div style={h2}>Lead tiers</div>
-                {totalLeads === 0
+                {!canSeeScoring(plan)
+                  ? <UpgradeHint text="Upgrade to see your lead breakdown by buyer intent." />
+                  : totalLeads === 0
                   ? <p style={{ color: C.muted, fontSize: 14 }}>No leads yet.</p>
                   : (
                     <div style={{ display: 'flex', flexDirection: 'column' }}>

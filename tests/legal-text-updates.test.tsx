@@ -38,7 +38,7 @@ describe('Privacy Policy: full replacement', () => {
   })
 
   it('"Last updated" is today', () => {
-    expect(privacyHtml).toContain('Last updated: October 22, 2026')
+    expect(privacyHtml).toContain('Last updated: October 24, 2026')
   })
 
   it('section 9 uses the shortened override, not the doc\'s longer sentence', () => {
@@ -66,6 +66,16 @@ describe('Privacy Policy: full replacement', () => {
     expect(privacyHtml).not.toContain('so we can show that texts were sent with consent and stopped when asked')
     expect(privacyHtml).toContain('No other agent')
     expect(privacyHtml).toContain('Google Maps')
+  })
+
+  it('lists Resend among the service providers (email alerts, migration 065)', () => {
+    expect(privacyHtml).toContain('Resend (email delivery)')
+    const idx = privacyHtml.indexOf('Service providers')
+    expect(privacyHtml.slice(idx, idx + 300)).toContain('Supabase')
+    expect(privacyHtml.slice(idx, idx + 300)).toContain('Twilio')
+    expect(privacyHtml.slice(idx, idx + 300)).toContain('Resend')
+    expect(privacyHtml.slice(idx, idx + 300)).toContain('Vercel')
+    expect(privacyHtml.slice(idx, idx + 300)).toContain('Stripe')
   })
 
   it('keeps the existing page chrome: nav, header style, footer links', () => {

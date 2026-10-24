@@ -10,6 +10,8 @@ import { readFileSync, readdirSync, statSync } from 'fs'
 import { join } from 'path'
 import { makeFakeDb } from './helpers/fakeSupabase'
 
+vi.mock('server-only', () => ({}))
+
 let db = makeFakeDb()
 let user: { id: string } | null = { id: 'agent-1' }
 const AGENT = 'agent-1'

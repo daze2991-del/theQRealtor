@@ -6,6 +6,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeFakeDb } from './helpers/fakeSupabase'
 
+vi.mock('server-only', () => ({}))
+
 let db = makeFakeDb()
 vi.mock('../lib/supabase-admin', () => ({ createAdminSupabase: () => db.client }))
 
@@ -27,6 +29,7 @@ function seed() {
   db.tables.profiles = [{
     id: AGENT_ID, name: 'Jane', phone: AGENT_PHONE, notify_showing: true, notify_question: true,
     quiet_hours_enabled: false, quiet_hours_start: '21:00', quiet_hours_end: '08:00', beta_joined_at: null, plan: 'founding',
+    sms_alerts_enabled: true, email_alerts_enabled: false,
   }]
 }
 

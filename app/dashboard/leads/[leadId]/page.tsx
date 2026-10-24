@@ -20,6 +20,8 @@ import {
   computeCallPriority, motivationToTierV2, requestedShowing, TIER_V2_CFG, SCORE_GUIDE_V2,
   breakdownLines, type ScoreBreakdown, type LeadTierV2,
 } from '../../../../lib/leadScoringV2'
+import { canSeeScoring } from '../../../../lib/scoringAccess'
+import UpgradeHint from '../../../../components/UpgradeHint'
 
 const C = {
   bg: '#0F0F13', card: '#1A1A24', cardAlt: '#15151E', border: '#252533',
@@ -98,6 +100,7 @@ export default function LeadDetailPage() {
   const [propPhoto,      setPropPhoto]      = useState<string | null>(null)
   const [propStats,      setPropStats]      = useState({ leads: 0, scans: 0, showings: 0 })
   const [loading,        setLoading]        = useState(true)
+  const [plan,           setPlan]           = useState<string | null>(null)
   const [notes,          setNotes]          = useState('')
   const [buyerQuestion,  setBuyerQuestion]  = useState('')
   const [savingNotes,    setSavingNotes]    = useState(false)
@@ -117,7 +120,13 @@ export default function LeadDetailPage() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.push('/auth'); return }
 
-      const { data: leadData } = await supabase.from('leads').select('*').eq('id', leadId).single()
+      const { data: profile } = await supabase.from('profiles').select('plan').eq('id', session.user.id).single()
+      setPlan(profile?.plan ?? null)
+
+      // leads_scoped (migration 066): nulls tier/intent_score/motivation/etc.
+      // for Free agents server-side — the JSX below gates which of those it
+      // renders, but the data never arrives in the first place either way.
+      const { data: leadData } = await supabase.from('leads_scoped').select('*').eq('id', leadId).single()
       if (!leadData) { router.push('/dashboard/leads'); return }
       setLead(leadData)
       // Two genuinely separate columns — see migration 043. `agent_notes` feeds
@@ -138,22 +147,25 @@ export default function LeadDetailPage() {
           ? supabase.from('signs').select('*').eq('id', leadData.sign_id).single()
           : Promise.resolve({ data: null }),
         leadData.sign_id
-          ? supabase.from('scan_events')
+          // scan_events_scoped forces return_visit=false for Free agents — the
+          // "Return Visit" factor/timeline-entry/intel-bullet all derive from
+          // eng.visitCount below, so they fall away automatically for Free.
+          ? supabase.from('scan_events_scoped')
               .select('created_at, cta_clicked, photos_viewed, time_on_page_sec, return_visit')
               .eq('sign_id', leadData.sign_id).eq('converted', true)
               .order('created_at', { ascending: false }).limit(1).single()
           : Promise.resolve({ data: null }),
-        supabase.from('leads').select('*', { count: 'exact', head: true }).eq('property_id', leadData.property_id),
+        supabase.from('leads_scoped').select('*', { count: 'exact', head: true }).eq('property_id', leadData.property_id),
         // Scan count: count scan_events directly by property_id. The old qrcodes-join
         // indirection existed because property_id used to be under-populated (migration
         // 009 backfill gap); /api/scan-events now requires property_id on every insert
         // (see route.ts), so it's a reliable stamp going forward — no need to route
         // through qrcodes (now empty/retired) or signs to get there.
-        supabase.from('scan_events').select('*', { count: 'exact', head: true }).eq('property_id', leadData.property_id),
+        supabase.from('scan_events_scoped').select('*', { count: 'exact', head: true }).eq('property_id', leadData.property_id),
         // Not a head-count like the others above — requestedShowing() needs the
         // actual score_breakdown values, filtered client-side like every other
         // "Showing Requests" site in the app.
-        supabase.from('leads').select('score_breakdown').eq('property_id', leadData.property_id),
+        supabase.from('leads_scoped').select('score_breakdown').eq('property_id', leadData.property_id),
       ])
 
       setProperty(propRes.data)
@@ -414,15 +426,17 @@ export default function LeadDetailPage() {
                 </div>
                 <div style={{ minWidth: 0, paddingTop: 2 }}>
                   {/* Intent badge */}
-                  <span style={{
-                    display: 'inline-block', marginBottom: 6,
-                    background: tierCfgV2.bg, color: tierCfgV2.color,
-                    border: `1px solid ${tierCfgV2.border}60`,
-                    borderRadius: 20, padding: '3px 12px',
-                    fontSize: 12, fontWeight: 700,
-                  }}>
-                    {tierCfgV2.label}
-                  </span>
+                  {canSeeScoring(plan) && (
+                    <span style={{
+                      display: 'inline-block', marginBottom: 6,
+                      background: tierCfgV2.bg, color: tierCfgV2.color,
+                      border: `1px solid ${tierCfgV2.border}60`,
+                      borderRadius: 20, padding: '3px 12px',
+                      fontSize: 12, fontWeight: 700,
+                    }}>
+                      {tierCfgV2.label}
+                    </span>
+                  )}
                   {/* Name */}
                   <div style={{ fontSize: 26, fontWeight: 900, color: C.text, letterSpacing: '-0.02em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
                     {lead.name ?? 'Unknown'}
@@ -494,20 +508,22 @@ export default function LeadDetailPage() {
               </div>
 
               {/* Lead Score */}
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-                  Lead Score
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 44, fontWeight: 900, color: scoreIntentColor, lineHeight: 1 }}>{displayScore}</span>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <div style={{ fontSize: 12, color: C.muted }}>intent score (durable)</div>
-                    <div style={{ fontSize: 10, color: C.muted }} title="Priority = intent score weighted by how recently this buyer was active">
-                      Priority: <span style={{ color: C.sub, fontWeight: 700 }}>{callPriority.toFixed(1)}</span>
+              {canSeeScoring(plan) && (
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                    Lead Score
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 44, fontWeight: 900, color: scoreIntentColor, lineHeight: 1 }}>{displayScore}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div style={{ fontSize: 12, color: C.muted }}>intent score (durable)</div>
+                      <div style={{ fontSize: 10, color: C.muted }} title="Priority = intent score weighted by how recently this buyer was active">
+                        Priority: <span style={{ color: C.sub, fontWeight: 700 }}>{callPriority.toFixed(1)}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -599,36 +615,42 @@ export default function LeadDetailPage() {
                 <span style={{ fontSize: 13, fontWeight: 700, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Brain size={14} color={C.purpleL} /> Buyer Intelligence</span>
               </div>
               <div style={{ padding: '16px 18px' }}>
-                <p style={{ fontSize: 14, color: C.text, lineHeight: 1.65, margin: '0 0 14px' }}>
-                  {TIER_V2_CFG[tierV2].summary}
-                </p>
-                {lead.buyer_texted_at && (
-                  <div style={{ fontSize: 11, color: C.muted, margin: '-6px 0 14px', display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <Check size={11} /> Buyer auto-texted {timeAgo(lead.buyer_texted_at)}
-                  </div>
-                )}
-                {intelBullets.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 16 }}>
-                    {intelBullets.map((b, i) => (
-                      <div key={i} style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
-                        <span style={{ flexShrink: 0, display: 'flex', marginTop: 1, color: b.color }}><b.icon size={14} /></span>
-                        <span style={{ fontSize: 13, color: C.sub, lineHeight: 1.5 }}>{b.text}</span>
+                {canSeeScoring(plan) ? (
+                  <>
+                    <p style={{ fontSize: 14, color: C.text, lineHeight: 1.65, margin: '0 0 14px' }}>
+                      {TIER_V2_CFG[tierV2].summary}
+                    </p>
+                    {lead.buyer_texted_at && (
+                      <div style={{ fontSize: 11, color: C.muted, margin: '-6px 0 14px', display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <Check size={11} /> Buyer auto-texted {timeAgo(lead.buyer_texted_at)}
                       </div>
-                    ))}
-                  </div>
+                    )}
+                    {intelBullets.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 16 }}>
+                        {intelBullets.map((b, i) => (
+                          <div key={i} style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
+                            <span style={{ flexShrink: 0, display: 'flex', marginTop: 1, color: b.color }}><b.icon size={14} /></span>
+                            <span style={{ fontSize: 13, color: C.sub, lineHeight: 1.5 }}>{b.text}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{
+                      background: `${C.purple}15`,
+                      border: `1px solid ${C.purple}40`,
+                      borderRadius: 10, padding: '12px 14px',
+                    }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: C.purpleL, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <Lightbulb size={12} /> Recommended Action
+                      </div>
+                      <p style={{ fontSize: 13, color: C.sub, lineHeight: 1.6, margin: 0 }}>
+                        {TIER_V2_CFG[tierV2].advice}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <UpgradeHint text="Upgrade to see buyer intelligence and intent scoring for this lead." />
                 )}
-                <div style={{
-                  background: `${C.purple}15`,
-                  border: `1px solid ${C.purple}40`,
-                  borderRadius: 10, padding: '12px 14px',
-                }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: C.purpleL, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <Lightbulb size={12} /> Recommended Action
-                  </div>
-                  <p style={{ fontSize: 13, color: C.sub, lineHeight: 1.6, margin: 0 }}>
-                    {TIER_V2_CFG[tierV2].advice}
-                  </p>
-                </div>
               </div>
             </div>
 
@@ -665,50 +687,54 @@ export default function LeadDetailPage() {
               </div>
             </div>
 
-            {/* Intent Score Breakdown */}
-            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
-              <div style={{ padding: '13px 18px', borderBottom: `1px solid ${C.border}`, background: C.cardAlt }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Intent Score Breakdown</span>
-              </div>
-              <div style={{ padding: '16px 18px', display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            {/* Intent Score Breakdown — Free already sees the upgrade hint
+                above in Buyer Intelligence; this card is simply omitted
+                rather than shown with nulled/trimmed score data. */}
+            {canSeeScoring(plan) && (
+              <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
+                <div style={{ padding: '13px 18px', borderBottom: `1px solid ${C.border}`, background: C.cardAlt }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Intent Score Breakdown</span>
+                </div>
+                <div style={{ padding: '16px 18px', display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
 
-                {/* Donut chart */}
-                <DonutChart segments={factors.map(f => ({ pts: f.pts, color: f.color }))} total={displayScore} />
+                  {/* Donut chart */}
+                  <DonutChart segments={factors.map(f => ({ pts: f.pts, color: f.color }))} total={displayScore} />
 
-                {/* Factor list */}
-                <div style={{ flex: 1, minWidth: 160, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {factors.map((f, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 10, height: 10, borderRadius: 3, background: f.color, flexShrink: 0 }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <span style={{ fontSize: 12, color: C.sub }}>{f.label}</span>
-                        {f.detail && <span style={{ fontSize: 11, color: C.muted, marginLeft: 5 }}>({f.detail})</span>}
+                  {/* Factor list */}
+                  <div style={{ flex: 1, minWidth: 160, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {factors.map((f, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ width: 10, height: 10, borderRadius: 3, background: f.color, flexShrink: 0 }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <span style={{ fontSize: 12, color: C.sub }}>{f.label}</span>
+                          {f.detail && <span style={{ fontSize: 11, color: C.muted, marginLeft: 5 }}>({f.detail})</span>}
+                        </div>
+                        <span style={{
+                          fontSize: 12, fontWeight: 800, color: '#4ade80',
+                          background: 'rgba(74,222,128,0.1)', borderRadius: 6, padding: '2px 7px',
+                        }}>
+                          +{f.pts}
+                        </span>
                       </div>
-                      <span style={{
-                        fontSize: 12, fontWeight: 800, color: '#4ade80',
-                        background: 'rgba(74,222,128,0.1)', borderRadius: 6, padding: '2px 7px',
-                      }}>
-                        +{f.pts}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Score Guide */}
-                <div style={{ flexShrink: 0, minWidth: 110 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-                    Score Guide
+                    ))}
                   </div>
-                  {SCORE_GUIDE_V2.map(g => (
-                    <div key={g.label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: g.color, flexShrink: 0 }} />
-                      <span style={{ fontSize: 11, color: C.muted, flex: 1 }}>{g.range}</span>
-                      <span style={{ fontSize: 11, color: g.color, fontWeight: 700 }}>{g.label}</span>
+
+                  {/* Score Guide */}
+                  <div style={{ flexShrink: 0, minWidth: 110 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                      Score Guide
                     </div>
-                  ))}
+                    {SCORE_GUIDE_V2.map(g => (
+                      <div key={g.label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: g.color, flexShrink: 0 }} />
+                        <span style={{ fontSize: 11, color: C.muted, flex: 1 }}>{g.range}</span>
+                        <span style={{ fontSize: 11, color: g.color, fontWeight: 700 }}>{g.label}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Notes */}
             <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>

@@ -3,6 +3,7 @@ import { createAdminSupabase } from '../../../lib/supabase-admin'
 import { computeIntent, type EngagementData } from '../../../lib/leadScoring'
 import { computeScoreV2, isLikelyBot, type EngagementInputV2 } from '../../../lib/leadScoringV2'
 import { sendSmsDetailed, resolveAgentPhone, queueOrSendAgentSms, flushDueNotifications, msg } from '../../../lib/twilio'
+import { sendAgentAlertEmail, emailMsg } from '../../../lib/email'
 import { SMS_CONSENT_TEXT, SMS_CONSENT_TEXT_MAX } from '../../../lib/smsConsent'
 import { getTrialStatus } from '../../../lib/trial'
 import { normalizePhone } from '../../../lib/phone'
@@ -207,7 +208,7 @@ export async function POST(request: Request) {
   try {
     const { data: agentProfile } = await supabase
       .from('profiles')
-      .select('id, name, notify_showing, notify_question, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, beta_joined_at, plan')
+      .select('id, name, notify_showing, notify_question, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, beta_joined_at, plan, sms_alerts_enabled, email_alerts_enabled')
       .eq('id', property.user_id)
       .single()
 
@@ -218,9 +219,31 @@ export async function POST(request: Request) {
         quiet_hours_enabled: (agentProfile.quiet_hours_enabled as boolean) ?? true,
         quiet_hours_start:   (agentProfile.quiet_hours_start as string)    ?? '21:00',
         quiet_hours_end:     (agentProfile.quiet_hours_end as string)      ?? '08:00',
+        plan:                (agentProfile.plan as string | null) ?? null,
+        sms_alerts_enabled:  (agentProfile.sms_alerts_enabled as boolean)  ?? false,
       }
       const dispatch = (message: string, alertType: string) =>
         queueOrSendAgentSms({ admin: supabase, agent, agentPhone, leadId, message, alertType })
+
+      // Email alert — same triggers as SMS (notify_showing/notify_question),
+      // sent immediately (quiet hours apply to SMS only), to the agent's own
+      // account email. Never blocks or delays the lead write: sendAgentAlertEmail
+      // never throws, and a missing RESEND_API_KEY just logs + no-ops.
+      // Never includes score/tier/breakdown — the templates only ever receive
+      // buyer-submitted fields and the property address, same as the SMS ones.
+      let agentEmail: string | null = null
+      const dispatchEmail = async (built: { subject: string; text: string; html: string }) => {
+        if (!agentEmail) {
+          const { data: authUser } = await supabase.auth.admin.getUserById(property.user_id as string)
+          agentEmail = authUser?.user?.email ?? null
+        }
+        await sendAgentAlertEmail({
+          to: agentEmail,
+          plan: agent.plan,
+          emailAlertsEnabled: (agentProfile.email_alerts_enabled as boolean) ?? true,
+          ...built,
+        })
+      }
 
       // Expired trial → teaser alerts with no buyer detail. Grandfathered
       // cohorts are exempt inside getTrialStatus(), so they always get the full
@@ -231,7 +254,11 @@ export async function POST(request: Request) {
         agentProfile.plan as string | null,
       ).expired
 
-      // Showing request
+      // Showing request — same trigger fans out to both channels; each one
+      // gates itself (SMS: canUseSms + sms_alerts_enabled in
+      // queueOrSendAgentSms; email: canUseEmailAlerts + email_alerts_enabled
+      // in sendAgentAlertEmail). Free agents get full buyer contact details
+      // by email — the email template never carries score/tier data.
       if (cta === 'showing' && agentProfile.notify_showing !== false) {
         await dispatch(
           trialExpired
@@ -239,6 +266,7 @@ export async function POST(request: Request) {
             : msg.showingAlert(trimName, address, leadId, trimmedPhone, trimmedEmail, (contactPreference as string)?.trim() || null),
           'showingAlert',
         )
+        await dispatchEmail(emailMsg.showingAlert(trimName, address, leadId, trimmedPhone, trimmedEmail, (contactPreference as string)?.trim() || null))
       }
       // Question / info request
       if (cta === 'question' && agentProfile.notify_question !== false) {
@@ -246,6 +274,7 @@ export async function POST(request: Request) {
           trialExpired ? msg.questionAlertTeaser(address) : msg.questionAlert(trimName, address, leadId),
           'questionAlert',
         )
+        await dispatchEmail(emailMsg.questionAlert(trimName, address, leadId, trimmedPhone, trimmedEmail))
       }
       // Hot-lead SMS alert removed (final decision) — agents are texted only
       // for showing requests and questions, above. The Hot tier itself is

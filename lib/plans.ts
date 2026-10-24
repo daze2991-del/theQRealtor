@@ -5,11 +5,16 @@
 // original signatures so existing call sites (signs/create, DashboardLayout,
 // onboarding, the properties pages) did not have to change.
 //
-// ⚠️  NONE of the `features` booleans are enforced anywhere yet. They are
-//     declarative today: a record of what each tier is *meant* to include, so
-//     the numbers stop living in marketing copy only. Do not assume checking
-//     one of them gates anything until an enforcement point actually reads it.
-//     The only limits with real enforcement are documented per-field below.
+// ENFORCEMENT (2026-10-23, Free/paid split):
+//   • leadScoring       — leads_scoped / scan_events_scoped views (migration
+//     066, lib/plans.ts mirror: plan_can_score()) null the scoring columns at
+//     the database layer; dashboard pages additionally gate the JSX sections
+//     that render them (see lib/scoringAccess.ts, components/UpgradeHint.tsx).
+//   • canUseSms         — lib/twilio.ts queueOrSendAgentSms() refuses to send
+//     ('plan_restricted') when false, regardless of profiles.sms_alerts_enabled.
+//   • canUseEmailAlerts — lib/email.ts sendAgentAlertEmail() refuses the same way.
+//   engagementTrends / multiListingComparison / advancedBuyerInsights remain
+//   declarative only — nothing reads them yet.
 
 export type PlanId = 'founding' | 'alpha' | 'trial' | 'starter' | 'pro' | 'free'
 
@@ -18,6 +23,10 @@ export interface PlanFeatures {
   engagementTrends: boolean
   multiListingComparison: boolean
   advancedBuyerInsights: boolean
+  /** Agent-facing SMS lead alerts. Enforced in lib/twilio.ts queueOrSendAgentSms(). */
+  canUseSms: boolean
+  /** Agent-facing email lead alerts. Enforced in lib/email.ts sendAgentAlertEmail(). */
+  canUseEmailAlerts: boolean
 }
 
 export interface PlanConfig {
@@ -50,6 +59,8 @@ const ALL_FEATURES: PlanFeatures = {
   engagementTrends: true,
   multiListingComparison: true,
   advancedBuyerInsights: true,
+  canUseSms: true,
+  canUseEmailAlerts: true,
 }
 
 export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
@@ -86,6 +97,8 @@ export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
       engagementTrends: false,
       multiListingComparison: false,
       advancedBuyerInsights: false,
+      canUseSms: true,
+      canUseEmailAlerts: true,
     },
     grandfathered: false,
     subjectToTrialExpiry: false,
@@ -107,10 +120,19 @@ export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
     maxActiveSigns: 3,
     maxActiveListings: 1,
     features: {
-      leadScoring: true, // already computed unconditionally in submit-lead
+      // Scoring is still COMPUTED and stored for every lead regardless of
+      // plan (submit-lead never checks this flag) — only reading/surfacing
+      // it is gated, so a Free agent's history reappears instantly on
+      // upgrade with no backfill. See migration 066 (leads_scoped /
+      // scan_events_scoped) and lib/scoringAccess.ts.
+      leadScoring: false,
       engagementTrends: false,
       multiListingComparison: false,
       advancedBuyerInsights: false,
+      canUseSms: false,
+      // Free keeps full buyer contact info on showing requests and
+      // questions, delivered by email instead of SMS.
+      canUseEmailAlerts: true,
     },
     grandfathered: false,
     subjectToTrialExpiry: false,
@@ -133,7 +155,8 @@ export function propertyLimitForPlan(plan: string): number | null {
   return planConfig(plan).maxActiveListings
 }
 
-/** Feature flags for a plan. Declarative — nothing enforces these yet. */
+/** Feature flags for a plan. See the ENFORCEMENT note at the top of this file
+ *  for where each one is actually checked. */
 export function featuresForPlan(plan: string | null | undefined): PlanFeatures {
   return planConfig(plan).features
 }

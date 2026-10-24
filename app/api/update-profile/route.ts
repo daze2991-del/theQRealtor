@@ -22,9 +22,10 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => ({}))
   const {
-    name, phone, smsEnabled, agentPhone,
+    name, phone,
     dre, brokerage, photoUrl,
     notifyShowing, notifyQuestion,
+    smsAlertsEnabled, emailAlertsEnabled,
     quietHoursEnabled, quietHoursStart, quietHoursEnd,
   } = body
   console.log('[update-profile] body keys:', Object.keys(body))
@@ -58,6 +59,10 @@ export async function POST(request: Request) {
   if (typeof notifyQuestion === 'boolean') profileUpdate.notify_question = notifyQuestion
   // notifyHotLead removed (final decision) — the Hot-lead SMS alert is gone.
   // profiles.notify_hot_lead is left in place, unused.
+  // Real master toggles (migration 065) — queueOrSendAgentSms() and
+  // sendAgentAlertEmail() check these server-side on every send.
+  if (typeof smsAlertsEnabled   === 'boolean') profileUpdate.sms_alerts_enabled   = smsAlertsEnabled
+  if (typeof emailAlertsEnabled === 'boolean') profileUpdate.email_alerts_enabled = emailAlertsEnabled
   if (typeof quietHoursEnabled === 'boolean') profileUpdate.quiet_hours_enabled = quietHoursEnabled
   // Same "omitted vs explicitly empty" distinction as dre/brokerage/photoUrl
   // above: typeof check gates whether the column is touched at all, so an
@@ -100,10 +105,12 @@ export async function POST(request: Request) {
   // auth.user_metadata is a display/notification convenience mirror, never a
   // source of truth — only reached once the constrained write above succeeded,
   // so it can never hold a phone number that profiles itself rejected.
+  // sms_enabled is NOT written here any more (migration 065 /
+  // profiles.sms_alerts_enabled replaces it as the real, server-checked
+  // master toggle — this mirror never actually gated anything).
   const { error: authErr } = await admin.auth.admin.updateUserById(user.id, {
     user_metadata: {
       phone: String(phone ?? '').trim(),
-      sms_enabled: Boolean(smsEnabled),
     },
   })
 
@@ -112,10 +119,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: authErr.message }, { status: 500 })
   }
 
-  // Sync agent_phone + agent_name to all user's properties. agent_phone feeds
-  // the SMS flow; agent_name is what the buyer-facing property page and the
-  // seller report display. Both are denormalized copies on properties, so a
-  // profile edit has to fan out or they silently drift from the profile.
+  // Sync agent_phone + agent_name to all user's properties. agent_phone is the
+  // buyer-facing contact number (shown on property pages; also the fallback
+  // resolveAgentPhone() uses) — it mirrors `phone` directly now, independent
+  // of the alerts toggle: muting ALERTS must never also blank the contact
+  // number buyers see. agent_name is what the buyer-facing property page and
+  // the seller report display. Both are denormalized copies on properties, so
+  // a profile edit has to fan out or they silently drift from the profile.
   const { data: props, error: propsSelectErr } = await admin
     .from('properties')
     .select('id')
@@ -130,7 +140,7 @@ export async function POST(request: Request) {
     const { error: propErr } = await admin
       .from('properties')
       .update({
-        agent_phone: agentPhone || null,
+        agent_phone: String(phone ?? '').trim() || null,
         agent_name:  String(name ?? '').trim() || null,
       })
       .in('id', ids)

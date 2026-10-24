@@ -5,6 +5,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeFakeDb } from './helpers/fakeSupabase'
 
+vi.mock('server-only', () => ({}))
+
 let db = makeFakeDb()
 vi.mock('../lib/supabase-admin', () => ({ createAdminSupabase: () => db.client }))
 

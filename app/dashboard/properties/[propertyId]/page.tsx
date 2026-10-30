@@ -307,6 +307,9 @@ export default function PropertyIntelligencePage() {
   const isArchived   = !!property.deleted_at
   // Same rule buyers get on /p (locked, or trial ended with no plan chosen).
   const pausedReason = requestsPausedReason({ listingLockedAt: property.plan_locked_at, owner })
+  // Interest rating (badge, Listing Health card) is derived from lead/scan
+  // counts but is a scoring feature — hidden entirely for Free, no placeholder.
+  const scoringOn    = canSeeScoring(owner?.plan ?? null)
   const heroPhoto    = photos[0]?.url ?? null
   const location     = [property.city, property.state].filter(Boolean).join(', ')
   const now          = new Date()
@@ -457,14 +460,16 @@ export default function PropertyIntelligencePage() {
               <h1 style={{ margin: 0, fontSize: 20, fontWeight: 900, color: C.text, letterSpacing: '-0.02em' }}>
                 {property.address}
               </h1>
-              <span style={{
-                fontSize: 11, fontWeight: 700,
-                color: healthCfg.color, background: healthCfg.bg,
-                border: `1px solid ${healthCfg.color}40`,
-                borderRadius: 20, padding: '3px 11px',
-              }}>
-                {healthCfg.badgeLabel}
-              </span>
+              {scoringOn && (
+                <span style={{
+                  fontSize: 11, fontWeight: 700,
+                  color: healthCfg.color, background: healthCfg.bg,
+                  border: `1px solid ${healthCfg.color}40`,
+                  borderRadius: 20, padding: '3px 11px',
+                }}>
+                  {healthCfg.badgeLabel}
+                </span>
+              )}
               {pausedReason && !isArchived && <NotTakingRequestsBadge size="md" reason={pausedReason} />}
             </div>
             <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>
@@ -545,40 +550,42 @@ export default function PropertyIntelligencePage() {
         <div className="pi-2col" style={{ display: 'grid', gridTemplateColumns: '55% 1fr', gap: 14, marginBottom: 20 }}>
 
           {/* Listing Health */}
-          <SectionCard
-            title="Listing Health"
-            action={
-              <Link href="/dashboard/analytics" style={{ fontSize: 12, color: C.purpleL, textDecoration: 'none', fontWeight: 600 }}>
-                View Health Insights →
-              </Link>
-            }
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-              <div style={{ flexShrink: 0 }}>
-                <CircularProgress score={healthCfg.score} color={healthCfg.color} />
-              </div>
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>/ 100</div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: healthCfg.color, marginBottom: 6 }}>{healthCfg.label}</div>
-                <p style={{ fontSize: 13, color: C.sub, lineHeight: 1.6, margin: '0 0 16px' }}>{healthCfg.text}</p>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {[
-                    { value: `${scan7Pct >= 0 ? '+' : ''}${scan7Pct}% vs last 7 days`, label: 'Scans',  color: scan7Pct >= 0 ? '#4ade80' : '#F87171' },
-                    { value: `${lead30Pct >= 0 ? '+' : ''}${lead30Pct}% vs last 30 days`, label: 'Leads', color: lead30Pct >= 0 ? '#4ade80' : '#F87171' },
-                    { value: 'Top 15% in market', label: 'Rank', color: C.purpleL },
-                  ].map(stat => (
-                    <div key={stat.label} style={{
-                      background: C.cardAlt, border: `1px solid ${C.border}`, borderRadius: 8,
-                      padding: '8px 12px', textAlign: 'center',
-                    }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: stat.color }}>{stat.value}</div>
-                      <div style={{ fontSize: 10, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 2 }}>{stat.label}</div>
-                    </div>
-                  ))}
+          {scoringOn && (
+            <SectionCard
+              title="Listing Health"
+              action={
+                <Link href="/dashboard/analytics" style={{ fontSize: 12, color: C.purpleL, textDecoration: 'none', fontWeight: 600 }}>
+                  View Health Insights →
+                </Link>
+              }
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+                <div style={{ flexShrink: 0 }}>
+                  <CircularProgress score={healthCfg.score} color={healthCfg.color} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>/ 100</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: healthCfg.color, marginBottom: 6 }}>{healthCfg.label}</div>
+                  <p style={{ fontSize: 13, color: C.sub, lineHeight: 1.6, margin: '0 0 16px' }}>{healthCfg.text}</p>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {[
+                      { value: `${scan7Pct >= 0 ? '+' : ''}${scan7Pct}% vs last 7 days`, label: 'Scans',  color: scan7Pct >= 0 ? '#4ade80' : '#F87171' },
+                      { value: `${lead30Pct >= 0 ? '+' : ''}${lead30Pct}% vs last 30 days`, label: 'Leads', color: lead30Pct >= 0 ? '#4ade80' : '#F87171' },
+                      { value: 'Top 15% in market', label: 'Rank', color: C.purpleL },
+                    ].map(stat => (
+                      <div key={stat.label} style={{
+                        background: C.cardAlt, border: `1px solid ${C.border}`, borderRadius: 8,
+                        padding: '8px 12px', textAlign: 'center',
+                      }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: stat.color }}>{stat.value}</div>
+                        <div style={{ fontSize: 10, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 2 }}>{stat.label}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          </SectionCard>
+            </SectionCard>
+          )}
 
           {/* Property Image */}
           <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
@@ -707,7 +714,6 @@ export default function PropertyIntelligencePage() {
                 {topLeads.map((lead: any) => {
                   const initials = (lead.name ?? '??').slice(0, 2).toUpperCase()
                   const tier     = leadTier(lead)
-                  const scoringOn = canSeeScoring(owner?.plan ?? null)
                   const color    = scoringOn ? (TIER_COLOR[tier] ?? C.muted) : C.muted
                   const bg       = scoringOn ? (TIER_BG[tier]   ?? '#1F2937') : '#1F2937'
                   // requestedShowing() reads score_breakdown.requested_showing, which

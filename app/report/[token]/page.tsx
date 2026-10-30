@@ -438,12 +438,14 @@ export default function SellerReportPage() {
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: C.text, letterSpacing: '-0.02em' }}>
             Seller Report
           </h1>
-          <span style={{
-            fontSize: 12, fontWeight: 700, color: health.color, background: health.bg,
-            border: `1px solid ${health.color}40`, borderRadius: 20, padding: '3px 12px',
-          }}>
-            {health.badgeLabel}
-          </span>
+          {scoringEnabled && (
+            <span style={{
+              fontSize: 12, fontWeight: 700, color: health.color, background: health.bg,
+              border: `1px solid ${health.color}40`, borderRadius: 20, padding: '3px 12px',
+            }}>
+              {health.badgeLabel}
+            </span>
+          )}
           <button
             className="no-print"
             onClick={() => window.print()}
@@ -483,14 +485,18 @@ export default function SellerReportPage() {
                 {location} · {property.active ? 'Active Listing' : 'Offline'}
               </div>
             )}
-            <span style={{
-              display: 'inline-block', marginBottom: 12,
-              fontSize: 11, fontWeight: 700, color: health.color, background: health.bg,
-              border: `1px solid ${health.color}40`, borderRadius: 20, padding: '3px 12px',
-            }}>
-              {health.badgeLabel}
-            </span>
-            <p style={{ fontSize: 13, color: C.sub, lineHeight: 1.65, margin: 0 }}>{health.text}</p>
+            {scoringEnabled && (
+              <>
+                <span style={{
+                  display: 'inline-block', marginBottom: 12,
+                  fontSize: 11, fontWeight: 700, color: health.color, background: health.bg,
+                  border: `1px solid ${health.color}40`, borderRadius: 20, padding: '3px 12px',
+                }}>
+                  {health.badgeLabel}
+                </span>
+                <p style={{ fontSize: 13, color: C.sub, lineHeight: 1.65, margin: 0 }}>{health.text}</p>
+              </>
+            )}
           </div>
 
           {/* Right: report meta */}

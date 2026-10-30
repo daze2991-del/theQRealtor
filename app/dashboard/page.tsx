@@ -8,7 +8,7 @@ import DashboardLayout from '../../components/DashboardLayout'
 import { useSignOut } from '../../components/useSignOut'
 import { LineChart, Line, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { QrCode, Users, CalendarCheck, Flame, BarChart2, Home, Bell, Calendar, Share2, Download, RotateCcw, AlertCircle, Info, Check, LogOut } from 'lucide-react'
-import { calcPropertyInterest } from '../../lib/propertyInterest'
+import InterestBadge from '../../components/InterestBadge'
 import { timeAgo } from '../../lib/timeAgo'
 import { motivationToTierV2, requestedShowing } from '../../lib/leadScoringV2'
 import { isEligibleLead, needsFollowUp as isNeedsFollowUpLead } from '../../lib/leadEligibility'
@@ -118,22 +118,6 @@ function KpiCard({ icon, label, value, change, accent, sparkData, caption, toolt
       </div>
       {caption && <div style={{ fontSize: 11, color: C.muted, marginTop: -4 }}>{caption}</div>}
     </div>
-  )
-}
-
-// ── Health badge ──────────────────────────────────────────────────────────────
-const HEALTH_BADGE_STYLE = {
-  high:     { color: '#16A34A', background: '#F0FDF4', border: '1px solid #86EFAC' },
-  moderate: { color: '#CA8A04', background: '#FEFCE8', border: '1px solid #FDE047' },
-  low:      { color: '#DC2626', background: '#FEF2F2', border: '1px solid #FCA5A5' },
-} as const
-
-function HealthBadge({ scans, leads, hot }: { scans: number; leads: number; hot: number }) {
-  const h = calcPropertyInterest({ totalLeads: leads, totalScans: scans, showingRequests: hot })
-  return (
-    <span style={{ fontSize: 10, fontWeight: 700, borderRadius: 6, padding: '2px 7px', whiteSpace: 'nowrap', ...HEALTH_BADGE_STYLE[h.level] }}>
-      {h.badgeLabel}
-    </span>
   )
 }
 
@@ -269,7 +253,8 @@ export default function Dashboard() {
         // Lead Health buckets on tier (V2), falling back to motivation only for legacy rows with no tier
         const t = l.tier && ['hot', 'warm', 'cold'].includes(l.tier) ? l.tier : motivationToTierV2(l.motivation)
         if (pipeline[t] !== undefined) pipeline[t]++
-        if (l.motivation === 'hot') hotByProp[l.property_id] = (hotByProp[l.property_id] || 0) + 1
+        // Showing requests, not motivation: leads_scoped nulls motivation for Free, but keeps score_breakdown.requested_showing for every plan
+        if (requestedShowing(l)) hotByProp[l.property_id] = (hotByProp[l.property_id] || 0) + 1
         if (l.created_at >= monthISO) monthLeadsByProp[l.property_id] = (monthLeadsByProp[l.property_id] || 0) + 1
       })
       const topEntry = Object.entries(monthLeadsByProp).sort((a, b) => b[1] - a[1])[0]
@@ -510,7 +495,7 @@ export default function Dashboard() {
                         <div className="db-hover" style={{ padding: '11px 18px', borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : 'none', background: C.card }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                             <span style={{ fontSize: 12, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{formatAddressDisplay(p.address)}</span>
-                            <HealthBadge scans={scans} leads={leads} hot={hot} />
+                            <InterestBadge scans={scans} leads={leads} hot={hot} plan={plan} />
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
                             <span style={{ color: '#FCD34D', fontWeight: 600 }}>{leads}</span><span style={{ color: C.muted }}>Leads</span>
@@ -612,7 +597,7 @@ export default function Dashboard() {
                   )}
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4 }}>{topProp.address}</div>
-                    <HealthBadge scans={propScanCounts[topProp.id] || 0} leads={propLeadCounts[topProp.id] || 0} hot={propHotLeads[topProp.id] || 0} />
+                    <InterestBadge scans={propScanCounts[topProp.id] || 0} leads={propLeadCounts[topProp.id] || 0} hot={propHotLeads[topProp.id] || 0} plan={plan} />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                     {[

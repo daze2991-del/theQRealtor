@@ -796,15 +796,17 @@ export default function LeadDetailPage() {
                   <>
                     <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 2 }}>{property.address}</div>
                     {location && <div style={{ fontSize: 12, color: C.muted, marginBottom: 10 }}>{location}</div>}
-                    <span style={{
-                      fontSize: 11, fontWeight: 700,
-                      color: health.color, background: health.bg,
-                      border: `1px solid ${health.color}40`,
-                      borderRadius: 20, padding: '3px 11px',
-                      display: 'inline-block', marginBottom: 12,
-                    }}>
-                      {health.badgeLabel}
-                    </span>
+                    {canSeeScoring(plan) && (
+                      <span style={{
+                        fontSize: 11, fontWeight: 700,
+                        color: health.color, background: health.bg,
+                        border: `1px solid ${health.color}40`,
+                        borderRadius: 20, padding: '3px 11px',
+                        display: 'inline-block', marginBottom: 12,
+                      }}>
+                        {health.badgeLabel}
+                      </span>
+                    )}
                     {/* Stats row */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
                       {[

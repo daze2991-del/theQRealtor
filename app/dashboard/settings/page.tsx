@@ -490,7 +490,7 @@ export default function SettingsPage() {
             </Section>
 
             {/* Lead Notifications */}
-            <Section title="Lead Notifications" description="Choose which lead events text your phone. Alerts go to your SMS number above.">
+            <Section title="Lead Notifications" description="Choose which lead events send you an alert — by email, and by text on paid plans.">
               {[
                 { key: 'showing',  title: 'Showing requests',          hint: "A buyer clicked 'Request a Showing' — your highest-intent signal. Recommended on.",                                                                                                             hintColor: C.purpleL, checked: notifyShowing,  set: setNotifyShowing },
                 { key: 'question', title: 'Questions / info requests',  hint: 'A buyer submitted a question or requested disclosures. Moderate intent. Recommended on for most agents.',                                                                                                   hintColor: C.muted,   checked: notifyQuestion, set: setNotifyQuestion },

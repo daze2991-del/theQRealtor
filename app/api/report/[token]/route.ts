@@ -69,7 +69,8 @@ export async function GET(
   // leave this response at all (Free plan: leadScoring = false). Separate
   // from the `agent` credential stamp further down — plan must never appear
   // in this unauthenticated response, only the boolean it gates.
-  let scoringEnabled = true
+  // Fails CLOSED: no owner id (or an unreadable plan) means no scoring data.
+  let scoringEnabled = false
   if (ownerId) {
     const { data: ownerPlanRow } = await supabase.from('profiles').select('plan').eq('id', ownerId).maybeSingle()
     scoringEnabled = canSeeScoring(ownerPlanRow?.plan ?? null)
@@ -141,10 +142,12 @@ export async function GET(
       supabase.from('scan_events').select('*', { count: 'exact', head: true })
         .eq('property_id', propertyId).eq('return_visit', false),
     ])
-    // return_visit forced false for Free agents — the page's "N buyers
-    // returned" KPI/activity-line and returnVisitors count all derive from
-    // this field and disappear on their own once it's false for everyone.
-    scanEvents = (scanRes.data ?? []).map((e: any) => scoringEnabled ? e : { ...e, return_visit: false })
+    // return_visit forced false and photos_viewed / time_on_page_sec nulled
+    // when scoring isn't enabled (same fields migration 066 strips from
+    // scan_events_scoped) — the page's "N buyers returned" / "viewed all
+    // photos" counts all derive from these and disappear on their own.
+    scanEvents = (scanRes.data ?? []).map((e: any) =>
+      scoringEnabled ? e : { ...e, return_visit: false, photos_viewed: null, time_on_page_sec: null })
     totalScanCount = scanCountRes.count ?? 0
     uniqueVisitCount = uniqueRes.count ?? 0
   }

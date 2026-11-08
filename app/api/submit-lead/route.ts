@@ -234,8 +234,14 @@ export async function POST(request: Request) {
       let agentEmail: string | null = null
       const dispatchEmail = async (built: { subject: string; text: string; html: string }) => {
         if (!agentEmail) {
-          const { data: authUser } = await supabase.auth.admin.getUserById(property.user_id as string)
-          agentEmail = authUser?.user?.email ?? null
+          // Own try/catch: a lookup failure must never reach the outer catch,
+          // which would skip the buyer confirmation text and the flush below.
+          try {
+            const { data: authUser } = await supabase.auth.admin.getUserById(property.user_id as string)
+            agentEmail = authUser?.user?.email ?? null
+          } catch (err: any) {
+            console.error('[submit-lead] agent email lookup failed:', err?.message ?? err)
+          }
         }
         await sendAgentAlertEmail({
           to: agentEmail,

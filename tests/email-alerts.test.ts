@@ -198,6 +198,21 @@ describe('submit-lead: email alert dispatch', () => {
     expect(send).not.toHaveBeenCalled()
   })
 
+  it('auth.admin.getUserById THROWING never skips the buyer confirmation text or the agent SMS', async () => {
+    seedProperty()
+    db.client.auth.admin.getUserById = vi.fn().mockRejectedValue(new Error('auth is down'))
+    const res = await submit({ smsConsent: true })
+    expect(res.status).toBe(200)
+    expect(send).not.toHaveBeenCalled()                 // no recipient → no email
+    expect(db.tables.leads).toHaveLength(1)
+    const bodies = create.mock.calls.map(c => c[0].body as string)
+    expect(create).toHaveBeenCalledTimes(2)             // agent SMS + buyer confirmation
+    expect(bodies.some(b => /theQRealtor|Ann Agent|showing/i.test(b))).toBe(true)
+    expect(logs.some(l => l.includes('agent email lookup failed'))).toBe(true)
+    // buyer_texted_at stamped = the buyer-confirmation branch ran to completion
+    expect(db.tables.leads[0].buyer_texted_at).toBeTruthy()
+  })
+
   it('no account email resolvable (auth.admin.getUserById returns no user) → no_recipient, no throw', async () => {
     seedProperty()
     delete db.authUsers[AGENT_ID]

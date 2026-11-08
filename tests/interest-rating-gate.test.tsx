@@ -123,3 +123,30 @@ describe('every other rating surface renders only behind the scoring gate', () =
     expect(src('app/dashboard/leads/[leadId]/page.tsx')).toContain("{ label: 'Showings',   value: propStats.showings }")
   })
 })
+
+describe('billing page Account Usage: Buyer Interest tile', () => {
+  const s = src('app/dashboard/billing/BillingPageClient.tsx')
+
+  it('reads leads_scoped, never the leads table directly', () => {
+    expect(s).toContain(".from('leads_scoped').select('tier, motivation')")
+    expect(s).not.toMatch(/\.from\('leads'\)/)
+  })
+
+  it('the hot count is only computed when canSeeScoring(currentPlan), else 0', () => {
+    expect(s).toMatch(/setHotLeadCount\(canSeeScoring\(currentPlan\)/)
+    expect(s).toMatch(/\}\)\.length : 0\)/)
+  })
+
+  it('the tile is only added to the list when canSeeScoring(plan); other tiles are unconditional', () => {
+    expect(s).toContain("...(canSeeScoring(plan) ? [{ label: 'Buyer Interest', value: hotLeadCount, isHot: true }] : [])")
+    expect(s.match(/label: 'Buyer Interest'/g)).toHaveLength(1)
+    for (const l of ['Properties', 'QR Codes', 'Leads Captured']) expect(s).toContain(`{ label: '${l}'`)
+    expect(s).toContain('repeat(${canSeeScoring(plan) ? 4 : 3}, 1fr)')
+  })
+
+  it('canSeeScoring: Free/unknown hide the tile, every paid plan shows it', async () => {
+    const { canSeeScoring } = await import('../lib/scoringAccess')
+    for (const p of ['free', null, 'bogus']) expect(canSeeScoring(p as any)).toBe(false)
+    for (const p of ['founding', 'alpha', 'trial', 'starter', 'pro']) expect(canSeeScoring(p)).toBe(true)
+  })
+})

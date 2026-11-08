@@ -171,6 +171,34 @@ describe('GET /api/report/[token]: scoringEnabled gate', () => {
     expect(json.leads[0].tier).toBeNull()
   })
 
+  it('Free owner: photos_viewed and time_on_page_sec are nulled too (same fields 066 strips from scan_events_scoped)', async () => {
+    seed('free')
+    const e = (await (await call()).json()).scanEvents[0]
+    expect(e.photos_viewed).toBeNull()
+    expect(e.time_on_page_sec).toBeNull()
+    expect(e.return_visit).toBe(false)
+    expect(e.cta_clicked).toBeNull() // untouched field still present
+  })
+
+  it('paid owner: photos_viewed and time_on_page_sec pass through unchanged', async () => {
+    seed('starter')
+    const e = (await (await call()).json()).scanEvents[0]
+    expect(e.photos_viewed).toBe(2)
+    expect(e.time_on_page_sec).toBe(40)
+  })
+
+  it('no owner id on the property fails CLOSED: scoringEnabled=false and nothing scoring-derived leaves', async () => {
+    seed('starter')
+    db.tables.properties[0].user_id = null
+    const json = await (await call()).json()
+    expect(json.scoringEnabled).toBe(false)
+    expect(json.leads[0].tier).toBeNull()
+    expect(json.leads[0].motivation).toBeNull()
+    expect(json.scanEvents[0].return_visit).toBe(false)
+    expect(json.scanEvents[0].photos_viewed).toBeNull()
+    expect(json.scanEvents[0].time_on_page_sec).toBeNull()
+  })
+
   it('Free response never carries a raw plan/tier string anywhere in the JSON text', async () => {
     seed('free')
     const text = JSON.stringify(await (await call()).json())

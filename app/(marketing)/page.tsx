@@ -385,7 +385,7 @@ function StatsBar() {
   return (
     <section className="border-b border-solid border-gray-100">
       <motion.div
-        className="max-w-3xl mx-auto px-8 py-10 grid grid-cols-3 gap-6"
+        className="max-w-3xl mx-auto px-8 py-10 flex flex-col gap-8 md:grid md:grid-cols-3 md:gap-4"
         initial={{ opacity: 0, y: 18 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={viewportOnce}
@@ -393,7 +393,7 @@ function StatsBar() {
       >
         {stats.map(s => (
           <div key={s.label} className="text-center">
-            <div className="text-2xl font-bold text-gray-900">{s.value}</div>
+            <div className="text-[1.75rem] md:text-2xl font-bold text-gray-900">{s.value}</div>
             <div className="text-sm text-gray-500 mt-1">{s.label}</div>
           </div>
         ))}

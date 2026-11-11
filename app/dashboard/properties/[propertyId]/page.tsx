@@ -16,6 +16,7 @@ import { deactivationPatch } from '../../../../lib/propertyStatus'
 import NotTakingRequestsBadge from '../../../../components/NotTakingRequestsBadge'
 import { requestsPausedReason, type PauseInputs } from '../../../../lib/planLock'
 import { motivationToTierV2, requestedShowing } from '../../../../lib/leadScoringV2'
+import { canSeeScoring } from '../../../../lib/scoringAccess'
 
 const C = {
   bg: '#0F0F13', card: '#1A1A24', cardAlt: '#15151E', border: '#252533',
@@ -186,17 +187,22 @@ export default function PropertyIntelligencePage() {
 
       const sixtyDaysAgo = new Date(Date.now() - 60 * 86400000).toISOString()
 
+      // leads_scoped / scan_events_scoped (migration 066): nulls tier/
+      // intent_score/motivation/return_visit etc. for Free agents — the JSX
+      // below gates which of those it renders (e.g. the timeline's "Repeat
+      // Visitor Returned" marker disappears automatically once return_visit
+      // comes back false).
       const [photoRes, scanRes, leadRes, assignmentRes, scanCountRes] = await Promise.all([
         supabase.from('property_photos').select('url, sort_order').eq('property_id', propertyId).order('sort_order', { ascending: true }),
-        supabase.from('scan_events')
+        supabase.from('scan_events_scoped')
           .select('created_at, cta_clicked, photos_viewed, time_on_page_sec, return_visit, sign_id')
           .eq('property_id', propertyId).gte('created_at', sixtyDaysAgo)
           .order('created_at', { ascending: false }),
-        supabase.from('leads').select('*').eq('property_id', propertyId).order('created_at', { ascending: false }),
+        supabase.from('leads_scoped').select('*').eq('property_id', propertyId).order('created_at', { ascending: false }),
         // Signs currently assigned to this property, replacing the old direct
         // qrcodes.property_id list (qrcodes is now empty/retired).
         supabase.from('sign_assignments').select('sign_id, signs(id, label)').eq('property_id', propertyId).is('unassigned_at', null),
-        supabase.from('scan_events').select('*', { count: 'exact', head: true }).eq('property_id', propertyId),
+        supabase.from('scan_events_scoped').select('*', { count: 'exact', head: true }).eq('property_id', propertyId),
       ])
 
       setPhotos(photoRes.data ?? [])
@@ -208,7 +214,7 @@ export default function PropertyIntelligencePage() {
         .filter(Boolean)
       const signIds = assignedSigns.map((s: any) => s.id)
       if (signIds.length > 0) {
-        const { data: signScans } = await supabase.from('scan_events').select('sign_id').in('sign_id', signIds)
+        const { data: signScans } = await supabase.from('scan_events_scoped').select('sign_id').in('sign_id', signIds)
         const scanCountBySign: Record<string, number> = {}
         ;(signScans || []).forEach((s: any) => { if (s.sign_id) scanCountBySign[s.sign_id] = (scanCountBySign[s.sign_id] || 0) + 1 })
         setQrCodes(assignedSigns.map((s: any) => ({ id: s.id, label: s.label, scan_count: scanCountBySign[s.id] || 0 })))
@@ -301,6 +307,9 @@ export default function PropertyIntelligencePage() {
   const isArchived   = !!property.deleted_at
   // Same rule buyers get on /p (locked, or trial ended with no plan chosen).
   const pausedReason = requestsPausedReason({ listingLockedAt: property.plan_locked_at, owner })
+  // Interest rating (badge, Listing Health card) is derived from lead/scan
+  // counts but is a scoring feature — hidden entirely for Free, no placeholder.
+  const scoringOn    = canSeeScoring(owner?.plan ?? null)
   const heroPhoto    = photos[0]?.url ?? null
   const location     = [property.city, property.state].filter(Boolean).join(', ')
   const now          = new Date()
@@ -451,14 +460,16 @@ export default function PropertyIntelligencePage() {
               <h1 style={{ margin: 0, fontSize: 20, fontWeight: 900, color: C.text, letterSpacing: '-0.02em' }}>
                 {property.address}
               </h1>
-              <span style={{
-                fontSize: 11, fontWeight: 700,
-                color: healthCfg.color, background: healthCfg.bg,
-                border: `1px solid ${healthCfg.color}40`,
-                borderRadius: 20, padding: '3px 11px',
-              }}>
-                {healthCfg.badgeLabel}
-              </span>
+              {scoringOn && (
+                <span style={{
+                  fontSize: 11, fontWeight: 700,
+                  color: healthCfg.color, background: healthCfg.bg,
+                  border: `1px solid ${healthCfg.color}40`,
+                  borderRadius: 20, padding: '3px 11px',
+                }}>
+                  {healthCfg.badgeLabel}
+                </span>
+              )}
               {pausedReason && !isArchived && <NotTakingRequestsBadge size="md" reason={pausedReason} />}
             </div>
             <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>
@@ -539,40 +550,42 @@ export default function PropertyIntelligencePage() {
         <div className="pi-2col" style={{ display: 'grid', gridTemplateColumns: '55% 1fr', gap: 14, marginBottom: 20 }}>
 
           {/* Listing Health */}
-          <SectionCard
-            title="Listing Health"
-            action={
-              <Link href="/dashboard/analytics" style={{ fontSize: 12, color: C.purpleL, textDecoration: 'none', fontWeight: 600 }}>
-                View Health Insights →
-              </Link>
-            }
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-              <div style={{ flexShrink: 0 }}>
-                <CircularProgress score={healthCfg.score} color={healthCfg.color} />
-              </div>
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>/ 100</div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: healthCfg.color, marginBottom: 6 }}>{healthCfg.label}</div>
-                <p style={{ fontSize: 13, color: C.sub, lineHeight: 1.6, margin: '0 0 16px' }}>{healthCfg.text}</p>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {[
-                    { value: `${scan7Pct >= 0 ? '+' : ''}${scan7Pct}% vs last 7 days`, label: 'Scans',  color: scan7Pct >= 0 ? '#4ade80' : '#F87171' },
-                    { value: `${lead30Pct >= 0 ? '+' : ''}${lead30Pct}% vs last 30 days`, label: 'Leads', color: lead30Pct >= 0 ? '#4ade80' : '#F87171' },
-                    { value: 'Top 15% in market', label: 'Rank', color: C.purpleL },
-                  ].map(stat => (
-                    <div key={stat.label} style={{
-                      background: C.cardAlt, border: `1px solid ${C.border}`, borderRadius: 8,
-                      padding: '8px 12px', textAlign: 'center',
-                    }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: stat.color }}>{stat.value}</div>
-                      <div style={{ fontSize: 10, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 2 }}>{stat.label}</div>
-                    </div>
-                  ))}
+          {scoringOn && (
+            <SectionCard
+              title="Listing Health"
+              action={
+                <Link href="/dashboard/analytics" style={{ fontSize: 12, color: C.purpleL, textDecoration: 'none', fontWeight: 600 }}>
+                  View Health Insights →
+                </Link>
+              }
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+                <div style={{ flexShrink: 0 }}>
+                  <CircularProgress score={healthCfg.score} color={healthCfg.color} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>/ 100</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: healthCfg.color, marginBottom: 6 }}>{healthCfg.label}</div>
+                  <p style={{ fontSize: 13, color: C.sub, lineHeight: 1.6, margin: '0 0 16px' }}>{healthCfg.text}</p>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {[
+                      { value: `${scan7Pct >= 0 ? '+' : ''}${scan7Pct}% vs last 7 days`, label: 'Scans',  color: scan7Pct >= 0 ? '#4ade80' : '#F87171' },
+                      { value: `${lead30Pct >= 0 ? '+' : ''}${lead30Pct}% vs last 30 days`, label: 'Leads', color: lead30Pct >= 0 ? '#4ade80' : '#F87171' },
+                      { value: 'Top 15% in market', label: 'Rank', color: C.purpleL },
+                    ].map(stat => (
+                      <div key={stat.label} style={{
+                        background: C.cardAlt, border: `1px solid ${C.border}`, borderRadius: 8,
+                        padding: '8px 12px', textAlign: 'center',
+                      }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: stat.color }}>{stat.value}</div>
+                        <div style={{ fontSize: 10, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 2 }}>{stat.label}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          </SectionCard>
+            </SectionCard>
+          )}
 
           {/* Property Image */}
           <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
@@ -701,9 +714,12 @@ export default function PropertyIntelligencePage() {
                 {topLeads.map((lead: any) => {
                   const initials = (lead.name ?? '??').slice(0, 2).toUpperCase()
                   const tier     = leadTier(lead)
-                  const color    = TIER_COLOR[tier] ?? C.muted
-                  const bg       = TIER_BG[tier]   ?? '#1F2937'
-                  const action   = tier === 'hot' ? 'Requested showing' : lead.notes ? 'Asked a question' : 'Submitted lead'
+                  const color    = scoringOn ? (TIER_COLOR[tier] ?? C.muted) : C.muted
+                  const bg       = scoringOn ? (TIER_BG[tier]   ?? '#1F2937') : '#1F2937'
+                  // requestedShowing() reads score_breakdown.requested_showing, which
+                  // leads_scoped always preserves — unlike tier==='hot', this stays
+                  // accurate for Free agents too.
+                  const action   = requestedShowing(lead) ? 'Requested showing' : lead.notes ? 'Asked a question' : 'Submitted lead'
                   const TierIcon = TIER_ICON[tier] ?? Minus
                   return (
                     <div key={lead.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -718,9 +734,11 @@ export default function PropertyIntelligencePage() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lead.name}</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, color, background: bg, borderRadius: 20, padding: '1px 7px', border: `1px solid ${color}40`, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                            <TierIcon size={10} /> {TIER_LABEL[tier] ?? tier}
-                          </span>
+                          {scoringOn && (
+                            <span style={{ fontSize: 10, fontWeight: 700, color, background: bg, borderRadius: 20, padding: '1px 7px', border: `1px solid ${color}40`, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                              <TierIcon size={10} /> {TIER_LABEL[tier] ?? tier}
+                            </span>
+                          )}
                           <span style={{ fontSize: 10, color: C.muted }}>{action} · {timeAgo(lead.created_at)}</span>
                         </div>
                       </div>

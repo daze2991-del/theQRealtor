@@ -8,11 +8,13 @@ import DashboardLayout from '../../components/DashboardLayout'
 import { useSignOut } from '../../components/useSignOut'
 import { LineChart, Line, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { QrCode, Users, CalendarCheck, Flame, BarChart2, Home, Bell, Calendar, Share2, Download, RotateCcw, AlertCircle, Info, Check, LogOut } from 'lucide-react'
-import { calcPropertyInterest } from '../../lib/propertyInterest'
+import InterestBadge from '../../components/InterestBadge'
 import { timeAgo } from '../../lib/timeAgo'
 import { motivationToTierV2, requestedShowing } from '../../lib/leadScoringV2'
 import { isEligibleLead, needsFollowUp as isNeedsFollowUpLead } from '../../lib/leadEligibility'
 import NeedsAttention from '../../components/dashboard/NeedsAttention'
+import UpgradeHint from '../../components/UpgradeHint'
+import { canSeeScoring } from '../../lib/scoringAccess'
 
 // ── Tokens ────────────────────────────────────────────────────────────────────
 const C = {
@@ -119,22 +121,6 @@ function KpiCard({ icon, label, value, change, accent, sparkData, caption, toolt
   )
 }
 
-// ── Health badge ──────────────────────────────────────────────────────────────
-const HEALTH_BADGE_STYLE = {
-  high:     { color: '#16A34A', background: '#F0FDF4', border: '1px solid #86EFAC' },
-  moderate: { color: '#CA8A04', background: '#FEFCE8', border: '1px solid #FDE047' },
-  low:      { color: '#DC2626', background: '#FEF2F2', border: '1px solid #FCA5A5' },
-} as const
-
-function HealthBadge({ scans, leads, hot }: { scans: number; leads: number; hot: number }) {
-  const h = calcPropertyInterest({ totalLeads: leads, totalScans: scans, showingRequests: hot })
-  return (
-    <span style={{ fontSize: 10, fontWeight: 700, borderRadius: 6, padding: '2px 7px', whiteSpace: 'nowrap', ...HEALTH_BADGE_STYLE[h.level] }}>
-      {h.badgeLabel}
-    </span>
-  )
-}
-
 // ── Section card wrapper ──────────────────────────────────────────────────────
 function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
@@ -159,6 +145,7 @@ export default function Dashboard() {
 
   const [properties,       setProperties]       = useState<any[]>([])
   const [agentId,          setAgentId]           = useState('')
+  const [plan,             setPlan]              = useState<string | null>(null)
   const [totalLeads,       setTotalLeads]        = useState(0)
   const [totalScansAll,    setTotalScansAll]     = useState(0)
   const [propScanCounts,   setPropScanCounts]    = useState<Record<string, number>>({})
@@ -196,6 +183,7 @@ export default function Dashboard() {
       const { data: profile } = await supabase.from('profiles').select('plan, name, onboarding_completed').eq('id', session.user.id).single()
       setProfileName(profile?.name || '')
       setOnboardingDone(profile?.onboarding_completed ?? false)
+      setPlan(profile?.plan ?? null)
 
       const { data: props, error: propsError } = await supabase
         .from('properties')
@@ -229,16 +217,25 @@ export default function Dashboard() {
         // required, reliable stamp on every row — see /api/scan-events) instead
         // of qrcodes.scan_count, which lived on the now-empty/retired qrcodes table.
         supabase.from('scan_events').select('property_id').in('property_id', ids),
-        supabase.from('leads').select('*').in('property_id', ids).order('created_at', { ascending: false }).limit(20),
-        supabase.from('leads').select('*', { count: 'exact', head: true }).in('property_id', ids),
-        supabase.from('leads').select('property_id, motivation, tier, status, created_at, score_breakdown').in('property_id', ids),
+        // leads_scoped / scan_events_scoped (migration 066): same columns,
+        // with tier/intent_score/motivation/return_visit etc. nulled when this
+        // agent's plan doesn't include scoring. Pages still gate which JSX
+        // they render off canSeeScoring(plan) below — a null tier defaults
+        // through motivationToTierV2() to 'cold', which is fine where that
+        // reads as "New lead" (the activity feed), but would be a MISLEADING
+        // breakdown if rendered as a real tier count (Lead Health, the KPI
+        // cards, Needs Your Attention) — those sections are swapped for
+        // UpgradeHint instead of trusting the nulled values.
+        supabase.from('leads_scoped').select('*').in('property_id', ids).order('created_at', { ascending: false }).limit(20),
+        supabase.from('leads_scoped').select('*', { count: 'exact', head: true }).in('property_id', ids),
+        supabase.from('leads_scoped').select('property_id, motivation, tier, status, created_at, score_breakdown').in('property_id', ids),
         supabase.from('property_photos').select('property_id, url').in('property_id', ids).order('sort_order', { ascending: true }),
-        supabase.from('scan_events').select('property_id, created_at, return_visit').in('property_id', ids).order('created_at', { ascending: false }).limit(50),
+        supabase.from('scan_events_scoped').select('property_id, created_at, return_visit').in('property_id', ids).order('created_at', { ascending: false }).limit(50),
         // Canonical eligible-lead set (lib/leadEligibility.ts) — agent_id-scoped,
         // not property_id-scoped, so a lead survives here regardless of whether
         // its property is soft-deleted, hard-deleted, or gone entirely. Feeds
         // "Needs Follow-Up" and Lead Health's "not yet called" sub-labels.
-        supabase.from('leads').select('tier, motivation, status, do_not_contact, spam').eq('agent_id', session.user.id),
+        supabase.from('leads_scoped').select('tier, motivation, status, do_not_contact, spam').eq('agent_id', session.user.id),
         supabase.from('leads').select('*', { count: 'exact', head: true }).in('property_id', ids).gte('created_at', lastMonthISO).lt('created_at', monthISO),
         supabase.from('scan_events').select('*', { count: 'exact', head: true }).in('property_id', ids).gte('created_at', lastMonthISO).lt('created_at', monthISO),
       ])
@@ -256,7 +253,8 @@ export default function Dashboard() {
         // Lead Health buckets on tier (V2), falling back to motivation only for legacy rows with no tier
         const t = l.tier && ['hot', 'warm', 'cold'].includes(l.tier) ? l.tier : motivationToTierV2(l.motivation)
         if (pipeline[t] !== undefined) pipeline[t]++
-        if (l.motivation === 'hot') hotByProp[l.property_id] = (hotByProp[l.property_id] || 0) + 1
+        // Showing requests, not motivation: leads_scoped nulls motivation for Free, but keeps score_breakdown.requested_showing for every plan
+        if (requestedShowing(l)) hotByProp[l.property_id] = (hotByProp[l.property_id] || 0) + 1
         if (l.created_at >= monthISO) monthLeadsByProp[l.property_id] = (monthLeadsByProp[l.property_id] || 0) + 1
       })
       const topEntry = Object.entries(monthLeadsByProp).sort((a, b) => b[1] - a[1])[0]
@@ -438,26 +436,30 @@ export default function Dashboard() {
           <div style={{ background: C.card, border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.purple}`, borderRadius: 12, padding: '11px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <div>
               <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Today's Focus</div>
-              {needsFollowUp === 0 && showingRequestsCount === 0 ? (
+              {(!canSeeScoring(plan) || needsFollowUp === 0) && showingRequestsCount === 0 ? (
                 <span style={{ fontSize: 13, color: C.sub }}>You're all caught up — no urgent actions right now.</span>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {needsFollowUp > 0 && <span style={{ fontSize: 13, color: C.sub }}>• {needsFollowUp} high-interest buyer{needsFollowUp !== 1 ? 's' : ''} awaiting contact</span>}
+                  {canSeeScoring(plan) && needsFollowUp > 0 && <span style={{ fontSize: 13, color: C.sub }}>• {needsFollowUp} high-interest buyer{needsFollowUp !== 1 ? 's' : ''} awaiting contact</span>}
                   {showingRequestsCount > 0 && <span style={{ fontSize: 13, color: C.sub }}>• {showingRequestsCount} showing request{showingRequestsCount !== 1 ? 's' : ''} pending</span>}
                 </div>
               )}
             </div>
-            {(needsFollowUp > 0 || showingRequestsCount > 0) && (
+            {((canSeeScoring(plan) && needsFollowUp > 0) || showingRequestsCount > 0) && (
               <Link href="/dashboard/leads" style={{ fontSize: 12, fontWeight: 700, color: C.purpleL, textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0 }}>Review Leads →</Link>
             )}
           </div>
 
           {/* ── SECTION 2: KPI Cards ── */}
-          <div className="db-kpi4">
-            <KpiCard href="/dashboard/leads?status=not_contacted"      icon={<AlertCircle   size={18} color={ACCENT.amber.color}  />} label="Needs Follow-Up"    value={needsFollowUp}      change={null}       accent={ACCENT.amber} caption={needsFollowUp === 0 ? "You're all caught up" : 'High-interest buyers awaiting contact'} />
+          <div className="db-kpi4" style={!canSeeScoring(plan) ? { gridTemplateColumns: 'repeat(2,1fr)' } : undefined}>
+            {canSeeScoring(plan) && (
+              <KpiCard href="/dashboard/leads?status=not_contacted"      icon={<AlertCircle   size={18} color={ACCENT.amber.color}  />} label="Needs Follow-Up"    value={needsFollowUp}      change={null}       accent={ACCENT.amber} caption={needsFollowUp === 0 ? "You're all caught up" : 'High-interest buyers awaiting contact'} />
+            )}
             <KpiCard href="/dashboard/leads?tier=all&sort=newest"      icon={<Users         size={18} color={ACCENT.green.color}  />} label="New Leads"          value={totalLeads}         change={leadChange} accent={ACCENT.green} caption="Last 30 days" />
             <KpiCard href="/dashboard/leads?motivation=showing"        icon={<CalendarCheck size={18} color={ACCENT.blue.color}   />} label="Showing Requests"   value={showingRequestsCount} change={null}     accent={ACCENT.blue}  caption={showingRequestsCount === 0 ? "Appears when buyers click 'Request a Showing'" : undefined} />
-            <KpiCard href="/dashboard/leads?tier=hot"                  icon={<Flame         size={18} color={ACCENT.red.color}    />} label="High-Intent Buyers" value={buyerInterestCount} change={null}       accent={ACCENT.red}   caption={buyerInterestCount === 0 ? 'Place your first QR sign to start capturing buyers' : undefined} />
+            {canSeeScoring(plan) && (
+              <KpiCard href="/dashboard/leads?tier=hot"                  icon={<Flame         size={18} color={ACCENT.red.color}    />} label="High-Intent Buyers" value={buyerInterestCount} change={null}       accent={ACCENT.red}   caption={buyerInterestCount === 0 ? 'Place your first QR sign to start capturing buyers' : undefined} />
+            )}
           </div>
 
           {/* ── SECTION 3+4+5: Two-column main layout ── */}
@@ -467,7 +469,11 @@ export default function Dashboard() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
             {/* Needs Your Attention — uncontacted hot/warm leads + anonymous return-scan activity */}
-            <NeedsAttention agentId={agentId} properties={properties} />
+            {canSeeScoring(plan) ? (
+              <NeedsAttention agentId={agentId} properties={properties} />
+            ) : (
+              <UpgradeHint text="Upgrade to see which buyers need your attention." />
+            )}
 
             {/* Properties list */}
             <Card style={{ height: 320, display: 'flex', flexDirection: 'column' }}>
@@ -489,7 +495,7 @@ export default function Dashboard() {
                         <div className="db-hover" style={{ padding: '11px 18px', borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : 'none', background: C.card }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                             <span style={{ fontSize: 12, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{formatAddressDisplay(p.address)}</span>
-                            <HealthBadge scans={scans} leads={leads} hot={hot} />
+                            <InterestBadge scans={scans} leads={leads} hot={hot} plan={plan} />
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
                             <span style={{ color: '#FCD34D', fontWeight: 600 }}>{leads}</span><span style={{ color: C.muted }}>Leads</span>
@@ -518,27 +524,35 @@ export default function Dashboard() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div className="db-rtop">
 
-            {/* Lead Health */}
+            {/* Lead Health — pipeline breakdown is tier-derived, so a Free agent's
+                nulled tier/motivation would render a misleading "all cold"
+                bucket rather than "no data". Swap for a calm upgrade hint. */}
             <Card>
               <CardHead title="Lead Health" />
-              <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {[
-                  { label: 'Hot',  color: '#EF4444', count: pipelineCounts.hot || 0,                                           uncontacted: hotNotCalled  },
-                  { label: 'Warm', color: '#F59E0B', count: pipelineCounts.warm || 0,                                           uncontacted: warmNotCalled },
-                  { label: 'Cold', color: '#6B7280', count: pipelineCounts.cold || 0,                                           uncontacted: null          },
-                ].map(({ label, color, count, uncontacted }) => (
-                  <div key={label} style={{ borderLeft: `3px solid ${color}`, paddingLeft: 10, paddingTop: 5, paddingBottom: 5 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: C.text, minWidth: 36 }}>{label}</span>
-                      <span style={{ fontSize: 12, color: C.sub }}>{count} lead{count !== 1 ? 's' : ''}</span>
-                      {uncontacted !== null && uncontacted > 0 && (
-                        <span style={{ fontSize: 11, color: C.muted }}>· {uncontacted} not yet called</span>
-                      )}
+              {canSeeScoring(plan) ? (
+                <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {[
+                    { label: 'Hot',  color: '#EF4444', count: pipelineCounts.hot || 0,                                           uncontacted: hotNotCalled  },
+                    { label: 'Warm', color: '#F59E0B', count: pipelineCounts.warm || 0,                                           uncontacted: warmNotCalled },
+                    { label: 'Cold', color: '#6B7280', count: pipelineCounts.cold || 0,                                           uncontacted: null          },
+                  ].map(({ label, color, count, uncontacted }) => (
+                    <div key={label} style={{ borderLeft: `3px solid ${color}`, paddingLeft: 10, paddingTop: 5, paddingBottom: 5 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: C.text, minWidth: 36 }}>{label}</span>
+                        <span style={{ fontSize: 12, color: C.sub }}>{count} lead{count !== 1 ? 's' : ''}</span>
+                        {uncontacted !== null && uncontacted > 0 && (
+                          <span style={{ fontSize: 11, color: C.muted }}>· {uncontacted} not yet called</span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
-                <p style={{ fontSize: 11, color: C.muted, margin: '4px 0 0', textAlign: 'center' }}>Based on buyer intent &amp; engagement</p>
-              </div>
+                  ))}
+                  <p style={{ fontSize: 11, color: C.muted, margin: '4px 0 0', textAlign: 'center' }}>Based on buyer intent &amp; engagement</p>
+                </div>
+              ) : (
+                <div style={{ padding: '16px 18px' }}>
+                  <UpgradeHint text="Upgrade to see your lead pipeline by buyer intent." />
+                </div>
+              )}
             </Card>
 
             {/* Live Activity */}
@@ -583,7 +597,7 @@ export default function Dashboard() {
                   )}
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4 }}>{topProp.address}</div>
-                    <HealthBadge scans={propScanCounts[topProp.id] || 0} leads={propLeadCounts[topProp.id] || 0} hot={propHotLeads[topProp.id] || 0} />
+                    <InterestBadge scans={propScanCounts[topProp.id] || 0} leads={propLeadCounts[topProp.id] || 0} hot={propHotLeads[topProp.id] || 0} plan={plan} />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                     {[

@@ -66,7 +66,7 @@ export default function PrivacyPage() {
             Privacy Policy
           </h1>
           <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>
-            Last updated: October 22, 2026
+            Last updated: October 24, 2026
           </p>
         </div>
 
@@ -111,7 +111,7 @@ export default function PrivacyPage() {
           <ul style={{ margin: '0 0 16px', paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <li><strong style={{ color: C.text }}>The listing agent</strong> for that property sees your request, your contact details, your interest tier and score, and your activity on their listing. They can export their leads to their own records.</li>
             <li><strong style={{ color: C.text }}>No other agent</strong> sees your information. We have no brokerage, team or MLS sharing.</li>
-            <li><strong style={{ color: C.text }}>Service providers</strong> that run the platform for us: Supabase (database and storage), Twilio (text messages), Vercel (hosting) and Stripe (agent billing only; Stripe never receives buyer information). They process data on our behalf under their data processing terms.</li>
+            <li><strong style={{ color: C.text }}>Service providers</strong> that run the platform for us: Supabase (database and storage), Twilio (text messages), Resend (email delivery), Vercel (hosting) and Stripe (agent billing only; Stripe never receives buyer information). They process data on our behalf under their data processing terms.</li>
             <li><strong style={{ color: C.text }}>Google Maps</strong> receives nothing unless you tap the &ldquo;Take Me There&rdquo; link yourself.</li>
           </ul>
           <p style={{ margin: 0 }}>

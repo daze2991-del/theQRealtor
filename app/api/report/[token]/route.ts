@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminSupabase } from '../../../../lib/supabase-admin'
 import { isReportExpired } from '../../../../lib/propertyStatus'
+import { canSeeScoring } from '../../../../lib/scoringAccess'
 
 // REQUIRED — do not remove. Without it this handler's Supabase reads land in
 // Next's persistent fetch Data Cache (.next/cache/fetch-cache), which survives
@@ -62,6 +63,18 @@ export async function GET(
   }
 
   const propertyId = propRes.data.id as string
+  const ownerId    = propRes.data.user_id as string | null
+
+  // Resolved once, used below to decide whether tier/motivation/return_visit
+  // leave this response at all (Free plan: leadScoring = false). Separate
+  // from the `agent` credential stamp further down — plan must never appear
+  // in this unauthenticated response, only the boolean it gates.
+  // Fails CLOSED: no owner id (or an unreadable plan) means no scoring data.
+  let scoringEnabled = false
+  if (ownerId) {
+    const { data: ownerPlanRow } = await supabase.from('profiles').select('plan').eq('id', ownerId).maybeSingle()
+    scoringEnabled = canSeeScoring(ownerPlanRow?.plan ?? null)
+  }
 
   // Photo + leads + signs currently assigned to this property (parallel).
   // qrcodes (the old direct property_id -> QR-code table) is now empty/retired;
@@ -89,16 +102,21 @@ export async function GET(
   // request-body value when no engagement payload is present), so it cannot be
   // trusted to hold only known labels — allow-list it rather than pass it
   // through. The seller page still needs it for legacy-row tier resolution.
+  //
+  // tier/motivation are both nulled for Free agents (scoringEnabled=false) —
+  // nulling tier alone isn't enough, since the page's tierOf() falls back to
+  // motivation when tier isn't hot/warm/cold.
   const MOTIVATION_LABELS = new Set(['cold', 'warm', 'motivated', 'hot'])
   const leads = ((leadRes.data ?? []) as any[]).map(l => ({
     id:         l.id,
-    tier:       l.tier,                                                   // DB-constrained enum (migration 019)
-    motivation: MOTIVATION_LABELS.has(l.motivation) ? l.motivation : null,
+    tier:       scoringEnabled ? l.tier : null,                           // DB-constrained enum (migration 019)
+    motivation: scoringEnabled && MOTIVATION_LABELS.has(l.motivation) ? l.motivation : null,
     created_at: l.created_at,
     has_notes:  !!(l.notes && String(l.notes).trim()),                    // presence only — never the text
     // Single numeric field pulled out of score_breakdown, not the whole object —
     // requestedShowing() only needs this one value, so there's no reason to widen
-    // what an unauthenticated, forwardable link can see beyond it.
+    // what an unauthenticated, forwardable link can see beyond it. Kept for
+    // every plan — showing-request counts stay visible on Free.
     score_breakdown: { requested_showing: l.score_breakdown?.requested_showing ?? 0 },
   }))
 
@@ -124,7 +142,12 @@ export async function GET(
       supabase.from('scan_events').select('*', { count: 'exact', head: true })
         .eq('property_id', propertyId).eq('return_visit', false),
     ])
-    scanEvents = scanRes.data ?? []
+    // return_visit forced false and photos_viewed / time_on_page_sec nulled
+    // when scoring isn't enabled (same fields migration 066 strips from
+    // scan_events_scoped) — the page's "N buyers returned" / "viewed all
+    // photos" counts all derive from these and disappear on their own.
+    scanEvents = (scanRes.data ?? []).map((e: any) =>
+      scoringEnabled ? e : { ...e, return_visit: false, photos_viewed: null, time_on_page_sec: null })
     totalScanCount = scanCountRes.count ?? 0
     uniqueVisitCount = uniqueRes.count ?? 0
   }
@@ -143,7 +166,6 @@ export async function GET(
     dre: string | null; brokerage: string | null; photo_url: string | null
   } | null = null
   {
-    const ownerId = propRes.data.user_id as string | null
     if (ownerId) {
       const { data: prof } = await supabase
         .from('profiles')
@@ -177,5 +199,6 @@ export async function GET(
     qrCodes,
     totalScanCount,
     uniqueVisitCount,
+    scoringEnabled,
   })
 }

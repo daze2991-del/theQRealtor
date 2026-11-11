@@ -7,8 +7,10 @@
 
 import { Suspense, useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import DashboardLayout from '../../../components/DashboardLayout'
+import { canSeeScoring } from '../../../lib/scoringAccess'
 import {
   Flame, Minus, ChevronDown, Phone, MessageCircle, Mail, Download, FileText,
   Ban, CheckSquare, Square, Check, Inbox, Home, MapPin, Zap, Tag, StickyNote,
@@ -159,6 +161,7 @@ function LeadsPageInner() {
   const [scanEventByQr,  setScanEventByQr]  = useState<Record<string, any>>({})
   const [lastActiveByQr, setLastActiveByQr] = useState<Record<string, string>>({})
   const [exportingCSV,   setExportingCSV]   = useState(false)
+  const [plan,           setPlan]           = useState<string | null>(null)
 
   // Deep-link filters from the dashboard KPI cards (and the tier links elsewhere).
   // Map URL params onto the EXISTING tab/filter state — no new filter logic:
@@ -185,6 +188,13 @@ function LeadsPageInner() {
   const [filterProperty, setFilterProperty] = useState('')
   const [filterDays,     setFilterDays]     = useState('all')
   const [sortMode,       setSortMode]       = useState<'recent' | 'priority' | 'contacted'>('recent')
+
+  // Free plan has no call-priority data (leads_scoped nulls intent_score) — if
+  // a Free agent had 'priority' selected before downgrading, fall back to
+  // newest-first rather than sorting on nulled-to-0 scores.
+  useEffect(() => {
+    if (plan !== null && !canSeeScoring(plan) && sortMode === 'priority') setSortMode('recent')
+  }, [plan, sortMode])
 
   // SMS opt-out ("Texts off") — ids of this agent's own opted-out leads,
   // looked up server-side. Display + filter only.
@@ -217,6 +227,9 @@ function LeadsPageInner() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.push('/auth'); return }
 
+      const { data: profile } = await supabase.from('profiles').select('plan').eq('id', session.user.id).single()
+      setPlan(profile?.plan ?? null)
+
       // Active (non-archived) properties — powers the property filter dropdown
       // and the address map. Archived (soft-deleted) properties are excluded so
       // their leads fall through to the "Deleted Property" label below.
@@ -230,8 +243,11 @@ function LeadsPageInner() {
       // Read leads by agent ownership, NOT by current property membership: a lead
       // whose property was archived or hard-deleted (property_id nulled) must still
       // appear. agent_id is stamped on every lead at capture time (migration 006).
+      // leads_scoped (migration 066): nulls tier/intent_score/motivation/etc.
+      // for Free agents server-side — the JSX below gates which of those it
+      // renders, but the data never arrives in the first place either way.
       const { data: leads } = await supabase
-        .from('leads').select('*')
+        .from('leads_scoped').select('*')
         .eq('agent_id', session.user.id)
         .order('created_at', { ascending: false })
       setAllLeads(leads || [])
@@ -251,12 +267,14 @@ function LeadsPageInner() {
       if (signIds.length > 0) {
         const [{ data: signsData }, { data: scanEvs }, { data: allScans }] = await Promise.all([
           supabase.from('signs').select('id, label').in('id', signIds),
-          supabase.from('scan_events')
+          // scan_events_scoped forces return_visit=false for Free agents — the
+          // "2nd visit" signal in buildSignals() below never appears for them.
+          supabase.from('scan_events_scoped')
             .select('sign_id, cta_clicked, photos_viewed, return_visit')
             .in('sign_id', signIds).eq('converted', true)
             .order('created_at', { ascending: false }),
           // Latest activity per sign_id — any scan_events row (not just converted)
-          supabase.from('scan_events')
+          supabase.from('scan_events_scoped')
             .select('sign_id, created_at')
             .in('sign_id', signIds)
             .order('created_at', { ascending: false }),
@@ -403,7 +421,7 @@ function LeadsPageInner() {
     }
 
     const arr = [...r]
-    if (sortMode === 'priority') {
+    if (sortMode === 'priority' && canSeeScoring(plan)) {
       // call_priority = intent_score × recency decay — read-time only, never stored
       arr.sort((a, b) => {
         const pa = computeCallPriority(a.intent_score ?? 0, a.last_activity_at ?? a.created_at)
@@ -423,7 +441,7 @@ function LeadsPageInner() {
       arr.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     }
     return arr
-  }, [allLeads, filterDisclosures, filterTextsOff, textsOffLeadIds, filterTemp, filterStatus, filterProperty, filterDays, sortMode, localLeads, scanEventByQr, viewSpam])
+  }, [allLeads, filterDisclosures, filterTextsOff, textsOffLeadIds, filterTemp, filterStatus, filterProperty, filterDays, sortMode, localLeads, scanEventByQr, viewSpam, plan])
 
   const downloadCSV = async () => {
     if (leads.length === 0) return
@@ -433,23 +451,31 @@ function LeadsPageInner() {
     const lastScanMap: Record<string, string> = {}
     if (signIds.length > 0) {
       const { data: scans } = await supabase
-        .from('scan_events').select('sign_id, created_at')
+        .from('scan_events_scoped').select('sign_id, created_at')
         .in('sign_id', signIds).order('created_at', { ascending: false })
       ;(scans || []).forEach((s: any) => { if (s.sign_id && !lastScanMap[s.sign_id]) lastScanMap[s.sign_id] = s.created_at })
     }
     const tierLabels: Record<string, string> = { hot: 'Hot', warm: 'Warm', cold: 'Cold' }
+    // Intent / Tier / Action are score-derived — leads_scoped already nulled
+    // the underlying tier/motivation for Free agents, but the columns
+    // themselves are also omitted entirely rather than exported empty.
+    const scoringOn = canSeeScoring(plan)
     const rows = [
       // 'Notes' split into two explicitly-named columns — the old single column
       // exported leads.notes under a label that read as agent notes.
-      ['Name', 'Phone', 'Email', 'Status', 'Intent', 'Tier', 'Property', 'QR Label', 'Scans', 'Last Scan', 'Last Contacted', 'Submitted', 'Buyer Message', 'Agent Notes', 'Action'],
+      [
+        'Name', 'Phone', 'Email', 'Status',
+        ...(scoringOn ? ['Intent', 'Tier'] : []),
+        'Property', 'QR Label', 'Scans', 'Last Scan', 'Last Contacted', 'Submitted', 'Buyer Message', 'Agent Notes',
+        ...(scoringOn ? ['Action'] : []),
+      ],
       ...leads.map(l => {
         const eff = getEffective(l)
         const t = leadTier(l)
         return [
           l.name || '', l.phone || '', l.email || '',
           eff.status || 'new',
-          TIER_CHIP_CFG[t]?.label || l.motivation || '',
-          tierLabels[t] || '',
+          ...(scoringOn ? [TIER_CHIP_CFG[t]?.label || l.motivation || '', tierLabels[t] || ''] : []),
           propMap[l.property_id] || '',
           l.sign_id ? (qrMap[l.sign_id]?.label || '') : '',
           l.sign_id ? String(qrMap[l.sign_id]?.scan_count ?? '') : '',
@@ -458,7 +484,7 @@ function LeadsPageInner() {
           new Date(l.created_at).toLocaleString(),
           l.notes || '',          // buyer-authored, read-only
           eff.agent_notes || '',  // agent-authored private notes
-          TIER_V2_CFG[t]?.action || '',
+          ...(scoringOn ? [TIER_V2_CFG[t]?.action || ''] : []),
         ]
       }),
     ]
@@ -539,27 +565,33 @@ function LeadsPageInner() {
             onClick={e => e.stopPropagation()}
           >
             {/* Tier chips (V2: hot/warm/cold) + Disclosures */}
-            <div style={{ display: 'flex', gap: 6 }}>
-              {TEMP_CHIPS.map(chip => {
-                const on  = filterTemp.includes(chip.key) && !filterDisclosures
-                const cnt = counts[chip.key] ?? 0
-                const cfg = TIER_CHIP_CFG[chip.key]
-                return (
-                  <button key={chip.key} className="chip-btn"
-                    onClick={() => { setFilterDisclosures(false); toggleTemp(chip.key) }}
-                    style={{
-                      padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-                      background: on ? `${cfg.color}22` : 'transparent',
-                      border: `1px solid ${on ? cfg.color : C.border}`,
-                      color: on ? cfg.color : C.muted,
-                      display: 'inline-flex', alignItems: 'center', gap: 5,
-                    }}
-                  >
-                    <chip.icon size={12} /> {chip.label}
-                    {cnt > 0 && <span style={{ marginLeft: 1, fontSize: 10, opacity: 0.7 }}>{cnt}</span>}
-                  </button>
-                )
-              })}
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              {canSeeScoring(plan) ? (
+                TEMP_CHIPS.map(chip => {
+                  const on  = filterTemp.includes(chip.key) && !filterDisclosures
+                  const cnt = counts[chip.key] ?? 0
+                  const cfg = TIER_CHIP_CFG[chip.key]
+                  return (
+                    <button key={chip.key} className="chip-btn"
+                      onClick={() => { setFilterDisclosures(false); toggleTemp(chip.key) }}
+                      style={{
+                        padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                        background: on ? `${cfg.color}22` : 'transparent',
+                        border: `1px solid ${on ? cfg.color : C.border}`,
+                        color: on ? cfg.color : C.muted,
+                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                      }}
+                    >
+                      <chip.icon size={12} /> {chip.label}
+                      {cnt > 0 && <span style={{ marginLeft: 1, fontSize: 10, opacity: 0.7 }}>{cnt}</span>}
+                    </button>
+                  )
+                })
+              ) : (
+                <span style={{ fontSize: 12, color: C.muted }}>
+                  Lead temperature is on paid plans — <Link href="/dashboard/billing" style={{ color: C.purpleL, fontWeight: 700, textDecoration: 'none' }}>Upgrade</Link>
+                </span>
+              )}
               <button className="chip-btn"
                 onClick={() => setFilterDisclosures(v => !v)}
                 style={{
@@ -644,7 +676,7 @@ function LeadsPageInner() {
               style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, color: C.sub, fontSize: 12, fontWeight: 600, padding: '5px 11px', outline: 'none', cursor: 'pointer' }}
             >
               <option value="recent">Most recent</option>
-              <option value="priority">Call Priority ↓</option>
+              {canSeeScoring(plan) && <option value="priority">Call Priority ↓</option>}
               <option value="contacted">Last contacted (oldest first)</option>
             </select>
 
@@ -738,7 +770,7 @@ function LeadsPageInner() {
                                 </span>
                               )}
                               {textsOffLeadIds.has(lead.id) && <TextsOffBadge />}
-                              <TierBadge tier={tier} />
+                              {canSeeScoring(plan) && <TierBadge tier={tier} />}
 
                               {/* Status badge + per-lead dropdown */}
                               <div data-status-dropdown style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
@@ -827,17 +859,19 @@ function LeadsPageInner() {
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-                          {/* Strongest signal — the one-line "why" */}
-                          <span style={{ fontSize: 11, fontWeight: 700, color: C.sub, background: 'rgba(255,255,255,0.05)', border: `1px solid ${C.border}`, borderRadius: 6, padding: '2px 8px', whiteSpace: 'nowrap' }}>
-                            {reason}
-                          </span>
+                          {/* Strongest signal — the one-line "why" (score-derived; Free never sees it) */}
+                          {canSeeScoring(plan) && (
+                            <span style={{ fontSize: 11, fontWeight: 700, color: C.sub, background: 'rgba(255,255,255,0.05)', border: `1px solid ${C.border}`, borderRadius: 6, padding: '2px 8px', whiteSpace: 'nowrap' }}>
+                              {reason}
+                            </span>
+                          )}
                           {/* Urgency tag — tiered off call_priority; only meaningful when a phone number exists */}
-                          {lead.phone && urgency && (
+                          {canSeeScoring(plan) && lead.phone && urgency && (
                             <span style={{ fontSize: 12, fontWeight: 700, color: urgency.color, whiteSpace: 'nowrap' }}>
                               {urgency.label}
                             </span>
                           )}
-                          {lead.phone && (
+                          {canSeeScoring(plan) && lead.phone && (
                             <span title={`Call Priority: ${callPri}`} style={{ fontSize: 10, color: C.muted, background: `${C.purple}18`, border: `1px solid ${C.purple}30`, borderRadius: 6, padding: '2px 6px', fontWeight: 700 }}>
                               P{callPri.toFixed(0)}
                             </span>

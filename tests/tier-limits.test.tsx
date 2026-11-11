@@ -192,7 +192,10 @@ describe('billing page reads prices from the catalog (no hardcoded values)', () 
   it('no literal $79 / $69 / $39 and no "Unlimited" copy', () => {
     expect(src).not.toMatch(/\$(79|69|39)\b/)
     expect(src).not.toMatch(/['"`][^'"`]*Unlimited[^'"`]*['"`]/)
-    expect(src).toContain("'All your active listings'")
+    // The checklist copy moved to lib/planChecklist.ts (driven by lib/plans.ts).
+    const checklistSrc = readFileSync(new URL('../lib/planChecklist.ts', import.meta.url), 'utf8')
+    expect(checklistSrc).toContain("'All your active listings'")
+    expect(checklistSrc).toContain('All your active ${noun}s')
   })
 })
 

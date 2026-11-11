@@ -96,13 +96,18 @@ export default function NeedsAttention({
         // itself (uncontacted, not do_not_contact, not spam, hot/warm tier) is
         // applied client-side via the canonical needsAttention() predicate
         // below, rather than reimplemented as a chain of query filters here.
+        // leads_scoped / scan_events_scoped (migration 066): the parent
+        // dashboard page already swaps this component out for an UpgradeHint
+        // on Free plans, but this component reads the scoped views anyway as
+        // defense-in-depth — tier/motivation come back null for Free agents
+        // regardless of who renders it.
         supabase
-          .from('leads')
+          .from('leads_scoped')
           .select('id, name, phone, email, property_id, tier, motivation, status, do_not_contact, spam, created_at')
           .eq('agent_id', agentId)
           .order('created_at', { ascending: true }),
         propertyIds.length === 0 ? empty : supabase
-          .from('scan_events')
+          .from('scan_events_scoped')
           .select('property_id, created_at')
           .in('property_id', propertyIds)
           .eq('return_visit', true)

@@ -179,7 +179,7 @@ export default function SellerReportPage() {
     )
   }
 
-  const { property, photo, agent, leads, scanEvents, qrCodes, totalScanCount, uniqueVisitCount } = report
+  const { property, photo, agent, leads, scanEvents, qrCodes, totalScanCount, uniqueVisitCount, scoringEnabled } = report
 
   // ── Derived values ────────────────────────────────────────────────────────
   const now            = new Date()
@@ -438,12 +438,14 @@ export default function SellerReportPage() {
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: C.text, letterSpacing: '-0.02em' }}>
             Seller Report
           </h1>
-          <span style={{
-            fontSize: 12, fontWeight: 700, color: health.color, background: health.bg,
-            border: `1px solid ${health.color}40`, borderRadius: 20, padding: '3px 12px',
-          }}>
-            {health.badgeLabel}
-          </span>
+          {scoringEnabled && (
+            <span style={{
+              fontSize: 12, fontWeight: 700, color: health.color, background: health.bg,
+              border: `1px solid ${health.color}40`, borderRadius: 20, padding: '3px 12px',
+            }}>
+              {health.badgeLabel}
+            </span>
+          )}
           <button
             className="no-print"
             onClick={() => window.print()}
@@ -483,14 +485,18 @@ export default function SellerReportPage() {
                 {location} · {property.active ? 'Active Listing' : 'Offline'}
               </div>
             )}
-            <span style={{
-              display: 'inline-block', marginBottom: 12,
-              fontSize: 11, fontWeight: 700, color: health.color, background: health.bg,
-              border: `1px solid ${health.color}40`, borderRadius: 20, padding: '3px 12px',
-            }}>
-              {health.badgeLabel}
-            </span>
-            <p style={{ fontSize: 13, color: C.sub, lineHeight: 1.65, margin: 0 }}>{health.text}</p>
+            {scoringEnabled && (
+              <>
+                <span style={{
+                  display: 'inline-block', marginBottom: 12,
+                  fontSize: 11, fontWeight: 700, color: health.color, background: health.bg,
+                  border: `1px solid ${health.color}40`, borderRadius: 20, padding: '3px 12px',
+                }}>
+                  {health.badgeLabel}
+                </span>
+                <p style={{ fontSize: 13, color: C.sub, lineHeight: 1.65, margin: 0 }}>{health.text}</p>
+              </>
+            )}
           </div>
 
           {/* Right: report meta */}
@@ -586,17 +592,22 @@ export default function SellerReportPage() {
           </div>
         </div>
 
-        {/* ── Lead quality breakdown ───────────────────────────────────────── */}
+        {/* ── Lead quality breakdown — the hot/warm/cold split is tier-derived,
+              so it's omitted entirely for Free (leads_scoped already nulled
+              tier/motivation server-side); Showings stays since it's kept for
+              every plan. ──────────────────────────────────────────────────── */}
         <div style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 12 }}>Lead Quality Breakdown</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 12 }}>{scoringEnabled ? 'Lead Quality Breakdown' : 'Showing Requests'}</div>
         </div>
-        <div className="rpt-5col" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
-          {[
+        <div className="rpt-5col" style={{ display: 'grid', gridTemplateColumns: scoringEnabled ? 'repeat(4, 1fr)' : 'repeat(1, 1fr)', gap: 12, marginBottom: 20 }}>
+          {(scoringEnabled ? [
             { label: 'Hot',      n: hotCount,         desc: 'Ready to move',         color: '#EF4444', icon: Flame },
             { label: 'Warm',     n: warmCount,        desc: 'Actively considering',  color: '#F59E0B', icon: Flame },
             { label: 'Cold',     n: coldCount,        desc: 'Early interest',        color: '#60A5FA', icon: Minus },
             { label: 'Showings', n: showingRequests,  desc: 'Requested a tour',      color: '#7C3AED', icon: CalendarCheck },
-          ].map(c => (
+          ] : [
+            { label: 'Showings', n: showingRequests,  desc: 'Requested a tour',      color: '#7C3AED', icon: CalendarCheck },
+          ]).map(c => (
             <div key={c.label} style={{ background: C.card, border: `1px solid ${C.border}`, borderLeft: `3px solid ${c.color}`, borderRadius: 14, padding: '16px 16px 14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
                 <c.icon size={15} color={c.color} />
@@ -736,9 +747,12 @@ export default function SellerReportPage() {
         <div style={{ marginBottom: 8 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 12 }}>Listing Performance Overview</div>
         </div>
-        <div className="rpt-5col" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+        <div className="rpt-5col" style={{ display: 'grid', gridTemplateColumns: scoringEnabled ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
           <KpiCard icon={Eye}           label="QR Scans"              value={totalScans}      change={showComparison ? safePct(thisMonthScans, lastMonthScans) : null}        sparkData={scanSparkData}     color="#60A5FA" />
-          <KpiCard icon={Users}         label="Engaged Buyers"       value={engagedBuyers}   change={showComparison ? safePct(thisMonthEngaged, lastMonthEngaged) : null}     sparkData={engagedSparkData}  color="#10B981" />
+          {/* Engaged Buyers is a hot/warm tier count — omitted for Free */}
+          {scoringEnabled && (
+            <KpiCard icon={Users}         label="Engaged Buyers"       value={engagedBuyers}   change={showComparison ? safePct(thisMonthEngaged, lastMonthEngaged) : null}     sparkData={engagedSparkData}  color="#10B981" />
+          )}
           <KpiCard icon={CalendarCheck} label="Showing Requests"     value={showingRequests} change={showComparison ? safePct(thisMonthShowings, lastMonthShowings) : null}   sparkData={showingSparkData}  color="#F59E0B" />
           <KpiCard icon={HelpCircle}    label="Buyer Questions"      value={buyerQuestions}  change={showComparison ? safePct(thisMonthQuestions, lastMonthQuestions) : null} sparkData={questionSparkData} color="#F97316" />
         </div>

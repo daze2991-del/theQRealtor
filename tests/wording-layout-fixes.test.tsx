@@ -14,9 +14,13 @@ const defaultAuthAdmin = {
   deleteUser: async () => ({ data: null, error: null }),
 }
 vi.mock('@supabase/supabase-js', () => ({
-  // db.client.auth, when a test sets it, overrides the default stub below —
-  // e.g. to spy on deleteUser for the rollback check.
-  createClient: () => ({ ...db.client, auth: db.client.auth ?? { admin: defaultAuthAdmin } }),
+  // Merged, not replaced: makeFakeDb() now bakes in its own auth.admin
+  // stub (getUserById, for the email-alert path) by default, so db.client.auth
+  // is never falsy any more — a plain `??` fallback would permanently shadow
+  // defaultAuthAdmin's createUser/deleteUser. A test that sets db.client.auth
+  // itself (e.g. the rollback test below, to spy on deleteUser) still wins,
+  // since its keys are spread last.
+  createClient: () => ({ ...db.client, auth: { admin: { ...defaultAuthAdmin, ...(db.client.auth?.admin ?? {}) } } }),
 }))
 vi.mock('../lib/supabase-admin', () => ({ createAdminSupabase: () => db.client }))
 vi.mock('../lib/supabase-server', () => ({

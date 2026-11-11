@@ -6,7 +6,8 @@ import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import { Flame, Check } from 'lucide-react'
 import DashboardLayout from '../../../components/DashboardLayout'
 import { motivationToTierV2 } from '../../../lib/leadScoringV2'
-import { planConfig, type PlanId } from '../../../lib/plans'
+import { planConfig, PLAN_CONFIG, type PlanId } from '../../../lib/plans'
+import { planChecklist, limitLabel } from '../../../lib/planChecklist'
 import { canSeeScoring } from '../../../lib/scoringAccess'
 import { PRICING_TIERS, PRICING_CLARIFIER, pricingTierConfig, isPricingTier, type PricingTier } from '../../../lib/pricing'
 
@@ -38,12 +39,6 @@ function planDisplayName(plan: PlanId): string {
   return 'Free'
 }
 
-// Customer-facing limit copy. A null limit is phrased as "All your active
-// <noun>s" rather than "Unlimited" — same rule Phase 5/6 apply everywhere else.
-function limitLabel(n: number | null, noun: string): string {
-  return n === null ? `All your active ${noun}s` : `${n} active ${noun}${n === 1 ? '' : 's'}`
-}
-
 export default function BillingPageClient({ paidPlansEnabled }: { paidPlansEnabled: boolean }) {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
@@ -68,7 +63,9 @@ export default function BillingPageClient({ paidPlansEnabled }: { paidPlansEnabl
       const { data: profile } = await supabase
         .from('profiles').select('plan').eq('id', session.user.id).single()
 
-      const currentPlan = (profile?.plan as PlanId) || 'free'
+      // An unknown/typo'd plan string is Free everywhere (lib/plans.ts planConfig).
+      const rawPlan = profile?.plan as string | undefined
+      const currentPlan: PlanId = rawPlan && rawPlan in PLAN_CONFIG ? (rawPlan as PlanId) : 'free'
       setPlan(currentPlan)
 
       const { data: props } = await supabase
@@ -171,6 +168,7 @@ export default function BillingPageClient({ paidPlansEnabled }: { paidPlansEnabl
 
   const hasPaidPlan = plan !== 'free'
   const currentLimits = planConfig(plan)
+  const checklist = planChecklist(plan)
 
   return (
     <DashboardLayout>
@@ -369,22 +367,17 @@ export default function BillingPageClient({ paidPlansEnabled }: { paidPlansEnabl
                 </div>
 
                 <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 16 }}>
-                  <div style={{ ...label, marginBottom: 14, display: 'block' }}>Your Beta Agent Plan</div>
+                  <div style={{ ...label, marginBottom: 14, display: 'block' }}>{checklist.heading}</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
-                    {[
-                      'All your active listings',
-                      'Buyer lead capture',
-                      'QR sign tracking',
-                      'Buyer interest scoring (Hot/Warm/Cold)',
-                      'SMS lead alerts',
-                      'Seller reports',
-                      'Analytics dashboard',
-                      'CSV export',
-                      'Priority support',
-                    ].map((feature, i) => (
+                    {checklist.items.map((item, i) => item.included ? (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: C.text }}>
                         <span style={{ color: '#4ade80', flexShrink: 0, display: 'flex' }}><Check size={15} strokeWidth={3} /></span>
-                        {feature}
+                        {item.label}
+                      </div>
+                    ) : (
+                      <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: 8, fontSize: 14, color: C.muted }}>
+                        <span style={{ width: 15, flexShrink: 0, textAlign: 'center' }} aria-hidden="true">–</span>
+                        <span>{item.label}<span style={{ display: 'block', fontSize: 12 }}>{item.note}</span></span>
                       </div>
                     ))}
                   </div>

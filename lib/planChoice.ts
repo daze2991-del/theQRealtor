@@ -1,12 +1,13 @@
-import { buildActivityStats, RANKING_WINDOW_DAYS, FREE_MAX_LISTINGS, FREE_MAX_SIGNS, parseSwapTooSoon, swapTooSoonMessage, type ActivityStats } from './planLock'
+import { buildActivityStats, RANKING_WINDOW_DAYS, FREE_MAX_SIGNS, parseSwapTooSoon, swapTooSoonMessage, selectionLimits, type ActivityStats, type SelectionLimits } from './planLock'
 import { getTrialStatus } from './trial'
 
-// Server-side pieces of "Choose what stays active on Free". Used by:
+// Server-side pieces of "Choose what stays active". Used by:
 //   GET  /api/plan/free-choice-options — what the agent can choose from, with ranking stats
-//   POST /api/plan/choose-free         — expired trial → Free (apply_free_selection 'choose')
+//   POST /api/plan/choose-free         — expired trial → Free (apply_free_selection 'choose'),
+//                                         or the post-downgrade choice (apply_plan_selection)
 //   POST /api/plan/free-swap           — Free agent changes what's active ('swap')
-// The atomic write and its rules live in SQL: apply_free_selection() in
-// supabase/migrations/060_plan_locking.sql.
+// The atomic writes and their rules live in SQL: apply_free_selection()
+// (060/062/063/067) and apply_plan_selection() (067).
 
 type Db = { from: (table: string) => any }
 
@@ -24,13 +25,60 @@ export interface ChoiceSign extends ActivityStats {
   assignedPropertyId: string | null
 }
 
-export type ChoiceEligibility = 'choose' | 'swap' | null
+export type ChoiceEligibility = 'choose' | 'swap' | 'downgrade' | null
 
-/** 'choose' for an expired trial, 'swap' for a Free agent, otherwise null. */
-export function choiceEligibility(plan: string | null | undefined, betaJoinedAt: string | null | undefined): ChoiceEligibility {
+/** Plans the downgrade auto-fit never touches (migration 067). */
+export const EXEMPT_PLANS = ['founding', 'alpha'] as const
+
+/** 'downgrade' while a downgrade's choice is pending (profiles.plan_choice_required_at,
+ *  migration 067), 'choose' for an expired trial, 'swap' for a Free agent,
+ *  otherwise null. founding/alpha never get 'downgrade'. */
+export function choiceEligibility(
+  plan: string | null | undefined,
+  betaJoinedAt: string | null | undefined,
+  choiceRequiredAt?: string | null,
+): ChoiceEligibility {
+  if (choiceRequiredAt && !(EXEMPT_PLANS as readonly string[]).includes(plan ?? '')) return 'downgrade'
   if (plan === 'free') return 'swap'
   if (plan === 'trial' && getTrialStatus(betaJoinedAt, plan).expired) return 'choose'
   return null
+}
+
+/** Customer-facing plan name for the chooser copy. */
+export function planName(plan: string | null | undefined): string {
+  switch (plan) {
+    case 'starter': return 'Starter'
+    case 'pro': return 'Pro'
+    case 'trial': return 'Trial'
+    default: return 'Free'
+  }
+}
+
+/** Limits the chooser applies: the target plan for an expired trial (Free),
+ *  otherwise the agent's current plan. */
+export function choiceLimits(mode: ChoiceEligibility, plan: string | null | undefined): SelectionLimits {
+  return selectionLimits(mode === 'choose' ? 'free' : plan)
+}
+
+type ProfileQuery = { from: (table: string) => any }
+
+/** profiles row for the chooser, tolerating a database where migration 067
+ *  (plan_choice_required_at) hasn't been applied yet: on an unknown-column
+ *  error it re-reads without the column and reports no pending choice. */
+export async function loadChoiceProfile(client: ProfileQuery, userId: string): Promise<{
+  plan: string | null; beta_joined_at: string | null; plan_choice_required_at: string | null
+} | null> {
+  const first = await client.from('profiles')
+    .select('plan, beta_joined_at, plan_choice_required_at').eq('id', userId).maybeSingle()
+  if (!first.error) return first.data ?? null
+  if (!isMissingColumn(first.error)) throw new Error(first.error.message)
+  const second = await client.from('profiles').select('plan, beta_joined_at').eq('id', userId).maybeSingle()
+  if (second.error) throw new Error(second.error.message)
+  return second.data ? { ...second.data, plan_choice_required_at: null } : null
+}
+
+export function isMissingColumn(err: { code?: string; message?: string } | null | undefined): boolean {
+  return !!err && (err.code === '42703' || /plan_choice_required_at/.test(err.message ?? ''))
 }
 
 export async function loadFreeChoiceOptions(admin: Db, agentId: string, now: number = Date.now()) {
@@ -84,9 +132,10 @@ export async function loadFreeChoiceOptions(admin: Db, agentId: string, now: num
   }
 }
 
-/** Validate a { listingIds, signIds } body. Caps are enforced again in SQL. */
-export function parseSelection(body: unknown):
-  { ok: true; listingId: string | null; signIds: string[] } | { ok: false; error: string } {
+/** Validate a { listingIds, signIds } body against a plan's limits (Free by
+ *  default). Caps are enforced again in SQL. */
+export function parseSelection(body: unknown, limits: SelectionLimits = selectionLimits('free'), name = 'Free'):
+  { ok: true; listingId: string | null; listingIds: string[]; signIds: string[] } | { ok: false; error: string } {
   const b = (body ?? {}) as { listingIds?: unknown; signIds?: unknown }
   const isIdList = (v: unknown): v is string[] => Array.isArray(v) && v.every(x => typeof x === 'string' && x.length > 0)
   const listingIds = b.listingIds ?? []
@@ -94,13 +143,16 @@ export function parseSelection(body: unknown):
   if (!isIdList(listingIds) || !isIdList(signIds)) return { ok: false, error: 'Invalid selection.' }
   const uniqueListings = [...new Set(listingIds)]
   const uniqueSigns = [...new Set(signIds)]
-  if (uniqueListings.length > FREE_MAX_LISTINGS) {
-    return { ok: false, error: `Free keeps ${FREE_MAX_LISTINGS} listing active. Choose one.` }
+  const { maxListings, maxSigns } = limits
+  if (maxListings !== null && uniqueListings.length > maxListings) {
+    return { ok: false, error: maxListings === 1
+      ? `${name} keeps 1 listing active. Choose one.`
+      : `${name} keeps up to ${maxListings} listings active. Choose ${maxListings} or fewer.` }
   }
-  if (uniqueSigns.length > FREE_MAX_SIGNS) {
-    return { ok: false, error: `Free keeps up to ${FREE_MAX_SIGNS} signs active. Choose ${FREE_MAX_SIGNS} or fewer.` }
+  if (maxSigns !== null && uniqueSigns.length > maxSigns) {
+    return { ok: false, error: `${name} keeps up to ${maxSigns} signs active. Choose ${maxSigns} or fewer.` }
   }
-  return { ok: true, listingId: uniqueListings[0] ?? null, signIds: uniqueSigns }
+  return { ok: true, listingId: uniqueListings[0] ?? null, listingIds: uniqueListings, signIds: uniqueSigns }
 }
 
 /** Map an apply_free_selection() exception to an HTTP response shape.
@@ -113,7 +165,11 @@ export function selectionErrorResponse(message: string | undefined): { status: n
   if (m.includes('invalid_listing')) return { status: 400, error: 'That listing can’t be kept active. Choose one of your live listings.' }
   if (m.includes('invalid_sign')) return { status: 400, error: 'Choose signs on the selected listing, or unassigned signs.' }
   if (m.includes('too_many_signs')) return { status: 400, error: `Free keeps up to ${FREE_MAX_SIGNS} signs active.` }
-  if (m.includes('not_trial') || m.includes('not_free')) return { status: 409, error: 'Your plan changed. Refresh the page and try again.' }
+  // 067 (apply_plan_selection)
+  if (m.includes('too_many_listings')) return { status: 400, error: 'That’s more listings than your plan keeps active.' }
+  if (m.includes('not_trial') || m.includes('not_free') || m.includes('no_choice_pending') || m.includes('exempt_plan')) {
+    return { status: 409, error: 'Your plan changed. Refresh the page and try again.' }
+  }
   return { status: 500, error: 'Something went wrong. Please try again.' }
 }
 

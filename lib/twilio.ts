@@ -415,7 +415,7 @@ const ABANDON_AFTER_MS = 3 * 86_400_000 // 3 days
 export async function flushDueNotifications(
   admin: Admin,
   opts: { agentId?: string; limit?: number } = {}
-): Promise<{ processed: number; sent: number; failed: number; abandoned: number; suppressed: number; error?: string }> {
+): Promise<{ processed: number; sent: number; failed: number; abandoned: number; suppressed: number; planRestricted: number; error?: string }> {
   const now = new Date()
   const nowIso = now.toISOString()
 
@@ -434,13 +434,31 @@ export async function flushDueNotifications(
   const { data: due, error } = await query
   if (error) {
     console.error('[twilio] flushDueNotifications query error:', error.message)
-    return { processed: 0, sent: 0, failed: 0, abandoned: 0, suppressed: 0, error: error.message }
+    return { processed: 0, sent: 0, failed: 0, abandoned: 0, suppressed: 0, planRestricted: 0, error: error.message }
   }
 
   const markSent = (id: string) =>
     admin.from('pending_notifications').update({ sent_at: new Date().toISOString() }).eq('id', id)
 
-  let sent = 0, failed = 0, abandoned = 0, suppressed = 0
+  // Plan + SMS master toggle, read once per agent per flush. 'unknown' = the
+  // lookup errored (transient): leave the row queued for the next flush.
+  const entitlement = new Map<string, Promise<'allowed' | 'restricted' | 'unknown'>>()
+  const smsEntitlement = (agentId: string) => {
+    if (!entitlement.has(agentId)) {
+      entitlement.set(agentId, (async () => {
+        const { data, error: profErr } = await admin
+          .from('profiles').select('plan, sms_alerts_enabled').eq('id', agentId).maybeSingle()
+        if (profErr) {
+          console.error('[twilio] flush: entitlement lookup failed for agent', agentId, '—', profErr.message)
+          return 'unknown'
+        }
+        return featuresForPlan(data?.plan ?? null).canUseSms && data?.sms_alerts_enabled === true ? 'allowed' : 'restricted'
+      })())
+    }
+    return entitlement.get(agentId)!
+  }
+
+  let sent = 0, failed = 0, abandoned = 0, suppressed = 0, planRestricted = 0
   for (const n of due ?? []) {
     // Defense-in-depth: the Hot-lead SMS alert is removed (final decision,
     // nothing queues one anymore — see app/api/submit-lead/route.ts), but if a
@@ -453,6 +471,23 @@ export async function flushDueNotifications(
       console.warn('[twilio] flush: notification', n.id, 'is a Hot-lead alert (removed) — marked handled, not sent')
       await markSent(n.id)
       abandoned++
+      continue
+    }
+
+    // Re-check the plan and the SMS toggle at SEND time, not just when the
+    // text was queued: a downgrade to Free, or SMS alerts switched off, while
+    // a text waits out quiet hours must stop it. Marked handled and never
+    // retried or converted — the email alert already went out when the lead
+    // came in (lib/email.ts, not quiet-hours gated).
+    const ent = await smsEntitlement(n.agent_id)
+    if (ent === 'unknown') {
+      failed++
+      continue
+    }
+    if (ent === 'restricted') {
+      console.warn('[twilio] flush: notification', n.id, 'plan-restricted (plan without SMS, or SMS alerts off) — marked handled, not sent')
+      await markSent(n.id)
+      planRestricted++
       continue
     }
 
@@ -505,7 +540,7 @@ export async function flushDueNotifications(
     }
   }
 
-  return { processed: due?.length ?? 0, sent, failed, abandoned, suppressed }
+  return { processed: due?.length ?? 0, sent, failed, abandoned, suppressed, planRestricted }
 }
 
 // ── Message templates ─────────────────────────────────────────────────────────

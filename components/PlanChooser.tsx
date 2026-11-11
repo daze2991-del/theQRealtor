@@ -7,11 +7,15 @@ import { PRICING_CATALOG, FREE_TIER_DISPLAY } from '../lib/pricing'
 import { TRIAL_ENDED_INTRO } from '../lib/planLock'
 import FreeSelection from './FreeSelection'
 
-// End-of-trial chooser: full-screen modal shown by DashboardLayout on every
-// dashboard page while a trial is expired and no plan has been chosen.
-// Nothing is pre-selected. Starter and Pro go to the existing billing page,
-// which applies PAID_PLANS_ENABLED (no checkout changes here). Free opens the
-// "choose what stays active" step.
+// Full-screen modal shown by DashboardLayout on every dashboard page.
+//   variant 'trial'     — the trial is expired and no plan has been chosen.
+//     Nothing is pre-selected. Starter and Pro go to the existing billing page,
+//     which applies PAID_PLANS_ENABLED (no checkout changes here). Free opens
+//     the "choose what stays active" step.
+//   variant 'downgrade' — the plan was lowered and some listings or signs were
+//     paused automatically (migration 067). Goes straight to "choose what
+//     stays active" on the current plan; saving clears the reminder.
+// Closable either way; it opens again on the next dashboard page.
 
 const C = {
   bg: '#0F0F13', card: '#1A1A24', border: '#252533', purple: '#7C3AED', purpleL: '#8B5CF6',
@@ -26,8 +30,8 @@ const CARDS = [
   { key: 'pro',     name: PRICING_CATALOG.pro.displayName,       price: PRICING_CATALOG.pro.displayPrice,       limits: PRICING_CATALOG.pro.copy,       blurb: 'For agents running many listings at once.' },
 ] as const
 
-export default function PlanChooser({ onClose }: { onClose: () => void }) {
-  const [step, setStep] = useState<'plans' | 'free'>('plans')
+export default function PlanChooser({ onClose, variant = 'trial' }: { onClose: () => void; variant?: 'trial' | 'downgrade' }) {
+  const [step, setStep] = useState<'plans' | 'free'>(variant === 'downgrade' ? 'free' : 'plans')
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -73,7 +77,9 @@ export default function PlanChooser({ onClose }: { onClose: () => void }) {
           </>
         ) : (
           <div style={{ maxWidth: 560, margin: '0 auto', background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 24 }}>
-            <FreeSelection mode="choose" onBack={() => setStep('plans')} onDone={() => window.location.reload()} />
+            {variant === 'downgrade'
+              ? <FreeSelection mode="downgrade" onDone={() => window.location.reload()} />
+              : <FreeSelection mode="choose" onBack={() => setStep('plans')} onDone={() => window.location.reload()} />}
           </div>
         )}
       </div>

@@ -118,7 +118,7 @@ describe('submit-lead: no Hot-lead SMS, ever', () => {
 
 describe('flushDueNotifications: a queued Hot alert is never sent', () => {
   beforeEach(() => {
-    db.tables.profiles = [{ id: AGENT_ID, phone: AGENT_PHONE }]
+    db.tables.profiles = [{ id: AGENT_ID, phone: AGENT_PHONE, plan: 'pro', sms_alerts_enabled: true }]
   })
 
   it('a pre-existing queued Hot-alert-shaped message is marked handled, never sent', async () => {

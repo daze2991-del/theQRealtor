@@ -8,6 +8,7 @@ import { getTrialStatus, TRIAL_WARN_DAYS, TRIAL_URGENT_DAYS } from '../lib/trial
 import { planUsageMeters, SEGMENTED_METER_MAX } from '../lib/planUsage'
 import { CHOOSE_PLAN_BANNER, trialEndingBanner } from '../lib/planLock'
 import PlanChooser from './PlanChooser'
+import { choiceEligibility, isMissingColumn } from '../lib/planChoice'
 import { isEligibleLead } from '../lib/leadEligibility'
 import FeedbackPrompt from './FeedbackPrompt'
 import { useSignOut } from './useSignOut'
@@ -349,7 +350,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isAdmin, setIsAdmin] = useState(false)
   // End-of-trial chooser. Opens on load (every dashboard page) while the trial
   // is expired and no plan has been chosen. Closable; the banner reopens it.
+  // Also opens (variant 'downgrade') while a downgrade's choice is pending
+  // (profiles.plan_choice_required_at, migration 067).
   const [chooserOpen, setChooserOpen] = useState(false)
+  const [chooserVariant, setChooserVariant] = useState<'trial' | 'downgrade'>('trial')
 
   useEffect(() => {
     const load = async () => {
@@ -359,10 +363,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (!session) return
         setEmail(session.user.email || '')
 
-        const [{ data: profile, error: profileErr }, { data: props }] = await Promise.all([
-          supabase.from('profiles').select('plan, beta_joined_at').eq('id', session.user.id).single(),
+        const [profileRes, { data: props }] = await Promise.all([
+          supabase.from('profiles').select('plan, beta_joined_at, plan_choice_required_at').eq('id', session.user.id).single(),
           supabase.from('properties').select('id, active, plan_locked_at').eq('user_id', session.user.id).is('deleted_at', null),
         ])
+        let profile: { plan?: string | null; beta_joined_at?: string | null; plan_choice_required_at?: string | null } | null = profileRes.data
+        let profileErr = profileRes.error
+        // Before migration 067 is applied the flag column doesn't exist; read
+        // without it so the dashboard keeps working (no pending choice).
+        if (profileErr && isMissingColumn(profileErr)) {
+          const retry = await supabase.from('profiles').select('plan, beta_joined_at').eq('id', session.user.id).single()
+          profile = retry.data
+          profileErr = retry.error
+        }
 
         if (profileErr) console.error('[DashboardLayout] profile query error:', profileErr)
 
@@ -441,7 +454,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setBetaJoinedAt(profile?.beta_joined_at ?? null)
         setPlan(resolvedPlan)
         setTrialLoaded(true)
-        setChooserOpen(getTrialStatus(profile?.beta_joined_at ?? null, resolvedPlan).expired)
+        const downgradeChoicePending = choiceEligibility(resolvedPlan, profile?.beta_joined_at ?? null, profile?.plan_choice_required_at ?? null) === 'downgrade'
+        setChooserVariant(downgradeChoicePending ? 'downgrade' : 'trial')
+        setChooserOpen(downgradeChoicePending || getTrialStatus(profile?.beta_joined_at ?? null, resolvedPlan).expired)
         setActiveListingCount(activeListingCnt)
         setSignCount(signCnt)
         setNewLeadCount(newLeadCnt)
@@ -540,7 +555,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <span style={{ fontSize: 13.5, color: '#FCA5A5', fontWeight: 500 }}>
                     {CHOOSE_PLAN_BANNER}
                   </span>
-                  <button onClick={() => setChooserOpen(true)} style={{
+                  <button onClick={() => { setChooserVariant('trial'); setChooserOpen(true) }} style={{
                     fontSize: 12.5, fontWeight: 700, color: '#F87171', background: 'transparent',
                     whiteSpace: 'nowrap', cursor: 'pointer',
                     border: '1px solid #7F1D1D', borderRadius: 6, padding: '4px 10px',
@@ -614,7 +629,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </div>
 
-      {chooserOpen && <PlanChooser onClose={() => setChooserOpen(false)} />}
+      {chooserOpen && <PlanChooser variant={chooserVariant} onClose={() => setChooserOpen(false)} />}
       <FeedbackPrompt />
     </>
   )

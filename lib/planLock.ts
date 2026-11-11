@@ -1,4 +1,5 @@
 import { getTrialStatus, TRIAL_DAYS } from './trial'
+import { planConfig } from './plans'
 
 // ── Agent-facing end-of-trial copy (dashboard only, never buyer pages) ──────
 export const TRIAL_ENDED_INTRO =
@@ -195,5 +196,15 @@ export function buildActivityStats(
   })
 }
 
-export const FREE_MAX_LISTINGS = 1
-export const FREE_MAX_SIGNS = 3
+// ── How many listings / signs a plan keeps active ────────────────────────────
+// Read from lib/plans.ts (mirrored in SQL by plan_limits(), which the chooser
+// functions use). null = no cap. An unknown plan resolves to Free.
+export interface SelectionLimits { maxListings: number | null; maxSigns: number | null }
+
+export function selectionLimits(plan: string | null | undefined): SelectionLimits {
+  const cfg = planConfig(plan)
+  return { maxListings: cfg.maxActiveListings, maxSigns: cfg.maxActiveSigns }
+}
+
+export const FREE_MAX_LISTINGS = selectionLimits('free').maxListings as number
+export const FREE_MAX_SIGNS = selectionLimits('free').maxSigns as number

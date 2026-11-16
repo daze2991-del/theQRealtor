@@ -244,6 +244,119 @@ describe('apply_plan_selection (post-downgrade choice)', () => {
   })
 })
 
+describe('review fix 1: the reminder is cleared by any plan change that is not a downgrade', () => {
+  it('Pro → Starter (flag set), back to Pro before choosing: flag cleared, nothing left locked', async () => {
+    const a = await t.agent('pro')
+    for (let i = 0; i < 5; i++) await t.listing(a, { scans: i })
+    for (let i = 0; i < 20; i++) await t.sign(a)
+    await t.setPlan(a, 'starter')
+    expect((await t.state(a)).plan_choice_required_at).toBeTruthy()
+
+    await t.setPlan(a, 'pro')
+    const s = await t.state(a)
+    expect(s.plan_choice_required_at).toBeNull()
+    expect(s.lockedListings).toEqual([])
+    expect(s.lockedSigns).toEqual([])
+  })
+
+  it('an equal-limit move (starter → trial) also clears it, and locks nothing new', async () => {
+    const a = await t.agent('pro')
+    for (let i = 0; i < 4; i++) await t.listing(a, { scans: i })
+    await t.setPlan(a, 'starter')
+    const before = await t.state(a)
+    expect(before.plan_choice_required_at).toBeTruthy()
+    await t.setPlan(a, 'trial')
+    const after = await t.state(a)
+    expect(after.plan_choice_required_at).toBeNull()
+    expect(after.lockedListings).toEqual(before.lockedListings)
+  })
+
+  it('a move to alpha clears it too', async () => {
+    const a = await t.agent('starter')
+    for (let i = 0; i < 2; i++) await t.listing(a, { scans: i })
+    await t.setPlan(a, 'free')
+    expect((await t.state(a)).plan_choice_required_at).toBeTruthy()
+    await t.setPlan(a, 'alpha')
+    expect((await t.state(a)).plan_choice_required_at).toBeNull()
+  })
+})
+
+describe('review fix 2: on paid plans a confirm only locks what is beyond the cap', () => {
+  const proToStarter = async () => {
+    const a = await t.agent('pro')
+    const L = [] as string[]
+    for (const scans of [9, 8, 7, 2, 1]) L.push(await t.listing(a, { scans }))
+    const offline = await t.listing(a, { active: false })
+    const onOffline = await t.sign(a, { listing: offline })
+    const onPaused = await t.sign(a, { listing: L[4] })   // L[4] gets paused by the fit
+    const others = [] as string[]
+    for (let i = 0; i < 6; i++) others.push(await t.sign(a, { listing: L[i % 3] }))
+    await t.setPlan(a, 'starter')
+    return { a, L, offline, onOffline, onPaused, others }
+  }
+
+  it('Pro → Starter under the 15-sign cap: a sign on an offline listing stays active after confirming, even if not selected', async () => {
+    const { a, L, onOffline } = await proToStarter()
+    const fitted = await t.state(a)
+    expect(fitted.lockedSigns).toEqual([])            // 8 signs, cap 15
+    expect(fitted.plan_choice_required_at).toBeTruthy()
+
+    await t.one(`select public.apply_plan_selection($1, $2::uuid[], '{}'::uuid[])`, [a, [L[0], L[1], L[2]]])
+    const s = await t.state(a)
+    expect(s.unlockedSigns).toContain(onOffline)
+    expect(s.lockedSigns).toEqual([])
+    expect(s.plan_choice_required_at).toBeNull()
+  })
+
+  it('a sign on a paused or offline listing can be selected on a paid plan', async () => {
+    const { a, L, onOffline, onPaused } = await proToStarter()
+    await t.one(`select public.apply_plan_selection($1, $2::uuid[], $3::uuid[])`, [a, [L[0]], [onOffline, onPaused]])
+    const s = await t.state(a)
+    expect(s.unlockedSigns).toEqual(expect.arrayContaining([onOffline, onPaused]))
+  })
+
+  it('confirming never locks more than the automatic fit did, whatever is chosen', async () => {
+    const { a, L } = await proToStarter()
+    const fitLocked = (await t.state(a)).lockedListings.length          // 5 live - 3 = 2
+    expect(fitLocked).toBe(2)
+
+    // Choose just one listing (a paused one): the rest of the room is filled by activity.
+    await t.one(`select public.apply_plan_selection($1, $2::uuid[], '{}'::uuid[])`, [a, [L[4]]])
+    const s = await t.state(a)
+    expect(s.lockedListings).toHaveLength(fitLocked)
+    expect(s.unlockedListings).toEqual(expect.arrayContaining([L[4], L[0], L[1]]))
+  })
+
+  it('more signs than the cap: the selection is kept first, the rest fill by activity up to the cap', async () => {
+    const a = await t.agent('pro')
+    const l = await t.listing(a, { scans: 1 })
+    const S = [] as string[]
+    for (let i = 0; i < 18; i++) S.push(await t.sign(a, { listing: l, scans: i }))
+    await t.setPlan(a, 'starter')
+    expect((await t.state(a)).lockedSigns).toHaveLength(3)
+    // Keep the three least-scanned signs on purpose.
+    await t.one(`select public.apply_plan_selection($1, $2::uuid[], $3::uuid[])`, [a, [l], [S[0], S[1], S[2]]])
+    const s = await t.state(a)
+    expect(s.lockedSigns).toHaveLength(3)
+    expect(s.unlockedSigns).toEqual(expect.arrayContaining([S[0], S[1], S[2]]))
+  })
+
+  it('Free keeps the Free rule: a sign on an unselected listing is refused, everything unselected is locked', async () => {
+    const a = await t.agent('starter')
+    const keep = await t.listing(a, { scans: 9 })
+    const other = await t.listing(a, { scans: 1 })
+    const onOther = await t.sign(a, { listing: other })
+    const loose = await t.sign(a)
+    await t.setPlan(a, 'free')
+    await expect(t.one(`select public.apply_plan_selection($1, $2::uuid[], $3::uuid[])`, [a, [keep], [onOther]]))
+      .rejects.toThrow(/invalid_sign/)
+    await t.one(`select public.apply_plan_selection($1, $2::uuid[], '{}'::uuid[])`, [a, [keep]])
+    const s = await t.state(a)
+    expect(s.unlockedListings).toEqual([keep])
+    expect(new Set(s.lockedSigns)).toEqual(new Set([onOther, loose]))
+  })
+})
+
 describe('protection', () => {
   it('a signed-in agent cannot set or clear plan_choice_required_at', async () => {
     const a = await t.agent('free')

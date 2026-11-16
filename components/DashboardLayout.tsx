@@ -8,7 +8,7 @@ import { getTrialStatus, TRIAL_WARN_DAYS, TRIAL_URGENT_DAYS } from '../lib/trial
 import { planUsageMeters, SEGMENTED_METER_MAX } from '../lib/planUsage'
 import { CHOOSE_PLAN_BANNER, trialEndingBanner } from '../lib/planLock'
 import PlanChooser from './PlanChooser'
-import { choiceEligibility, isMissingColumn } from '../lib/planChoice'
+import { choiceEligibility, loadChoiceProfile } from '../lib/planChoice'
 import { isEligibleLead } from '../lib/leadEligibility'
 import FeedbackPrompt from './FeedbackPrompt'
 import { useSignOut } from './useSignOut'
@@ -363,21 +363,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (!session) return
         setEmail(session.user.email || '')
 
-        const [profileRes, { data: props }] = await Promise.all([
-          supabase.from('profiles').select('plan, beta_joined_at, plan_choice_required_at').eq('id', session.user.id).single(),
+        // loadChoiceProfile tolerates a database where migration 067 (the
+        // plan_choice_required_at column) isn't applied yet: no pending choice.
+        const [profile, { data: props }] = await Promise.all([
+          loadChoiceProfile(supabase, session.user.id).catch((err: any) => {
+            console.error('[DashboardLayout] profile query error:', err?.message ?? err)
+            return null
+          }),
           supabase.from('properties').select('id, active, plan_locked_at').eq('user_id', session.user.id).is('deleted_at', null),
         ])
-        let profile: { plan?: string | null; beta_joined_at?: string | null; plan_choice_required_at?: string | null } | null = profileRes.data
-        let profileErr = profileRes.error
-        // Before migration 067 is applied the flag column doesn't exist; read
-        // without it so the dashboard keeps working (no pending choice).
-        if (profileErr && isMissingColumn(profileErr)) {
-          const retry = await supabase.from('profiles').select('plan, beta_joined_at').eq('id', session.user.id).single()
-          profile = retry.data
-          profileErr = retry.error
-        }
-
-        if (profileErr) console.error('[DashboardLayout] profile query error:', profileErr)
 
         const propertyIds = (props || []).map((p: any) => p.id)
         // Counted exactly as app/api/properties enforces the listing limit:

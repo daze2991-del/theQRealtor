@@ -25,7 +25,10 @@ export async function GET() {
     }
     const targetPlan = mode === 'choose' ? 'free' : profile?.plan
     const options = await loadFreeChoiceOptions(admin, user.id)
-    return NextResponse.json({ mode, planName: planName(targetPlan), limits: choiceLimits(mode, profile?.plan), ...options })
+    // Free's sign rule (signs only on a chosen listing, or unassigned) applies
+    // whenever the target plan is Free; paid plans may keep any sign.
+    const freeRule = (targetPlan ?? 'free') === 'free'
+    return NextResponse.json({ mode, planName: planName(targetPlan), limits: choiceLimits(mode, profile?.plan), freeRule, ...options })
   } catch (err: any) {
     console.error('[plan/free-choice-options] load error:', err?.message)
     return NextResponse.json({ error: 'Failed to load your listings. Please try again.' }, { status: 500 })

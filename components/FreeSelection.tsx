@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { rankByActivity, swapTooSoonMessage, type SelectionLimits } from '../lib/planLock'
+import { rankByActivity, swapTooSoonMessage, selectionLimits, type SelectionLimits } from '../lib/planLock'
 import type { ChoiceListing, ChoiceSign } from '../lib/planChoice'
 
 // "Choose what stays active". Used in three places:
@@ -11,8 +11,12 @@ import type { ChoiceListing, ChoiceSign } from '../lib/planChoice'
 //   mode 'swap'      — Free agent changes their selection from Settings (POST /api/plan/free-swap)
 // Limits come from the server (lib/plans.ts via /api/plan/free-choice-options);
 // the UI enforces them and the server enforces them again. Signs offered:
-// those on a chosen listing, plus unassigned signs. Signs on other listings
-// are not offered.
+// on Free, those on a chosen listing plus unassigned signs (signs on other
+// listings are not offered). On a paid plan after a downgrade, every
+// unarchived sign, including signs on paused or offline listings — there
+// only what's beyond the plan's limit is paused.
+// When the server reports a pending downgrade choice, that choice is what
+// gets saved, even from the Settings swap screen (no 30-day swap clock).
 
 const C = {
   card: '#1A1A24', card2: '#13131A', border: '#252533', purple: '#7C3AED', purpleL: '#8B5CF6',
@@ -20,9 +24,9 @@ const C = {
 } as const
 
 type Mode = 'choose' | 'swap' | 'downgrade'
-type Options = { mode: Mode; planName?: string; limits?: SelectionLimits; listings: ChoiceListing[]; signs: ChoiceSign[] }
+type Options = { mode: Mode; planName?: string; limits?: SelectionLimits; freeRule?: boolean; listings: ChoiceListing[]; signs: ChoiceSign[] }
 
-const FREE_LIMITS: SelectionLimits = { maxListings: 1, maxSigns: 3 }
+const FREE_LIMITS: SelectionLimits = selectionLimits('free')
 
 function RecommendedTag() {
   return (
@@ -45,12 +49,17 @@ export function hasRecentActivity(i: { scans30: number; leads30: number }): bool
   return i.scans30 > 0 || i.leads30 > 0
 }
 
-/** Signs eligible for the chosen listing(s), on-listing first (ranked), then unassigned (ranked). */
-export function eligibleSigns(signs: ChoiceSign[], listing: string | null | readonly string[]) {
+/** Signs eligible for the chosen listing(s), on-listing first (ranked), then
+ *  unassigned (ranked). With includeOthers (paid plans), signs on any other
+ *  listing — paused, offline or simply not chosen — are offered too. */
+export function eligibleSigns(signs: ChoiceSign[], listing: string | null | readonly string[], includeOthers = false) {
   const chosen = new Set(listing === null ? [] : typeof listing === 'string' ? [listing] : listing)
   const onListing = rankByActivity(signs.filter(s => s.assignedPropertyId !== null && chosen.has(s.assignedPropertyId)))
   const unassigned = rankByActivity(signs.filter(s => s.assignedPropertyId === null))
-  return { onListing, unassigned }
+  const other = includeOthers
+    ? rankByActivity(signs.filter(s => s.assignedPropertyId !== null && !chosen.has(s.assignedPropertyId)))
+    : []
+  return { onListing, unassigned, other }
 }
 
 /** "1 listing", "3 listings", or "all your active listings" when the plan has no cap. */
@@ -71,6 +80,10 @@ export default function FreeSelection({ mode, onDone, onBack }: {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  // The server's mode wins: a pending downgrade choice is offered (and saved)
+  // even when this screen was opened as the Settings swap.
+  const effMode: Mode = opts?.mode ?? mode
+  const freeRule = opts?.freeRule ?? true
   const limits = opts?.limits ?? FREE_LIMITS
   const maxListings = limits.maxListings ?? Number.POSITIVE_INFINITY
   const maxSigns = limits.maxSigns ?? Number.POSITIVE_INFINITY
@@ -83,7 +96,7 @@ export default function FreeSelection({ mode, onDone, onBack }: {
     () => new Set(rankedListings.slice(0, maxListings).filter(hasRecentActivity).map(l => l.id)),
     [rankedListings, maxListings],
   )
-  const { onListing, unassigned } = useMemo(() => eligibleSigns(opts?.signs ?? [], listingIds), [opts, listingIds])
+  const { onListing, unassigned, other } = useMemo(() => eligibleSigns(opts?.signs ?? [], listingIds, !freeRule), [opts, listingIds, freeRule])
   const recommendedSignIds = useMemo(
     () => new Set(onListing.slice(0, maxSigns).filter(hasRecentActivity).map(s => s.id)),
     [onListing, maxSigns],
@@ -103,12 +116,12 @@ export default function FreeSelection({ mode, onDone, onBack }: {
         const maxL = lim.maxListings ?? Number.POSITIVE_INFINITY
         const maxS = lim.maxSigns ?? Number.POSITIVE_INFINITY
         const ranked = rankByActivity(o.listings)
-        if (mode === 'swap' || mode === 'downgrade') {
+        if (o.mode === 'swap' || o.mode === 'downgrade') {
           // Start from what's active now (for a downgrade: what was kept automatically).
           const current = ranked.filter(l => !l.locked).slice(0, maxL).map(l => l.id)
           setListingIds(current)
-          const { onListing: on, unassigned: un } = eligibleSigns(o.signs, current)
-          setSignIds([...on, ...un].filter(s => !s.locked).slice(0, maxS).map(s => s.id))
+          const { onListing: on, unassigned: un, other: ot } = eligibleSigns(o.signs, current, o.freeRule === false)
+          setSignIds([...on, ...un, ...ot].filter(s => !s.locked).slice(0, maxS).map(s => s.id))
         } else {
           const top = ranked[0]?.id ?? null
           setListingIds(top ? [top] : [])
@@ -134,8 +147,8 @@ export default function FreeSelection({ mode, onDone, onBack }: {
       : listingIds.length >= maxListings ? listingIds : [...listingIds, id]
     setListingIds(next)
     // Drop signs that belong to a listing no longer chosen.
-    const { onListing: on, unassigned: un } = eligibleSigns(opts.signs, next)
-    const allowed = new Set([...on, ...un].map(s => s.id))
+    const { onListing: on, unassigned: un, other: ot } = eligibleSigns(opts.signs, next, !freeRule)
+    const allowed = new Set([...on, ...un, ...ot].map(s => s.id))
     setSignIds(prev => prev.filter(x => allowed.has(x)))
   }
 
@@ -149,7 +162,7 @@ export default function FreeSelection({ mode, onDone, onBack }: {
     setSaving(true)
     setError('')
     try {
-      const res = await fetch(mode === 'swap' ? '/api/plan/free-swap' : '/api/plan/choose-free', {
+      const res = await fetch(effMode === 'swap' ? '/api/plan/free-swap' : '/api/plan/choose-free', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ listingIds, signIds }),
@@ -197,16 +210,17 @@ export default function FreeSelection({ mode, onDone, onBack }: {
   return (
     <div>
       <h2 style={{ fontSize: 19, fontWeight: 800, color: C.text, margin: '0 0 6px' }}>
-        {mode !== 'downgrade' ? `Choose what stays active on ${name}.`
+        {effMode !== 'downgrade' ? `Choose what stays active on ${name}.`
           : opts ? `You're now on ${name}. Choose what stays active.` : 'Choose what stays active.'}
       </h2>
       {/* For a downgrade the plan and its limits come from the server; don't
           show Free's numbers while they load. */}
-      {(opts || mode !== 'downgrade') && <p style={{ fontSize: 13, color: C.sub, margin: '0 0 18px', lineHeight: 1.55 }}>
-        {mode === 'downgrade' && 'We kept your busiest listings and signs taking buyer requests. You can change which ones below. '}
+      {(opts || effMode !== 'downgrade') && <p style={{ fontSize: 13, color: C.sub, margin: '0 0 18px', lineHeight: 1.55 }}>
+        {effMode === 'downgrade' && 'We kept your busiest listings and signs taking buyer requests. You can change which ones below. '}
         {name} keeps {listingsPhrase(limits.maxListings)} and {limits.maxSigns === null ? 'all your active signs' : `up to ${limits.maxSigns} signs`} taking buyer requests. Everything else stays in your
         dashboard with all its leads and history. Buyers just can&apos;t send requests through it.
-        {mode === 'swap' && ' You can change your active listing, or swap out a sign, once every 30 days. If your listing goes offline or a sign is archived, you can replace it right away.'}
+        {effMode === 'swap' && ' You can change your active listing, or swap out a sign, once every 30 days. If your listing goes offline or a sign is archived, you can replace it right away.'}
+        {effMode === 'downgrade' && !freeRule && ' If you pick fewer than your plan allows, your next busiest ones stay active too.'}
       </p>}
 
       {loadError && <p style={{ color: '#F87171', fontSize: 13 }}>{loadError}</p>}
@@ -243,9 +257,9 @@ export default function FreeSelection({ mode, onDone, onBack }: {
           )}
 
           <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-            Signs <span style={{ textTransform: 'none', letterSpacing: 0 }}>({signIds.length} of {limits.maxSigns ?? (onListing.length + unassigned.length)} selected)</span>
+            Signs <span style={{ textTransform: 'none', letterSpacing: 0 }}>({signIds.length} of {limits.maxSigns ?? (onListing.length + unassigned.length + other.length)} selected)</span>
           </div>
-          {onListing.length === 0 && unassigned.length === 0 ? (
+          {onListing.length === 0 && unassigned.length === 0 && other.length === 0 ? (
             <p style={{ fontSize: 13, color: C.muted, margin: '0 0 16px' }}>{single ? 'No signs on this listing.' : 'No signs on the selected listings.'}</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
@@ -253,6 +267,8 @@ export default function FreeSelection({ mode, onDone, onBack }: {
               {onListing.map(signRow)}
               {unassigned.length > 0 && <div style={{ fontSize: 12, color: C.sub, marginTop: 6 }}>Not assigned to a listing</div>}
               {unassigned.map(signRow)}
+              {other.length > 0 && <div style={{ fontSize: 12, color: C.sub, marginTop: 6 }}>On your other listings</div>}
+              {other.map(signRow)}
             </div>
           )}
 
@@ -266,7 +282,7 @@ export default function FreeSelection({ mode, onDone, onBack }: {
             )}
             <button type="button" onClick={confirm} disabled={saving}
               style={{ background: C.purple, border: 'none', color: '#fff', borderRadius: 9, padding: '10px 20px', fontSize: 13, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
-              {saving ? 'Saving…' : mode === 'choose' ? 'Confirm Free plan' : mode === 'downgrade' ? 'Keep these active' : 'Save changes'}
+              {saving ? 'Saving…' : effMode === 'choose' ? 'Confirm Free plan' : effMode === 'downgrade' ? 'Keep these active' : 'Save changes'}
             </button>
           </div>
         </>

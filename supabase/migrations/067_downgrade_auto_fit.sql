@@ -12,24 +12,29 @@
 --      while it is set. Protected like the other entitlement fields.
 --   2. plan_limits_lower(old, new) — true when the new plan's listing OR sign
 --      limit is lower (null = no cap).
---   3. auto_fit_plan_limits(agent) — keeps the most active items up to the
---      agent's current plan limits and locks the rest. Same ranking as the
---      chooser (lib/planLock.ts rankByActivity): scans in the last 30 days,
---      then leads in the last 30 days, then latest activity in that window
---      (else created_at), then id. For signs, those whose current listing is
---      locked are locked first. Only ever LOCKS; never unlocks, never deletes.
---      founding/alpha: no-op.
---   4. trg_fit_plan_limits_on_downgrade on profiles.plan — fires only when
---      both the old and new plan are one of trial/starter/pro/free (so never
---      for founding/alpha in either direction, never for NULL or an
---      unrecognized value), the plan actually changed, and the new plan's
---      listing or sign limit is lower. Calls auto_fit_plan_limits and, if that
---      locked anything, sets plan_choice_required_at. Applies to every writer,
---      including manual edits in the Supabase dashboard.
+--   3. fit_to_plan_limits(agent, keep_listings, keep_signs) and
+--      auto_fit_plan_limits(agent) — keep the most active items (any keep_*
+--      ids first) up to the agent's current plan limits and lock the rest.
+--      Same ranking as the chooser (lib/planLock.ts rankByActivity): scans in
+--      the last 30 days, then leads in the last 30 days, then latest activity
+--      in that window (else created_at), then id. For signs, those whose
+--      current listing is locked are locked first. Only ever LOCKS; never
+--      unlocks, never deletes. founding/alpha: no-op.
+--   4. trg_fit_plan_limits_on_downgrade on profiles.plan — on every real plan
+--      change. Fits only when both the old and new plan are one of
+--      trial/starter/pro/free (so never founding/alpha in either direction,
+--      never NULL or an unrecognized value) and the new plan's listing or sign
+--      limit is lower; then sets plan_choice_required_at if anything was
+--      locked. Every other change (upgrade, equal-limit move, …) clears a
+--      pending plan_choice_required_at. Applies to every writer, including
+--      manual edits in the Supabase dashboard.
 --   5. apply_plan_selection(agent, listings[], signs[]) — the post-downgrade
---      choice, for any plan, with limits from plan_limits(). Only while
+--      choice, with limits from plan_limits(). Only while
 --      plan_choice_required_at is set. Never stamps the Free 30-day swap
---      clocks. Clears the flag.
+--      clocks. Clears the flag. Free keeps Free's rule (everything not
+--      selected is locked). Paid plans lock only what is beyond the cap, any
+--      unarchived sign may be kept, and a confirm never locks more than the
+--      automatic fit.
 --   6. apply_free_selection restated from 063 with one change (marked "067"):
 --      it clears plan_choice_required_at. In 'choose' mode its own
 --      plan = 'free' update fires the new trigger mid-function; the
@@ -46,6 +51,7 @@
 --   drop function if exists public.fit_plan_limits_on_downgrade();
 --   drop function if exists public.apply_plan_selection(uuid, uuid[], uuid[]);
 --   drop function if exists public.auto_fit_plan_limits(uuid);
+--   drop function if exists public.fit_to_plan_limits(uuid, uuid[], uuid[]);
 --   drop function if exists public.plan_limits_lower(text, text);
 --   -- re-run the protect_profile_entitlements block of 062_free_swap_limit.sql
 --   -- re-run the apply_free_selection block of 063_free_swap_limit_fix.sql
@@ -112,9 +118,24 @@ as $$
 $$;
 
 -- ── 4. Fit an agent to their current plan's limits ───────────────────────────
--- scan_events.created_at / leads.created_at are timestamp without time zone,
--- stored as UTC (lib/planLock.ts parseDbTime reads them the same way).
-create or replace function public.auto_fit_plan_limits(p_agent uuid)
+-- fit_to_plan_limits(agent, keep_listings, keep_signs): within each of
+-- listings and signs, counted items (live / not archived, not locked) are
+-- ranked — the keep_* ids first, then the chooser's activity ranking — and
+-- everything beyond the plan's cap is locked. Only ever LOCKS; never unlocks,
+-- never deletes. The number it locks is always (counted − cap), whatever is
+-- in keep_*, so a confirm can never lock more than the automatic fit did.
+-- founding/alpha: no-op.
+--
+-- Ranking (lib/planLock.ts rankByActivity): scans in the last 30 days, then
+-- leads in the last 30 days, then latest activity in that window (else
+-- created_at), then id. For signs, those whose current listing is locked rank
+-- last, so they are the first to be locked. scan_events.created_at /
+-- leads.created_at are timestamp without time zone, stored as UTC.
+create or replace function public.fit_to_plan_limits(
+  p_agent         uuid,
+  p_keep_listings uuid[],
+  p_keep_signs    uuid[]
+)
 returns jsonb
 language plpgsql security definer
 set search_path = public
@@ -123,6 +144,8 @@ declare
   v_plan     text;
   v_max_l    int;
   v_max_s    int;
+  v_keep_l   uuid[] := coalesce(p_keep_listings, '{}');
+  v_keep_s   uuid[] := coalesce(p_keep_signs, '{}');
   v_now      timestamptz := now();
   v_since    timestamp   := (now() at time zone 'UTC') - interval '30 days';
   v_locked_l int := 0;
@@ -138,13 +161,13 @@ begin
 
   select max_listings, max_signs into v_max_l, v_max_s from public.plan_limits(v_plan);
 
-  -- Listings: keep the top v_max_l counted listings, lock the rest.
   if v_max_l is not null then
     update public.properties set plan_locked_at = v_now
     where id in (
       select r.id from (
         select p.id,
                row_number() over (order by
+                 (p.id = any(v_keep_l)) desc,
                  (select count(*) from public.scan_events se where se.property_id = p.id and se.created_at >= v_since) desc,
                  (select count(*) from public.leads l        where l.property_id  = p.id and l.created_at  >= v_since) desc,
                  coalesce(greatest(
@@ -159,14 +182,14 @@ begin
     get diagnostics v_locked_l = row_count;
   end if;
 
-  -- Signs: signs whose current listing is locked go last, then the same
-  -- activity ranking. Runs after the listing step so it sees those locks.
+  -- Runs after the listing step so it sees those locks.
   if v_max_s is not null then
     update public.signs set plan_locked_at = v_now
     where id in (
       select r.id from (
         select s.id,
                row_number() over (order by
+                 (s.id = any(v_keep_s)) desc,
                  exists (
                    select 1 from public.sign_assignments a
                    join public.properties p on p.id = a.property_id
@@ -190,7 +213,22 @@ begin
 end;
 $$;
 
--- ── 5. Trigger: fit on downgrade ─────────────────────────────────────────────
+-- The automatic fit: nothing preferred, pure activity ranking.
+create or replace function public.auto_fit_plan_limits(p_agent uuid)
+returns jsonb
+language sql security definer
+set search_path = public
+as $$
+  select public.fit_to_plan_limits(p_agent, '{}'::uuid[], '{}'::uuid[])
+$$;
+
+-- ── 5. Trigger: fit on downgrade, clear the flag otherwise ───────────────────
+-- Fires on every real plan change. A downgrade between known, non-exempt plans
+-- (trial/starter/pro/free) whose listing or sign limit drops is fitted, and
+-- the flag is set if anything was locked. Any other change — upgrade,
+-- equal-limit move, to/from founding/alpha, NULL or an unrecognized value —
+-- fits nothing and clears a pending flag, so e.g. Pro → Starter → Pro before
+-- choosing leaves no chooser behind.
 create or replace function public.fit_plan_limits_on_downgrade()
 returns trigger
 language plpgsql security definer
@@ -199,14 +237,16 @@ as $$
 declare
   v_result jsonb;
 begin
-  if not public.plan_limits_lower(old.plan, new.plan) then
-    return new;
-  end if;
-
-  v_result := public.auto_fit_plan_limits(new.id);
-
-  if coalesce((v_result ->> 'lockedListings')::int, 0) + coalesce((v_result ->> 'lockedSigns')::int, 0) > 0 then
-    update public.profiles set plan_choice_required_at = now() where id = new.id;
+  if old.plan in ('trial', 'starter', 'pro', 'free')
+     and new.plan in ('trial', 'starter', 'pro', 'free')
+     and public.plan_limits_lower(old.plan, new.plan) then
+    v_result := public.auto_fit_plan_limits(new.id);
+    if coalesce((v_result ->> 'lockedListings')::int, 0) + coalesce((v_result ->> 'lockedSigns')::int, 0) > 0 then
+      update public.profiles set plan_choice_required_at = now() where id = new.id;
+    end if;
+  else
+    update public.profiles set plan_choice_required_at = null
+    where id = new.id and plan_choice_required_at is not null;
   end if;
 
   return new;
@@ -217,19 +257,21 @@ drop trigger if exists trg_fit_plan_limits_on_downgrade on public.profiles;
 create trigger trg_fit_plan_limits_on_downgrade
   after update of plan on public.profiles
   for each row
-  when (
-    old.plan is distinct from new.plan
-    and old.plan in ('trial', 'starter', 'pro', 'free')
-    and new.plan in ('trial', 'starter', 'pro', 'free')
-  )
+  when (old.plan is distinct from new.plan)
   execute function public.fit_plan_limits_on_downgrade();
 
 -- ── 6. Post-downgrade choice (any plan) ──────────────────────────────────────
--- Same shape as apply_free_selection, but limits come from plan_limits(plan),
--- several listings are allowed, and the Free swap clocks are never touched.
--- A sign must be the agent's, not archived, and either unassigned or assigned
--- to one of the selected listings. Every other counted listing / sign is
--- locked; the selected ones are unlocked. Nothing is deleted.
+-- Only while plan_choice_required_at is set; limits from plan_limits(plan);
+-- never touches the Free 30-day swap clocks; clears the flag. Nothing is
+-- deleted. The selected listings / signs are unlocked, then:
+--   • Free: the existing Free rule (same as apply_free_selection). A sign
+--     must be unassigned or on a selected listing; everything not selected
+--     is locked.
+--   • Paid plans (trial/starter/pro): only what is beyond the cap is locked.
+--     Any of the agent's unarchived signs may be kept, wherever it is
+--     assigned. Unselected items fill the remaining room by activity and the
+--     rest are locked (fit_to_plan_limits with the selection preferred), so
+--     confirming never locks more than the automatic fit did.
 create or replace function public.apply_plan_selection(
   p_agent    uuid,
   p_listings uuid[],
@@ -242,12 +284,14 @@ as $$
 declare
   v_plan     text;
   v_flag     timestamptz;
+  v_free     boolean;
   v_max_l    int;
   v_max_s    int;
   v_listings uuid[];
   v_signs    uuid[];
   v_bad      int;
   v_now      timestamptz := now();
+  v_fit      jsonb;
   v_locked_l int := 0;
   v_locked_s int := 0;
 begin
@@ -256,6 +300,7 @@ begin
   if not found then raise exception 'no_profile'; end if;
   if v_plan in ('founding', 'alpha') then raise exception 'exempt_plan'; end if;
   if v_flag is null then raise exception 'no_choice_pending'; end if;
+  v_free := v_plan is not distinct from 'free';
 
   select max_listings, max_signs into v_max_l, v_max_s from public.plan_limits(v_plan);
 
@@ -277,32 +322,34 @@ begin
   where not exists (
     select 1 from public.signs s
     where s.id = sid and s.agent_id = p_agent and s.archived_at is null
-      and not exists (
+      and (not v_free or not exists (
         select 1 from public.sign_assignments a
         where a.sign_id = s.id and a.unassigned_at is null
           and a.property_id is not null and not (a.property_id = any(v_listings))
-      )
+      ))
   );
   if v_bad > 0 then raise exception 'invalid_sign'; end if;
 
   update public.properties set plan_locked_at = null
   where user_id = p_agent and id = any(v_listings) and plan_locked_at is not null;
 
-  if v_max_l is not null then
+  update public.signs set plan_locked_at = null
+  where agent_id = p_agent and id = any(v_signs) and plan_locked_at is not null;
+
+  if v_free then
     update public.properties set plan_locked_at = v_now
     where user_id = p_agent and coalesce(active, false) and deleted_at is null
       and plan_locked_at is null and not (id = any(v_listings));
     get diagnostics v_locked_l = row_count;
-  end if;
 
-  update public.signs set plan_locked_at = null
-  where agent_id = p_agent and id = any(v_signs) and plan_locked_at is not null;
-
-  if v_max_s is not null then
     update public.signs set plan_locked_at = v_now
     where agent_id = p_agent and archived_at is null
       and plan_locked_at is null and not (id = any(v_signs));
     get diagnostics v_locked_s = row_count;
+  else
+    v_fit := public.fit_to_plan_limits(p_agent, v_listings, v_signs);
+    v_locked_l := coalesce((v_fit ->> 'lockedListings')::int, 0);
+    v_locked_s := coalesce((v_fit ->> 'lockedSigns')::int, 0);
   end if;
 
   update public.profiles set plan_choice_required_at = null where id = p_agent;
@@ -446,10 +493,12 @@ $$;
 -- ── 8. Grants: service_role only; trigger functions off the RPC surface ──────
 revoke all on function public.plan_limits_lower(text, text)                 from public, anon, authenticated;
 revoke all on function public.auto_fit_plan_limits(uuid)                    from public, anon, authenticated;
+revoke all on function public.fit_to_plan_limits(uuid, uuid[], uuid[])      from public, anon, authenticated;
 revoke all on function public.fit_plan_limits_on_downgrade()                from public, anon, authenticated;
 revoke all on function public.apply_plan_selection(uuid, uuid[], uuid[])    from public, anon, authenticated;
 revoke all on function public.apply_free_selection(uuid, text, uuid, uuid[]) from public, anon, authenticated;
 grant execute on function public.plan_limits_lower(text, text)                 to service_role;
 grant execute on function public.auto_fit_plan_limits(uuid)                    to service_role;
+grant execute on function public.fit_to_plan_limits(uuid, uuid[], uuid[])      to service_role;
 grant execute on function public.apply_plan_selection(uuid, uuid[], uuid[])    to service_role;
 grant execute on function public.apply_free_selection(uuid, text, uuid, uuid[]) to service_role;

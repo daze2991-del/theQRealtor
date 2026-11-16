@@ -481,7 +481,17 @@ export async function flushDueNotifications(
     // came in (lib/email.ts, not quiet-hours gated).
     const ent = await smsEntitlement(n.agent_id)
     if (ent === 'unknown') {
-      failed++
+      // Same 3-day give-up as a failed send below, so a lookup that keeps
+      // failing can never release a days-old alert once it recovers.
+      const overdue = now.getTime() - new Date(n.scheduled_for).getTime()
+      if (overdue >= ABANDON_AFTER_MS) {
+        console.error('[twilio] flush: giving up on notification', n.id, 'for agent', n.agent_id,
+          `— entitlement still unreadable ${Math.floor(overdue / 86_400_000)}d after it was due`)
+        await markSent(n.id)
+        abandoned++
+      } else {
+        failed++
+      }
       continue
     }
     if (ent === 'restricted') {

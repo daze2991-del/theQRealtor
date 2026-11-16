@@ -31,6 +31,9 @@ const { choiceEligibility, choiceLimits, parseSelection, loadChoiceProfile, sele
 const { selectionLimits, FREE_MAX_LISTINGS, FREE_MAX_SIGNS } = await import('../lib/planLock')
 const { PLAN_CONFIG } = await import('../lib/plans')
 const { POST: chooseFree } = await import('../app/api/plan/choose-free/route')
+const { POST: freeSwap } = await import('../app/api/plan/free-swap/route')
+const { GET: cronFlush } = await import('../app/api/cron/flush-notifications/route')
+const { eligibleSigns } = await import('../components/FreeSelection')
 const { GET: choiceOptions } = await import('../app/api/plan/free-choice-options/route')
 const { default: PlanChooser } = await import('../components/PlanChooser')
 const tw = await import('../lib/twilio')
@@ -174,10 +177,11 @@ describe('before migration 067 is applied (no plan_choice_required_at column)', 
     expect(await loadChoiceProfile(client({ plan: 'free', beta_joined_at: null }), AGENT))
       .toEqual({ plan: 'free', beta_joined_at: null, plan_choice_required_at: null })
   })
-  it('DashboardLayout retries the profile read without the column', () => {
+  it('DashboardLayout uses the shared loadChoiceProfile (one copy of the fallback)', () => {
     const dl = src('components/DashboardLayout.tsx')
-    expect(dl).toContain('if (profileErr && isMissingColumn(profileErr))')
-    expect(dl).toContain(".select('plan, beta_joined_at').eq('id', session.user.id).single()")
+    expect(dl).toContain('loadChoiceProfile(supabase, session.user.id)')
+    expect(dl).not.toContain('isMissingColumn')
+    expect(dl).not.toContain("select('plan, beta_joined_at")
   })
 })
 
@@ -234,5 +238,74 @@ describe('flushDueNotifications re-checks plan and SMS toggle at send time', () 
     expect(await tw.flushDueNotifications(db.client)).toMatchObject({ sent: 0, failed: 1, planRestricted: 0 })
     expect(db.tables.pending_notifications[0].sent_at).toBeNull()
     expect(create).not.toHaveBeenCalled()
+  })
+})
+
+describe('review fix 2 (app): paid plans offer every unarchived sign', () => {
+  it('options say freeRule=false for a downgraded Starter agent, true on Free', async () => {
+    seed('starter', daysAgo(0))
+    expect((await (await choiceOptions()).json()).freeRule).toBe(false)
+    seed('free', daysAgo(0))
+    expect((await (await choiceOptions()).json()).freeRule).toBe(true)
+  })
+  it('eligibleSigns(…, includeOthers) adds signs on paused/offline/unchosen listings; Free stays strict', () => {
+    const mk = (id: string, assignedPropertyId: string | null) =>
+      ({ id, label: id, locked: false, assignedPropertyId, scans30: 0, leads30: 0, lastActivityAt: daysAgo(1) })
+    const signs = [mk('on', P1), mk('loose', null), mk('offline', P4)]
+    expect(eligibleSigns(signs, [P1]).other).toEqual([])
+    expect(eligibleSigns(signs, [P1], true).other.map(s => s.id)).toEqual(['offline'])
+  })
+})
+
+describe('review fix 3: the Settings swap saves the free post-downgrade choice while it is pending', () => {
+  const swap = (body: unknown) => freeSwap(new Request('https://theqrealtor.com/api/plan/free-swap', {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+  }))
+  it('flag set: apply_plan_selection (no swap clock), never apply_free_selection swap', async () => {
+    seed('free', daysAgo(0))
+    db.rpcs.apply_plan_selection = () => ({ data: { plan: 'free' } })
+    expect((await swap({ listingIds: [P2], signIds: [] })).status).toBe(200)
+    expect(db.rpcCalls).toEqual([{ name: 'apply_plan_selection', args: { p_agent: AGENT, p_listings: [P2], p_signs: [] } }])
+  })
+  it('flag not set: the normal counted swap', async () => {
+    seed('free', null)
+    db.rpcs.apply_free_selection = () => ({ data: { plan: 'free' } })
+    expect((await swap({ listingIds: [P2], signIds: [] })).status).toBe(200)
+    expect(db.rpcCalls[0]).toMatchObject({ name: 'apply_free_selection', args: { p_mode: 'swap' } })
+  })
+  it('the Settings screen follows the server’s mode for copy and endpoint', () => {
+    const fs = src('components/FreeSelection.tsx')
+    expect(fs).toContain('const effMode: Mode = opts?.mode ?? mode')
+    expect(fs).toContain("fetch(effMode === 'swap' ? '/api/plan/free-swap' : '/api/plan/choose-free'")
+  })
+})
+
+describe('review fixes 5–7', () => {
+  const due = (id: string, ageDays: number) => ({ id, agent_id: AGENT, message: 'queued showing alert', scheduled_for: new Date(Date.now() - ageDays * DAY).toISOString(), sent_at: null })
+
+  it('5: entitlement lookup still failing after 3 days → given up (abandoned), never sent late', async () => {
+    db = makeFakeDb()
+    db.tables.profiles = [{ id: AGENT, phone: AGENT_PHONE, plan: 'pro', sms_alerts_enabled: true }]
+    db.tables.pending_notifications = [due('old', 4), due('fresh', 0.01)]
+    db.failReads.add('profiles')
+    const r = await tw.flushDueNotifications(db.client)
+    expect(r).toMatchObject({ abandoned: 1, failed: 1, sent: 0 })
+    expect(db.tables.pending_notifications.find((n: any) => n.id === 'old')!.sent_at).toBeTruthy()
+    expect(db.tables.pending_notifications.find((n: any) => n.id === 'fresh')!.sent_at).toBeNull()
+    expect(create).not.toHaveBeenCalled()
+  })
+
+  it('6: the cron summary counts plan-restricted and suppressed texts, so the outcomes add up', async () => {
+    delete process.env.CRON_SECRET
+    db = makeFakeDb()
+    db.tables.profiles = [{ id: AGENT, phone: AGENT_PHONE, plan: 'free', sms_alerts_enabled: true }]
+    db.tables.pending_notifications = [due('n1', 0.01), due('n2', 0.01)]
+    const body = await (await cronFlush(new Request('https://theqrealtor.com/api/cron/flush-notifications'))).json()
+    expect(body).toMatchObject({ processed: 2, sent: 0, failed: 0, abandoned: 0, suppressed: 0, planRestricted: 2 })
+    expect(src('app/api/notifications/flush-due/route.ts')).toContain('suppressed, planRestricted')
+  })
+
+  it('7: the chooser fallback limits come from lib/plans.ts', () => {
+    expect(src('components/FreeSelection.tsx')).toContain("const FREE_LIMITS: SelectionLimits = selectionLimits('free')")
   })
 })

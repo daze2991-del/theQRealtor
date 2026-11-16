@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { rankByActivity, swapTooSoonMessage, selectionLimits, type SelectionLimits } from '../lib/planLock'
-import type { ChoiceListing, ChoiceSign } from '../lib/planChoice'
+import { effectiveSignStatus, type ChoiceListing, type ChoiceSign, type SignAssignmentStatus } from '../lib/planChoice'
 
 // "Choose what stays active". Used in three places:
 //   mode 'choose'    — end-of-trial chooser, Free's limits (POST /api/plan/choose-free)
@@ -33,6 +33,45 @@ function RecommendedTag() {
     <span style={{ fontSize: 10, fontWeight: 700, color: C.green, background: '#062014', border: '1px solid #166534', borderRadius: 6, padding: '2px 7px', whiteSpace: 'nowrap' }}>
       Recommended
     </span>
+  )
+}
+
+/** Shown on a sign whose buyer page won't take requests: its listing is paused,
+ *  offline or deleted, or it isn't assigned to a listing. Selecting it is still allowed. */
+export const PAUSED_PAGE_NOTE = 'Buyers will see a paused page'
+
+function PausedPageTag() {
+  return <span data-paused-note style={{ display: 'block', fontSize: 11, color: C.muted, marginTop: 2 }}>{PAUSED_PAGE_NOTE}</span>
+}
+
+const rowStyle = (selected: boolean): React.CSSProperties => ({
+  display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left',
+  background: selected ? `${C.purple}18` : C.card2,
+  border: `1px solid ${selected ? C.purple : C.border}`, borderRadius: 10,
+  padding: '11px 14px', cursor: 'pointer', fontFamily: 'sans-serif', color: C.text,
+})
+
+/** One sign in the chooser. `status` is the effective status (see
+ *  effectiveSignStatus): the paused-page tag shows for 'paused' and 'unassigned' only. */
+export function SignRow({ sign, selected, disabled, recommended, status, onToggle }: {
+  sign: Pick<ChoiceSign, 'id' | 'label' | 'scans30' | 'leads30'>
+  selected: boolean
+  disabled: boolean
+  recommended: boolean
+  status: SignAssignmentStatus | null
+  onToggle: () => void
+}) {
+  return (
+    <button type="button" role="checkbox" aria-checked={selected} disabled={disabled}
+      onClick={onToggle} style={{ ...rowStyle(selected), opacity: disabled ? 0.5 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}>
+      <input type="checkbox" readOnly checked={selected} tabIndex={-1} aria-hidden="true" />
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ display: 'block', fontSize: 14, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sign.label}</span>
+        <span style={{ display: 'block', fontSize: 12, color: C.muted }}>{activityLine(sign)}</span>
+        {(status === 'paused' || status === 'unassigned') && <PausedPageTag />}
+      </span>
+      {recommended && <RecommendedTag />}
+    </button>
   )
 }
 
@@ -184,28 +223,15 @@ export default function FreeSelection({ mode, onDone, onBack }: {
     }
   }
 
-  const row = (selected: boolean): React.CSSProperties => ({
-    display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left',
-    background: selected ? `${C.purple}18` : C.card2,
-    border: `1px solid ${selected ? C.purple : C.border}`, borderRadius: 10,
-    padding: '11px 14px', cursor: 'pointer', fontFamily: 'sans-serif', color: C.text,
-  })
+  const row = rowStyle
 
-  const signRow = (s: ChoiceSign) => {
-    const selected = signIds.includes(s.id)
-    const disabled = !selected && signIds.length >= maxSigns
-    return (
-      <button key={s.id} type="button" role="checkbox" aria-checked={selected} disabled={disabled}
-        onClick={() => toggleSign(s.id)} style={{ ...row(selected), opacity: disabled ? 0.5 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}>
-        <input type="checkbox" readOnly checked={selected} tabIndex={-1} aria-hidden="true" />
-        <span style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ display: 'block', fontSize: 14, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.label}</span>
-          <span style={{ display: 'block', fontSize: 12, color: C.muted }}>{activityLine(s)}</span>
-        </span>
-        {recommendedSignIds.has(s.id) && <RecommendedTag />}
-      </button>
-    )
-  }
+  const signRow = (s: ChoiceSign) => (
+    <SignRow key={s.id} sign={s} selected={signIds.includes(s.id)}
+      disabled={!signIds.includes(s.id) && signIds.length >= maxSigns}
+      recommended={recommendedSignIds.has(s.id)}
+      status={effectiveSignStatus(s, listingIds)}
+      onToggle={() => toggleSign(s.id)} />
+  )
 
   return (
     <div>

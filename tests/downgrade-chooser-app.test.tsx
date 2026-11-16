@@ -33,7 +33,8 @@ const { PLAN_CONFIG } = await import('../lib/plans')
 const { POST: chooseFree } = await import('../app/api/plan/choose-free/route')
 const { POST: freeSwap } = await import('../app/api/plan/free-swap/route')
 const { GET: cronFlush } = await import('../app/api/cron/flush-notifications/route')
-const { eligibleSigns } = await import('../components/FreeSelection')
+const { eligibleSigns, SignRow, PAUSED_PAGE_NOTE } = await import('../components/FreeSelection')
+const { effectiveSignStatus, signAssignmentStatus } = await import('../lib/planChoice')
 const { GET: choiceOptions } = await import('../app/api/plan/free-choice-options/route')
 const { default: PlanChooser } = await import('../components/PlanChooser')
 const tw = await import('../lib/twilio')
@@ -250,7 +251,7 @@ describe('review fix 2 (app): paid plans offer every unarchived sign', () => {
   })
   it('eligibleSigns(…, includeOthers) adds signs on paused/offline/unchosen listings; Free stays strict', () => {
     const mk = (id: string, assignedPropertyId: string | null) =>
-      ({ id, label: id, locked: false, assignedPropertyId, scans30: 0, leads30: 0, lastActivityAt: daysAgo(1) })
+      ({ id, label: id, locked: false, assignedPropertyId, assignmentStatus: (assignedPropertyId ? 'live' : 'unassigned') as 'live' | 'unassigned', scans30: 0, leads30: 0, lastActivityAt: daysAgo(1) })
     const signs = [mk('on', P1), mk('loose', null), mk('offline', P4)]
     expect(eligibleSigns(signs, [P1]).other).toEqual([])
     expect(eligibleSigns(signs, [P1], true).other.map(s => s.id)).toEqual(['offline'])
@@ -307,5 +308,108 @@ describe('review fixes 5–7', () => {
 
   it('7: the chooser fallback limits come from lib/plans.ts', () => {
     expect(src('components/FreeSelection.tsx')).toContain("const FREE_LIMITS: SelectionLimits = selectionLimits('free')")
+  })
+})
+
+describe('chooser options: each sign carries its current assignment status', () => {
+  const OTHER_AGENT = 'agent-2'
+  const P_OFF = '55555555-5555-4555-8555-555555555555'
+  const P_DEL = '66666666-6666-4666-8666-666666666666'
+  const P_FOREIGN = '77777777-7777-4777-8777-777777777777'
+
+  const setup = () => {
+    seed('starter', daysAgo(0))                 // P1..P3 live, P4 plan-locked
+    db.tables.properties.push(
+      { id: P_OFF, user_id: AGENT, address: 'Offline', city: 'LA', state: 'CA', active: false, deleted_at: null, created_at: daysAgo(5), plan_locked_at: null },
+      { id: P_DEL, user_id: AGENT, address: 'Deleted', city: 'LA', state: 'CA', active: true, deleted_at: daysAgo(1), created_at: daysAgo(5), plan_locked_at: null },
+      { id: P_FOREIGN, user_id: OTHER_AGENT, address: 'Not mine', city: 'LA', state: 'CA', active: true, deleted_at: null, created_at: daysAgo(5), plan_locked_at: null },
+    )
+    const mk = (id: string, agent = AGENT) => ({ id, agent_id: agent, label: id, archived_at: null, plan_locked_at: null, created_at: daysAgo(3) })
+    db.tables.signs = ['sLive', 'sLocked', 'sOffline', 'sDeleted', 'sNone', 'sForeign'].map(id => mk(id))
+    db.tables.sign_assignments = [
+      { sign_id: 'sLive', property_id: P1, unassigned_at: null },
+      { sign_id: 'sLocked', property_id: P4, unassigned_at: null },
+      { sign_id: 'sOffline', property_id: P_OFF, unassigned_at: null },
+      { sign_id: 'sDeleted', property_id: P_DEL, unassigned_at: null },
+      { sign_id: 'sForeign', property_id: P_FOREIGN, unassigned_at: null },
+      // sNone: no row; and an old, ended assignment must not count
+      { sign_id: 'sNone', property_id: P2, unassigned_at: daysAgo(2) },
+    ]
+  }
+  const status = async () => {
+    const body = await (await choiceOptions()).json()
+    return Object.fromEntries(body.signs.map((x: any) => [x.id, x.assignmentStatus]))
+  }
+
+  it('live / paused (plan-locked) / paused (inactive) / paused (deleted) / unassigned', async () => {
+    setup()
+    expect(await status()).toMatchObject({
+      sLive: 'live', sLocked: 'paused', sOffline: 'paused', sDeleted: 'paused', sNone: 'unassigned',
+    })
+  })
+
+  it('a sign on a listing the agent does not own is never "live" (scoped to the session user)', async () => {
+    setup()
+    expect((await status()).sForeign).toBe('paused')
+  })
+
+  it('signAssignmentStatus is a pure rule', () => {
+    const ok = { active: true, deleted_at: null, plan_locked_at: null }
+    expect(signAssignmentStatus(null, undefined)).toBe('unassigned')
+    expect(signAssignmentStatus(P1, ok)).toBe('live')
+    expect(signAssignmentStatus(P1, { ...ok, plan_locked_at: 'x' })).toBe('paused')
+    expect(signAssignmentStatus(P1, { ...ok, active: false })).toBe('paused')
+    expect(signAssignmentStatus(P1, { ...ok, active: null })).toBe('paused')
+    expect(signAssignmentStatus(P1, { ...ok, deleted_at: 'x' })).toBe('paused')
+    expect(signAssignmentStatus(P1, undefined)).toBe('paused')
+  })
+})
+
+describe('effective status in the chooser', () => {
+  it('a paused sign whose listing is selected in the same chooser counts as live', () => {
+    const paused = { assignmentStatus: 'paused' as const, assignedPropertyId: P4 }
+    expect(effectiveSignStatus(paused, [])).toBe('paused')
+    expect(effectiveSignStatus(paused, [P1])).toBe('paused')
+    expect(effectiveSignStatus(paused, [P1, P4])).toBe('live')
+  })
+  it('unassigned stays unassigned; live stays live; an older API without the field shows nothing', () => {
+    expect(effectiveSignStatus({ assignmentStatus: 'unassigned', assignedPropertyId: null }, [P1])).toBe('unassigned')
+    expect(effectiveSignStatus({ assignmentStatus: 'live', assignedPropertyId: P1 }, [])).toBe('live')
+    expect(effectiveSignStatus({ assignedPropertyId: P1 }, [P1])).toBeNull()
+  })
+})
+
+describe('SignRow: the "Buyers will see a paused page" tag', () => {
+  const render = (status: 'live' | 'paused' | 'unassigned' | null, extra: Record<string, unknown> = {}) =>
+    renderToStaticMarkup(createElement(SignRow, {
+      sign: { id: 's', label: 'Open House Sign', scans30: 2, leads30: 1 },
+      selected: false, disabled: false, recommended: false, status, onToggle: () => {}, ...extra,
+    }))
+
+  it('renders for paused and unassigned only', () => {
+    expect(render('paused')).toContain(PAUSED_PAGE_NOTE)
+    expect(render('unassigned')).toContain(PAUSED_PAGE_NOTE)
+    expect(render('live')).not.toContain(PAUSED_PAGE_NOTE)
+    expect(render(null)).not.toContain(PAUSED_PAGE_NOTE)
+    expect(PAUSED_PAGE_NOTE).toBe('Buyers will see a paused page')
+  })
+
+  it('selection is still allowed: the row stays enabled and can be checked with the tag showing', () => {
+    const html = render('paused', { selected: true })
+    expect(html).toContain('aria-checked="true"')
+    expect(html).not.toMatch(/<button[^>]*disabled/)
+    expect(html).toContain(PAUSED_PAGE_NOTE)
+  })
+
+  it('the rest of the row is unchanged (label, activity line, Recommended tag)', () => {
+    const html = render('paused', { recommended: true })
+    expect(html).toContain('Open House Sign')
+    expect(html).toContain('2 scans · 1 lead in the last 30 days')
+    expect(html).toContain('Recommended')
+  })
+
+  it('FreeSelection renders every sign through SignRow with the effective status', () => {
+    const fs = src('components/FreeSelection.tsx')
+    expect(fs).toContain('status={effectiveSignStatus(s, listingIds)}')
   })
 })

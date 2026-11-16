@@ -344,7 +344,7 @@ describe('recommendation ranking', () => {
   })
 
   it('signs offered: chosen listing first (ranked), then unassigned; other listings excluded', () => {
-    const mk = (id: string, assigned: string | null, scans: number) => ({ id, label: id, locked: false, assignedPropertyId: assigned, scans30: scans, leads30: 0, lastActivityAt: daysAgo(1) })
+    const mk = (id: string, assigned: string | null, scans: number) => ({ id, label: id, locked: false, assignedPropertyId: assigned, assignmentStatus: (assigned ? 'live' : 'unassigned') as 'live' | 'unassigned', scans30: scans, leads30: 0, lastActivityAt: daysAgo(1) })
     const { onListing, unassigned } = eligibleSigns([mk('a', P1, 1), mk('b', P1, 5), mk('c', P2, 99), mk('u', null, 3)], P1)
     expect(onListing.map(s => s.id)).toEqual(['b', 'a'])
     expect(unassigned.map(s => s.id)).toEqual(['u'])

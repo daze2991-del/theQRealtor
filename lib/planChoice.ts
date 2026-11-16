@@ -18,11 +18,42 @@ export interface ChoiceListing extends ActivityStats {
   locked: boolean
 }
 
+/** Where a buyer scanning this sign lands right now:
+ *  'live'       — assigned to an active, non-deleted, non-plan-locked listing
+ *  'paused'     — assigned to a listing that is plan-locked, inactive or deleted
+ *  'unassigned' — not assigned to any listing */
+export type SignAssignmentStatus = 'live' | 'paused' | 'unassigned'
+
 export interface ChoiceSign extends ActivityStats {
   label: string
   locked: boolean
   /** Current assignment, or null when the sign is unassigned. */
   assignedPropertyId: string | null
+  /** Derived on the server from the current assignment and its listing. */
+  assignmentStatus: SignAssignmentStatus
+}
+
+type ListingState = { active: boolean | null; deleted_at: string | null; plan_locked_at: string | null }
+
+/** Status of a sign from its current assignment. `listing` is the assigned
+ *  listing's row, or undefined when it can't be found (treated as paused). */
+export function signAssignmentStatus(assignedPropertyId: string | null, listing: ListingState | undefined): SignAssignmentStatus {
+  if (!assignedPropertyId) return 'unassigned'
+  if (!listing) return 'paused'
+  return listing.active === true && !listing.deleted_at && !listing.plan_locked_at ? 'live' : 'paused'
+}
+
+/** What the chooser shows for a sign: a sign on a listing that is being kept
+ *  in this same chooser counts as live (confirming unlocks it). Signs from an
+ *  older API without the field show no tag. */
+export function effectiveSignStatus(
+  sign: { assignmentStatus?: SignAssignmentStatus; assignedPropertyId: string | null },
+  selectedListingIds: readonly string[],
+): SignAssignmentStatus | null {
+  if (!sign.assignmentStatus) return null
+  if (sign.assignmentStatus === 'unassigned') return 'unassigned'
+  if (sign.assignedPropertyId && selectedListingIds.includes(sign.assignedPropertyId)) return 'live'
+  return sign.assignmentStatus
 }
 
 export type ChoiceEligibility = 'choose' | 'swap' | 'downgrade' | null
@@ -114,6 +145,18 @@ export async function loadFreeChoiceOptions(admin: Db, agentId: string, now: num
   const assigned = new Map<string, string | null>()
   for (const a of (assignRes.data ?? []) as any[]) assigned.set(a.sign_id, a.property_id ?? null)
 
+  // State of every listing a sign is currently assigned to, including ones the
+  // list above leaves out (inactive, deleted, plan-locked). Scoped to this agent.
+  const assignedIds = [...new Set([...assigned.values()].filter((v): v is string => !!v))]
+  const listingState = new Map<string, ListingState>()
+  if (assignedIds.length) {
+    const { data: stateRows, error: stateErr } = await admin.from('properties')
+      .select('id, active, deleted_at, plan_locked_at')
+      .eq('user_id', agentId).in('id', assignedIds)
+    if (stateErr) throw new Error(stateErr.message)
+    for (const r of (stateRows ?? []) as any[]) listingState.set(r.id, r)
+  }
+
   const pStats = new Map(buildActivityStats(listings, pScans.data ?? [], pLeads.data ?? [], 'property_id', now).map(s => [s.id, s]))
   const sStats = new Map(buildActivityStats(signs, sScans.data ?? [], sLeads.data ?? [], 'sign_id', now).map(s => [s.id, s]))
 
@@ -128,6 +171,7 @@ export async function loadFreeChoiceOptions(admin: Db, agentId: string, now: num
       label: s.label ?? '',
       locked: !!s.plan_locked_at,
       assignedPropertyId: assigned.get(s.id) ?? null,
+      assignmentStatus: signAssignmentStatus(assigned.get(s.id) ?? null, listingState.get(assigned.get(s.id) ?? '')),
     })),
   }
 }

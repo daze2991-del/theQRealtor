@@ -93,10 +93,15 @@ export function hasRecentActivity(i: { scans30: number; leads30: number }): bool
  *  listing — paused, offline or simply not chosen — are offered too. */
 export function eligibleSigns(signs: ChoiceSign[], listing: string | null | readonly string[], includeOthers = false) {
   const chosen = new Set(listing === null ? [] : typeof listing === 'string' ? [listing] : listing)
-  const onListing = rankByActivity(signs.filter(s => s.assignedPropertyId !== null && chosen.has(s.assignedPropertyId)))
-  const unassigned = rankByActivity(signs.filter(s => s.assignedPropertyId === null))
+  // Signs behind a paused listing rank last, as in the database fit
+  // (fit_to_plan_limits). A sign whose listing is chosen here counts as live.
+  const rank = (items: ChoiceSign[]) => rankByActivity(items.map(s => ({
+    ...s, behindPausedListing: effectiveSignStatus(s, [...chosen]) === 'paused',
+  })))
+  const onListing = rank(signs.filter(s => s.assignedPropertyId !== null && chosen.has(s.assignedPropertyId)))
+  const unassigned = rank(signs.filter(s => s.assignedPropertyId === null))
   const other = includeOthers
-    ? rankByActivity(signs.filter(s => s.assignedPropertyId !== null && !chosen.has(s.assignedPropertyId)))
+    ? rank(signs.filter(s => s.assignedPropertyId !== null && !chosen.has(s.assignedPropertyId)))
     : []
   return { onListing, unassigned, other }
 }

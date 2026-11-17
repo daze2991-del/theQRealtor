@@ -153,11 +153,17 @@ export interface ActivityStats {
   leads30: number
   /** ISO timestamp of the latest scan/lead in the window, else created_at. */
   lastActivityAt: string
+  /** Signs only: its current listing is paused (plan-locked, inactive or
+   *  deleted), so buyers see a paused page. Such signs rank last — the first
+   *  to go when there isn't room — matching fit_to_plan_limits (migration 067).
+   *  Unassigned signs are not demoted. */
+  behindPausedListing?: boolean
 }
 
 export function rankByActivity<T extends ActivityStats>(items: readonly T[]): T[] {
   return [...items].sort((a, b) =>
-    (b.scans30 - a.scans30)
+    (Number(!!a.behindPausedListing) - Number(!!b.behindPausedListing))
+    || (b.scans30 - a.scans30)
     || (b.leads30 - a.leads30)
     || (Date.parse(b.lastActivityAt) - Date.parse(a.lastActivityAt))
     || a.id.localeCompare(b.id))

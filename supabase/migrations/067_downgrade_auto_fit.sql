@@ -18,7 +18,8 @@
 --      Same ranking as the chooser (lib/planLock.ts rankByActivity): scans in
 --      the last 30 days, then leads in the last 30 days, then latest activity
 --      in that window (else created_at), then id. For signs, those whose
---      current listing is locked are locked first. Only ever LOCKS; never
+--      open assignment points to a listing that is not live (plan-locked,
+--      inactive or deleted) are locked first. Only ever LOCKS; never
 --      unlocks, never deletes. founding/alpha: no-op.
 --   4. trg_fit_plan_limits_on_downgrade on profiles.plan — on every real plan
 --      change. Fits only when both the old and new plan are one of
@@ -128,9 +129,14 @@ $$;
 --
 -- Ranking (lib/planLock.ts rankByActivity): scans in the last 30 days, then
 -- leads in the last 30 days, then latest activity in that window (else
--- created_at), then id. For signs, those whose current listing is locked rank
--- last, so they are the first to be locked. scan_events.created_at /
--- leads.created_at are timestamp without time zone, stored as UTC.
+-- created_at), then id. For signs, those whose open assignment points to a
+-- listing that is not live — plan-locked, inactive (active is not true), deleted
+-- (deleted_at set), or not this agent's — rank last, so they are the first to
+-- be locked: a buyer scanning them lands on a paused page. Unassigned signs
+-- keep their activity position. The keep_signs preference still ranks first.
+-- Same rule as signAssignmentStatus() in lib/planChoice.ts, which the chooser
+-- uses for its default picks. scan_events.created_at / leads.created_at are
+-- timestamp without time zone, stored as UTC.
 create or replace function public.fit_to_plan_limits(
   p_agent         uuid,
   p_keep_listings uuid[],
@@ -192,8 +198,12 @@ begin
                  (s.id = any(v_keep_s)) desc,
                  exists (
                    select 1 from public.sign_assignments a
-                   join public.properties p on p.id = a.property_id
-                   where a.sign_id = s.id and a.unassigned_at is null and p.plan_locked_at is not null
+                   where a.sign_id = s.id and a.unassigned_at is null and a.property_id is not null
+                     and not exists (
+                       select 1 from public.properties p
+                       where p.id = a.property_id and p.user_id = p_agent
+                         and coalesce(p.active, false) and p.deleted_at is null and p.plan_locked_at is null
+                     )
                  ) asc,
                  (select count(*) from public.scan_events se where se.sign_id = s.id and se.created_at >= v_since) desc,
                  (select count(*) from public.leads l        where l.sign_id  = s.id and l.created_at  >= v_since) desc,

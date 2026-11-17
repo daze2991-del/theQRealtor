@@ -28,7 +28,8 @@ const create = vi.fn()
 vi.mock('twilio', () => ({ default: vi.fn(() => ({ messages: { create } })) }))
 
 const { choiceEligibility, choiceLimits, parseSelection, loadChoiceProfile, selectionErrorResponse } = await import('../lib/planChoice')
-const { selectionLimits, FREE_MAX_LISTINGS, FREE_MAX_SIGNS } = await import('../lib/planLock')
+const planLockModule = await import('../lib/planLock')
+const { selectionLimits, FREE_MAX_LISTINGS, FREE_MAX_SIGNS } = planLockModule
 const { PLAN_CONFIG } = await import('../lib/plans')
 const { POST: chooseFree } = await import('../app/api/plan/choose-free/route')
 const { POST: freeSwap } = await import('../app/api/plan/free-swap/route')
@@ -411,5 +412,38 @@ describe('SignRow: the "Buyers will see a paused page" tag', () => {
   it('FreeSelection renders every sign through SignRow with the effective status', () => {
     const fs = src('components/FreeSelection.tsx')
     expect(fs).toContain('status={effectiveSignStatus(s, listingIds)}')
+  })
+})
+
+describe('rankByActivity mirrors the database fit: signs behind a paused listing rank last', () => {
+  const { rankByActivity } = planLockModule
+  const stat = (id: string, scans30: number, extra: Record<string, unknown> = {}) =>
+    ({ id, scans30, leads30: 0, lastActivityAt: daysAgo(1), ...extra })
+
+  it('a paused-listing sign with higher or equal activity ranks after a live one', () => {
+    const ranked = rankByActivity([
+      stat('deadBusy', 50, { behindPausedListing: true }),
+      stat('liveQuiet', 1),
+      stat('deadEqual', 1, { behindPausedListing: true }),
+      stat('liveBusy', 9),
+    ])
+    expect(ranked.map(x => x.id)).toEqual(['liveBusy', 'liveQuiet', 'deadBusy', 'deadEqual'])
+  })
+  it('without the flag (listings, unassigned signs) the order is the old activity ranking', () => {
+    expect(rankByActivity([stat('a', 1), stat('b', 9), stat('c', 5)]).map(x => x.id)).toEqual(['b', 'c', 'a'])
+  })
+
+  const mk = (id: string, assignedPropertyId: string | null, assignmentStatus: 'live' | 'paused' | 'unassigned', scans30: number) =>
+    ({ id, label: id, locked: false, assignedPropertyId, assignmentStatus, scans30, leads30: 0, lastActivityAt: daysAgo(1) })
+
+  it('the chooser orders signs the same way: paused-listing signs last, unassigned not demoted', () => {
+    const signs = [mk('onDead', P4, 'paused', 40), mk('onLive', P2, 'live', 1), mk('loose', null, 'unassigned', 0), mk('onLive2', P2, 'live', 2)]
+    const { other, unassigned } = eligibleSigns(signs, [P1], true)
+    expect(other.map(x => x.id)).toEqual(['onLive2', 'onLive', 'onDead'])
+    expect(unassigned.map(x => x.id)).toEqual(['loose'])
+  })
+  it('a paused sign whose listing is chosen here counts as live, so it is not demoted', () => {
+    const signs = [mk('onChosen', P4, 'paused', 40), mk('onLive', P4, 'live', 1)]
+    expect(eligibleSigns(signs, [P4]).onListing.map(x => x.id)).toEqual(['onChosen', 'onLive'])
   })
 })

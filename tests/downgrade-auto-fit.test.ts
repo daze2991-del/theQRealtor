@@ -357,6 +357,78 @@ describe('review fix 2: on paid plans a confirm only locks what is beyond the ca
   })
 })
 
+describe('signs behind a listing that is not live are locked first (plan-locked, inactive, deleted)', () => {
+  // Pro → Starter with 16 signs against a cap of 15: exactly one sign is locked.
+  // Fifteen sit on a live listing with little activity; one sits on a listing that
+  // is not live and has equal or higher activity. It must be the one locked.
+  const scenario = async (breakListing: (listingId: string) => Promise<void>, brokenSignScans: number) => {
+    const a = await t.agent('pro')
+    const live = await t.listing(a, { scans: 30 })
+    const broken = await t.listing(a, { scans: 0 })
+    const liveSigns = [] as string[]
+    for (let i = 0; i < 15; i++) liveSigns.push(await t.sign(a, { listing: live, scans: 1 }))
+    const onBroken = await t.sign(a, { listing: broken, scans: brokenSignScans })
+    await breakListing(broken)
+    await t.setPlan(a, 'starter')
+    return { a, liveSigns, onBroken, s: await t.state(a) }
+  }
+  const inactive = (id: string) => t.db.query(`update public.properties set active = false where id = $1`, [id]).then(() => {})
+  const deleted  = (id: string) => t.db.query(`update public.properties set deleted_at = now() where id = $1`, [id]).then(() => {})
+  const planLocked = (id: string) => t.db.query(`update public.properties set plan_locked_at = now() where id = $1`, [id]).then(() => {})
+
+  it.each([
+    ['an inactive listing', inactive],
+    ['a deleted listing', deleted],
+    ['a plan-locked listing', planLocked],
+  ])('%s: its sign is locked and every sign on the live listing is kept (the broken one has HIGHER activity)', async (_n, breakIt) => {
+    const { liveSigns, onBroken, s } = await scenario(breakIt, 50)
+    expect(s.lockedSigns).toEqual([onBroken])
+    expect(new Set(s.unlockedSigns)).toEqual(new Set(liveSigns))
+  })
+
+  it.each([['an inactive listing', inactive], ['a deleted listing', deleted]])(
+    '%s: also locked when activity is EQUAL', async (_n, breakIt) => {
+      const { onBroken, s } = await scenario(breakIt, 1)
+      expect(s.lockedSigns).toEqual([onBroken])
+    })
+
+  it('unassigned signs keep their position: with room for all but one, the sign on the dead listing goes, not the quiet unassigned one', async () => {
+    const a = await t.agent('pro')
+    const live = await t.listing(a, { scans: 5 })
+    const dead = await t.listing(a)
+    await t.db.query(`update public.properties set active = false where id = $1`, [dead])
+    const liveSigns = [] as string[]
+    for (let i = 0; i < 14; i++) liveSigns.push(await t.sign(a, { listing: live, scans: 2 }))
+    const unassigned = await t.sign(a)                              // 0 scans: lowest activity of all
+    const onDead = await t.sign(a, { listing: dead, scans: 40 })    // highest activity, but dead
+    await t.setPlan(a, 'starter')
+    const s = await t.state(a)
+    expect(s.lockedSigns).toEqual([onDead])
+    expect(s.unlockedSigns).toContain(unassigned)
+  })
+
+  it('a sign on a listing that is not live is not demoted when there is room for everything', async () => {
+    const a = await t.agent('pro')
+    const live = await t.listing(a, { scans: 5 })
+    const dead = await t.listing(a)
+    await t.db.query(`update public.properties set active = false where id = $1`, [dead])
+    await t.sign(a, { listing: live }); const onDead = await t.sign(a, { listing: dead })
+    await t.setPlan(a, 'starter')
+    const s = await t.state(a)
+    expect(s.lockedSigns).toEqual([])
+    expect(s.unlockedSigns).toContain(onDead)
+  })
+
+  it('the keep_signs preference still ranks first: choosing the sign on the dead listing keeps it', async () => {
+    const { a, onBroken } = await scenario(inactive, 50)
+    await t.db.query(`update public.profiles set plan_choice_required_at = now() where id = $1`, [a])   // pending (already set by the fit)
+    await t.one(`select public.apply_plan_selection($1, $2::uuid[], $3::uuid[])`, [a, [], [onBroken]])
+    const s = await t.state(a)
+    expect(s.unlockedSigns).toContain(onBroken)
+    expect(s.lockedSigns).toHaveLength(1)           // still exactly one beyond the cap
+  })
+})
+
 describe('protection', () => {
   it('a signed-in agent cannot set or clear plan_choice_required_at', async () => {
     const a = await t.agent('free')

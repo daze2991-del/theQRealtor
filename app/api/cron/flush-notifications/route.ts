@@ -47,15 +47,18 @@ async function flush(request: Request) {
   }
 
   const admin = createAdminSupabase()
-  const { processed, sent, failed, abandoned, error } = await flushDueNotifications(admin)
+  const { processed, sent, failed, abandoned, suppressed, planRestricted, error } = await flushDueNotifications(admin)
   if (error) {
     return NextResponse.json({ error }, { status: 500 })
   }
 
   // failed > 0 means those rows are still queued and will be retried on the
-  // next tick; abandoned > 0 means we gave up on them permanently.
-  console.log('[cron/flush] processed', processed, '| sent', sent, '| failed', failed, '| abandoned', abandoned)
-  return NextResponse.json({ processed, sent, failed, abandoned })
+  // next tick; abandoned > 0 means we gave up on them permanently. suppressed
+  // (opted-out number) and planRestricted (plan without SMS, or SMS alerts
+  // off) are handled and never sent. The five outcomes add up to processed.
+  console.log('[cron/flush] processed', processed, '| sent', sent, '| failed', failed, '| abandoned', abandoned,
+    '| suppressed', suppressed, '| plan-restricted', planRestricted)
+  return NextResponse.json({ processed, sent, failed, abandoned, suppressed, planRestricted })
 }
 
 // Vercel Cron issues GET; allow POST for manual triggering too.

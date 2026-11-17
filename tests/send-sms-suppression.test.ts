@@ -237,7 +237,8 @@ describe('queueOrSendAgentSms: plan gate (migration 065/066, lib/plans.ts)', () 
 
 describe('flushDueNotifications', () => {
   const due = (id: string) => ({ id, agent_id: AGENT_ID, message: 'queued alert', scheduled_for: new Date(Date.now() - 60_000).toISOString(), sent_at: null })
-  beforeEach(() => { db.tables.profiles = [{ id: AGENT_ID, phone: AGENT_PHONE }] })
+  // A paid agent with SMS alerts on — the send-time entitlement re-check passes.
+  beforeEach(() => { db.tables.profiles = [{ id: AGENT_ID, phone: AGENT_PHONE, plan: 'pro', sms_alerts_enabled: true }] })
 
   it('opted-out agent: marked handled (sent_at stamped), not sent, not retried', async () => {
     optOut(AGENT_PHONE)

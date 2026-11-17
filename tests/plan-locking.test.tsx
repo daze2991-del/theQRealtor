@@ -232,9 +232,9 @@ describe('chooser modal', () => {
   })
   it('DashboardLayout opens it for an expired trial and keeps a reopen banner', () => {
     const dl = src('components/DashboardLayout.tsx')
-    expect(dl).toContain('setChooserOpen(getTrialStatus(profile?.beta_joined_at ?? null, resolvedPlan).expired)')
+    expect(dl).toContain('setChooserOpen(downgradeChoicePending || getTrialStatus(profile?.beta_joined_at ?? null, resolvedPlan).expired)')
     expect(dl).toContain('{CHOOSE_PLAN_BANNER}')
-    expect(dl).toContain('onClick={() => setChooserOpen(true)}')
+    expect(dl).toContain("onClick={() => { setChooserVariant('trial'); setChooserOpen(true) }}")
     expect(CHOOSE_PLAN_BANNER).toBe('Choose a plan to start receiving buyer requests again')
     expect(TRIAL_ENDED_INTRO).toContain('Nothing has been deleted')
   })
@@ -295,7 +295,7 @@ describe('Free choice: server validation', () => {
   })
 
   it('parseSelection dedupes and enforces the caps', () => {
-    expect(parseSelection({ listingIds: [P1, P1], signIds: ['a', 'a', 'b'] })).toEqual({ ok: true, listingId: P1, signIds: ['a', 'b'] })
+    expect(parseSelection({ listingIds: [P1, P1], signIds: ['a', 'a', 'b'] })).toEqual({ ok: true, listingId: P1, listingIds: [P1], signIds: ['a', 'b'] })
     expect(parseSelection({ listingIds: 'x' }).ok).toBe(false)
   })
 
@@ -344,7 +344,7 @@ describe('recommendation ranking', () => {
   })
 
   it('signs offered: chosen listing first (ranked), then unassigned; other listings excluded', () => {
-    const mk = (id: string, assigned: string | null, scans: number) => ({ id, label: id, locked: false, assignedPropertyId: assigned, scans30: scans, leads30: 0, lastActivityAt: daysAgo(1) })
+    const mk = (id: string, assigned: string | null, scans: number) => ({ id, label: id, locked: false, assignedPropertyId: assigned, assignmentStatus: (assigned ? 'live' : 'unassigned') as 'live' | 'unassigned', scans30: scans, leads30: 0, lastActivityAt: daysAgo(1) })
     const { onListing, unassigned } = eligibleSigns([mk('a', P1, 1), mk('b', P1, 5), mk('c', P2, 99), mk('u', null, 3)], P1)
     expect(onListing.map(s => s.id)).toEqual(['b', 'a'])
     expect(unassigned.map(s => s.id)).toEqual(['u'])

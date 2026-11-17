@@ -1,4 +1,5 @@
 import { getTrialStatus, TRIAL_DAYS } from './trial'
+import { planConfig } from './plans'
 
 // ── Agent-facing end-of-trial copy (dashboard only, never buyer pages) ──────
 export const TRIAL_ENDED_INTRO =
@@ -152,11 +153,17 @@ export interface ActivityStats {
   leads30: number
   /** ISO timestamp of the latest scan/lead in the window, else created_at. */
   lastActivityAt: string
+  /** Signs only: its current listing is paused (plan-locked, inactive or
+   *  deleted), so buyers see a paused page. Such signs rank last — the first
+   *  to go when there isn't room — matching fit_to_plan_limits (migration 067).
+   *  Unassigned signs are not demoted. */
+  behindPausedListing?: boolean
 }
 
 export function rankByActivity<T extends ActivityStats>(items: readonly T[]): T[] {
   return [...items].sort((a, b) =>
-    (b.scans30 - a.scans30)
+    (Number(!!a.behindPausedListing) - Number(!!b.behindPausedListing))
+    || (b.scans30 - a.scans30)
     || (b.leads30 - a.leads30)
     || (Date.parse(b.lastActivityAt) - Date.parse(a.lastActivityAt))
     || a.id.localeCompare(b.id))
@@ -195,5 +202,15 @@ export function buildActivityStats(
   })
 }
 
-export const FREE_MAX_LISTINGS = 1
-export const FREE_MAX_SIGNS = 3
+// ── How many listings / signs a plan keeps active ────────────────────────────
+// Read from lib/plans.ts (mirrored in SQL by plan_limits(), which the chooser
+// functions use). null = no cap. An unknown plan resolves to Free.
+export interface SelectionLimits { maxListings: number | null; maxSigns: number | null }
+
+export function selectionLimits(plan: string | null | undefined): SelectionLimits {
+  const cfg = planConfig(plan)
+  return { maxListings: cfg.maxActiveListings, maxSigns: cfg.maxActiveSigns }
+}
+
+export const FREE_MAX_LISTINGS = selectionLimits('free').maxListings as number
+export const FREE_MAX_SIGNS = selectionLimits('free').maxSigns as number

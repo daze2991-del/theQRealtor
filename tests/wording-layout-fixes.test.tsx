@@ -120,10 +120,11 @@ describe('hasRecentActivity: Recommended tag only with real activity', () => {
 
   it('FreeSelection gates both tags on it, without changing the pre-selection logic', () => {
     const s = src('components/FreeSelection.tsx')
-    expect(s).toContain('rankedListings[0] && hasRecentActivity(rankedListings[0]) ? rankedListings[0].id : null')
-    expect(s).toContain('onListing.slice(0, FREE_MAX_SIGNS).filter(hasRecentActivity).map(s => s.id)')
+    // Limits now come from the plan (maxListings / maxSigns), not FREE_MAX_*.
+    expect(s).toContain('rankedListings.slice(0, maxListings).filter(hasRecentActivity).map(l => l.id)')
+    expect(s).toContain('onListing.slice(0, maxSigns).filter(hasRecentActivity).map(s => s.id)')
     // Pre-selection (top N by rank) is untouched by the activity filter
-    expect(s).toContain('setSignIds(eligibleSigns(o.signs, top).onListing.slice(0, FREE_MAX_SIGNS).map(s => s.id))')
+    expect(s).toContain('setSignIds(eligibleSigns(o.signs, top).onListing.slice(0, maxS).map(s => s.id))')
   })
 })
 

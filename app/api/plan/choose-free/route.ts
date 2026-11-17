@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { createAdminSupabase } from '@/lib/supabase-admin'
-import { getTrialStatus } from '@/lib/trial'
-import { parseSelection, selectionErrorResponse } from '@/lib/planChoice'
+import { choiceEligibility, choiceLimits, loadChoiceProfile, parseSelection, planName, selectionErrorResponse } from '@/lib/planChoice'
 
-// Expired trial → Free. Body: { listingIds: string[] (max 1), signIds: string[] (max 3) }.
-// Only for an agent whose trial has actually expired. Sets plan='free' and
-// locks every other live listing / active sign in one transaction
-// (apply_free_selection, migration 060). Never deletes anything.
-// Idempotent: once on Free this returns success without changing anything.
-// Changing the selection afterwards is /api/plan/free-swap.
+// Confirms what stays active. Body: { listingIds: string[], signIds: string[] }.
+// Two cases, decided on the server:
+//   • Post-downgrade choice (profiles.plan_choice_required_at set, migration
+//     067): any plan's limits; apply_plan_selection(). Never starts the Free
+//     30-day swap clocks. Clears the flag.
+//   • Expired trial → Free: max 1 listing / 3 signs; sets plan='free' and locks
+//     every other live listing / active sign in one transaction
+//     (apply_free_selection 'choose'). Idempotent once on Free.
+// Never deletes anything. Changing the selection later on Free is /api/plan/free-swap.
 export async function POST(req: Request) {
   const supabase = createServerSupabase()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -25,13 +27,33 @@ export async function POST(req: Request) {
   }
 
   const admin = createAdminSupabase()
-  const { data: profile } = await admin
-    .from('profiles').select('plan, beta_joined_at').eq('id', user.id).maybeSingle()
+  let profile: Awaited<ReturnType<typeof loadChoiceProfile>>
+  try {
+    profile = await loadChoiceProfile(admin, user.id)
+  } catch (err: any) {
+    console.error('[plan/choose-free] profile error:', err?.message)
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
+  }
+  const mode = choiceEligibility(profile?.plan, profile?.beta_joined_at, profile?.plan_choice_required_at)
+
+  if (mode === 'downgrade') {
+    const sel = parseSelection(body, choiceLimits(mode, profile?.plan), planName(profile?.plan))
+    if (!sel.ok) return NextResponse.json({ error: sel.error }, { status: 400 })
+    const { data, error } = await admin.rpc('apply_plan_selection', {
+      p_agent: user.id, p_listings: sel.listingIds, p_signs: sel.signIds,
+    })
+    if (error) {
+      const mapped = selectionErrorResponse(error.message)
+      if (mapped.status === 500) console.error('[plan/choose-free] apply_plan_selection error:', error.message)
+      return NextResponse.json({ error: mapped.error }, { status: mapped.status })
+    }
+    return NextResponse.json({ ok: true, plan: profile?.plan ?? null, result: data ?? null })
+  }
 
   if (profile?.plan === 'free') {
     return NextResponse.json({ ok: true, plan: 'free', alreadyFree: true })
   }
-  if (profile?.plan !== 'trial' || !getTrialStatus(profile?.beta_joined_at, profile?.plan).expired) {
+  if (mode !== 'choose') {
     return NextResponse.json({ error: 'This choice is available once your trial has ended.' }, { status: 403 })
   }
 

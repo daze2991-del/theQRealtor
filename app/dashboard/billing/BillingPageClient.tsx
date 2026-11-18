@@ -27,7 +27,13 @@ type SubscriptionInfo = {
   current_period_end: number
   cancel_at_period_end: boolean
   interval: 'month' | 'year'
+  /** Paid tier of the subscription's price (server-mapped), null if unknown. */
+  tier: PricingTier | null
 } | null
+
+// Statuses after which a NEW subscription (Checkout) is allowed. Anything else
+// means the agent already has one and changes tier via /api/stripe/change-plan.
+const REUSABLE_STATUSES = ['canceled', 'incomplete_expired']
 
 // Human label for the current-plan badge. Starter/Pro read their real name
 // from the pricing catalog; the grandfathered/fallback plans keep their
@@ -47,6 +53,8 @@ export default function BillingPageClient({ paidPlansEnabled }: { paidPlansEnabl
   const [subscription, setSubscription] = useState<SubscriptionInfo>(null)
   const [checkingOut, setCheckingOut] = useState(false)
   const [openingPortal, setOpeningPortal] = useState(false)
+  const [hasBillingAccount, setHasBillingAccount] = useState(false)
+  const [billingError, setBillingError] = useState<string | null>(null)
 
   const [propCount, setPropCount]       = useState(0)
   const [qrCount, setQrCount]           = useState(0)
@@ -95,36 +103,61 @@ export default function BillingPageClient({ paidPlansEnabled }: { paidPlansEnabl
         }).length : 0)
       }
 
-      if (isPricingTier(currentPlan)) {
+      // Any plan: a Free agent can still have a Stripe customer (e.g. after
+      // cancelling), and the portal is what they'd use to see old invoices.
+      try {
         const res = await fetch('/api/stripe/subscription')
         if (res.ok) {
-          const { subscription: sub } = await res.json()
-          setSubscription(sub)
+          const { subscription: sub, hasBillingAccount: hasAccount } = await res.json()
+          setSubscription(sub ?? null)
+          setHasBillingAccount(!!hasAccount)
         }
-      }
+      } catch { /* billing details are optional on this page */ }
 
       setLoading(false)
     }
     load()
   }, [])
 
+  const postJson = async (path: string, body?: unknown): Promise<{ url?: string; ok?: boolean; error?: string }> => {
+    try {
+      const res = await fetch(path, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      })
+      return await res.json().catch(() => ({}))
+    } catch {
+      return {}
+    }
+  }
+
+  // New subscribers only. An existing subscription changes tier in place.
   const handleCheckout = async (tier: PricingTier) => {
+    setBillingError(null)
     setCheckingOut(true)
-    const res = await fetch('/api/stripe/checkout', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tier, interval: 'month' }),
-    })
-    const { url, error } = await res.json()
+    const { url, error } = await postJson('/api/stripe/checkout', { tier, interval: 'month' })
     if (url) window.location.href = url
-    else { alert(error || 'Could not start checkout. Please try again.'); setCheckingOut(false) }
+    else { setBillingError(error || 'Could not start checkout. Please try again.'); setCheckingOut(false) }
+  }
+
+  // Starter <-> Pro on the existing subscription (prorated, never a second one).
+  const handleChangePlan = async (tier: PricingTier) => {
+    setBillingError(null)
+    setCheckingOut(true)
+    const { ok, error } = await postJson('/api/stripe/change-plan', { tier })
+    if (ok) window.location.reload()
+    else { setBillingError(error || 'Could not change your plan. Please try again.'); setCheckingOut(false) }
   }
 
   const handlePortal = async () => {
+    setBillingError(null)
     setOpeningPortal(true)
-    const res = await fetch('/api/stripe/portal', { method: 'POST' })
-    const { url, error } = await res.json()
+    const { url, error } = await postJson('/api/stripe/portal')
     if (url) window.location.href = url
-    else { alert(error || 'Could not open billing portal.'); setOpeningPortal(false) }
+    else {
+      setBillingError(error || 'We couldn\'t open the billing portal right now. Please try again in a moment.')
+      setOpeningPortal(false)
+    }
   }
 
   const formatDate = (unix: number) =>
@@ -167,6 +200,7 @@ export default function BillingPageClient({ paidPlansEnabled }: { paidPlansEnabl
   })
 
   const hasPaidPlan = plan !== 'free'
+  const hasOpenSubscription = !!subscription && !REUSABLE_STATUSES.includes(subscription.status)
   const currentLimits = planConfig(plan)
   const checklist = planChecklist(plan)
 
@@ -286,14 +320,17 @@ export default function BillingPageClient({ paidPlansEnabled }: { paidPlansEnabl
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                       {PRICING_TIERS.map(tierKey => {
                         const cfg = pricingTierConfig(tierKey)
+                        const isCurrent = hasOpenSubscription && subscription?.tier === tierKey
+                        const onClick = hasOpenSubscription ? () => handleChangePlan(tierKey) : () => handleCheckout(tierKey)
+                        const action = hasOpenSubscription ? `Switch to ${cfg.displayName}` : `Upgrade to ${cfg.displayName}`
                         return (
                           <div key={tierKey} style={{ background: `${C.purple}10`, border: `1px solid ${C.border}`, borderRadius: 10, padding: 20 }}>
                             <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 2 }}>{cfg.displayName}</div>
                             <div style={{ fontSize: 22, fontWeight: 700, color: C.purpleL, marginBottom: 8 }}>{cfg.displayPrice}</div>
                             <div style={{ fontSize: 12, color: C.muted, marginBottom: 10, lineHeight: 1.5 }}>{cfg.copy}</div>
-                            <button onClick={() => handleCheckout(tierKey)} disabled={checkingOut}
-                              style={{ ...btnPrimary, marginBottom: 0, opacity: checkingOut ? 0.7 : 1, cursor: checkingOut ? 'not-allowed' : 'pointer' }}>
-                              {checkingOut ? 'Redirecting…' : `Upgrade to ${cfg.displayName}`}
+                            <button onClick={onClick} disabled={checkingOut || isCurrent}
+                              style={{ ...btnPrimary, marginBottom: 0, opacity: checkingOut || isCurrent ? 0.7 : 1, cursor: checkingOut || isCurrent ? 'not-allowed' : 'pointer' }}>
+                              {isCurrent ? 'Current plan' : checkingOut ? 'Working…' : action}
                             </button>
                           </div>
                         )
@@ -327,7 +364,14 @@ export default function BillingPageClient({ paidPlansEnabled }: { paidPlansEnabl
                   </>
                 )}
 
-                {paidPlansEnabled && hasPaidPlan && (
+                {billingError && (
+                  <p role="alert" style={{ fontSize: 13, color: '#F87171', marginTop: 14, textAlign: 'center' }}>
+                    {billingError}
+                  </p>
+                )}
+
+                {/* Only when a Stripe customer exists — the portal needs one. */}
+                {paidPlansEnabled && hasBillingAccount && (
                   <>
                     <div style={divider} />
                     <button onClick={handlePortal} disabled={openingPortal}

@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server'
 import { getStripe } from '../../../../lib/stripe'
 import { createServerSupabase } from '../../../../lib/supabase-server'
 
+export const runtime = 'nodejs'
+
+const FRIENDLY_ERROR = 'We couldn\'t open the billing portal right now. Please try again in a moment.'
+
 export async function POST(request: Request) {
   const supabase = createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
@@ -15,22 +19,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Paid plans not yet available' }, { status: 403 })
   }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('stripe_customer_id')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
+  if (profileError) {
+    console.error('[portal] profile read failed:', profileError.message)
+    return NextResponse.json({ error: FRIENDLY_ERROR }, { status: 500 })
+  }
   if (!profile?.stripe_customer_id) {
-    return NextResponse.json({ error: 'No billing account found' }, { status: 400 })
+    return NextResponse.json({ error: 'There\'s no billing account on file yet. Choose a plan to get started.' }, { status: 400 })
   }
 
   const origin = request.headers.get('origin') || 'https://realtqr.vercel.app'
 
-  const session = await getStripe().billingPortal.sessions.create({
-    customer: profile.stripe_customer_id,
-    return_url: `${origin}/dashboard/billing`,
-  })
-
-  return NextResponse.json({ url: session.url })
+  try {
+    const session = await getStripe().billingPortal.sessions.create({
+      customer: profile.stripe_customer_id,
+      return_url: `${origin}/dashboard/billing`,
+    })
+    return NextResponse.json({ url: session.url })
+  } catch (err: any) {
+    console.error('[portal] Stripe error:', err?.message)
+    return NextResponse.json({ error: FRIENDLY_ERROR }, { status: 502 })
+  }
 }

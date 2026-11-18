@@ -3,7 +3,7 @@ import { getStripe } from '../../../../lib/stripe'
 import { createServerSupabase } from '../../../../lib/supabase-server'
 import { createAdminSupabase } from '../../../../lib/supabase-admin'
 import { billingAutomationEnabled } from '../../../../lib/billing'
-import { isPricingTier, planForPriceId, resolvePriceId } from '../../../../lib/pricing'
+import { isPricingTier, planForPriceId, resolvePriceId, type PricingTier } from '../../../../lib/pricing'
 import { ENTITLED_STATUSES, syncSubscription } from '../../../../lib/stripeSync'
 
 export const runtime = 'nodejs'
@@ -11,7 +11,9 @@ export const dynamic = 'force-dynamic'
 
 // ── Starter ↔ Pro on the agent's EXISTING subscription ──────────────────────
 //
-// Swaps the subscription's single item to the other tier's price, prorated.
+// Swaps the subscription's single item to the other tier's price, prorated:
+// an upgrade invoices and charges the difference immediately and only takes
+// effect if that payment succeeds; a downgrade credits the next invoice.
 // Never creates a subscription (that is /api/stripe/checkout, which refuses
 // when one already exists), so an upgrade can never double-charge.
 //
@@ -25,6 +27,17 @@ export const dynamic = 'force-dynamic'
 // • The billing interval is kept as-is.
 // • The plan is written by lib/stripeSync.ts from the updated subscription
 //   (same path as the webhook, which will also confirm it).
+
+const TIER_RANK: Record<PricingTier, number> = { starter: 1, pro: 2 }
+/** Moving to a higher tier (or from an unrecognized price) charges now. */
+function isUpgrade(from: PricingTier | null, to: PricingTier): boolean {
+  return from === null || TIER_RANK[to] > TIER_RANK[from]
+}
+
+const UPGRADE_DECLINED = {
+  error: 'Your payment didn\'t go through, so your plan hasn\'t changed. Update your card in Manage Subscription and try again.',
+  code: 'upgrade_payment_failed',
+} as const
 
 export async function POST(request: Request) {
   if (process.env.PAID_PLANS_ENABLED !== 'true' || process.env.STRIPE_CHARGES_ENABLED !== 'true') {
@@ -96,10 +109,37 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Could not change your plan. Please try again later.' }, { status: 500 })
     }
 
-    await stripe.subscriptions.update(sub.id, {
-      items: [{ id: item.id, price: priceId }],
-      proration_behavior: 'create_prorations',
-    })
+    if (isUpgrade(currentTier, tier)) {
+      // Upgrade: invoice and charge the prorated difference NOW. With
+      // pending_if_incomplete, Stripe applies the new price only if that
+      // charge succeeds; otherwise the subscription keeps its current price
+      // (the change waits in pending_update and expires). The webhook reads
+      // the subscription's items, so the plan cannot become Pro unpaid.
+      let updated
+      try {
+        updated = await stripe.subscriptions.update(sub.id, {
+          items: [{ id: item.id, price: priceId }],
+          proration_behavior: 'always_invoice',
+          payment_behavior: 'pending_if_incomplete',
+        })
+      } catch (err: any) {
+        if (err?.type === 'StripeCardError' || err?.statusCode === 402) {
+          console.warn(`[change-plan] upgrade charge declined for ${sub.id}:`, err?.message)
+          return NextResponse.json(UPGRADE_DECLINED, { status: 402 })
+        }
+        throw err
+      }
+      if (updated.pending_update) {
+        console.warn(`[change-plan] upgrade charge not completed for ${sub.id} — change left pending, plan unchanged`)
+        return NextResponse.json(UPGRADE_DECLINED, { status: 402 })
+      }
+    } else {
+      // Downgrade: no charge now; the unused time is credited on the next invoice.
+      await stripe.subscriptions.update(sub.id, {
+        items: [{ id: item.id, price: priceId }],
+        proration_behavior: 'create_prorations',
+      })
+    }
   } catch (err: any) {
     console.error('[change-plan] Stripe error:', err?.message)
     return NextResponse.json({ error: 'Could not change your plan. Please try again.' }, { status: 502 })

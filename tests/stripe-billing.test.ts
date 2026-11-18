@@ -26,6 +26,10 @@ vi.mock('../lib/supabase-server', () => ({
 const subs = new Map<string, any>()
 const invoices = new Map<string, any>()
 let stripeDown = false
+// How the next immediate-charge (always_invoice) update's payment goes:
+// 'ok' | 'pending' (Stripe leaves the change in pending_update) | 'card_error'
+// (Stripe rejects the request with a 402 card error).
+let upgradeCharge: 'ok' | 'pending' | 'card_error' = 'ok'
 const stripe = {
   webhooks: {
     constructEvent: (body: string, sig: string) => {
@@ -46,7 +50,19 @@ const stripe = {
     }),
     update: vi.fn(async (id: string, params: any) => {
       const s = subs.get(id)
+      // Mirrors payment_behavior: 'pending_if_incomplete': if the immediate
+      // proration charge fails, the items are NOT changed.
+      if (params.proration_behavior === 'always_invoice' && params.payment_behavior === 'pending_if_incomplete') {
+        if (upgradeCharge === 'card_error') {
+          throw Object.assign(new Error('Your card was declined.'), { type: 'StripeCardError', statusCode: 402 })
+        }
+        if (upgradeCharge === 'pending') {
+          s.pending_update = { subscription_items: [{ price: params.items[0].price }], expires_at: PERIOD_END }
+          return structuredClone(s)
+        }
+      }
       s.items.data[0].price = price(params.items[0].price)
+      s.pending_update = null
       return structuredClone(s)
     }),
     create: vi.fn(),
@@ -113,7 +129,7 @@ beforeEach(async () => {
   await t.db.exec(src('supabase/migrations/038_entitlements_and_billing_scaffold.sql'))
   await t.db.exec(src('supabase/migrations/068_stripe_webhook_processed_at.sql'))
   pg = makePgSupabase(t.db)
-  subs.clear(); invoices.clear(); stripeDown = false; currentUser = null
+  subs.clear(); invoices.clear(); stripeDown = false; upgradeCharge = 'ok'; currentUser = null
   vi.clearAllMocks()
   Object.assign(process.env, {
     STRIPE_SECRET_KEY: 'sk_test_fake', STRIPE_WEBHOOK_SECRET: 'whsec_fake',
@@ -206,13 +222,15 @@ describe('Starter ↔ Pro uses ONE subscription', () => {
   const changeTo = (tier: unknown) =>
     changePlan(new Request('http://test/api/stripe/change-plan', { method: 'POST', body: JSON.stringify({ tier }) }))
 
-  it('Starter → Pro: updates the existing item with proration, no new subscription, plan pro', async () => {
+  it('Starter → Pro: charges the prorated difference now (only applies if paid), one subscription, plan pro', async () => {
     const a = await starterAgent()
     const res = await changeTo('pro')
     expect(res.status).toBe(200)
     expect(stripe.subscriptions.update).toHaveBeenCalledTimes(1)
     expect(stripe.subscriptions.update).toHaveBeenCalledWith('sub_1', {
-      items: [{ id: 'si_sub_1', price: P.pro }], proration_behavior: 'create_prorations',
+      items: [{ id: 'si_sub_1', price: P.pro }],
+      proration_behavior: 'always_invoice',
+      payment_behavior: 'pending_if_incomplete',
     })
     expect(stripe.subscriptions.create).not.toHaveBeenCalled()
     expect(stripe.checkout.sessions.create).not.toHaveBeenCalled()
@@ -222,6 +240,46 @@ describe('Starter ↔ Pro uses ONE subscription', () => {
     await post(subEvent('customer.subscription.updated', 'sub_1'))
     expect((await profile(a)).plan).toBe('pro')
     expect(subs.size).toBe(1)
+  })
+
+  it.each(['pending', 'card_error'] as const)('Starter → Pro with a failed charge (%s): 402, agent stays on Starter, webhook agrees', async mode => {
+    const a = await starterAgent()
+    upgradeCharge = mode
+    const res = await changeTo('pro')
+    expect(res.status).toBe(402)
+    expect(await res.json()).toMatchObject({ code: 'upgrade_payment_failed' })
+    expect(await profile(a)).toMatchObject({ plan: 'starter', price_id: P.starter })
+    expect(subs.get('sub_1').items.data[0].price.id).toBe(P.starter)
+
+    // Stripe's own events about it change nothing: the items are still Starter.
+    await post(subEvent('customer.subscription.updated', 'sub_1'))
+    expect((await profile(a)).plan).toBe('starter')
+    expect(stripe.subscriptions.create).not.toHaveBeenCalled()
+  })
+
+  it('a pending upgrade that is paid later becomes Pro via the webhook', async () => {
+    const a = await starterAgent()
+    upgradeCharge = 'pending'
+    expect((await changeTo('pro')).status).toBe(402)
+    // Customer fixes their card; Stripe applies the pending update.
+    subs.get('sub_1').items.data[0].price = price(P.pro)
+    subs.get('sub_1').pending_update = null
+    await post(subEvent('customer.subscription.updated', 'sub_1'))
+    expect((await profile(a)).plan).toBe('pro')
+  })
+
+  it('Pro → Starter: no charge now; credited on the next invoice (create_prorations)', async () => {
+    const a = await t.agent('free')
+    makeSub('sub_1', { customer: 'cus_1', agent: a, price: P.pro })
+    await post(checkoutCompleted(a, 'cus_1', 'sub_1'))
+    currentUser = { id: a, email: 'agent@example.test' }
+    upgradeCharge = 'card_error' // must be irrelevant: a downgrade charges nothing
+    const res = await changeTo('starter')
+    expect(res.status).toBe(200)
+    expect(stripe.subscriptions.update).toHaveBeenCalledWith('sub_1', {
+      items: [{ id: 'si_sub_1', price: P.starter }], proration_behavior: 'create_prorations',
+    })
+    expect((await profile(a)).plan).toBe('starter')
   })
 
   it('checkout is refused while that subscription exists (the double-charge path)', async () => {
@@ -592,5 +650,21 @@ describe('billing page wiring (source; visual check is manual)', () => {
   })
   it('the webhook declares the Node runtime', () => {
     expect(src('app/api/stripe/webhook/route.ts')).toContain("export const runtime = 'nodejs'")
+  })
+})
+
+describe('migration 068', () => {
+  it('only adds a nullable column: existing ledger rows and counts are unchanged', async () => {
+    const fresh = await makePlanDb()
+    await fresh.db.exec(src('supabase/migrations/038_entitlements_and_billing_scaffold.sql'))
+    await fresh.db.query(`insert into public.stripe_webhook_events (event_id, type, livemode, automation_enabled, acted, payload_summary)
+      values ('evt_a', 'invoice.paid', false, false, false, '{"x":1}'), ('evt_b', 'customer.subscription.updated', true, false, false, null)`)
+    const before = await fresh.all(`select * from public.stripe_webhook_events order by event_id`)
+    await fresh.db.exec(src('supabase/migrations/068_stripe_webhook_processed_at.sql'))
+    const after = await fresh.all(`select * from public.stripe_webhook_events order by event_id`)
+    expect(after).toHaveLength(2)
+    expect(after.map(({ processed_at, ...rest }: any) => rest)).toEqual(before)
+    expect(after.every((r: any) => r.processed_at === null)).toBe(true)
+    expect(src('supabase/migrations/068_stripe_webhook_processed_at.sql')).not.toMatch(/^\s*(update|delete|insert)\b/im)
   })
 })

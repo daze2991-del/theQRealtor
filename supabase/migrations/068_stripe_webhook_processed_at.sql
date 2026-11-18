@@ -13,8 +13,10 @@
 --     safe because the handler re-reads the subscription from Stripe and
 --     writes absolute values (no increments).
 --
--- Existing rows were all fully handled when received (observe-only), so they
--- are backfilled as processed at their received_at.
+-- Strictly additive: adds one nullable column, rewrites no rows. Existing rows
+-- (all observe-only, already answered 200) keep processed_at NULL. Stripe does
+-- not redeliver events it got a 2xx for; if one is ever resent by hand it is
+-- simply handled again, which is harmless for the reason above.
 --
 -- ⚠️ APPLY BEFORE DEPLOYING the matching app/api/stripe/webhook/route.ts — the
 -- route writes this column on every signature-verified event, including while
@@ -26,9 +28,5 @@
 alter table public.stripe_webhook_events
   add column if not exists processed_at timestamptz;
 
-update public.stripe_webhook_events
-  set processed_at = received_at
-  where processed_at is null;
-
 comment on column public.stripe_webhook_events.processed_at is
-  'When the event was fully handled. NULL = claimed but its entitlement write has not succeeded yet; a Stripe retry of the same event_id is processed again.';
+  'When the event was fully handled. NULL = claimed but not yet handled (or recorded before migration 068); a Stripe redelivery of the same event_id is processed again.';

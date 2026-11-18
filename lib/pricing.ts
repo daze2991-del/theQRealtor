@@ -116,3 +116,20 @@ export function resolvePriceId(tier: PricingTier, interval: BillingInterval): st
   const value = process.env[envVarName]
   return value ? value : null
 }
+
+/**
+ * Reverse of resolvePriceId: which paid tier a Stripe Price ID belongs to,
+ * read from the same env vars at call time. Used by the Stripe webhook to set
+ * profiles.plan — the plan is always derived server-side from the price on
+ * the subscription, never from anything a client or event metadata claims.
+ * Returns null for an unknown/empty price ID; callers must change nothing.
+ */
+export function planForPriceId(priceId: string | null | undefined): PricingTier | null {
+  if (!priceId) return null
+  for (const tier of PRICING_TIERS) {
+    for (const interval of ['month', 'year'] as const) {
+      if (resolvePriceId(tier, interval) === priceId) return tier
+    }
+  }
+  return null
+}

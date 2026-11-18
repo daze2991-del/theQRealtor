@@ -3,6 +3,9 @@ import { getStripe } from '../../../../lib/stripe'
 import { createServerSupabase } from '../../../../lib/supabase-server'
 import { createAdminSupabase } from '../../../../lib/supabase-admin'
 import { isPricingTier, resolvePriceId, type BillingInterval } from '../../../../lib/pricing'
+import { findBlockingSubscription } from '../../../../lib/stripeSync'
+
+export const runtime = 'nodejs'
 
 export async function POST(request: Request) {
   // ── 1. PAID_PLANS_ENABLED ───────────────────────────────────────────────────
@@ -64,12 +67,36 @@ export async function POST(request: Request) {
   // parallel account. Read with the admin client so this reflects the true row
   // regardless of RLS.
   const admin = createAdminSupabase()
-  const { data: profile } = await admin
+  const { data: profile, error: profileError } = await admin
     .from('profiles')
-    .select('stripe_customer_id')
+    .select('stripe_customer_id, stripe_subscription_id')
     .eq('id', agentId)
     .maybeSingle()
+  if (profileError) {
+    console.error('[checkout] profile read failed:', profileError.message)
+    return NextResponse.json({ error: 'Could not start checkout. Please try again.' }, { status: 500 })
+  }
   const existingCustomerId = profile?.stripe_customer_id || null
+
+  // ── 8. Never a second subscription ─────────────────────────────────────────
+  // An agent with any subscription that is not canceled/incomplete_expired
+  // changes tier through /api/stripe/change-plan (one subscription, prorated)
+  // — a second Checkout would double-charge. Checked against Stripe, and
+  // fails closed if Stripe can't be reached.
+  try {
+    const blocking = await findBlockingSubscription(
+      getStripe(), existingCustomerId, profile?.stripe_subscription_id || null,
+    )
+    if (blocking) {
+      return NextResponse.json({
+        error: 'You already have a subscription. Use "Switch plan" or Manage Subscription to change it.',
+        code: 'existing_subscription',
+      }, { status: 409 })
+    }
+  } catch (err: any) {
+    console.error('[checkout] existing-subscription check failed:', err?.message)
+    return NextResponse.json({ error: 'Could not start checkout. Please try again.' }, { status: 502 })
+  }
 
   const origin = request.headers.get('origin') || 'https://realtqr.vercel.app'
 
@@ -92,6 +119,10 @@ export async function POST(request: Request) {
         : { customer_email: user.email }),
       client_reference_id: agentId,
       metadata: { agent_id: agentId, tier },
+      // Lets customer.subscription.* events find the agent even if they
+      // arrive before checkout.session.completed. Attribution only — the
+      // plan always comes from the price ID, never from this metadata.
+      subscription_data: { metadata: { agent_id: agentId } },
     })
     return NextResponse.json({ url: session.url })
   } catch (err: any) {

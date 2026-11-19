@@ -3,8 +3,11 @@ import { getStripe } from '../../../../lib/stripe'
 import { createServerSupabase } from '../../../../lib/supabase-server'
 import { createAdminSupabase } from '../../../../lib/supabase-admin'
 import { billingAutomationEnabled } from '../../../../lib/billing'
-import { isPricingTier, planForPriceId, resolvePriceId, type PricingTier } from '../../../../lib/pricing'
+import { isPricingTier, planForPriceId, resolvePriceId } from '../../../../lib/pricing'
+import { changeKind, isUpgrade } from '../../../../lib/autoRenewal'
+import { checkConsentText, recordConsent, requireConsentFlag, verifyStripePrice } from '../../../../lib/autoRenewalConsent'
 import { ENTITLED_STATUSES, syncSubscription } from '../../../../lib/stripeSync'
+import { sendSubscriptionConfirmation } from '../../../../lib/billingEmail'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -28,12 +31,6 @@ export const dynamic = 'force-dynamic'
 // • The plan is written by lib/stripeSync.ts from the updated subscription
 //   (same path as the webhook, which will also confirm it).
 
-const TIER_RANK: Record<PricingTier, number> = { starter: 1, pro: 2 }
-/** Moving to a higher tier (or from an unrecognized price) charges now. */
-function isUpgrade(from: PricingTier | null, to: PricingTier): boolean {
-  return from === null || TIER_RANK[to] > TIER_RANK[from]
-}
-
 const UPGRADE_DECLINED = {
   error: 'Your payment didn\'t go through, so your plan hasn\'t changed. Update your card in Manage Subscription and try again.',
   code: 'upgrade_payment_failed',
@@ -56,6 +53,11 @@ export async function POST(request: Request) {
   if (!isPricingTier(tier)) {
     return NextResponse.json({ error: 'Invalid or missing tier.' }, { status: 400 })
   }
+  // California auto-renewal consent: refuse before any database or Stripe work
+  // unless the request says the box was ticked (the text itself is checked
+  // below, once we know whether this is an upgrade or a downgrade).
+  const noConsent = requireConsentFlag(body)
+  if (noConsent) return NextResponse.json(noConsent.body, { status: noConsent.status })
 
   const admin = createAdminSupabase()
   const { data: profile, error: profileError } = await admin
@@ -100,13 +102,25 @@ export async function POST(request: Request) {
     }
 
     const interval = item.price.recurring?.interval === 'year' ? 'year' : 'month'
-    if (interval === 'year' && process.env.ANNUAL_BILLING_ENABLED !== 'true') {
+    // No annual consent wording exists yet, so annual changes stay refused
+    // regardless of ANNUAL_BILLING_ENABLED.
+    if (interval === 'year') {
       return NextResponse.json({ error: 'Annual billing is not yet available.' }, { status: 403 })
     }
     const priceId = resolvePriceId(tier, interval)
     if (!priceId || !priceId.startsWith('price_')) {
       console.error(`[change-plan] no valid price configured for ${tier}/${interval}`)
       return NextResponse.json({ error: 'Could not change your plan. Please try again later.' }, { status: 500 })
+    }
+
+    // ── Consent: exact text, price check, then proof — all before Stripe changes ──
+    const consent = checkConsentText(body, tier, changeKind(currentTier, tier))
+    if (!consent.ok) return NextResponse.json(consent.refusal.body, { status: consent.refusal.status })
+    if (!(await verifyStripePrice(stripe, priceId, tier))) {
+      return NextResponse.json({ error: 'This plan is temporarily unavailable. Please contact support.' }, { status: 500 })
+    }
+    if (!(await recordConsent(admin, { userId: user.id, tier, text: consent.text, request }))) {
+      return NextResponse.json({ error: 'Could not change your plan. Please try again.' }, { status: 500 })
     }
 
     if (isUpgrade(currentTier, tier)) {
@@ -151,6 +165,9 @@ export async function POST(request: Request) {
   try {
     const result = await syncSubscription(admin, stripe, profile.stripe_subscription_id, { userId: user.id })
     if (result.outcome !== 'updated') console.warn('[change-plan] immediate sync:', result)
+    // This sync is the one that moves the plan, so the webhook that follows
+    // finds nothing to change — send the confirmation here (best-effort).
+    await sendSubscriptionConfirmation(admin, result)
   } catch (err: any) {
     console.error('[change-plan] immediate sync failed (webhook will retry):', err?.message)
   }

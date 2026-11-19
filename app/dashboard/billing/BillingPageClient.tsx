@@ -10,6 +10,7 @@ import { planConfig, PLAN_CONFIG, type PlanId } from '../../../lib/plans'
 import { planChecklist, limitLabel } from '../../../lib/planChecklist'
 import { canSeeScoring } from '../../../lib/scoringAccess'
 import { PRICING_TIERS, PRICING_CLARIFIER, pricingTierConfig, isPricingTier, type PricingTier } from '../../../lib/pricing'
+import { autoRenewalCheckboxLabel, autoRenewalDisclosure, changeKind, consentPayload, type ConsentKind } from '../../../lib/autoRenewal'
 
 const C = {
   bg:      '#0F0F13',
@@ -52,6 +53,10 @@ export default function BillingPageClient({ paidPlansEnabled }: { paidPlansEnabl
   const [email, setEmail] = useState('')
   const [subscription, setSubscription] = useState<SubscriptionInfo>(null)
   const [checkingOut, setCheckingOut] = useState(false)
+  // California auto-renewal: the plan being considered, and whether the
+  // (separate, unchecked-by-default) renewal-consent box is ticked.
+  const [selectedTier, setSelectedTier] = useState<PricingTier | null>(null)
+  const [agreed, setAgreed] = useState(false)
   const [openingPortal, setOpeningPortal] = useState(false)
   const [hasBillingAccount, setHasBillingAccount] = useState(false)
   const [billingError, setBillingError] = useState<string | null>(null)
@@ -135,7 +140,7 @@ export default function BillingPageClient({ paidPlansEnabled }: { paidPlansEnabl
   const handleCheckout = async (tier: PricingTier) => {
     setBillingError(null)
     setCheckingOut(true)
-    const { url, error } = await postJson('/api/stripe/checkout', { tier, interval: 'month' })
+    const { url, error } = await postJson('/api/stripe/checkout', { tier, interval: 'month', ...consentPayload(tier, 'new') })
     if (url) window.location.href = url
     else { setBillingError(error || 'Could not start checkout. Please try again.'); setCheckingOut(false) }
   }
@@ -144,7 +149,9 @@ export default function BillingPageClient({ paidPlansEnabled }: { paidPlansEnabl
   const handleChangePlan = async (tier: PricingTier) => {
     setBillingError(null)
     setCheckingOut(true)
-    const { ok, error } = await postJson('/api/stripe/change-plan', { tier })
+    const { ok, error } = await postJson('/api/stripe/change-plan', {
+      tier, ...consentPayload(tier, changeKind(subscription?.tier ?? null, tier)),
+    })
     if (ok) window.location.reload()
     else { setBillingError(error || 'Could not change your plan. Please try again.'); setCheckingOut(false) }
   }
@@ -321,21 +328,50 @@ export default function BillingPageClient({ paidPlansEnabled }: { paidPlansEnabl
                       {PRICING_TIERS.map(tierKey => {
                         const cfg = pricingTierConfig(tierKey)
                         const isCurrent = hasOpenSubscription && subscription?.tier === tierKey
-                        const onClick = hasOpenSubscription ? () => handleChangePlan(tierKey) : () => handleCheckout(tierKey)
-                        const action = hasOpenSubscription ? `Switch to ${cfg.displayName}` : `Upgrade to ${cfg.displayName}`
+                        const isSelected = selectedTier === tierKey
+                        const action = hasOpenSubscription ? `Switch to ${cfg.displayName}` : `Choose ${cfg.displayName}`
                         return (
-                          <div key={tierKey} style={{ background: `${C.purple}10`, border: `1px solid ${C.border}`, borderRadius: 10, padding: 20 }}>
+                          <div key={tierKey} style={{ background: `${C.purple}10`, border: `1px solid ${isSelected ? C.purple : C.border}`, borderRadius: 10, padding: 20 }}>
                             <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 2 }}>{cfg.displayName}</div>
                             <div style={{ fontSize: 22, fontWeight: 700, color: C.purpleL, marginBottom: 8 }}>{cfg.displayPrice}</div>
                             <div style={{ fontSize: 12, color: C.muted, marginBottom: 10, lineHeight: 1.5 }}>{cfg.copy}</div>
-                            <button onClick={onClick} disabled={checkingOut || isCurrent}
+                            {/* Selecting a plan charges nothing — the purchase button is in the
+                                auto-renewal panel below, under the disclosure and consent box. */}
+                            <button onClick={() => { setSelectedTier(tierKey); setAgreed(false); setBillingError(null) }}
+                              disabled={checkingOut || isCurrent}
                               style={{ ...btnPrimary, marginBottom: 0, opacity: checkingOut || isCurrent ? 0.7 : 1, cursor: checkingOut || isCurrent ? 'not-allowed' : 'pointer' }}>
-                              {isCurrent ? 'Current plan' : checkingOut ? 'Working…' : action}
+                              {isCurrent ? 'Current plan' : isSelected ? 'Selected' : action}
                             </button>
                           </div>
                         )
                       })}
                     </div>
+
+                    {selectedTier && !(hasOpenSubscription && subscription?.tier === selectedTier) && (() => {
+                      const cfg = pricingTierConfig(selectedTier)
+                      const kind: ConsentKind = hasOpenSubscription ? changeKind(subscription?.tier ?? null, selectedTier) : 'new'
+                      const purchase = hasOpenSubscription ? () => handleChangePlan(selectedTier) : () => handleCheckout(selectedTier)
+                      return (
+                        <div data-testid="auto-renewal-panel" style={{ marginTop: 16, background: C.bg, border: `1px solid ${C.purple}`, borderRadius: 10, padding: 20 }}>
+                          {/* Plain, full-size text directly above the button — not fine print, not behind a link. */}
+                          <div data-testid="auto-renewal-disclosure" style={{ fontSize: 14, color: C.sub, lineHeight: 1.6 }}>
+                            {autoRenewalDisclosure(selectedTier, kind).map((line, i) => (
+                              <p key={i} style={{ margin: i === 0 ? '0 0 10px' : '0 0 10px', fontWeight: i === 0 ? 700 : 400, color: i === 0 ? C.text : C.sub }}>{line}</p>
+                            ))}
+                          </div>
+                          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, margin: '14px 0 16px', cursor: 'pointer' }}>
+                            <input type="checkbox" data-testid="auto-renewal-consent" checked={agreed}
+                              onChange={e => setAgreed(e.target.checked)}
+                              style={{ marginTop: 3, width: 18, height: 18, flexShrink: 0, accentColor: C.purple }} />
+                            <span style={{ fontSize: 14, color: C.text, lineHeight: 1.5 }}>{autoRenewalCheckboxLabel(selectedTier)}</span>
+                          </label>
+                          <button data-testid="auto-renewal-purchase" onClick={purchase} disabled={!agreed || checkingOut}
+                            style={{ ...btnPrimary, marginBottom: 0, opacity: !agreed || checkingOut ? 0.5 : 1, cursor: !agreed || checkingOut ? 'not-allowed' : 'pointer' }}>
+                            {checkingOut ? 'Working…' : hasOpenSubscription ? `Switch to ${cfg.displayName} · ${cfg.displayPrice}` : `Subscribe to ${cfg.displayName} · ${cfg.displayPrice}`}
+                          </button>
+                        </div>
+                      )
+                    })()}
                     <p style={{ fontSize: 11, color: C.muted, marginTop: 14, lineHeight: 1.5 }}>
                       {PRICING_CLARIFIER}
                     </p>
@@ -383,7 +419,7 @@ export default function BillingPageClient({ paidPlansEnabled }: { paidPlansEnabl
                       {openingPortal ? 'Opening…' : 'View Invoices & Payment Method'}
                     </button>
                     <p style={{ fontSize: 12, color: '#4B5563', marginTop: 12, textAlign: 'center' }}>
-                      Managed securely by Stripe · Cancel anytime from the portal
+                      Managed securely by Stripe · Cancel anytime in Manage Subscription — it takes effect at the end of your paid period
                     </p>
                   </>
                 )}

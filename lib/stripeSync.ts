@@ -44,7 +44,21 @@ export interface SyncProfile {
 }
 
 export type SyncResult =
-  | { outcome: 'updated'; profileId: string; planBefore: string | null; planAfter: string | null }
+  | {
+      outcome: 'updated'
+      profileId: string
+      planBefore: string | null
+      planAfter: string | null
+      /** Set for subscription writes; lets callers tell "new subscription" from "plan change". */
+      subscription?: {
+        idBefore: string | null
+        idAfter: string
+        status: string
+        priceId: string | null
+        currentPeriodEnd: string | null
+        cancelAtPeriodEnd: boolean
+      }
+    }
   | { outcome: 'skipped'; reason: string }
   | { outcome: 'error'; message: string }
 
@@ -159,7 +173,17 @@ export async function syncSubscription(
 
   const planAfter = 'plan' in update ? (update.plan as string) : profile.plan
   console.log(`[stripeSync] ${sub.id} (${sub.status}) → profile ${profile.id}: plan ${profile.plan} → ${planAfter}`)
-  return { outcome: 'updated', profileId: profile.id, planBefore: profile.plan, planAfter }
+  return {
+    outcome: 'updated', profileId: profile.id, planBefore: profile.plan, planAfter,
+    subscription: {
+      idBefore: profile.stripe_subscription_id,
+      idAfter: sub.id,
+      status: sub.status,
+      priceId: (update.price_id as string | undefined) ?? null,
+      currentPeriodEnd: (update.current_period_end as string | undefined) ?? null,
+      cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
+    },
+  }
 }
 
 /**

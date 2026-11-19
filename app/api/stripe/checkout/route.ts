@@ -4,6 +4,7 @@ import { createServerSupabase } from '../../../../lib/supabase-server'
 import { createAdminSupabase } from '../../../../lib/supabase-admin'
 import { isPricingTier, resolvePriceId, type BillingInterval } from '../../../../lib/pricing'
 import { findBlockingSubscription } from '../../../../lib/stripeSync'
+import { checkConsentText, recordConsent, requireConsentFlag, verifyStripePrice } from '../../../../lib/autoRenewalConsent'
 
 export const runtime = 'nodejs'
 
@@ -42,18 +43,27 @@ export async function POST(request: Request) {
   if (interval !== 'month' && interval !== 'year') {
     return NextResponse.json({ error: 'Invalid or missing interval.' }, { status: 400 })
   }
-  if (interval === 'year' && process.env.ANNUAL_BILLING_ENABLED !== 'true') {
+  // Annual stays off no matter what ANNUAL_BILLING_ENABLED says: there is no
+  // annual auto-renewal consent wording yet (lib/autoRenewal.ts is monthly
+  // only), and a subscription must never start without the right consent.
+  if (interval === 'year') {
     return NextResponse.json({ error: 'Annual billing is not yet available.' }, { status: 403 })
   }
+
+  // ── 5b. Auto-renewal consent (California ARL) ────────────────────────────────
+  // Refuse before any Stripe or database work unless the request carries the
+  // consent flag and the exact text this server would show.
+  const noConsent = requireConsentFlag(body)
+  if (noConsent) return NextResponse.json(noConsent.body, { status: noConsent.status })
+  const consent = checkConsentText(body, tier, 'new')
+  if (!consent.ok) return NextResponse.json(consent.refusal.body, { status: consent.refusal.status })
 
   // ── 6. Resolve the Price ID ──────────────────────────────────────────────────
   // No fallback and no default tier — a missing/empty env var is a
   // configuration error, not something to paper over with another price.
   const priceId = resolvePriceId(tier, interval)
   if (!priceId) {
-    const varName = tier === 'starter'
-      ? (interval === 'year' ? 'STRIPE_PRICE_ID_STARTER_YEARLY' : 'STRIPE_PRICE_ID_STARTER_MONTHLY')
-      : (interval === 'year' ? 'STRIPE_PRICE_ID_PRO_YEARLY' : 'STRIPE_PRICE_ID_PRO_MONTHLY')
+    const varName = tier === 'starter' ? 'STRIPE_PRICE_ID_STARTER_MONTHLY' : 'STRIPE_PRICE_ID_PRO_MONTHLY'
     console.error(`[checkout] Missing env var: ${varName}`)
     return NextResponse.json({ error: `Server misconfiguration: ${varName} is not set.` }, { status: 500 })
   }
@@ -100,12 +110,21 @@ export async function POST(request: Request) {
 
   const origin = request.headers.get('origin') || 'https://realtqr.vercel.app'
 
-  // TODO(ARL): California's Automatic Renewal Law requires an affirmative
-  // consent checkbox (and logged proof of consent — timestamp, IP, exact
-  // text shown) immediately before a subscription with auto-renewal is
-  // created. That checkbox and its consent-logging plug in here, before the
-  // Checkout Session below is created. Not implemented — pending legal
-  // review, see lib/billing.ts and the Stripe webhook's deferred-list comment.
+  // ── 9. The disclosed price must be the price Stripe will charge ──────────────
+  try {
+    if (!(await verifyStripePrice(getStripe(), priceId, tier))) {
+      return NextResponse.json({ error: 'This plan is temporarily unavailable. Please contact support.' }, { status: 500 })
+    }
+  } catch (err: any) {
+    console.error('[checkout] price verification failed:', err?.message)
+    return NextResponse.json({ error: 'Could not start checkout. Please try again.' }, { status: 502 })
+  }
+
+  // ── 10. Store proof of consent BEFORE the Checkout Session exists ────────────
+  // No row, no session: if this fails nothing is created and nothing is charged.
+  if (!(await recordConsent(admin, { userId: agentId, tier, text: consent.text, request }))) {
+    return NextResponse.json({ error: 'Could not start checkout. Please try again.' }, { status: 500 })
+  }
 
   try {
     const session = await getStripe().checkout.sessions.create({

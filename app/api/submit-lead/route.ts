@@ -7,32 +7,10 @@ import { sendAgentAlertEmail, emailMsg } from '../../../lib/email'
 import { SMS_CONSENT_TEXT, SMS_CONSENT_TEXT_MAX } from '../../../lib/smsConsent'
 import { getTrialStatus } from '../../../lib/trial'
 import { normalizePhone } from '../../../lib/phone'
+import { clientIp, reserveIpRequest, reserveBuyerConfirmation } from '../../../lib/smsLimits'
 import { isAcceptingRequests, requestsPausedCopy } from '../../../lib/planLock'
 
-// ─── rate limiter ─────────────────────────────────────────────────────────────
-// Best-effort in-memory window per IP. Works for single-instance deployments;
-// for multi-instance (e.g. many Vercel regions) use Redis instead.
-const rateMap = new Map<string, number[]>()
-const LIMIT = 5
-const WINDOW_MS = 60_000
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now()
-  const hits = (rateMap.get(ip) ?? []).filter(t => now - t < WINDOW_MS)
-  if (hits.length >= LIMIT) return true
-  hits.push(now)
-  rateMap.set(ip, hits)
-  return false
-}
-
-
 export async function POST(request: Request) {
-  // ── rate limit ──────────────────────────────────────────────────────────────
-  const ip = (request.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() || 'unknown'
-  if (isRateLimited(ip)) {
-    return NextResponse.json({ error: 'Too many submissions. Please wait a minute.' }, { status: 429 })
-  }
-
   // ── parse & validate body ───────────────────────────────────────────────────
   let body: Record<string, unknown>
   try {
@@ -295,20 +273,34 @@ export async function POST(request: Request) {
     // Buyer confirmation — showing/question only, phone required, NOT quiet-hours
     // gated, and only with affirmative SMS consent captured at submission. No
     // consent means the lead is still saved; we just never text the buyer.
+    //
+    // Durable caps sit underneath this (lib/smsLimits.ts): per client IP, per
+    // destination number, per listing. A refused or unreadable cap only skips
+    // THIS text — the lead is already saved and the agent already alerted.
+    const ipDecision = await reserveIpRequest(supabase, 'lead_request', clientIp(request))
     if ((cta === 'showing' || cta === 'question') && trimmedPhone && hasSmsConsent) {
-      const agentName = (property.agent_name as string) || null
-      const result = await sendSmsDetailed(trimmedPhone, msg.buyerConfirmation(cta, address, agentName))
-      if (result.sent) {
-        // buyer_texted_from: which of OUR numbers sent it, as Twilio reported it.
-        // Via a Messaging Service Twilio usually hasn't picked the sender yet at
-        // this point (see SendSmsResult), so this is often NULL. Only a real
-        // E.164 value is stored, so it can never trip the column's CHECK.
-        const from = result.from && /^\+[1-9][0-9]{7,14}$/.test(result.from) ? result.from : null
-        await supabase.from('leads')
-          .update({ buyer_texted_at: new Date().toISOString(), buyer_texted_from: from })
-          .eq('id', leadId)
+      const decision: { ok: true } | { ok: false; reason: string } = !ipDecision.ok
+        ? ipDecision
+        : !phoneE164
+          ? { ok: false, reason: 'invalid_phone' }
+          : await reserveBuyerConfirmation(supabase, { phoneE164, listingId: propertyId as string })
+      if (!decision.ok) {
+        console.warn('[submit-lead] buyer confirmation skipped — reason:', decision.reason, '| lead:', leadId)
+      } else {
+        const agentName = (property.agent_name as string) || null
+        const result = await sendSmsDetailed(trimmedPhone, msg.buyerConfirmation(cta, address, agentName))
+        if (result.sent) {
+          // buyer_texted_from: which of OUR numbers sent it, as Twilio reported it.
+          // Via a Messaging Service Twilio usually hasn't picked the sender yet at
+          // this point (see SendSmsResult), so this is often NULL. Only a real
+          // E.164 value is stored, so it can never trip the column's CHECK.
+          const from = result.from && /^\+[1-9][0-9]{7,14}$/.test(result.from) ? result.from : null
+          await supabase.from('leads')
+            .update({ buyer_texted_at: new Date().toISOString(), buyer_texted_from: from })
+            .eq('id', leadId)
+        }
+        // Suppressed or failed: buyer_texted_at / buyer_texted_from stay NULL.
       }
-      // Suppressed or failed: buyer_texted_at / buyer_texted_from stay NULL.
     }
 
     // Opportunistic delivery: a new lead is exactly the moment this agent's

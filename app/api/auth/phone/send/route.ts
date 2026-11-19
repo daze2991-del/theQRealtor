@@ -3,24 +3,24 @@ import { normalizePhone } from '../../../../../lib/phone'
 import { startPhoneVerification } from '../../../../../lib/twilio'
 import { isInvitedEmail } from '../../../../../lib/inviteGate'
 import { INVITE_ONLY_MESSAGE } from '../../../../../lib/inviteCopy'
+import { createAdminSupabase } from '../../../../../lib/supabase-admin'
+import { clientIp, reserveIpRequest, reserveVerificationCode } from '../../../../../lib/smsLimits'
 
-// ─── rate limiter ─────────────────────────────────────────────────────────────
-// Best-effort in-memory window per phone number. Works for single-instance
-// deployments; for multi-instance (e.g. many Vercel regions) use Redis instead.
-const rateMap = new Map<string, number[]>()
-const LIMIT = 3
-const WINDOW_MS = 60 * 60_000
+const TOO_MANY = 'Too many attempts, try again later.'
+const CANT_NOW = "Couldn't send a code right now. Please try again in a minute."
 
-function isRateLimited(key: string): boolean {
-  const now = Date.now()
-  const hits = (rateMap.get(key) ?? []).filter(t => now - t < WINDOW_MS)
-  if (hits.length >= LIMIT) return true
-  hits.push(now)
-  rateMap.set(key, hits)
-  return false
+function limitResponse(reason: string) {
+  return reason === 'check_failed'
+    ? NextResponse.json({ error: CANT_NOW }, { status: 503 })
+    : NextResponse.json({ error: TOO_MANY }, { status: 429 })
 }
 
 export async function POST(req: Request) {
+  // Durable per-IP cap (10/hour), counted from the database. Fails closed.
+  const admin = createAdminSupabase()
+  const ipDecision = await reserveIpRequest(admin, 'send_code_request', clientIp(req))
+  if (!ipDecision.ok) return limitResponse(ipDecision.reason)
+
   const { phone, email } = await req.json().catch(() => ({} as { phone?: unknown; email?: unknown }))
 
   // Invite check FIRST, server-side: a non-invited (or missing/malformed) email
@@ -38,12 +38,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Please enter a valid phone number.' }, { status: 400 })
   }
 
-  if (isRateLimited(normalizedPhone)) {
-    return NextResponse.json(
-      { error: 'Too many code requests for this number. Please try again later.' },
-      { status: 429 }
-    )
-  }
+  // Durable per-number cap (5 codes/day, shared by every route), checked and
+  // logged BEFORE Twilio is called so failed sends count too. Fails closed.
+  const phoneDecision = await reserveVerificationCode(admin, { phoneE164: normalizedPhone })
+  if (!phoneDecision.ok) return limitResponse(phoneDecision.reason)
 
   const result = await startPhoneVerification(normalizedPhone)
   if (!result.ok) {

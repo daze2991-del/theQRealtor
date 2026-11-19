@@ -137,6 +137,9 @@ function consentFor(tier: 'starter' | 'pro', subId = 'sub_1') {
 const checkoutBody = (tier: 'starter' | 'pro' = 'starter', extra: Record<string, unknown> = {}) =>
   ({ tier, interval: 'month', ...consentPayload(tier, 'new'), ...extra })
 
+// The four kill switches. The portal must work with all of them off.
+const SWITCHES = ['PAID_PLANS_ENABLED', 'STRIPE_CHARGES_ENABLED', 'BILLING_AUTOMATION_ENABLED', 'ANNUAL_BILLING_ENABLED']
+
 const profile = (id: string) => t.one(`select * from public.profiles where id = $1`, [id])
 const ledger = (id: string) => t.one(`select * from public.stripe_webhook_events where event_id = $1`, [id])
 async function linkStripe(agent: string, customer: string, subId: string | null) {
@@ -636,10 +639,15 @@ describe('kill switches unchanged', () => {
     expect((await checkout(new Request('http://t/x', { method: 'POST', body: '{"tier":"starter","interval":"year"}' }))).status).toBe(403)
   })
 
-  it('portal is off without STRIPE_CHARGES_ENABLED', async () => {
-    process.env.STRIPE_CHARGES_ENABLED = ''
+  it('purchases and plan changes stay off with every switch off — only the portal is exempt', async () => {
+    for (const k of SWITCHES) delete process.env[k]
     const a = await t.agent('starter'); currentUser = { id: a, email: 'a@example.test' }
-    expect((await portal(new Request('http://t/x', { method: 'POST' }))).status).toBe(403)
+    await linkStripe(a, 'cus_1', 'sub_1'); makeSub('sub_1', { customer: 'cus_1' })
+    expect((await checkout(new Request('http://t/x', { method: 'POST', body: JSON.stringify(checkoutBody()) }))).status).toBe(503)
+    expect((await changePlan(new Request('http://t/x', { method: 'POST', body: JSON.stringify({ tier: 'pro', ...consentFor('pro') }) }))).status).toBe(503)
+    expect(stripe.checkout.sessions.create).not.toHaveBeenCalled()
+    expect(stripe.subscriptions.update).not.toHaveBeenCalled()
+    expect(await consentRows()).toHaveLength(0)
   })
 })
 
@@ -668,12 +676,60 @@ describe('portal', () => {
     await linkStripe(a, 'cus_1', 'sub_1')
     expect(await (await open()).json()).toEqual({ url: 'https://billing.stripe.test/portal' })
   })
+
+  // Online cancellation must always work for anyone with a Stripe customer,
+  // whatever state the purchase switches are in.
+  describe.each([
+    ['all four switches empty', () => { for (const k of SWITCHES) process.env[k] = '' }],
+    ['all four switches unset', () => { for (const k of SWITCHES) delete process.env[k] }],
+    ['all four switches "false"', () => { for (const k of SWITCHES) process.env[k] = 'false' }],
+    ['purchase switches off, automation on', () => { for (const k of SWITCHES) process.env[k] = ''; process.env.BILLING_AUTOMATION_ENABLED = 'true' }],
+    ['every switch on', () => { for (const k of SWITCHES) process.env[k] = 'true' }],
+  ])('kill switches: %s', (_name, setSwitches) => {
+    it.each(['free', 'trial', 'starter', 'pro'])('an agent on %s with a Stripe customer reaches the portal', async plan => {
+      setSwitches()
+      const a = await t.agent(plan); currentUser = { id: a, email: 'a@example.test' }
+      await linkStripe(a, 'cus_1', null)   // e.g. cancelled earlier: customer on file, no subscription
+      const res = await open()
+      expect(res.status).toBe(200)
+      expect(await res.json()).toEqual({ url: 'https://billing.stripe.test/portal' })
+      expect(stripe.billingPortal.sessions.create).toHaveBeenCalledWith({
+        customer: 'cus_1', return_url: 'https://realtqr.vercel.app/dashboard/billing',
+      })
+    })
+
+    it('an agent with no Stripe customer is still refused (400) and Stripe is never called', async () => {
+      setSwitches()
+      const a = await t.agent('starter'); currentUser = { id: a, email: 'a@example.test' }
+      const res = await open()
+      expect(res.status).toBe(400)
+      expect((await res.json()).error).toMatch(/no billing account/i)
+      expect(stripe.billingPortal.sessions.create).not.toHaveBeenCalled()
+    })
+
+    it('a signed-out visitor is refused (401)', async () => {
+      setSwitches()
+      currentUser = null
+      expect((await open()).status).toBe(401)
+      expect(stripe.billingPortal.sessions.create).not.toHaveBeenCalled()
+    })
+
+    it('the portal only ever opens the signed-in agent\'s own customer, never another', async () => {
+      setSwitches()
+      const other = await t.agent('pro'); await linkStripe(other, 'cus_other', 'sub_other')
+      const a = await t.agent('pro'); currentUser = { id: a, email: 'a@example.test' }
+      await linkStripe(a, 'cus_mine', 'sub_mine')
+      await open()
+      expect(stripe.billingPortal.sessions.create).toHaveBeenCalledTimes(1)
+      expect((stripe.billingPortal.sessions.create.mock.calls[0] as unknown as [{ customer: string }])[0].customer).toBe('cus_mine')
+    })
+  })
 })
 
 describe('billing page wiring (source; visual check is manual)', () => {
   const s = src('app/dashboard/billing/BillingPageClient.tsx')
   it('Manage Subscription renders only when a Stripe customer exists', () => {
-    expect(s).toContain('{paidPlansEnabled && hasBillingAccount && (')
+    expect(s).toContain('{hasBillingAccount && (')
     expect(s).not.toContain('{paidPlansEnabled && hasPaidPlan && (')
   })
   it('an open subscription switches tier via change-plan; otherwise checkout', () => {
@@ -1188,6 +1244,7 @@ describe('billing page: disclosure and consent (source; click-through is a manua
     expect(page).toContain("...consentPayload(tier, 'new')")
     expect(page).toContain('...consentPayload(tier, changeKind(subscription?.tier ?? null, tier))')
     expect(page).toContain('Manage Subscription →')
-    expect(page).toContain('{paidPlansEnabled && hasBillingAccount && (')
+    expect(page).toContain('{hasBillingAccount && (')
+    expect(page).not.toMatch(/paidPlansEnabled\s*&&\s*hasBillingAccount/)
   })
 })

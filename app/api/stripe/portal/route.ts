@@ -14,10 +14,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const STRIPE_CHARGES_ENABLED = process.env.STRIPE_CHARGES_ENABLED === 'true'
-  if (!STRIPE_CHARGES_ENABLED) {
-    return NextResponse.json({ error: 'Paid plans not yet available' }, { status: 403 })
-  }
+  // Deliberately NOT behind STRIPE_CHARGES_ENABLED / PAID_PLANS_ENABLED /
+  // BILLING_AUTOMATION_ENABLED. Cancelling online must always work for anyone
+  // who has a Stripe customer (California's Automatic Renewal Law), even if
+  // the purchase switches are turned off while subscriptions exist. The portal
+  // creates no charge and no subscription; new purchases and plan changes stay
+  // behind the switches in /api/stripe/checkout and /api/stripe/change-plan.
+  // The only gate here is the one below: no Stripe customer, no portal.
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')

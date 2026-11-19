@@ -406,8 +406,9 @@ export default function BillingPageClient({ paidPlansEnabled }: { paidPlansEnabl
                   </p>
                 )}
 
-                {/* Only when a Stripe customer exists — the portal needs one. */}
-                {paidPlansEnabled && hasBillingAccount && (
+                {/* Whenever a Stripe customer exists — regardless of the purchase switches
+                    (paidPlansEnabled): cancelling online must always be reachable. */}
+                {hasBillingAccount && (
                   <>
                     <div style={divider} />
                     <button onClick={handlePortal} disabled={openingPortal}

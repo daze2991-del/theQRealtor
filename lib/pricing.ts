@@ -149,13 +149,18 @@ export function planForPriceId(priceId: string | null | undefined): PricingTier 
 }
 
 /** Short badge on the marketing hero. */
-export const INVITING_BADGE = 'Now inviting agents'
+export const INVITING_BADGE = 'Now inviting agents · Free plan available'
 
-/**
- * Marketing line describing who can join and what it costs. Every price is
- * read from PRICING_CATALOG above, so repricing never leaves stale copy.
- */
-export function invitingAgentsCopy(): string {
-  const { starter, pro } = PRICING_CATALOG
-  return `theQRealtor is now inviting agents. Start on the ${FREE_TIER_DISPLAY.displayName} plan, or choose ${starter.displayName} (${starter.displayPrice}) or ${pro.displayName} (${pro.displayPrice}).`
+/** Extra line under each paid card's body copy on the marketing page. */
+export const TIER_HIGHLIGHTS: Record<PricingTier, string> = {
+  starter: 'Lead scoring, text alerts and Needs Your Attention.',
+  pro: 'Everything in Starter.',
+}
+
+/** Free card body on the marketing page; limits are read from lib/plans.ts. */
+export function freeCardCopy(): string {
+  const { maxActiveListings: l, maxActiveSigns: s } = planConfig('free')
+  const listings = l === null ? 'All your active listings' : `${l} active listing${l === 1 ? '' : 's'}`
+  const signs = s === null ? 'all your active signs' : `${s} active sign${s === 1 ? '' : 's'}`
+  return `${listings} and ${signs}. Buyer inquiries with full contact details, by email.`
 }

@@ -10,3 +10,6 @@ export const INVITE_ONLY_MESSAGE =
 
 /** Label for every "get access" button on the marketing page (points at the signup tab). */
 export const REQUEST_INVITE_LABEL = 'Request an invite'
+
+/** Every "Request an invite" button on the marketing page opens this email. */
+export const INVITE_MAILTO = `mailto:${INVITE_EMAIL}?subject=theQRealtor%20invite%20request`

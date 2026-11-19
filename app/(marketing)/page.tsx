@@ -14,8 +14,8 @@ import {
   Users,
   Clock,
 } from 'lucide-react'
-import { pricingTierConfig, PRICING_CLARIFIER, INVITING_BADGE, invitingAgentsCopy } from '../../lib/pricing'
-import { REQUEST_INVITE_LABEL } from '../../lib/inviteCopy'
+import { pricingTierConfig, PRICING_CLARIFIER, INVITING_BADGE, TIER_HIGHLIGHTS, FREE_TIER_DISPLAY, freeCardCopy } from '../../lib/pricing'
+import { REQUEST_INVITE_LABEL, INVITE_MAILTO } from '../../lib/inviteCopy'
 import { TRIAL_DAYS } from '../../lib/trial'
 import { propertyLimitForPlan, signLimitForPlan } from '../../lib/plans'
 
@@ -52,12 +52,12 @@ function Nav() {
           >
             Log in
           </Link>
-          <Link
-            href="/auth?tab=signup"
+          <a
+            href={INVITE_MAILTO}
             className="bg-[#534AB7] hover:bg-[#3C3489] text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
           >
             {REQUEST_INVITE_LABEL}
-          </Link>
+          </a>
         </div>
       </div>
     </nav>
@@ -286,13 +286,13 @@ function Hero() {
           {' '}turns every anonymous scan into a signal — so you know who&apos;s interested, how strong that interest is, and exactly when to follow up.
         </motion.p>
 
-        <motion.div variants={fadeUp} className="flex items-center justify-center gap-3 mb-12">
-          <Link
-            href="/auth?tab=signup"
+        <motion.div variants={fadeUp} className="flex flex-wrap items-center justify-center gap-3 mb-12">
+          <a
+            href={INVITE_MAILTO}
             className="bg-[#534AB7] hover:bg-[#3C3489] text-white rounded-lg px-5 py-2.5 text-sm font-medium transition-colors"
           >
             {REQUEST_INVITE_LABEL}
-          </Link>
+          </a>
           <button
             onClick={scrollToHow}
             className="border border-solid border-gray-200 text-gray-500 hover:bg-gray-50 rounded-lg px-5 py-2.5 text-sm transition-colors"
@@ -509,7 +509,7 @@ function HowItWorks() {
     },
     {
       title: 'Follow up at the right moment',
-      body: 'When a buyer requests a showing or asks a question, you get an instant SMS alert and their details go straight to your dashboard.',
+      body: 'When a buyer requests a showing or asks a question, you get an instant alert (text on Starter and Pro, email on Free) and their details go straight to your dashboard.',
     },
   ]
 
@@ -591,7 +591,7 @@ function Features() {
     {
       icon: MessageSquare,
       title: 'Know exactly when to follow up.',
-      body: 'When a buyer submits an inquiry, you get an instant SMS alert with their engagement history. You always know context before you call.',
+      body: 'When a buyer submits an inquiry, you get an instant alert with their engagement history. You always know the context before you call.',
     },
     {
       icon: Lock,
@@ -769,7 +769,7 @@ function CommonQuestion() {
 function Pricing() {
   return (
     <section className="border-b border-solid border-gray-100">
-      <div className="max-w-3xl mx-auto py-16 px-8">
+      <div className="max-w-5xl mx-auto py-16 px-8">
         <motion.div
           className="text-center mb-10"
           initial={{ opacity: 0, y: 18 }}
@@ -784,15 +784,40 @@ function Pricing() {
             Simple, predictable pricing.
           </h2>
           <p className="text-sm text-gray-500 max-w-md mx-auto">
-            {invitingAgentsCopy()}
+            Free for your first {TRIAL_DAYS} days, then choose a plan.
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+          {/* Free */}
+          <motion.div
+            className="relative bg-white rounded-[20px] p-7 min-w-0"
+            style={{ border: '1px solid #E5E7EB', boxShadow: '0 4px 16px rgba(0,0,0,0.05)' }}
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={viewportOnce}
+            transition={{ duration: 0.5, ease: 'easeOut', delay: 0 }}
+          >
+            <div className="text-sm font-semibold text-gray-400 mb-2">{FREE_TIER_DISPLAY.displayName}</div>
+            <div className="flex items-baseline gap-1 mb-5">
+              <span className="text-4xl font-bold tracking-tight text-gray-900">{FREE_TIER_DISPLAY.displayPrice}</span>
+              <span className="text-sm text-gray-400">/mo</span>
+            </div>
+            <p className="text-sm text-gray-500 leading-relaxed mb-6">
+              {freeCardCopy()}
+            </p>
+            <a
+              href={INVITE_MAILTO}
+              className="block text-center border border-solid border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg px-5 py-2.5 text-sm font-medium transition-colors"
+            >
+              {REQUEST_INVITE_LABEL}
+            </a>
+          </motion.div>
 
           {/* Starter */}
           <motion.div
-            className="relative bg-white rounded-[20px] p-7"
+            className="relative bg-white rounded-[20px] p-7 min-w-0"
             style={{ border: '1px solid #E5E7EB', boxShadow: '0 4px 16px rgba(0,0,0,0.05)' }}
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -807,20 +832,23 @@ function Pricing() {
             <p className="text-sm text-gray-500 leading-relaxed mb-3">
               {pricingTierConfig('starter').copy}
             </p>
+            <p className="text-sm font-medium text-gray-700 leading-relaxed mb-3">
+              {TIER_HIGHLIGHTS.starter}
+            </p>
             <p className="text-sm text-gray-500 leading-relaxed mb-6">
               {PRICING_CLARIFIER}
             </p>
-            <Link
-              href="/auth?tab=signup"
+            <a
+              href={INVITE_MAILTO}
               className="block text-center border border-solid border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg px-5 py-2.5 text-sm font-medium transition-colors"
             >
               {REQUEST_INVITE_LABEL}
-            </Link>
+            </a>
           </motion.div>
 
           {/* Pro */}
           <motion.div
-            className="relative bg-white rounded-[20px] p-7"
+            className="relative bg-white rounded-[20px] p-7 min-w-0"
             style={{ border: '2px solid #534AB7', boxShadow: '0 8px 32px rgba(83,74,183,0.12)' }}
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -838,15 +866,18 @@ function Pricing() {
             <p className="text-sm text-gray-500 leading-relaxed mb-3">
               {pricingTierConfig('pro').copy}
             </p>
+            <p className="text-sm font-medium text-gray-700 leading-relaxed mb-3">
+              {TIER_HIGHLIGHTS.pro}
+            </p>
             <p className="text-sm text-gray-500 leading-relaxed mb-6">
               {PRICING_CLARIFIER}
             </p>
-            <Link
-              href="/auth?tab=signup"
+            <a
+              href={INVITE_MAILTO}
               className="block text-center bg-[#534AB7] hover:bg-[#3C3489] text-white rounded-lg px-5 py-2.5 text-sm font-medium transition-colors"
             >
               {REQUEST_INVITE_LABEL}
-            </Link>
+            </a>
           </motion.div>
 
         </div>
@@ -877,16 +908,16 @@ function FinalCta() {
           Start seeing the <span style={{ color: '#534AB7' }}>buyer interest</span> you&apos;ve been missing.
         </h2>
         <p className="text-gray-500 leading-relaxed max-w-md mx-auto mb-8">
-          {invitingAgentsCopy()} Your inquiries, always yours.
+          Start with a {TRIAL_DAYS}-day free trial with {trialListings} {listingWord} and up to {trialSigns} signs. No credit card required. Your inquiries, always yours.
         </p>
-        <Link
-          href="/auth?tab=signup"
+        <a
+          href={INVITE_MAILTO}
           className="inline-block bg-[#534AB7] hover:bg-[#3C3489] text-white rounded-lg px-7 py-3 text-base font-medium transition-colors"
         >
           {REQUEST_INVITE_LABEL}
-        </Link>
+        </a>
         <p className="text-xs text-gray-400 mt-4">
-          {TRIAL_DAYS}-day free trial · {trialListings} {listingWord} to test drive · Up to {trialSigns} QR codes · No card required
+          {TRIAL_DAYS}-day free trial · {trialListings} {listingWord} · Up to {trialSigns} signs · No card required
         </p>
       </motion.div>
     </section>

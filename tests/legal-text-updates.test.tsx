@@ -90,7 +90,7 @@ describe('Privacy Policy: full replacement', () => {
 // ── Terms: only the specified pieces change ──────────────────────────────────
 describe('Terms of Service: scoped replacement', () => {
   it('"Last updated" is today', () => {
-    expect(termsHtml).toContain('Last updated: October 7, 2026')
+    expect(termsHtml).toContain('Last updated: November 18, 2026')
   })
 
   it('§5 drops the retired line and gets the new buyer-confirmation wording', () => {
@@ -111,7 +111,7 @@ describe('Terms of Service: scoped replacement', () => {
     expect(termsHtml).toContain(
       'theqrealtor offers free and paid subscription plans. Paid subscriptions are billed in advance on a monthly or annual basis through Stripe. All fees are non-refundable except as required by law or as explicitly stated in a refund policy.')
     expect(termsHtml).toContain("We reserve the right to change pricing with 30 days' notice to active subscribers.")
-    expect(termsHtml).toContain('Beta Agent participants receive free full platform access during the beta testing period.')
+    expect(termsHtml).not.toMatch(/beta/i)
   })
 
   it('§4 paragraphs NOT listed for replacement are untouched', () => {

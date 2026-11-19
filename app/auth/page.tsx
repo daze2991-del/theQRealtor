@@ -64,15 +64,21 @@ function AuthForm() {
 
   async function handleSendCode() {
     setPhoneMessage("");
+    if (!email.trim()) { setPhoneMessage("Enter your email first."); return; }
     if (!phone.trim()) { setPhoneMessage("Enter a phone number first."); return; }
     setSendingCode(true);
     try {
       const res = await fetch('/api/auth/phone/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone }),
+        body: JSON.stringify({ phone, email }),
       });
       const body = await res.json();
+      if (res.status === 403) {
+        // Not on the invite list: show the invite-only screen now, before any SMS.
+        setInviteOnly(true);
+        return;
+      }
       if (!res.ok) {
         setPhoneMessage(body.error ?? 'Could not send code. Please try again.');
         return;

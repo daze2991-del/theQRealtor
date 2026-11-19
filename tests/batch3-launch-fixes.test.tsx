@@ -30,7 +30,7 @@ vi.mock('../lib/twilio', () => ({
 const { PLAN_CONFIG } = await import('../lib/plans')
 const { planChecklist, limitLabel } = await import('../lib/planChecklist')
 const { planDisplayName } = await import('../lib/planLabel')
-const { PRICING_CATALOG, FREE_TIER_DISPLAY, invitingAgentsCopy, INVITING_BADGE } = await import('../lib/pricing')
+const { PRICING_CATALOG, FREE_TIER_DISPLAY } = await import('../lib/pricing')
 const { INVITE_ONLY_MESSAGE, REQUEST_INVITE_LABEL } = await import('../lib/inviteCopy')
 const BrandedNotice = (await import('../components/BrandedNotice')).default
 const notice = await import('../components/BrandedNotice')
@@ -115,24 +115,9 @@ describe('3. beta wording gone; invite-only messaging', () => {
     for (const dir of ['app', 'components', 'lib']) for (const f of walk(dir)) if (BAD.test(code(f))) hits.push(f)
     expect(hits).toEqual([])
   })
-  it('exact new copy', () => {
-    expect(INVITING_BADGE).toBe('Now inviting agents')
-    expect(invitingAgentsCopy()).toBe('theQRealtor is now inviting agents. Start on the Free plan, or choose Starter ($39/mo) or Pro ($69/mo).')
+  it('exact invite wording', () => {
     expect(REQUEST_INVITE_LABEL).toBe('Request an invite')
     expect(INVITE_ONLY_MESSAGE).toBe('theQRealtor is invite-only right now. Email hello@theqrealtor.com to request an invite.')
-  })
-  it('prices in the inviting line are read from lib/pricing.ts', () => {
-    const line = invitingAgentsCopy()
-    expect(line).toContain(PRICING_CATALOG.starter.displayPrice)
-    expect(line).toContain(PRICING_CATALOG.pro.displayPrice)
-    expect(line).toContain(FREE_TIER_DISPLAY.displayName)
-  })
-  it('marketing page: every signup button uses the new label and points at the signup tab', () => {
-    const s = code('app/(marketing)/page.tsx')
-    expect(s).not.toMatch(/\$\d/)
-    const links = s.match(/<Link[^>]*href="\/auth\?tab=signup"[^>]*>\s*\{REQUEST_INVITE_LABEL\}/g) ?? []
-    expect(links.length).toBe(5)
-    expect(s.match(/REQUEST_INVITE_LABEL/g)!.length).toBe(links.length + 1) // + the import
   })
   it('blocked signup shows the invite-only message (client and API)', () => {
     expect(code('app/auth/page.tsx')).toContain('{INVITE_ONLY_MESSAGE}')

@@ -66,7 +66,7 @@ export default function TermsPage() {
             Terms of Service
           </h1>
           <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>
-            Last updated: October 7, 2026
+            Last updated: November 18, 2026
           </p>
         </div>
 
@@ -122,7 +122,7 @@ export default function TermsPage() {
             We reserve the right to change pricing with 30 days' notice to active subscribers.
           </p>
           <p style={{ margin: 0 }}>
-            Beta Agent participants receive free full platform access during the beta testing period. No charge and no payment method is required during beta. Pricing for paid plans will be communicated before any charges occur.
+            Pricing for paid plans will be communicated before any charges occur.
           </p>
         </Section>
 

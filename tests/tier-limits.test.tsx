@@ -176,7 +176,7 @@ describe('marketing page renders the new prices and limits', () => {
     expect(html.toLowerCase()).not.toContain('unlimited')
     // FinalCta reads the trial limits too
     expect(html).toContain('3 listings')
-    expect(html).toContain('15 QR codes')
+    expect(html).toContain('up to 15 signs')
   })
 })
 

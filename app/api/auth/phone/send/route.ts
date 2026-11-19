@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { normalizePhone } from '../../../../../lib/phone'
 import { startPhoneVerification } from '../../../../../lib/twilio'
+import { isInvitedEmail } from '../../../../../lib/inviteGate'
+import { INVITE_ONLY_MESSAGE } from '../../../../../lib/inviteCopy'
 
 // ─── rate limiter ─────────────────────────────────────────────────────────────
 // Best-effort in-memory window per phone number. Works for single-instance
@@ -19,7 +21,14 @@ function isRateLimited(key: string): boolean {
 }
 
 export async function POST(req: Request) {
-  const { phone } = await req.json()
+  const { phone, email } = await req.json().catch(() => ({} as { phone?: unknown; email?: unknown }))
+
+  // Invite check FIRST, server-side: a non-invited (or missing/malformed) email
+  // must never cause a verification SMS to be sent, whatever the UI did. The
+  // answer is deliberately the same generic message either way.
+  if (!(await isInvitedEmail(email))) {
+    return NextResponse.json({ error: INVITE_ONLY_MESSAGE, inviteOnly: true }, { status: 403 })
+  }
 
   if (!phone || typeof phone !== 'string' || !phone.trim()) {
     return NextResponse.json({ error: 'A phone number is required.' }, { status: 400 })

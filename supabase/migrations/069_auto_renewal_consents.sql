@@ -60,9 +60,12 @@ create index if not exists auto_renewal_consents_user_idx
 -- RLS on with NO policies, and no grants to anon/authenticated: agents can
 -- neither read nor write these rows. (This project does not auto-grant
 -- privileges on new tables — see 038 — so the grant below is required.)
--- service_role gets INSERT and SELECT only: no UPDATE, no DELETE.
+-- service_role gets INSERT and SELECT only: no UPDATE, no DELETE, no TRUNCATE.
+-- Supabase's default privileges hand service_role extra rights (TRUNCATE,
+-- REFERENCES, TRIGGER) on every new public table, so they are revoked
+-- explicitly before the two grants below.
 alter table public.auto_renewal_consents enable row level security;
-revoke all on public.auto_renewal_consents from public, anon, authenticated;
+revoke all on public.auto_renewal_consents from public, anon, authenticated, service_role;
 grant select, insert on public.auto_renewal_consents to service_role;
 
 -- ── Append-only, 3-year floor ────────────────────────────────────────────────

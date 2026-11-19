@@ -22,6 +22,10 @@ export interface PricingTierConfig {
   /** Monthly price as shown to users. Annual display is inert until
    *  ANNUAL_BILLING_ENABLED — see app/api/stripe/checkout/route.ts. */
   displayPrice: string
+  /** Monthly price in cents — the amount the auto-renewal consent records and
+   *  that checkout/change-plan verify against the live Stripe Price before
+   *  charging. displayPrice is derived from this, never typed separately. */
+  priceCents: number
   /** Env var names holding this tier's Stripe Price IDs. `year` exists so the
    *  shape is ready for annual billing, but resolvePriceId() rejects
    *  interval:'year' unless ANNUAL_BILLING_ENABLED is true. */
@@ -53,11 +57,20 @@ function tierCopy(tier: PricingTier | 'free'): string {
 // monthly prices) — recalculate from the then-current monthly prices and
 // create matching Stripe Prices; nothing here displays an annual price today.
 
+/** 3900 → "$39/mo", 4950 → "$49.50/mo". */
+export function dollars(cents: number): string {
+  return Number.isInteger(cents / 100) ? `$${cents / 100}` : `$${(cents / 100).toFixed(2)}`
+}
+function monthlyDisplay(cents: number): string {
+  return `${dollars(cents)}/mo`
+}
+
 export const PRICING_CATALOG: Record<PricingTier, PricingTierConfig> = {
   starter: {
     tier: 'starter',
     displayName: 'Starter',
-    displayPrice: '$39/mo',
+    displayPrice: monthlyDisplay(3900),
+    priceCents: 3900,
     priceEnvVar: {
       month: 'STRIPE_PRICE_ID_STARTER_MONTHLY',
       year:  'STRIPE_PRICE_ID_STARTER_YEARLY',
@@ -75,7 +88,8 @@ export const PRICING_CATALOG: Record<PricingTier, PricingTierConfig> = {
     // STRIPE_PRICE_ID_PRO_MONTHLY at its new Price ID. Never edit the old
     // Price — Stripe Prices are immutable, and existing subscriptions keep
     // the Price they were created with.
-    displayPrice: '$69/mo',
+    displayPrice: monthlyDisplay(6900),
+    priceCents: 6900,
     priceEnvVar: {
       month: 'STRIPE_PRICE_ID_PRO_MONTHLY',
       year:  'STRIPE_PRICE_ID_PRO_YEARLY',

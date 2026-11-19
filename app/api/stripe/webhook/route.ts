@@ -4,6 +4,7 @@ import { getStripe } from '../../../../lib/stripe'
 import { createAdminSupabase } from '../../../../lib/supabase-admin'
 import { billingAutomationEnabled } from '../../../../lib/billing'
 import { stripeKeyIsLive, syncInvoice, syncSubscription, type SyncResult } from '../../../../lib/stripeSync'
+import { sendSubscriptionConfirmation } from '../../../../lib/billingEmail'
 
 // Stripe signature verification needs the raw body and Node crypto.
 export const runtime = 'nodejs'
@@ -148,6 +149,12 @@ export async function POST(request: Request) {
     console.error(`[stripe/webhook] ${event.id} not processed: ${result.message}`)
     return NextResponse.json({ error: 'Processing failed' }, { status: 500 })
   }
+
+  // Best-effort confirmation email (new subscription / plan change to a paid
+  // plan). Never throws and never changes the outcome. Sent BEFORE the ledger
+  // is marked so a failed mark (→ retry) can't lose it: the retry finds the
+  // profile already updated and sends nothing further.
+  if (result) await sendSubscriptionConfirmation(supabase, result)
 
   const acted = result?.outcome === 'updated'
   const { error: markError } = await supabase

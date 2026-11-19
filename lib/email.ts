@@ -17,6 +17,7 @@ import 'server-only'
 import { Resend } from 'resend'
 import { featuresForPlan } from './plans'
 import { leadUrl } from './twilio'
+import { dollars, pricingTierConfig, isPricingTier } from './pricing'
 
 const FROM = 'theQRealtor <alerts@theqrealtor.com>'
 const REPLY_TO = 'hello@theqrealtor.com'
@@ -119,6 +120,99 @@ export async function sendAgentAlertEmail(opts: {
   } catch (err: any) {
     // Never throw — a failed email must never fail or delay the lead write.
     console.error('[email] send threw:', err?.message ?? err)
+    return { sent: false, reason: 'send_failed' }
+  }
+}
+
+// ── Billing / subscription confirmation ──────────────────────────────────────
+// Transactional, not an alert: it ignores profiles.email_alerts_enabled and the
+// plan's canUseEmailAlerts, and carries its own footer. Reuses the same Resend
+// client, sender and Reply-To as the alert emails. Never throws.
+
+const SUPPORT_EMAIL = 'hello@theqrealtor.com'
+
+function appUrl(): string {
+  return (process.env.NEXT_PUBLIC_APP_URL || 'https://theqrealtor.com').replace(/\/$/, '')
+}
+
+function longDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })
+}
+
+function wrapBilling(subject: string, lines: string[]): { subject: string; text: string; html: string } {
+  const foot = `You're getting this because you subscribed to theQRealtor. Questions? Email ${SUPPORT_EMAIL}.`
+  const text = [...lines, '', foot].join('\n')
+  const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const html = `<!doctype html><html><body style="font-family:-apple-system,Helvetica,Arial,sans-serif;color:#1a1a1a;line-height:1.6;max-width:480px;margin:0 auto;padding:24px 16px">
+${lines.map(l => l ? `<p style="margin:0 0 12px">${escape(l).replace(/(https?:\/\/\S+)/g, '<a href="$1" style="color:#7C3AED">$1</a>')}</p>` : '').join('\n')}
+<hr style="border:none;border-top:1px solid #e5e5e5;margin:20px 0">
+<p style="margin:0;font-size:12px;color:#6B7280">${escape(foot)}</p>
+</body></html>`
+  return { subject, text, html }
+}
+
+/**
+ * Repeats the auto-renewal terms after a purchase: plan, price, monthly
+ * auto-renewal, next charge date, how to cancel online, support contact.
+ * `plan` must be a paid tier key; the price comes from the pricing catalog.
+ */
+export function subscriptionConfirmationEmail(o: {
+  plan: string
+  kind: 'new' | 'change'
+  /** ISO timestamp of the next charge (current period end), if known. */
+  nextChargeAt: string | null
+}): { subject: string; text: string; html: string } | null {
+  if (!isPricingTier(o.plan)) return null
+  const { displayName, priceCents } = pricingTierConfig(o.plan)
+  const price = dollars(priceCents)
+  const billingUrl = `${appUrl()}/dashboard/billing`
+  return wrapBilling(
+    o.kind === 'new'
+      ? `Your theQRealtor ${displayName} subscription is confirmed`
+      : `Your theQRealtor plan is now ${displayName}`,
+    [
+      o.kind === 'new'
+        ? `Thanks for subscribing — your ${displayName} plan is active.`
+        : `Your plan has been changed to ${displayName}.`,
+      `Plan: ${displayName} — ${price} per month`,
+      `Automatic renewal: your subscription renews automatically every month until you cancel, and your card is charged ${price} each month on your renewal date.`,
+      o.nextChargeAt
+        ? `Next charge: ${price} on ${longDate(o.nextChargeAt)}.`
+        : `Your next charge of ${price} is on your next renewal date.`,
+      `Cancel anytime online: sign in, open ${billingUrl} and choose Manage Subscription. Cancellation takes effect at the end of the period you have already paid for. Under our Terms, all fees are non-refundable, including for partial months, except as required by law.`,
+      `Questions? Email ${SUPPORT_EMAIL}.`,
+    ],
+  )
+}
+
+export type SendBillingEmailResult = { sent: true; id: string } | { sent: false; reason: EmailSkipReason }
+
+/** Best-effort transactional send. `idempotencyKey` makes a retry a no-op at Resend. */
+export async function sendBillingEmail(opts: {
+  to: string | null | undefined
+  subject: string
+  text: string
+  html: string
+  idempotencyKey?: string
+}): Promise<SendBillingEmailResult> {
+  if (!opts.to) return { sent: false, reason: 'no_recipient' }
+  const resend = resendClient()
+  if (!resend) {
+    console.warn('[email] RESEND_API_KEY not set — skipping billing email')
+    return { sent: false, reason: 'not_configured' }
+  }
+  try {
+    const { data, error } = await resend.emails.send(
+      { from: FROM, to: opts.to, replyTo: REPLY_TO, subject: opts.subject, text: opts.text, html: opts.html },
+      opts.idempotencyKey ? { idempotencyKey: opts.idempotencyKey } : undefined,
+    )
+    if (error || !data) {
+      console.error('[email] billing send failed:', error?.message ?? 'no data returned')
+      return { sent: false, reason: 'send_failed' }
+    }
+    return { sent: true, id: data.id }
+  } catch (err: any) {
+    console.error('[email] billing send threw:', err?.message ?? err)
     return { sent: false, reason: 'send_failed' }
   }
 }

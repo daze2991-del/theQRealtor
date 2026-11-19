@@ -77,9 +77,26 @@ export function makePgSupabase(db: PGlite) {
     return b
   }
 
+  // auth.admin.getUserById — what lib/billingEmail.ts uses to find the
+  // recipient. Register addresses in `users`; `failUserLookup` simulates an error.
+  const users = new Map<string, string>()
+  const auth = {
+    admin: {
+      getUserById: async (id: string) => {
+        if (failUserLookup.throws) throw new Error('simulated auth lookup crash')
+        if (failUserLookup.on) return { data: { user: null }, error: { message: 'simulated auth lookup failure' } }
+        const email = users.get(id)
+        return { data: { user: email ? { id, email } : null }, error: null }
+      },
+    },
+  }
+  const failUserLookup = { on: false, throws: false }
+
   return {
-    client: { from } as any,
+    client: { from, auth } as any,
     log,
+    users,
+    failUserLookup,
     failNext(table: string, op: Op) { failures.push({ table, op }) },
   }
 }

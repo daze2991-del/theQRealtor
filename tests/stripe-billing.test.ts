@@ -94,6 +94,7 @@ import { POST as checkout } from '../app/api/stripe/checkout/route'
 import { POST as changePlan } from '../app/api/stripe/change-plan/route'
 import { POST as portal } from '../app/api/stripe/portal/route'
 import { planForPriceId, isPricingTier } from '../lib/pricing'
+import { confirmationKind } from '../lib/billingEmail'
 
 const P = {
   starter: 'price_starter_monthly',
@@ -986,6 +987,20 @@ describe('confirmation email', () => {
     expect(sendEmail).not.toHaveBeenCalled()
   })
 
+  it('confirmationKind: founding/alpha are excluded on their own, not just because their plan never moves', () => {
+    const updated = (planBefore: string, planAfter: string, over: Record<string, unknown> = {}) => ({
+      outcome: 'updated' as const, profileId: 'p', planBefore, planAfter,
+      subscription: { idBefore: null, idAfter: 'sub_x', status: 'active', priceId: P.pro, currentPeriodEnd: null, cancelAtPeriodEnd: false, ...over },
+    })
+    expect(confirmationKind(updated('free', 'pro'))).toBe('new')
+    expect(confirmationKind(updated('founding', 'pro'))).toBeNull()
+    expect(confirmationKind(updated('alpha', 'starter'))).toBeNull()
+    expect(confirmationKind(updated('pro', 'free'))).toBeNull()
+    expect(confirmationKind(updated('pro', 'pro', { idBefore: 'sub_x' }))).toBeNull()
+    expect(confirmationKind(updated('starter', 'pro', { idBefore: 'sub_x' }))).toBe('change')
+    expect(confirmationKind({ outcome: 'skipped', reason: 'x' })).toBeNull()
+  })
+
   it('no email for past_due, cancellation, deletion, or a subscription set to cancel', async () => {
     const a = await agent('pro'); await linkStripe(a, 'cus_1', 'sub_1')
     makeSub('sub_1', { customer: 'cus_1', price: P.pro, status: 'past_due' })
@@ -1003,6 +1018,7 @@ describe('confirmation email', () => {
       ['Resend throws', () => sendEmail.mockRejectedValue(new Error('resend down'))],
       ['Resend returns an error', () => sendEmail.mockResolvedValue({ data: null, error: { message: 'rate limited' } })],
       ['the recipient lookup fails', () => { pg.failUserLookup.on = true }],
+      ['the recipient lookup throws', () => { pg.failUserLookup.throws = true }],
       ['RESEND_API_KEY is missing', () => { process.env.RESEND_API_KEY = '' }],
     ]
     it.each(cases)('webhook: %s → still 200, plan set, event processed', async (_name, breakIt) => {

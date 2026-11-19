@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { PROPERTY_COLUMNS } from '../../../../lib/propertyColumns'
 import { useParams, useRouter } from 'next/navigation'
 import { createBrowserSupabase } from '../../../../lib/supabase-browser'
 import DashboardLayout from '../../../../components/DashboardLayout'
@@ -140,7 +141,7 @@ export default function LeadDetailPage() {
         propRes, photoRes, qrRes, scanRes,
         leadCountRes, scanCountRes, showingRes,
       ] = await Promise.all([
-        supabase.from('properties').select('*').eq('id', leadData.property_id).single(),
+        supabase.from('properties').select(PROPERTY_COLUMNS).eq('id', leadData.property_id).single(),
         supabase.from('property_photos').select('url').eq('property_id', leadData.property_id)
           .order('sort_order', { ascending: true }).limit(1),
         leadData.sign_id

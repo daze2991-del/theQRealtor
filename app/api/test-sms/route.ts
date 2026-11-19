@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server'
 import { sendSmsDetailed, smsConfigured } from '../../../lib/twilio'
 import { createServerSupabase } from '../../../lib/supabase-server'
+import { createAdminSupabase } from '../../../lib/supabase-admin'
+import { TEST_SMS_DAILY_CAP, TEST_SMS_MESSAGE } from '../../../lib/testSms'
 
+// Durable per-agent daily cap, counted from public.sms_send_log (alert_type
+// 'test'), so it holds across serverless instances — unlike the in-memory
+// per-IP limiters elsewhere in the app, which reset on every cold start.
 export async function POST() {
   const serverSupabase = createServerSupabase()
   const { data: { user } } = await serverSupabase.auth.getUser()
@@ -30,7 +35,32 @@ export async function POST() {
   // (it's logged server-side under '[twilio]'), so an ordinary send failure is
   // reported generically. Opt-out suppression gets its own messages, because
   // the fix is in the agent's hands: text START.
-  const result = await sendSmsDetailed(phone, '✅ theqrealtor test — your SMS lead alerts are working correctly!')
+  // Cap check + log happen BEFORE the send and count attempts, not successes,
+  // so repeated failures can't be used to hammer Twilio either. Fails closed.
+  const admin = createAdminSupabase()
+  const todayStart = new Date()
+  todayStart.setUTCHours(0, 0, 0, 0)
+  const { count, error: countError } = await admin
+    .from('sms_send_log')
+    .select('*', { count: 'exact', head: true })
+    .eq('agent_id', user.id)
+    .eq('alert_type', 'test')
+    .gte('created_at', todayStart.toISOString())
+  if (countError) {
+    return NextResponse.json({ error: "Couldn't send right now — please try again in a minute." }, { status: 503 })
+  }
+  if ((count ?? 0) >= TEST_SMS_DAILY_CAP) {
+    return NextResponse.json(
+      { error: `You've reached today's limit of ${TEST_SMS_DAILY_CAP} test texts. Try again tomorrow.` },
+      { status: 429 }
+    )
+  }
+  const { error: logError } = await admin.from('sms_send_log').insert({ agent_id: user.id, alert_type: 'test' })
+  if (logError) {
+    return NextResponse.json({ error: "Couldn't send right now — please try again in a minute." }, { status: 503 })
+  }
+
+  const result = await sendSmsDetailed(phone, TEST_SMS_MESSAGE)
   if (result.sent) return NextResponse.json({ ok: true })
 
   if (result.suppressed && (result.reason === 'opted_out' || result.reason === 'twilio_blocked')) {

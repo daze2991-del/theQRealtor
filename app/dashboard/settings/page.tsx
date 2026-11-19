@@ -8,6 +8,7 @@ import FreeSelection from '../../../components/FreeSelection'
 import SmsAgentConsentText from '../../../components/SmsAgentConsentText'
 import { Check, Zap, Lock, Moon, Sun, Monitor, Mail } from 'lucide-react'
 import { featuresForPlan } from '../../../lib/plans'
+import { planDisplayName } from '../../../lib/planLabel'
 
 const C = {
   bg:      '#0F0F13',
@@ -291,6 +292,9 @@ export default function SettingsPage() {
   // Free doesn't get SMS alerts (canUseEmailAlerts is true for every plan, so
   // no gate needed on that section).
   const canUseSms = featuresForPlan(rawPlan).canUseSms
+  // Badge styling: only an actual Free plan (or an unknown value) gets the grey lock.
+  const isFreePlan = planDisplayName(rawPlan) === 'Free'
+  const planBadgeText = (p: string | null) => { const n = planDisplayName(p); return n === 'Free Trial' ? n : `${n} Plan` }
 
   return (
     <DashboardLayout>
@@ -344,13 +348,13 @@ export default function SettingsPage() {
                   <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{email}</div>
                 </div>
                 <div style={{
-                  background: plan === 'pro' ? `${C.purple}28` : '#1F2937',
-                  color: plan === 'pro' ? C.purpleL : '#9CA3AF',
-                  border: `1px solid ${plan === 'pro' ? C.purple : '#374151'}`,
+                  background: isFreePlan ? '#1F2937' : `${C.purple}28`,
+                  color: isFreePlan ? '#9CA3AF' : C.purpleL,
+                  border: `1px solid ${isFreePlan ? '#374151' : C.purple}`,
                   borderRadius: 20, padding: '4px 14px', fontSize: 12, fontWeight: 700,
                   display: 'inline-flex', alignItems: 'center', gap: 5,
                 }}>
-                  {plan === 'pro' ? <><Zap size={12} /> Pro Plan</> : <><Lock size={12} /> Free Plan</>}
+                  {isFreePlan ? <Lock size={12} /> : <Zap size={12} />} {planBadgeText(rawPlan)}
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>

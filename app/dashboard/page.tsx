@@ -15,6 +15,7 @@ import { isEligibleLead, needsFollowUp as isNeedsFollowUpLead } from '../../lib/
 import NeedsAttention from '../../components/dashboard/NeedsAttention'
 import UpgradeHint from '../../components/UpgradeHint'
 import { canSeeScoring } from '../../lib/scoringAccess'
+import { fetchReportTokens, withReportTokens } from '../../lib/reportLinks'
 
 // ── Tokens ────────────────────────────────────────────────────────────────────
 const C = {
@@ -187,13 +188,13 @@ export default function Dashboard() {
 
       const { data: props, error: propsError } = await supabase
         .from('properties')
-        .select('id, address, city, state, price, beds, baths, description, active, agent_name, agent_phone, user_id, created_at, report_token')
+        .select('id, address, city, state, price, beds, baths, description, active, agent_name, agent_phone, user_id, created_at')
         .eq('user_id', session.user.id)
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
       if (propsError) { console.error('[dashboard] properties query error:', propsError); return }
       if (!props) return
-      setProperties(props)
+      setProperties(withReportTokens(props, await fetchReportTokens()))
       setPropertiesLoaded(true)
 
       const ids = props.map((p: any) => p.id)

@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { normalizePhone } from '../../../../lib/phone'
 import { verifyPhoneVerifyToken } from '../../../../lib/phoneVerifyToken'
+import { INVITE_ONLY_MESSAGE } from '../../../../lib/inviteCopy'
 import { openSignupEnabled, MAX_ENROLLED_AGENTS } from '../../../../lib/signup'
 
 // Shown for a duplicate phone, caught either by the pre-check below or by
@@ -85,7 +86,7 @@ export async function POST(req: Request) {
 
     if (!allowRow || allowRow.approved !== true) {
       return NextResponse.json(
-        { error: 'This is a private beta. Access is by invitation only.' },
+        { error: INVITE_ONLY_MESSAGE },
         { status: 403 }
       )
     }
@@ -114,7 +115,7 @@ export async function POST(req: Request) {
         // capacity message is safe and far less confusing.
         error: openSignup
           ? 'We have reached capacity for new accounts right now. Please check back soon.'
-          : 'This is a private beta. Access is by invitation only.',
+          : INVITE_ONLY_MESSAGE,
       },
       { status: 403 }
     )

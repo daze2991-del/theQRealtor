@@ -77,6 +77,9 @@ export function makeFakeDb() {
       }
       const hit = matched()
       hit.forEach(r => Object.assign(r, st.payload))
+      if (st.returning && st.single === 'single') {
+        return hit[0] ? { data: hit[0], error: null } : { data: null, error: { code: 'PGRST116', message: 'no rows' } }
+      }
       return { data: st.returning ? hit : null, error: null }
     }
     const filter = (desc: string, f: (r: Row) => boolean) => { st.filters.push(f); st.filterDesc.push(desc); return b }

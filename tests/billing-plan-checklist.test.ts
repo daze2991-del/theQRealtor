@@ -45,15 +45,16 @@ describe('Free checklist', () => {
   })
 })
 
-describe.each(['founding', 'alpha', 'trial', 'starter', 'pro'])('%s checklist (unchanged from today)', plan => {
-  it('keeps the existing heading and full list, incl. scoring and SMS as checkmarks', () => {
-    const c = planChecklist(plan)
-    expect(c.heading).toBe('Your Beta Agent Plan')
+describe.each(['founding', 'alpha', 'trial', 'starter', 'pro'] as const)('%s checklist', plan => {
+  it('lists limits read from lib/plans.ts, then the paid feature list, all checked', () => {
+    const cfg = PLAN_CONFIG[plan]
+    const listings = cfg.maxActiveListings === null ? 'All your active listings' : `${cfg.maxActiveListings} active listing${cfg.maxActiveListings === 1 ? '' : 's'}`
+    const signs = cfg.maxActiveSigns === null ? 'All your active signs' : `${cfg.maxActiveSigns} active sign${cfg.maxActiveSigns === 1 ? '' : 's'}`
     expect(included(plan)).toEqual([
-      'All your active listings', 'Buyer lead capture', 'QR sign tracking', SCORING, SMS,
+      listings, signs, 'Buyer lead capture', 'QR sign tracking', SCORING, SMS,
       'Seller reports', 'Analytics dashboard', 'CSV export', 'Priority support',
     ])
-    expect(c.items.every(i => i.included)).toBe(true)
+    expect(planChecklist(plan).items.every(i => i.included)).toBe(true)
   })
 })
 

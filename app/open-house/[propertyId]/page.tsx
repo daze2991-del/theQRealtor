@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import { Home, CheckCircle } from 'lucide-react'
+import BrandedNotice, { SIGN_INACTIVE_TITLE, SIGN_INACTIVE_BODY } from '../../../components/BrandedNotice'
 import RequestsPausedNotice from '../../../components/RequestsPausedNotice'
 
 const C = {
@@ -64,6 +65,7 @@ export default function OpenHouseCheckInPage() {
   useEffect(() => {
     if (!propertyId) return
     const load = async () => {
+      try {
       const sb = createBrowserSupabase()
       // Set by /q for an open-house sign, so a plan-locked sign is honoured.
       const sign = new URLSearchParams(window.location.search).get('sign')
@@ -88,7 +90,12 @@ export default function OpenHouseCheckInPage() {
       // refuses a locked submission, and that copy is shown as the error.
       setAccepting(availability?.acceptingRequests !== false)
       setPausedAgentName(availability?.agentName ?? null)
-      setLoading(false)
+      } catch (err) {
+        console.error('[open-house] load failed:', err)
+        setProperty(null)
+      } finally {
+        setLoading(false)
+      }
     }
     load()
   }, [propertyId])
@@ -147,11 +154,7 @@ export default function OpenHouseCheckInPage() {
     </div>
   )
 
-  if (!property) return (
-    <div style={{ minHeight: '100vh', background: C.bg, color: C.text, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
-      Property not found
-    </div>
-  )
+  if (!property) return <BrandedNotice title={SIGN_INACTIVE_TITLE}>{SIGN_INACTIVE_BODY}</BrandedNotice>
 
   const price = formatPrice(property.price)
   const beds  = property.beds  ? `${property.beds} bed${property.beds  !== 1 ? 's' : ''}` : null

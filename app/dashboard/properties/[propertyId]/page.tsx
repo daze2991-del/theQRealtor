@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { PROPERTY_COLUMNS } from '../../../../lib/propertyColumns'
+import { fetchReportTokens, withReportTokens } from '../../../../lib/reportLinks'
 import { useParams, useRouter } from 'next/navigation'
 import { createBrowserSupabase } from '../../../../lib/supabase-browser'
 import DashboardLayout from '../../../../components/DashboardLayout'
@@ -178,11 +180,12 @@ export default function PropertyIntelligencePage() {
       if (!session) { router.push('/auth'); return }
 
       const [{ data: prop }, { data: ownerRow }] = await Promise.all([
-        supabase.from('properties').select('*').eq('id', propertyId).single(),
+        supabase.from('properties').select(PROPERTY_COLUMNS).eq('id', propertyId).single(),
         supabase.from('profiles').select('plan, beta_joined_at').eq('id', session.user.id).maybeSingle(),
       ])
       if (!prop || prop.user_id !== session.user.id) { router.push('/dashboard/properties'); return }
-      setProperty(prop)
+      const reportTokens = await fetchReportTokens()
+      setProperty({ ...prop, report_token: reportTokens[prop.id] ?? null })
       setOwner(ownerRow ?? null)
 
       const sixtyDaysAgo = new Date(Date.now() - 60 * 86400000).toISOString()

@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import { SMS_CONSENT_TEXT } from '../../../lib/smsConsent'
+import BrandedNotice, { SIGN_INACTIVE_TITLE, SIGN_INACTIVE_BODY } from '../../../components/BrandedNotice'
 import RequestsPausedNotice from '../../../components/RequestsPausedNotice'
 import SmsConfirmationReminder from './SmsConfirmationReminder'
 import {
@@ -172,6 +173,7 @@ export default function PropertyPage() {
   useEffect(() => {
     if (!propertyId) return
     const load = async () => {
+      try {
       const sb = createBrowserSupabase()
       const [{ data: prop }, { data: pics }, availability] = await Promise.all([
         // Explicit columns: buyer pages never fetch the plan-lock column.
@@ -191,7 +193,13 @@ export default function PropertyPage() {
       // refuses a locked submission (423), which flips this to false.
       setAccepting(availability?.acceptingRequests !== false)
       setPausedAgentName(availability?.agentName ?? null)
-      setLoading(false)
+      } catch (err) {
+        // A failed lookup must land on the friendly page, never a crash.
+        console.error('[p] load failed:', err)
+        setProperty(null)
+      } finally {
+        setLoading(false)
+      }
     }
     load()
   }, [propertyId, signId])
@@ -382,11 +390,7 @@ export default function PropertyPage() {
     </main>
   )
 
-  if (!property) return (
-    <div style={{ minHeight: '100vh', background: C.bg, color: C.text, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
-      Property not found
-    </div>
-  )
+  if (!property) return <BrandedNotice title={SIGN_INACTIVE_TITLE}>{SIGN_INACTIVE_BODY}</BrandedNotice>
 
   const isArchived = !!property.deleted_at
   const price    = formatPrice(property.price)

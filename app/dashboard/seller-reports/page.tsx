@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import DashboardLayout from '../../../components/DashboardLayout'
 import Link from 'next/link'
+import { fetchReportTokens, withReportTokens } from '../../../lib/reportLinks'
 import { BarChart2, Check, AlertTriangle } from 'lucide-react'
 
 const C = {
@@ -38,11 +39,11 @@ export default function SellerReportsPage() {
 
       const { data: props } = await supabase
         .from('properties')
-        .select('id, address, city, state, active, created_at, report_token')
+        .select('id, address, city, state, active, created_at')
         .eq('user_id', session.user.id)
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
-      setProperties(props || [])
+      setProperties(withReportTokens(props || [], await fetchReportTokens()))
 
       if (props && props.length > 0) {
         const ids = props.map((p: any) => p.id)

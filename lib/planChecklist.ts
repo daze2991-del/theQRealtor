@@ -19,7 +19,9 @@ export const NOT_INCLUDED_NOTE = 'Not included — available on paid plans'
  * The "what's included" list on the billing page, driven by lib/plans.ts
  * (limits + PlanFeatures). An unknown/typo'd plan string is Free, same as
  * planConfig(). Paid plans keep the list they have always seen, under the
- * existing "Your Beta Agent Plan" heading.
+ * "Your Beta Agent Plan" heading only for the grandfathered founding/alpha
+ * cohorts; trial/starter/pro are named for what they are. Listing and sign
+ * limits are always read from lib/plans.ts, never typed here.
  */
 export function planChecklist(plan: string | null | undefined): { heading: string; items: ChecklistItem[] } {
   const isFree = !plan || !(plan in PLAN_CONFIG) || plan === 'free'
@@ -41,10 +43,17 @@ export function planChecklist(plan: string | null | undefined): { heading: strin
     }
   }
 
+  const heading =
+    plan === 'trial' ? 'Your Free Trial includes'
+    : plan === 'starter' ? 'Your Starter plan includes'
+    : plan === 'pro' ? 'Your Pro plan includes'
+    : 'Your Beta Agent Plan'
+
   return {
-    heading: 'Your Beta Agent Plan',
+    heading,
     items: [
-      { label: 'All your active listings', included: true },
+      { label: limitLabel(cfg.maxActiveListings, 'listing'), included: true },
+      { label: limitLabel(cfg.maxActiveSigns, 'sign'), included: true },
       { label: 'Buyer lead capture', included: true },
       { label: 'QR sign tracking', included: true },
       { label: 'Buyer interest scoring (Hot/Warm/Cold)', included: f.leadScoring, note: NOT_INCLUDED_NOTE },

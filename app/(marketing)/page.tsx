@@ -14,7 +14,8 @@ import {
   Users,
   Clock,
 } from 'lucide-react'
-import { pricingTierConfig, PRICING_CLARIFIER } from '../../lib/pricing'
+import { pricingTierConfig, PRICING_CLARIFIER, INVITING_BADGE, invitingAgentsCopy } from '../../lib/pricing'
+import { REQUEST_INVITE_LABEL } from '../../lib/inviteCopy'
 import { TRIAL_DAYS } from '../../lib/trial'
 import { propertyLimitForPlan, signLimitForPlan } from '../../lib/plans'
 
@@ -55,7 +56,7 @@ function Nav() {
             href="/auth?tab=signup"
             className="bg-[#534AB7] hover:bg-[#3C3489] text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
           >
-            Join beta
+            {REQUEST_INVITE_LABEL}
           </Link>
         </div>
       </div>
@@ -257,7 +258,7 @@ function Hero() {
         <motion.div variants={fadeUp} className="flex justify-center mb-6">
           <span className="inline-flex items-center gap-2 rounded-full bg-[#EEEDFE] px-4 py-1.5 text-xs font-medium text-[#534AB7]">
             <span className="w-2 h-2 rounded-full bg-[#534AB7] animate-pulse" />
-            Free private beta — limited spots
+            {INVITING_BADGE}
           </span>
         </motion.div>
 
@@ -290,7 +291,7 @@ function Hero() {
             href="/auth?tab=signup"
             className="bg-[#534AB7] hover:bg-[#3C3489] text-white rounded-lg px-5 py-2.5 text-sm font-medium transition-colors"
           >
-            Request beta access
+            {REQUEST_INVITE_LABEL}
           </Link>
           <button
             onClick={scrollToHow}
@@ -783,7 +784,7 @@ function Pricing() {
             Simple, predictable pricing.
           </h2>
           <p className="text-sm text-gray-500 max-w-md mx-auto">
-            Free for your first {TRIAL_DAYS} days, then choose a plan.
+            {invitingAgentsCopy()}
           </p>
         </motion.div>
 
@@ -813,7 +814,7 @@ function Pricing() {
               href="/auth?tab=signup"
               className="block text-center border border-solid border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg px-5 py-2.5 text-sm font-medium transition-colors"
             >
-              Request beta access
+              {REQUEST_INVITE_LABEL}
             </Link>
           </motion.div>
 
@@ -844,7 +845,7 @@ function Pricing() {
               href="/auth?tab=signup"
               className="block text-center bg-[#534AB7] hover:bg-[#3C3489] text-white rounded-lg px-5 py-2.5 text-sm font-medium transition-colors"
             >
-              Request beta access
+              {REQUEST_INVITE_LABEL}
             </Link>
           </motion.div>
 
@@ -876,13 +877,13 @@ function FinalCta() {
           Start seeing the <span style={{ color: '#534AB7' }}>buyer interest</span> you&apos;ve been missing.
         </h2>
         <p className="text-gray-500 leading-relaxed max-w-md mx-auto mb-8">
-          Join the free private beta — a {TRIAL_DAYS}-day trial with {trialListings} {listingWord} and up to {trialSigns} QR codes. No credit card required. Your inquiries, always yours.
+          {invitingAgentsCopy()} Your inquiries, always yours.
         </p>
         <Link
           href="/auth?tab=signup"
           className="inline-block bg-[#534AB7] hover:bg-[#3C3489] text-white rounded-lg px-7 py-3 text-base font-medium transition-colors"
         >
-          Request beta access
+          {REQUEST_INVITE_LABEL}
         </Link>
         <p className="text-xs text-gray-400 mt-4">
           {TRIAL_DAYS}-day free trial · {trialListings} {listingWord} to test drive · Up to {trialSigns} QR codes · No card required

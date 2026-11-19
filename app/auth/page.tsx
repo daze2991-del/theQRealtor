@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
 import { createBrowserSupabase } from "@/lib/supabase-browser";
 import { Check } from "lucide-react";
+import { INVITE_ONLY_MESSAGE } from "@/lib/inviteCopy";
 
 const C = {
   bg:      '#0C0C14',
@@ -246,8 +247,7 @@ function AuthForm() {
                 Thanks for your interest
               </h1>
               <p style={{ fontSize: 14, color: C.sub, margin: '0 0 24px', lineHeight: 1.6 }}>
-                theqrealtor is currently invite-only while we&apos;re in private beta.
-                We&apos;ll be in touch as we open up more spots.
+                {INVITE_ONLY_MESSAGE}
               </p>
               <button
                 style={ghostBtn}

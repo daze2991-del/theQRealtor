@@ -13,6 +13,8 @@ import { createServerSupabase } from '../../../../../lib/supabase-server'
 //      regression cannot silently widen this endpoint into a cross-tenant
 //      token-reset primitive.
 // A request for another agent's property matches zero rows and 404s.
+// (The new token is returned from memory: the session client can no longer
+// SELECT report_token — migration 070.)
 export async function POST(
   _req: Request,
   { params }: { params: { id: string } }
@@ -33,7 +35,7 @@ export async function POST(
     .update({ report_token: nextToken })
     .eq('id', params.id)
     .eq('user_id', user.id)
-    .select('id, report_token')
+    .select('id')
     .single()
 
   if (error || !data) {
@@ -42,5 +44,5 @@ export async function POST(
     return NextResponse.json({ error: 'Property not found.' }, { status: 404 })
   }
 
-  return NextResponse.json({ ok: true, report_token: data.report_token })
+  return NextResponse.json({ ok: true, report_token: nextToken })
 }

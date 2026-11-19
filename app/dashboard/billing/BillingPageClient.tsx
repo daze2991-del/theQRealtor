@@ -8,6 +8,7 @@ import DashboardLayout from '../../../components/DashboardLayout'
 import { motivationToTierV2 } from '../../../lib/leadScoringV2'
 import { planConfig, PLAN_CONFIG, type PlanId } from '../../../lib/plans'
 import { planChecklist, limitLabel } from '../../../lib/planChecklist'
+import { planDisplayName } from '../../../lib/planLabel'
 import { canSeeScoring } from '../../../lib/scoringAccess'
 import { PRICING_TIERS, PRICING_CLARIFIER, pricingTierConfig, isPricingTier, type PricingTier } from '../../../lib/pricing'
 import { autoRenewalCheckboxLabel, autoRenewalDisclosure, changeKind, consentPayload, type ConsentKind } from '../../../lib/autoRenewal'
@@ -35,16 +36,6 @@ type SubscriptionInfo = {
 // Statuses after which a NEW subscription (Checkout) is allowed. Anything else
 // means the agent already has one and changes tier via /api/stripe/change-plan.
 const REUSABLE_STATUSES = ['canceled', 'incomplete_expired']
-
-// Human label for the current-plan badge. Starter/Pro read their real name
-// from the pricing catalog; the grandfathered/fallback plans keep their
-// existing wording. Never says "unlimited" — see limitLabel() below.
-function planDisplayName(plan: PlanId): string {
-  if (isPricingTier(plan)) return pricingTierConfig(plan).displayName
-  if (plan === 'founding' || plan === 'alpha') return 'Beta Agent'
-  if (plan === 'trial') return 'Free Trial'
-  return 'Free'
-}
 
 export default function BillingPageClient({ paidPlansEnabled }: { paidPlansEnabled: boolean }) {
   const router = useRouter()
@@ -382,8 +373,10 @@ export default function BillingPageClient({ paidPlansEnabled }: { paidPlansEnabl
                 ) : (
                   <>
                     <p style={{ color: '#9CA3AF', fontSize: 14, marginBottom: 14 }}>
-                      {hasPaidPlan
+                      {plan === 'founding' || plan === 'alpha'
                         ? <>You're a <strong style={{ color: '#4ade80' }}>{planDisplayName(plan)}</strong>. You have free full platform access during the beta testing period. No charge and no payment method required while in beta.</>
+                        : hasPaidPlan
+                        ? <>You're on the <strong style={{ color: '#4ade80' }}>{planDisplayName(plan)}</strong> plan.</>
                         : <>You're on the <strong style={{ color: C.text }}>Free plan</strong>.</>
                       }
                     </p>

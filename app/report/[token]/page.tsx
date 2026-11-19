@@ -10,6 +10,7 @@ import {
   TrendingDown, Minus, BarChart2, Trophy, Users, HelpCircle, Sparkles, Zap,
   ChevronRight, type LucideIcon,
 } from 'lucide-react'
+import BrandedNotice, { REPORT_UNAVAILABLE_TITLE, REPORT_UNAVAILABLE_BODY } from '../../../components/BrandedNotice'
 import { calcPropertyInterest } from '../../../lib/propertyInterest'
 import { timeAgo } from '../../../lib/timeAgo'
 import { motivationToTierV2, requestedShowing } from '../../../lib/leadScoringV2'
@@ -169,13 +170,7 @@ export default function SellerReportPage() {
 
   if (missing) {
     return (
-      <main style={{ background: C.bg, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
-        <div style={{ textAlign: 'center', color: C.muted }}>
-          <Home size={48} style={{ marginBottom: 16 }} />
-          <div style={{ fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 8 }}>Report not found</div>
-          <Link href="/dashboard/properties" style={{ color: C.purpleL }}>← Back to Properties</Link>
-        </div>
-      </main>
+      <BrandedNotice title={REPORT_UNAVAILABLE_TITLE}>{REPORT_UNAVAILABLE_BODY}</BrandedNotice>
     )
   }
 

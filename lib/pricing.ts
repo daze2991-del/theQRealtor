@@ -147,3 +147,15 @@ export function planForPriceId(priceId: string | null | undefined): PricingTier 
   }
   return null
 }
+
+/** Short badge on the marketing hero. */
+export const INVITING_BADGE = 'Now inviting agents'
+
+/**
+ * Marketing line describing who can join and what it costs. Every price is
+ * read from PRICING_CATALOG above, so repricing never leaves stale copy.
+ */
+export function invitingAgentsCopy(): string {
+  const { starter, pro } = PRICING_CATALOG
+  return `theQRealtor is now inviting agents. Start on the ${FREE_TIER_DISPLAY.displayName} plan, or choose ${starter.displayName} (${starter.displayPrice}) or ${pro.displayName} (${pro.displayPrice}).`
+}

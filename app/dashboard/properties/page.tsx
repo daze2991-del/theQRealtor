@@ -1,6 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { PROPERTY_COLUMNS } from '../../../lib/propertyColumns'
+import { fetchReportTokens, withReportTokens } from '../../../lib/reportLinks'
 import { createBrowserSupabase } from '../../../lib/supabase-browser'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -633,8 +635,9 @@ export default function PropertiesPage() {
 
         const [{ data: profile }, { data: props }] = await Promise.all([
           supabase.from('profiles').select('plan, beta_joined_at').eq('id', session.user.id).single(),
-          supabase.from('properties').select('*').eq('user_id', session.user.id).is('deleted_at', null).order('created_at', { ascending: false }),
+          supabase.from('properties').select(PROPERTY_COLUMNS).eq('user_id', session.user.id).is('deleted_at', null).order('created_at', { ascending: false }),
         ])
+        const reportTokens = await fetchReportTokens()
 
         if (cancelled) return
         setPlan(profile?.plan || 'free')
@@ -646,7 +649,7 @@ export default function PropertiesPage() {
             .then(st => { if (!cancelled && st) setListingNextAt(st.listingNextAt ?? null) })
             .catch(() => {})
         }
-        setProperties(props || [])
+        setProperties(withReportTokens((props || []) as any[], reportTokens) as any)
 
         if (props && props.length > 0) {
           const ids = props.map((p: any) => p.id)

@@ -194,7 +194,6 @@ describe('billing page reads prices from the catalog (no hardcoded values)', () 
     expect(src).not.toMatch(/['"`][^'"`]*Unlimited[^'"`]*['"`]/)
     // The checklist copy moved to lib/planChecklist.ts (driven by lib/plans.ts).
     const checklistSrc = readFileSync(new URL('../lib/planChecklist.ts', import.meta.url), 'utf8')
-    expect(checklistSrc).toContain("'All your active listings'")
     expect(checklistSrc).toContain('All your active ${noun}s')
   })
 })

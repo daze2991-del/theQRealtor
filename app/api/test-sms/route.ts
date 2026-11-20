@@ -3,11 +3,12 @@ import { sendSmsDetailed, smsConfigured } from '../../../lib/twilio'
 import { createServerSupabase } from '../../../lib/supabase-server'
 import { createAdminSupabase } from '../../../lib/supabase-admin'
 import { TEST_SMS_DAILY_CAP, TEST_SMS_MESSAGE } from '../../../lib/testSms'
+import { withErrorAlerts } from '../../../lib/errorAlerts'
 
 // Durable per-agent daily cap, counted from public.sms_send_log (alert_type
 // 'test'), so it holds across serverless instances — unlike the in-memory
 // per-IP limiters elsewhere in the app, which reset on every cold start.
-export async function POST() {
+async function POST__handler() {
   const serverSupabase = createServerSupabase()
   const { data: { user } } = await serverSupabase.auth.getUser()
 
@@ -74,3 +75,5 @@ export async function POST() {
 
 const TEXTS_PAUSED_MESSAGE =
   'Texts to this number are paused because it replied STOP. Text START to (620) 522-8398 to turn them back on.'
+
+export const POST = withErrorAlerts('/api/test-sms', POST__handler)

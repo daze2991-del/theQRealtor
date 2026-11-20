@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createServerSupabase } from '../../../../lib/supabase-server'
 import { createAdminSupabase } from '../../../../lib/supabase-admin'
 import { SHOWN_COOLDOWN_DAYS, daysFromNow } from '../../../../lib/feedback'
+import { withErrorAlerts } from '../../../../lib/errorAlerts'
 
 // POST /api/feedback/shown  → markFeedbackShown()
 // Records that the card was rendered to this agent and sets a short (~3d)
@@ -9,7 +10,7 @@ import { SHOWN_COOLDOWN_DAYS, daysFromNow } from '../../../../lib/feedback'
 // is deliberately shorter than the dismiss (~14d) and submit (~30d) cooldowns,
 // which still take precedence when the agent actually acts. Same-session repeats
 // are additionally prevented client-side.
-export async function POST() {
+async function POST__handler() {
   const serverSupabase = createServerSupabase()
   const { data: { user } } = await serverSupabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -34,3 +35,5 @@ export async function POST() {
   }
   return NextResponse.json({ ok: true })
 }
+
+export const POST = withErrorAlerts('/api/feedback/shown', POST__handler)

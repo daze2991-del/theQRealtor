@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { createAdminSupabase } from '@/lib/supabase-admin'
 import { choiceEligibility, choiceLimits, loadChoiceProfile, loadFreeChoiceOptions, planName } from '@/lib/planChoice'
+import { withErrorAlerts } from '../../../../lib/errorAlerts'
 
 // The agent's live listings and active signs, with 30-day activity stats for
 // the "Choose what stays active" screen. Available to an expired trial (first
@@ -9,7 +10,7 @@ import { choiceEligibility, choiceLimits, loadChoiceProfile, loadFreeChoiceOptio
 // confirmed yet (their current plan's limits, migration 067), and to Free
 // agents (swap). Ranking itself is rankByActivity() in lib/planLock.ts,
 // shared with the UI.
-export async function GET() {
+async function GET__handler() {
   const supabase = createServerSupabase()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) {
@@ -34,3 +35,5 @@ export async function GET() {
     return NextResponse.json({ error: 'Failed to load your listings. Please try again.' }, { status: 500 })
   }
 }
+
+export const GET = withErrorAlerts('/api/plan/free-choice-options', GET__handler)

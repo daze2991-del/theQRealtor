@@ -5,10 +5,11 @@ import { createAdminSupabase } from '../../../../lib/supabase-admin'
 import { isPricingTier, resolvePriceId, type BillingInterval } from '../../../../lib/pricing'
 import { findBlockingSubscription } from '../../../../lib/stripeSync'
 import { checkConsentText, recordConsent, requireConsentFlag, verifyStripePrice } from '../../../../lib/autoRenewalConsent'
+import { withErrorAlerts } from '../../../../lib/errorAlerts'
 
 export const runtime = 'nodejs'
 
-export async function POST(request: Request) {
+async function POST__handler(request: Request) {
   // ── 1. PAID_PLANS_ENABLED ───────────────────────────────────────────────────
   // Read at request time, not module load — flipping this in the environment
   // must take effect without a redeploy.
@@ -149,3 +150,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: err?.message ?? 'Stripe checkout failed.' }, { status: 500 })
   }
 }
+
+export const POST = withErrorAlerts('/api/stripe/checkout', POST__handler)

@@ -15,8 +15,9 @@ import { NextResponse } from 'next/server'
 import { createServerSupabase } from '../../../../lib/supabase-server'
 import { createAdminSupabase } from '../../../../lib/supabase-admin'
 import { flushDueNotifications } from '../../../../lib/twilio'
+import { withErrorAlerts } from '../../../../lib/errorAlerts'
 
-export async function POST() {
+async function POST__handler() {
   const supabase = createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
@@ -27,3 +28,5 @@ export async function POST() {
   const { processed, sent, failed, abandoned, suppressed, planRestricted } = await flushDueNotifications(admin, { agentId: user.id, limit: 20 })
   return NextResponse.json({ processed, sent, failed, abandoned, suppressed, planRestricted })
 }
+
+export const POST = withErrorAlerts('/api/notifications/flush-due', POST__handler)

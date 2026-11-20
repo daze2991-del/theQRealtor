@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createServerSupabase } from '../../../lib/supabase-server'
 import { createAdminSupabase } from '../../../lib/supabase-admin'
+import { withErrorAlerts } from '../../../lib/errorAlerts'
 
-export async function POST(request: Request) {
+async function POST__handler(request: Request) {
   // ── env diagnostics ────────────────────────────────────────────────────────
   const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
   const supaUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
@@ -155,3 +156,5 @@ export async function POST(request: Request) {
   console.log('[update-profile] done OK')
   return NextResponse.json({ ok: true })
 }
+
+export const POST = withErrorAlerts('/api/update-profile', POST__handler)

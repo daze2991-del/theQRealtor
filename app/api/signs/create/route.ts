@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { createAdminSupabase } from '@/lib/supabase-admin'
 import { signLimitForPlan } from '@/lib/plans'
+import { withErrorAlerts } from '../../../../lib/errorAlerts'
 
 // ─── rate limiter ─────────────────────────────────────────────────────────────
 // Best-effort in-memory window per IP. Works for single-instance deployments;
@@ -21,7 +22,7 @@ function isRateLimited(ip: string): boolean {
   return false
 }
 
-export async function POST(req: Request) {
+async function POST__handler(req: Request) {
   const ip = (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() || 'unknown'
   if (isRateLimited(ip)) {
     return NextResponse.json({ error: 'Too many requests. Please wait a minute.' }, { status: 429 })
@@ -96,3 +97,5 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ sign })
 }
+
+export const POST = withErrorAlerts('/api/signs/create', POST__handler)

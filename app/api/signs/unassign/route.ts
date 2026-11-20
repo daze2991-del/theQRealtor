@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { createAdminSupabase } from '@/lib/supabase-admin'
+import { withErrorAlerts } from '../../../../lib/errorAlerts'
 
 // Close a sign's active assignment. History rows are kept — only
 // unassigned_at is stamped.
-export async function POST(req: Request) {
+async function POST__handler(req: Request) {
   const supabase = createServerSupabase()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) {
@@ -47,3 +48,5 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ ok: true })
 }
+
+export const POST = withErrorAlerts('/api/signs/unassign', POST__handler)

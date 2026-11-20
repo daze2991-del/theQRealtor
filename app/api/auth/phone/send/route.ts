@@ -5,6 +5,7 @@ import { isInvitedEmail } from '../../../../../lib/inviteGate'
 import { INVITE_ONLY_MESSAGE } from '../../../../../lib/inviteCopy'
 import { createAdminSupabase } from '../../../../../lib/supabase-admin'
 import { clientIp, reserveIpRequest, reserveVerificationCode } from '../../../../../lib/smsLimits'
+import { withErrorAlerts } from '../../../../../lib/errorAlerts'
 
 const TOO_MANY = 'Too many attempts, try again later.'
 const CANT_NOW = "Couldn't send a code right now. Please try again in a minute."
@@ -15,7 +16,7 @@ function limitResponse(reason: string) {
     : NextResponse.json({ error: TOO_MANY }, { status: 429 })
 }
 
-export async function POST(req: Request) {
+async function POST__handler(req: Request) {
   // Durable per-IP cap (10/hour), counted from the database. Fails closed.
   const admin = createAdminSupabase()
   const ipDecision = await reserveIpRequest(admin, 'send_code_request', clientIp(req))
@@ -50,3 +51,5 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ ok: true })
 }
+
+export const POST = withErrorAlerts('/api/auth/phone/send', POST__handler)

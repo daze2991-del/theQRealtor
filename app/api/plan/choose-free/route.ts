@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { createAdminSupabase } from '@/lib/supabase-admin'
 import { choiceEligibility, choiceLimits, loadChoiceProfile, parseSelection, planName, selectionErrorResponse } from '@/lib/planChoice'
+import { withErrorAlerts } from '../../../../lib/errorAlerts'
 
 // Confirms what stays active. Body: { listingIds: string[], signIds: string[] }.
 // Two cases, decided on the server:
@@ -12,7 +13,7 @@ import { choiceEligibility, choiceLimits, loadChoiceProfile, parseSelection, pla
 //     every other live listing / active sign in one transaction
 //     (apply_free_selection 'choose'). Idempotent once on Free.
 // Never deletes anything. Changing the selection later on Free is /api/plan/free-swap.
-export async function POST(req: Request) {
+async function POST__handler(req: Request) {
   const supabase = createServerSupabase()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) {
@@ -70,3 +71,5 @@ export async function POST(req: Request) {
   }
   return NextResponse.json({ ok: true, plan: 'free', result: data ?? null })
 }
+
+export const POST = withErrorAlerts('/api/plan/choose-free', POST__handler)

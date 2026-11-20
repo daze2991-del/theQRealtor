@@ -3,11 +3,12 @@ import { createServerSupabase } from '@/lib/supabase-server'
 import { createAdminSupabase } from '@/lib/supabase-admin'
 import { getTrialStatus } from '@/lib/trial'
 import { propertyLimitForPlan } from '@/lib/plans'
+import { withErrorAlerts } from '../../../lib/errorAlerts'
 
 // The single server-side creation point for properties. app/dashboard/onboarding
 // posts here too rather than inserting directly, so the limit below cannot be
 // walked around by starting from onboarding.
-export async function POST(req: Request) {
+async function POST__handler(req: Request) {
   const supabase = createServerSupabase()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) {
@@ -89,3 +90,5 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ id: data.id })
 }
+
+export const POST = withErrorAlerts('/api/properties', POST__handler)

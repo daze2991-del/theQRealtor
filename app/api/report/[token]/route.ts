@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminSupabase } from '../../../../lib/supabase-admin'
 import { isReportExpired } from '../../../../lib/propertyStatus'
 import { canSeeScoring } from '../../../../lib/scoringAccess'
+import { withErrorAlerts } from '../../../../lib/errorAlerts'
 
 // REQUIRED — do not remove. Without it this handler's Supabase reads land in
 // Next's persistent fetch Data Cache (.next/cache/fetch-cache), which survives
@@ -32,7 +33,7 @@ export const dynamic = 'force-dynamic'
 //
 // Runs server-side with the admin client and returns AGGREGATE data only —
 // no buyer names, phones, emails, or buyer-authored text (see sanitize below).
-export async function GET(
+async function GET__handler(
   _req: Request,
   { params }: { params: { token: string } }
 ) {
@@ -202,3 +203,5 @@ export async function GET(
     scoringEnabled,
   })
 }
+
+export const GET = withErrorAlerts('/api/report/[token]', GET__handler)

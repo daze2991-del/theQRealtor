@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { randomUUID } from 'crypto'
 import { createServerSupabase } from '../../../../../lib/supabase-server'
+import { withErrorAlerts } from '../../../../../lib/errorAlerts'
 
 // Rotate a property's seller-report token, invalidating any previously shared
 // /report/{token} link immediately (the old token stops matching any row).
@@ -15,7 +16,7 @@ import { createServerSupabase } from '../../../../../lib/supabase-server'
 // A request for another agent's property matches zero rows and 404s.
 // (The new token is returned from memory: the session client can no longer
 // SELECT report_token — migration 070.)
-export async function POST(
+async function POST__handler(
   _req: Request,
   { params }: { params: { id: string } }
 ) {
@@ -46,3 +47,5 @@ export async function POST(
 
   return NextResponse.json({ ok: true, report_token: nextToken })
 }
+
+export const POST = withErrorAlerts('/api/properties/[id]/regenerate-report-token', POST__handler)

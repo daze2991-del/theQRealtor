@@ -3,6 +3,7 @@ import { createAdminSupabase } from '../../../lib/supabase-admin'
 import { computeScoreV2, isLikelyBot, type EngagementInputV2 } from '../../../lib/leadScoringV2'
 import { normalizePhone } from '../../../lib/phone'
 import { isAcceptingRequests, requestsPausedCopy } from '../../../lib/planLock'
+import { withErrorAlerts } from '../../../lib/errorAlerts'
 
 const rateMap = new Map<string, number[]>()
 const LIMIT = 10
@@ -17,7 +18,7 @@ function isRateLimited(ip: string): boolean {
   return false
 }
 
-export async function POST(request: Request) {
+async function POST__handler(request: Request) {
   const ip = (request.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() || 'unknown'
   if (isRateLimited(ip)) {
     return NextResponse.json({ error: 'Too many submissions. Please wait a minute.' }, { status: 429 })
@@ -113,3 +114,5 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ ok: true })
 }
+
+export const POST = withErrorAlerts('/api/open-house-checkin', POST__handler)

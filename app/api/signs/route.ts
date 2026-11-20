@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { createAdminSupabase } from '@/lib/supabase-admin'
+import { withErrorAlerts } from '../../../lib/errorAlerts'
 
 type AssignmentRow = {
   id: string
@@ -20,7 +21,7 @@ type SignRow = {
 
 // All signs for the calling agent, each with its current active assignment
 // (unassigned_at IS NULL) and full assignment history, newest first.
-export async function GET() {
+async function GET__handler() {
   const supabase = createServerSupabase()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) {
@@ -57,3 +58,5 @@ export async function GET() {
 
   return NextResponse.json({ signs })
 }
+
+export const GET = withErrorAlerts('/api/signs', GET__handler)

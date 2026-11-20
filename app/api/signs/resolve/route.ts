@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server'
 import { createAdminSupabase } from '@/lib/supabase-admin'
+import { withErrorAlerts } from '../../../../lib/errorAlerts'
 
 // Public sign → property resolution for the buyer page (/p/[id]).
 // signs and sign_assignments are owner-only under RLS, so the anon client
 // cannot resolve them — this runs server-side with the admin client and
 // returns only whether the id is a sign and which property (if any) it is
 // currently assigned to. No labels, owners, or history are exposed.
-export async function POST(req: Request) {
+async function POST__handler(req: Request) {
   let body: { id?: unknown }
   try {
     body = await req.json()
@@ -57,3 +58,5 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ sign: true, propertyId })
 }
+
+export const POST = withErrorAlerts('/api/signs/resolve', POST__handler)

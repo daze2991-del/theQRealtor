@@ -2,10 +2,11 @@ import { NextResponse } from 'next/server'
 import { createServerSupabase } from '../../../../lib/supabase-server'
 import { createAdminSupabase } from '../../../../lib/supabase-admin'
 import { DISMISS_COOLDOWN_DAYS, daysFromNow } from '../../../../lib/feedback'
+import { withErrorAlerts } from '../../../../lib/errorAlerts'
 
 // POST /api/feedback/dismiss  → dismissFeedback()
 // "Not now" — hold off asking again for ~14 days.
-export async function POST() {
+async function POST__handler() {
   const serverSupabase = createServerSupabase()
   const { data: { user } } = await serverSupabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -29,3 +30,5 @@ export async function POST() {
   }
   return NextResponse.json({ ok: true })
 }
+
+export const POST = withErrorAlerts('/api/feedback/dismiss', POST__handler)

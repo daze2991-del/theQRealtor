@@ -2,12 +2,13 @@ import { NextResponse } from 'next/server'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { createAdminSupabase } from '@/lib/supabase-admin'
 import { loadSwapStatus } from '@/lib/planChoice'
+import { withErrorAlerts } from '../../../../lib/errorAlerts'
 
 // When a Free agent can next change their active listing / signs (migration
 // 062, free_swap_availability). Used by the Properties and Signs pages to show
 // the date in place of the "change" link while the 30-day limit applies.
 // The swap route enforces the same rule itself; this is display only.
-export async function GET() {
+async function GET__handler() {
   const supabase = createServerSupabase()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) {
@@ -28,3 +29,5 @@ export async function GET() {
     return NextResponse.json({ error: 'Failed to load. Please try again.' }, { status: 500 })
   }
 }
+
+export const GET = withErrorAlerts('/api/plan/free-swap-status', GET__handler)

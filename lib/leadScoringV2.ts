@@ -1,5 +1,7 @@
 // ── Lead Scoring V2 ──────────────────────────────────────────────────────────
 //
+// Legal: the score must only inform the agent. Never use it to hide, delete, block or gate a buyer's request or showing access without new legal review.
+//
 // Two-dimensional model:
 //   intent_score  — raw points, durable, never decays; stored on the lead row
 //   call_priority — intent_score × recency decay; computed at read time only

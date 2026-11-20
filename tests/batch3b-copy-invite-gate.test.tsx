@@ -168,6 +168,6 @@ describe('B. invite check precedes verification SMS (server-side)', () => {
 describe('C. Terms / Privacy / SMS Consent beta wording', () => {
   it('no beta-period wording left in the three legal pages; Terms date is updated', () => {
     for (const f of ['terms', 'privacy', 'sms-consent']) expect(read(`app/${f}/page.tsx`)).not.toMatch(/beta/i)
-    expect(read('app/terms/page.tsx')).toContain('Last updated: November 18, 2026')
+    expect(read('app/terms/page.tsx')).toContain('Last updated: November 19, 2026')
   })
 })

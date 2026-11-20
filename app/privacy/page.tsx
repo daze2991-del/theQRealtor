@@ -66,7 +66,7 @@ export default function PrivacyPage() {
             Privacy Policy
           </h1>
           <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>
-            Last updated: October 24, 2026
+            Last updated: November 19, 2026
           </p>
         </div>
 
@@ -84,11 +84,11 @@ export default function PrivacyPage() {
           </p>
           <ul style={{ margin: '0 0 16px', paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <li>which listing and which sign the visit came from</li>
-            <li>whether this is a return visit, and how many days since the first visit, worked out from a small record stored in your own browser for that listing (it is not a cookie and is not used on other websites)</li>
-            <li>how far you look through the photos, how long you stay on the page, and whether you tap &ldquo;Request a Showing&rdquo; or &ldquo;Ask the Listing Agent&rdquo;</li>
+            <li>whether this is a return visit, and how many days since the first visit. To recognize return visits on the same device, we keep a small record in your own browser for that listing: the date of your first visit and a count of visits. It is not a cookie and is not used on other websites</li>
+            <li>photos viewed, time on the page, and whether you request a showing or ask a question</li>
           </ul>
           <p style={{ margin: '0 0 12px' }}>
-            <strong style={{ color: C.text }}>When a buyer submits a request.</strong> If you request a showing or ask a question, we collect what you enter: your name, phone number and/or email address, your question (if any), the contact methods you prefer, and, if you tick the box, your consent to one confirmation text. The activity from that visit is then attached to your request.
+            <strong style={{ color: C.text }}>When a buyer submits a request.</strong> If you request a showing or ask a question, we collect what you enter: the name, phone number and/or email address you choose to submit, your question (if any), the contact methods you prefer, and, if you tick the box, your consent to one confirmation text. The activity from that visit is then attached to your request.
           </p>
           <p style={{ margin: '0 0 12px' }}>
             <strong style={{ color: C.text }}>Agent accounts.</strong> When an agent signs up we collect their name, email, mobile number and, optionally, a real estate license number. We use the phone number to prevent duplicate accounts and, if the agent turns them on, to send lead alerts. We do not currently verify license numbers.
@@ -100,7 +100,7 @@ export default function PrivacyPage() {
 
         <Section id="interest-scores" title="2. How we use it: buyer interest scores">
           <p style={{ margin: '0 0 12px' }}>
-            We use a buyer's activity and request to give the listing agent a Hot, Warm or Cold interest tier, a score and a breakdown of how it was calculated. The signals are return visits, photos viewed, time on the page, and whether the buyer requested a showing or asked a question. The score helps the agent decide whom to follow up with first. It does not hide, delete or block any request, and the agent makes every decision.
+            We use a buyer's activity and request to generate a Hot, Warm or Cold interest tier, a score and a point breakdown for each buyer. These are shown only to the listing agent, to help them prioritize follow-up. The signals are return visits, photos viewed, time on the page, and whether the buyer requested a showing or asked a question. The score never hides, deletes or blocks a buyer's request; the agent decides.
           </p>
           <p style={{ margin: 0 }}>
             We also use this information to show agents how their listings and signs perform, to deliver alerts and confirmation texts, to prevent abuse, and to run the service.
@@ -111,11 +111,11 @@ export default function PrivacyPage() {
           <ul style={{ margin: '0 0 16px', paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <li><strong style={{ color: C.text }}>The listing agent</strong> for that property sees your request, your contact details, your interest tier and score, and your activity on their listing. They can export their leads to their own records.</li>
             <li><strong style={{ color: C.text }}>No other agent</strong> sees your information. We have no brokerage, team or MLS sharing.</li>
-            <li><strong style={{ color: C.text }}>Service providers</strong> that run the platform for us: Supabase (database and storage), Twilio (text messages), Resend (email delivery), Vercel (hosting) and Stripe (agent billing only; Stripe never receives buyer information). They process data on our behalf under their data processing terms.</li>
+            <li><strong style={{ color: C.text }}>Service providers</strong> that run the service for us: Vercel (hosting), Supabase (database), Twilio (text messaging) and Resend (email), plus Stripe for agent billing only (Stripe never receives buyer information). They process data on our behalf under their data processing terms.</li>
             <li><strong style={{ color: C.text }}>Google Maps</strong> receives nothing unless you tap the &ldquo;Take Me There&rdquo; link yourself.</li>
           </ul>
           <p style={{ margin: 0 }}>
-            We do not sell personal information, and we do not share it for advertising.
+            We do not sell or share personal information for cross-context behavioral advertising.
           </p>
         </Section>
 
@@ -142,7 +142,7 @@ export default function PrivacyPage() {
 
         <Section title="6. Your choices and requests">
           <p style={{ margin: 0 }}>
-            You can ask us what information we hold about you, or ask us to delete it, by emailing{' '}
+            <strong style={{ color: C.text }}>California rights.</strong> If you are a California resident, you can ask us for access to the personal information we hold about you, ask us to delete it, or ask us to correct it, by emailing{' '}
             <a href="mailto:hello@theqrealtor.com" style={{ color: C.purpleL, textDecoration: 'none' }}>hello@theqrealtor.com</a>.
             We may need to keep some records, such as text consent and opt-out records, where the law requires or allows it. You can also contact the listing agent directly.
           </p>

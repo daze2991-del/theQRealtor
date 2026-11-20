@@ -494,7 +494,7 @@ export default function PropertyPage() {
           {/* Privacy notice — visible on load, including when the listing is
               paused (tracking starts before any form is submitted). */}
           <p style={{ color: C.muted, fontSize: 12, lineHeight: 1.5, margin: '0 0 14px' }}>
-            This page records your visit (return visits, photos viewed, time on page) to show the listing agent how interested buyers are. Anything you submit goes only to this listing agent.{' '}
+            This page records visits, photos viewed and time on page to help the listing agent follow up.{' '}
             <a href="/privacy#notice-at-collection" style={{ color: C.muted, textDecoration: 'underline' }}>Privacy notice</a>
           </p>
 

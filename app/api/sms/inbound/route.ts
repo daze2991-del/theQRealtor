@@ -28,15 +28,9 @@ import { createAdminSupabase } from '../../../../lib/supabase-admin'
 import { normalizePhone } from '../../../../lib/phone'
 import { classifyInbound, type InboundClassification } from '../../../../lib/sms/classifyInbound'
 import { withErrorAlerts } from '../../../../lib/errorAlerts'
+import { REPLY_FREEFORM_OPT_OUT, REPLY_AGENT, REPLY_OTHER } from '../../../../lib/sms/inboundReplies'
 
 type Admin = ReturnType<typeof createAdminSupabase>
-
-const REPLY_FREEFORM_OPT_OUT =
-  "theQRealtor: You're unsubscribed and won't get more texts from this number. Reply START to resubscribe."
-const REPLY_AGENT =
-  'theQRealtor: This number sends alerts only and replies aren\'t read. Manage your alert settings in your theQRealtor dashboard.'
-const REPLY_OTHER =
-  "theQRealtor: This number sends alerts only and can't receive replies. If you submitted a request, the listing agent will contact you directly."
 
 const AUTOREPLY_WINDOW_MS = 24 * 60 * 60 * 1000
 const E164 = /^\+[1-9][0-9]{7,14}$/

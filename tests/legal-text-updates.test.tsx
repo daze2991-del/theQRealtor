@@ -190,7 +190,7 @@ describe('SMS consent page: other required changes', () => {
 describe('Buyer pages show the privacy notice on load, including paused', () => {
   it.each(['app/p/[propertyId]/page.tsx', 'app/open-house/[propertyId]/page.tsx'])('%s: notice is unconditional, not inside the paused/CTA branch', (file) => {
     const s = src(file)
-    const notice = s.indexOf('This page records visits, photos viewed and time on page')
+    const notice = s.indexOf(file.includes('open-house') ? 'Information you submit is shared with the listing agent.' : 'This page records visits, photos viewed and time on page')
     expect(notice).toBeGreaterThan(-1)
     expect(s.slice(notice, notice + 600)).toContain('Privacy notice')
     expect(s.slice(notice, notice + 600)).toContain('/privacy#notice-at-collection')

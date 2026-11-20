@@ -70,14 +70,25 @@ describe('Privacy Policy buyer wording', () => {
 })
 
 describe('Buyer pages: collection notice', () => {
-  it.each(['app/p/[propertyId]/page.tsx', 'app/open-house/[propertyId]/page.tsx'])('%s renders the exact notice with link, unconditionally, before the form', (file) => {
-    const s = src(file)
+  it('/p renders the exact notice with link, unconditionally, before the form', () => {
+    const s = src('app/p/[propertyId]/page.tsx')
     const i = s.indexOf('This page records visits, photos viewed and time on page to help the listing agent follow up.')
     expect(i).toBeGreaterThan(-1)
     expect(s.slice(i, i + 400)).toContain('href="/privacy#notice-at-collection"')
     expect(s.slice(i, i + 400)).toContain('Privacy notice')
     expect(i).toBeLessThan(s.indexOf('<form'))
     expect(s).not.toContain('This page records your visit')
+  })
+
+  it('/open-house shows the submission-only notice (it does not record visits), before the form', () => {
+    const s = src('app/open-house/[propertyId]/page.tsx')
+    const i = s.indexOf('Information you submit is shared with the listing agent.')
+    expect(i).toBeGreaterThan(-1)
+    expect(s.slice(i, i + 300)).toContain('href="/privacy#notice-at-collection"')
+    expect(s.slice(i, i + 300)).toContain('Privacy notice')
+    expect(i).toBeLessThan(s.indexOf('<form'))
+    expect(s).not.toContain('records visits')
+    expect(s).not.toContain('This page records')
   })
 })
 

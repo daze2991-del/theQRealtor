@@ -35,6 +35,16 @@ const SUBSCRIPTION_EVENTS = new Set([
   'customer.subscription.deleted',
 ])
 
+// Alert on every non-2xx EXCEPT bad/missing-signature 400s: those are junk or
+// probe requests (never a real Stripe delivery) and must not use up the daily
+// alert cap. Everything else — 500s, a misconfigured secret, ledger failures,
+// any other 4xx — still alerts.
+const SIGNATURE_400 = new Set(['Missing signature', 'Invalid signature'])
+function webhookShouldAlert(status: number, detail: string): boolean {
+  if (status >= 200 && status < 300) return false
+  return !(status === 400 && SIGNATURE_400.has(detail))
+}
+
 async function POST__handler(request: Request) {
   const body = await request.text()
   const sig = request.headers.get('stripe-signature')
@@ -189,4 +199,4 @@ function summarize(event: Stripe.Event): Record<string, unknown> {
   }
 }
 
-export const POST = withErrorAlerts('/api/stripe/webhook', POST__handler, { alertOn: s => s < 200 || s >= 300 })
+export const POST = withErrorAlerts('/api/stripe/webhook', POST__handler, { alertOn: webhookShouldAlert })

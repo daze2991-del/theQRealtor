@@ -174,18 +174,34 @@ describe('failure isolation', () => {
 
 // ── 4. Stripe webhook, daily cron, notification flush ────────────────────────
 describe('what else alerts', () => {
-  it('Stripe webhook non-2xx alerts (route + status + reason); the reason carries no payload', async () => {
-    const res = await webhook(new Request('https://x/api/stripe/webhook', { method: 'POST', body: '{"customer_email":"jane@example.com"}' }))
-    expect(res.status).toBe(400)
+  const hook = (headers: Record<string, string> = {}) => webhook(new Request('https://x/api/stripe/webhook', { method: 'POST', headers, body: '{"customer_email":"jane@example.com"}' }))
+  it('Stripe webhook: bad or missing signature 400s do NOT alert and do not use the daily cap', async () => {
+    process.env.STRIPE_SECRET_KEY = 'sk_test_x'; process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test'
+    expect((await hook()).status).toBe(400)                                             // Missing signature
+    A.__resetErrorAlertMemory()
+    expect((await hook({ 'stripe-signature': 't=1,v1=bad' })).status).toBe(400)         // Invalid signature
+    expect(sent()).toHaveLength(0)
+    expect(db.tables.error_alert_events ?? []).toHaveLength(0)
+  })
+  it('Stripe webhook: every other non-2xx still alerts (route + status + reason, no payload)', async () => {
+    delete process.env.STRIPE_WEBHOOK_SECRET
+    const res = await hook({ 'stripe-signature': 't=1,v1=x' })
+    expect(res.status).toBe(500)
     expect(sent()).toHaveLength(1)
     expect(sent()[0].text).toContain('Route: /api/stripe/webhook')
-    expect(sent()[0].text).toContain('Error: Responded 400: Missing signature')
+    expect(sent()[0].text).toContain('Error: Responded 500: Webhook not configured')
     expect(JSON.stringify(sent())).not.toContain('jane')
   })
-  it('a 2xx webhook response does not alert (alertOn is exactly non-2xx)', async () => {
-    const h = A.withErrorAlerts('/api/stripe/webhook', async () => Response.json({ ok: true }), { alertOn: s => s < 200 || s >= 300 })
+  it('webhookShouldAlert rule: 2xx no; signature 400s no; other 400s and 5xx yes', () => {
+    const src = read('app/api/stripe/webhook/route.ts')
+    const fn = new Function('SIGNATURE_400', src.match(/function webhookShouldAlert[^]*?\n\}/)![0].replace(/: (number|string|boolean)/g, '') + '; return webhookShouldAlert')(new Set(['Missing signature', 'Invalid signature']))
+    expect([fn(200, ''), fn(400, 'Missing signature'), fn(400, 'Invalid signature')]).toEqual([false, false, false])
+    expect([fn(400, 'Something else'), fn(401, 'Missing signature'), fn(500, 'Invalid signature'), fn(500, 'Processing failed'), fn(302, '')]).toEqual([true, true, true, true, true])
+  })
+  it('a 2xx webhook response does not alert', async () => {
+    const h = A.withErrorAlerts('/api/stripe/webhook', async () => Response.json({ ok: true }), { alertOn: (s, d) => s !== 200 && d !== 'x' })
     expect((await h()).status).toBe(200); expect(sent()).toHaveLength(0)
-    expect(read('app/api/stripe/webhook/route.ts')).toContain("withErrorAlerts('/api/stripe/webhook', POST__handler, { alertOn: s => s < 200 || s >= 300 })")
+    expect(read('app/api/stripe/webhook/route.ts')).toContain("withErrorAlerts('/api/stripe/webhook', POST__handler, { alertOn: webhookShouldAlert })")
   })
   it('daily cron failing (500) alerts; an unauthorized probe (401) does not', async () => {
     db.failReads.add('pending_notifications')
@@ -334,9 +350,15 @@ describe('mutation checks', () => {
     await m.sendErrorAlert({ route: '/api/x', message: PII })
     expect(JSON.stringify(sent())).toContain('jane.doe@example.com')       // real: scrubbed
   })
-  it('webhook without the non-2xx gate sends no alert for a 400', async () => {
-    const { POST } = await mutate('app/api/stripe/webhook/route.ts', 'nowebhookgate', ", { alertOn: s => s < 200 || s >= 300 })", ')')
-    await POST(new Request('https://x/api/stripe/webhook', { method: 'POST', body: '{}' }))
+  it('webhook without the alert gate sends nothing for a 500', async () => {
+    delete process.env.STRIPE_WEBHOOK_SECRET
+    const { POST } = await mutate('app/api/stripe/webhook/route.ts', 'nowebhookgate', ", { alertOn: webhookShouldAlert })", ')')
+    await POST(new Request('https://x/api/stripe/webhook', { method: 'POST', headers: { 'stripe-signature': 'x' }, body: '{}' }))
     expect(sent()).toHaveLength(0)                              // real: 1
+  })
+  it('webhook with the signature exclusion removed alerts on a bad-signature 400 (so the exclusion test is real)', async () => {
+    const { POST } = await mutate('app/api/stripe/webhook/route.ts', 'nosigexclusion', 'return !(status === 400 && SIGNATURE_400.has(detail))', 'return true')
+    await POST(new Request('https://x/api/stripe/webhook', { method: 'POST', body: '{}' }))
+    expect(sent()).toHaveLength(1)                              // real: 0
   })
 })

@@ -2,13 +2,14 @@ import { NextResponse } from 'next/server'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { createAdminSupabase } from '@/lib/supabase-admin'
 import { signLimitForPlan } from '@/lib/plans'
+import { withErrorAlerts } from '../../../../lib/errorAlerts'
 
 // Rename a sign, and/or archive/unarchive it.
 //
 // Archiving is entitlement accounting only: an archived sign keeps its rows,
 // assignment history and scan attribution, and its printed QR keeps resolving
 // through /p/{sign.id}. It simply stops consuming a plan slot.
-export async function PATCH(
+async function PATCH__handler(
   req: Request,
   { params }: { params: { signId: string } }
 ) {
@@ -102,3 +103,5 @@ export async function PATCH(
 
   return NextResponse.json({ sign: updated })
 }
+
+export const PATCH = withErrorAlerts('/api/signs/[signId]', PATCH__handler)

@@ -5,6 +5,7 @@ import { createAdminSupabase } from '../../../../lib/supabase-admin'
 import { billingAutomationEnabled } from '../../../../lib/billing'
 import { stripeKeyIsLive, syncInvoice, syncSubscription, type SyncResult } from '../../../../lib/stripeSync'
 import { sendSubscriptionConfirmation } from '../../../../lib/billingEmail'
+import { withErrorAlerts } from '../../../../lib/errorAlerts'
 
 // Stripe signature verification needs the raw body and Node crypto.
 export const runtime = 'nodejs'
@@ -34,7 +35,7 @@ const SUBSCRIPTION_EVENTS = new Set([
   'customer.subscription.deleted',
 ])
 
-export async function POST(request: Request) {
+async function POST__handler(request: Request) {
   const body = await request.text()
   const sig = request.headers.get('stripe-signature')
 
@@ -187,3 +188,5 @@ function summarize(event: Stripe.Event): Record<string, unknown> {
     created: event.created,
   }
 }
+
+export const POST = withErrorAlerts('/api/stripe/webhook', POST__handler, { alertOn: s => s < 200 || s >= 300 })

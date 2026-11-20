@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { createAdminSupabase } from '@/lib/supabase-admin'
 import { choiceEligibility, loadChoiceProfile, parseSelection, selectionErrorResponse } from '@/lib/planChoice'
+import { withErrorAlerts } from '../../../../lib/errorAlerts'
 
 // Free agents only: change which listing (max 1) and signs (max 3) stay
 // active. The new selection is unlocked and everything else live is locked,
@@ -11,7 +12,7 @@ import { choiceEligibility, loadChoiceProfile, parseSelection, selectionErrorRes
 // While a downgrade's choice is pending (plan_choice_required_at, migration
 // 067), the save is that free post-downgrade choice instead
 // (apply_plan_selection): no swap clock is used and "too soon" can't apply.
-export async function POST(req: Request) {
+async function POST__handler(req: Request) {
   const supabase = createServerSupabase()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) {
@@ -65,3 +66,5 @@ export async function POST(req: Request) {
   }
   return NextResponse.json({ ok: true, result: data ?? null })
 }
+
+export const POST = withErrorAlerts('/api/plan/free-swap', POST__handler)

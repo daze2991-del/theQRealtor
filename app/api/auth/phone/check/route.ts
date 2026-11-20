@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server'
 import { normalizePhone } from '../../../../../lib/phone'
 import { checkPhoneVerification } from '../../../../../lib/twilio'
 import { signPhoneVerifyToken } from '../../../../../lib/phoneVerifyToken'
+import { withErrorAlerts } from '../../../../../lib/errorAlerts'
 
-export async function POST(req: Request) {
+async function POST__handler(req: Request) {
   const { phone, code } = await req.json()
 
   if (!phone || typeof phone !== 'string' || !phone.trim()) {
@@ -36,3 +37,5 @@ export async function POST(req: Request) {
     )
   }
 }
+
+export const POST = withErrorAlerts('/api/auth/phone/check', POST__handler)

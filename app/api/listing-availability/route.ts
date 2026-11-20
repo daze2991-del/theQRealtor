@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminSupabase } from '@/lib/supabase-admin'
 import { isAcceptingRequests } from '@/lib/planLock'
+import { withErrorAlerts } from '../../../lib/errorAlerts'
 
 // Public: can buyers send requests on this listing (optionally via this sign)?
 // Used by the buyer page (/p) and the open-house check-in page before they
@@ -10,7 +11,7 @@ import { isAcceptingRequests } from '@/lib/planLock'
 // confirmation texts already use. Never phone, email, plan or trial state.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-export async function POST(req: Request) {
+async function POST__handler(req: Request) {
   let body: { propertyId?: unknown; signId?: unknown }
   try {
     body = await req.json()
@@ -36,3 +37,5 @@ export async function POST(req: Request) {
     .maybeSingle()
   return NextResponse.json({ acceptingRequests: false, agentName: property?.agent_name ?? null })
 }
+
+export const POST = withErrorAlerts('/api/listing-availability', POST__handler)

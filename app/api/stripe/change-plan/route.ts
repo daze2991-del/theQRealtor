@@ -8,6 +8,7 @@ import { changeKind, isUpgrade } from '../../../../lib/autoRenewal'
 import { checkConsentText, recordConsent, requireConsentFlag, verifyStripePrice } from '../../../../lib/autoRenewalConsent'
 import { ENTITLED_STATUSES, syncSubscription } from '../../../../lib/stripeSync'
 import { sendSubscriptionConfirmation } from '../../../../lib/billingEmail'
+import { withErrorAlerts } from '../../../../lib/errorAlerts'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -36,7 +37,7 @@ const UPGRADE_DECLINED = {
   code: 'upgrade_payment_failed',
 } as const
 
-export async function POST(request: Request) {
+async function POST__handler(request: Request) {
   if (process.env.PAID_PLANS_ENABLED !== 'true' || process.env.STRIPE_CHARGES_ENABLED !== 'true') {
     return NextResponse.json({ error: 'Paid plans not yet available.' }, { status: 503 })
   }
@@ -174,3 +175,5 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ ok: true, tier })
 }
+
+export const POST = withErrorAlerts('/api/stripe/change-plan', POST__handler)

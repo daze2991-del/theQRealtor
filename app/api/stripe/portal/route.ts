@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server'
 import { getStripe } from '../../../../lib/stripe'
 import { createServerSupabase } from '../../../../lib/supabase-server'
+import { withErrorAlerts } from '../../../../lib/errorAlerts'
 
 export const runtime = 'nodejs'
 
 const FRIENDLY_ERROR = 'We couldn\'t open the billing portal right now. Please try again in a moment.'
 
-export async function POST(request: Request) {
+async function POST__handler(request: Request) {
   const supabase = createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -49,3 +50,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: FRIENDLY_ERROR }, { status: 502 })
   }
 }
+
+export const POST = withErrorAlerts('/api/stripe/portal', POST__handler)

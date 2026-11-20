@@ -27,6 +27,7 @@ import { validateRequest } from 'twilio'
 import { createAdminSupabase } from '../../../../lib/supabase-admin'
 import { normalizePhone } from '../../../../lib/phone'
 import { classifyInbound, type InboundClassification } from '../../../../lib/sms/classifyInbound'
+import { withErrorAlerts } from '../../../../lib/errorAlerts'
 
 type Admin = ReturnType<typeof createAdminSupabase>
 
@@ -166,7 +167,7 @@ async function identifySender(admin: Admin, fromE164: string): Promise<SenderLin
   return { isAgent: false, agentId, leadId: leads[0].id as string }
 }
 
-export async function POST(request: Request) {
+async function POST__handler(request: Request) {
   // ── Twilio signature verification — MUST pass before anything else ──────────
   // Nothing below this gate touches the database, replies, or logs message
   // content. The body is parsed first only because the signature is computed
@@ -341,3 +342,5 @@ export async function POST(request: Request) {
   logOutcome({ from: fromE164, to: ourNumber, event: null, source: null, autoreply: true, note: sender.isAgent ? 'agent' : undefined })
   return twiml(sender.isAgent ? REPLY_AGENT : REPLY_OTHER)
 }
+
+export const POST = withErrorAlerts('/api/sms/inbound', POST__handler)

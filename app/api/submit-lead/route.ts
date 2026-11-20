@@ -9,8 +9,9 @@ import { getTrialStatus } from '../../../lib/trial'
 import { normalizePhone } from '../../../lib/phone'
 import { clientIp, reserveIpRequest, reserveBuyerConfirmation, reserveLeadSubmission, reserveListingLead } from '../../../lib/smsLimits'
 import { isAcceptingRequests, requestsPausedCopy } from '../../../lib/planLock'
+import { withErrorAlerts } from '../../../lib/errorAlerts'
 
-export async function POST(request: Request) {
+async function POST__handler(request: Request) {
   // ── parse & validate body ───────────────────────────────────────────────────
   let body: Record<string, unknown>
   try {
@@ -337,3 +338,5 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ ok: true })
 }
+
+export const POST = withErrorAlerts('/api/submit-lead', POST__handler)

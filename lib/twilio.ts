@@ -8,6 +8,7 @@ import { createAdminSupabase } from './supabase-admin'
 import { normalizePhone } from './phone'
 import { featuresForPlan } from './plans'
 import { reserveAgentAlert } from './smsLimits'
+import { sendErrorAlert } from './errorAlerts'
 
 type Admin = ReturnType<typeof createAdminSupabase>
 
@@ -447,6 +448,8 @@ export async function flushDueNotifications(
   const { data: due, error } = await query
   if (error) {
     console.error('[twilio] flushDueNotifications query error:', error.message)
+    // Founder alert (throttled, best-effort, never throws, bounded wait).
+    await sendErrorAlert({ route: 'notification flush', message: `Could not read due notifications: ${error.message}` })
     return { processed: 0, sent: 0, failed: 0, abandoned: 0, suppressed: 0, planRestricted: 0, error: error.message }
   }
 

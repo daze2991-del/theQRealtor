@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createAdminSupabase } from '../../../lib/supabase-admin'
+import { withErrorAlerts } from '../../../lib/errorAlerts'
 
 // Called via navigator.sendBeacon on page-unload (non-converting visits).
 // Must always return 200 — beacon failures are silent and non-retryable.
-export async function POST(request: Request) {
+async function POST__handler(request: Request) {
   let body: Record<string, unknown>
   try {
     body = await request.json()
@@ -27,3 +28,5 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ ok: true })
 }
+
+export const POST = withErrorAlerts('/api/update-engagement', POST__handler)

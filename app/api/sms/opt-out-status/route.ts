@@ -17,12 +17,13 @@ import { NextResponse } from 'next/server'
 import { createServerSupabase } from '../../../../lib/supabase-server'
 import { createAdminSupabase } from '../../../../lib/supabase-admin'
 import { getAgentOptOutStatus } from '../../../../lib/sms/optOutStatus'
+import { withErrorAlerts } from '../../../../lib/errorAlerts'
 
 export const dynamic = 'force-dynamic'
 
 const NO_STORE = { 'Cache-Control': 'no-store' }
 
-export async function GET() {
+async function GET__handler() {
   const supabase = createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
@@ -37,3 +38,5 @@ export async function GET() {
     return NextResponse.json({ error: 'Lookup failed' }, { status: 500, headers: NO_STORE })
   }
 }
+
+export const GET = withErrorAlerts('/api/sms/opt-out-status', GET__handler)

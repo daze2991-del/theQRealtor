@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabase } from '../../../lib/supabase-server'
 import { createAdminSupabase } from '../../../lib/supabase-admin'
+import { withErrorAlerts } from '../../../lib/errorAlerts'
 
 // ── PERMANENT LEGACY BRIDGE — do not deprecate ────────────────────────────────
 // Pre-sign printed QR codes encode /q/{qrcode.id}. Every legacy qrcode is
@@ -8,7 +9,7 @@ import { createAdminSupabase } from '../../../lib/supabase-admin'
 // this route resolves through the sign's CURRENT assignment and keeps working
 // after any number of reassignments. A printed QR can never be re-printed, so
 // this route must stay live for as long as any such sign might exist.
-export async function GET(
+async function GET__handler(
   request: NextRequest,
   { params }: { params: { qrId: string } }
 ) {
@@ -81,3 +82,5 @@ export async function GET(
 
   return NextResponse.redirect(destination)
 }
+
+export const GET = withErrorAlerts('/q/[qrId]', GET__handler)

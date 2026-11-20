@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { createAdminSupabase } from '@/lib/supabase-admin'
+import { withErrorAlerts } from '../../../../lib/errorAlerts'
 
 // Assign (or reassign) a sign to a property. Closes any active assignment
 // first, then inserts a fresh row — history rows are never rewritten, and
 // historical scans/leads keep their stamped property_id.
-export async function POST(req: Request) {
+async function POST__handler(req: Request) {
   const supabase = createServerSupabase()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) {
@@ -77,3 +78,5 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ sign: updated })
 }
+
+export const POST = withErrorAlerts('/api/signs/assign', POST__handler)

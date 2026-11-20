@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminSupabase } from '../../../lib/supabase-admin'
+import { withErrorAlerts } from '../../../lib/errorAlerts'
 
 // ─── rate limiter ─────────────────────────────────────────────────────────────
 // Best-effort in-memory window per IP. Works for single-instance deployments;
@@ -24,7 +25,7 @@ function isRateLimited(ip: string): boolean {
 // account. Rate limiting plus routing every write through this server-side
 // checkpoint (instead of a client-facing INSERT policy — see migration 035)
 // is the actual protection here.
-export async function POST(request: Request) {
+async function POST__handler(request: Request) {
   const ip = (request.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() || 'unknown'
   if (isRateLimited(ip)) {
     return NextResponse.json({ error: 'Too many requests.' }, { status: 429 })
@@ -66,3 +67,5 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ id: data.id })
 }
+
+export const POST = withErrorAlerts('/api/scan-events', POST__handler)

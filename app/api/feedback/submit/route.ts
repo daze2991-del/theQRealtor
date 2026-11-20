@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server'
 import { createServerSupabase } from '../../../../lib/supabase-server'
 import { createAdminSupabase } from '../../../../lib/supabase-admin'
 import { SUBMIT_COOLDOWN_DAYS, MAX_COMMENT_LEN, daysFromNow } from '../../../../lib/feedback'
+import { withErrorAlerts } from '../../../../lib/errorAlerts'
 
 // POST /api/feedback/submit  → submitFeedback({ rating, comment })
 // Records a real response and holds off asking again for ~30 days. agent_id is
 // taken from the session, never the request body.
-export async function POST(request: Request) {
+async function POST__handler(request: Request) {
   const serverSupabase = createServerSupabase()
   const { data: { user } } = await serverSupabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -57,3 +58,5 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ ok: true })
 }
+
+export const POST = withErrorAlerts('/api/feedback/submit', POST__handler)

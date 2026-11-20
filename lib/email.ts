@@ -216,3 +216,27 @@ export async function sendBillingEmail(opts: {
     return { sent: false, reason: 'send_failed' }
   }
 }
+
+// ── Founder error alerts ─────────────────────────────────────────────────────
+// Used only by lib/errorAlerts.ts. Not plan-gated (it goes to us, not an agent).
+// Never throws; a missing RESEND_API_KEY or a Resend error just reports failure.
+export async function sendFounderAlertEmail(opts: { subject: string; text: string }): Promise<{ sent: boolean }> {
+  const resend = resendClient()
+  if (!resend) {
+    console.warn('[email] RESEND_API_KEY not set — skipping founder error alert')
+    return { sent: false }
+  }
+  try {
+    const { data, error } = await resend.emails.send({
+      from: FROM, to: 'hello@theqrealtor.com', replyTo: REPLY_TO, subject: opts.subject, text: opts.text,
+    })
+    if (error || !data) {
+      console.error('[email] founder alert send failed:', error?.message ?? 'no data returned')
+      return { sent: false }
+    }
+    return { sent: true }
+  } catch (err: any) {
+    console.error('[email] founder alert threw:', err?.message ?? err)
+    return { sent: false }
+  }
+}

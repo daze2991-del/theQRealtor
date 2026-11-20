@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getStripe } from '../../../../lib/stripe'
 import { createServerSupabase } from '../../../../lib/supabase-server'
 import { planForPriceId } from '../../../../lib/pricing'
+import { withErrorAlerts } from '../../../../lib/errorAlerts'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -9,7 +10,7 @@ export const dynamic = 'force-dynamic'
 // What the billing page needs to choose between Checkout, Switch plan and
 // Manage Subscription. hasBillingAccount = a Stripe customer exists, which is
 // what the portal requires.
-export async function GET() {
+async function GET__handler() {
   const supabase = createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -47,3 +48,5 @@ export async function GET() {
     return NextResponse.json({ subscription: null, hasBillingAccount, error: 'Could not load subscription details.' })
   }
 }
+
+export const GET = withErrorAlerts('/api/stripe/subscription', GET__handler)

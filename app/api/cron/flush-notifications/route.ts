@@ -36,6 +36,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminSupabase } from '../../../../lib/supabase-admin'
 import { flushDueNotifications } from '../../../../lib/twilio'
+import { withErrorAlerts } from '../../../../lib/errorAlerts'
 
 async function flush(request: Request) {
   const secret = process.env.CRON_SECRET
@@ -62,5 +63,8 @@ async function flush(request: Request) {
 }
 
 // Vercel Cron issues GET; allow POST for manual triggering too.
-export async function GET(request: Request)  { return flush(request) }
-export async function POST(request: Request) { return flush(request) }
+async function GET__handler(request: Request)  { return flush(request) }
+async function POST__handler(request: Request) { return flush(request) }
+
+export const GET = withErrorAlerts('/api/cron/flush-notifications', GET__handler, { alertOn: s => s >= 500 })
+export const POST = withErrorAlerts('/api/cron/flush-notifications', POST__handler, { alertOn: s => s >= 500 })

@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server'
 import { createServerSupabase } from '../../../../lib/supabase-server'
 import { createAdminSupabase } from '../../../../lib/supabase-admin'
 import { isEligible } from '../../../../lib/feedback'
+import { withErrorAlerts } from '../../../../lib/errorAlerts'
 
 // GET /api/feedback/eligibility
 // Server-authoritative check driving whether the dashboard shows the prompt.
 // Identity comes from the session — never a client-supplied id.
-export async function GET() {
+async function GET__handler() {
   const serverSupabase = createServerSupabase()
   const { data: { user } } = await serverSupabase.auth.getUser()
   if (!user) return NextResponse.json({ eligible: false }, { status: 401 })
@@ -24,3 +25,5 @@ export async function GET() {
 
   return NextResponse.json({ eligible })
 }
+
+export const GET = withErrorAlerts('/api/feedback/eligibility', GET__handler)

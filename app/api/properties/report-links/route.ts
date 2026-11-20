@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServerSupabase } from '../../../../lib/supabase-server'
 import { createAdminSupabase } from '../../../../lib/supabase-admin'
+import { withErrorAlerts } from '../../../../lib/errorAlerts'
 
 // The signed-in agent's OWN seller-report tokens. report_token is not readable
 // by the browser client (migration 070), so the dashboard gets it here. The
@@ -8,7 +9,7 @@ import { createAdminSupabase } from '../../../../lib/supabase-admin'
 // hard-scoped to that user's id — never a client-supplied one.
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+async function GET__handler() {
   const { data: { user } } = await createServerSupabase().auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -22,3 +23,5 @@ export async function GET() {
   for (const r of data ?? []) links[r.id as string] = r.report_token as string
   return NextResponse.json({ links })
 }
+
+export const GET = withErrorAlerts('/api/properties/report-links', GET__handler)

@@ -4,6 +4,7 @@ import { normalizePhone } from '../../../../lib/phone'
 import { verifyPhoneVerifyToken } from '../../../../lib/phoneVerifyToken'
 import { INVITE_ONLY_MESSAGE } from '../../../../lib/inviteCopy'
 import { openSignupEnabled, MAX_ENROLLED_AGENTS } from '../../../../lib/signup'
+import { withErrorAlerts } from '../../../../lib/errorAlerts'
 
 // Shown for a duplicate phone, caught either by the pre-check below or by
 // the unique-index race it backstops. By this point the phone has already
@@ -14,7 +15,7 @@ import { openSignupEnabled, MAX_ENROLLED_AGENTS } from '../../../../lib/signup'
 const DUPLICATE_PHONE_ERROR =
   'This phone number is already linked to an account. Try signing in instead.'
 
-export async function POST(req: Request) {
+async function POST__handler(req: Request) {
   const { name, email, password, phone, dre, phoneVerifyToken } = await req.json()
 
   if (!name || typeof name !== 'string' || !name.trim()) {
@@ -236,3 +237,5 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ ok: true })
 }
+
+export const POST = withErrorAlerts('/api/auth/beta-signup', POST__handler)

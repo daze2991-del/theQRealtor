@@ -181,7 +181,7 @@ async function responseError(res: Response): Promise<string> {
 export function withErrorAlerts<A extends unknown[]>(
   route: string,
   handler: (...args: A) => Promise<Response> | Response,
-  opts: { alertOn?: (status: number) => boolean } = {},
+  opts: { alertOn?: (status: number, detail: string) => boolean } = {},
 ) {
   return async (...args: A): Promise<Response> => {
     let res: Response
@@ -192,8 +192,9 @@ export function withErrorAlerts<A extends unknown[]>(
       throw err
     }
     try {
-      if (opts.alertOn?.(res.status)) {
-        await sendErrorAlert({ route, message: `Responded ${res.status}: ${await responseError(res)}` })
+      if (opts.alertOn && (res.status < 200 || res.status >= 300)) {
+        const detail = await responseError(res)
+        if (opts.alertOn(res.status, detail)) await sendErrorAlert({ route, message: `Responded ${res.status}: ${detail}` })
       }
     } catch { /* never affects the response */ }
     return res

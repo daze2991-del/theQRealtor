@@ -7,7 +7,7 @@ import { sendAgentAlertEmail, emailMsg } from '../../../lib/email'
 import { SMS_CONSENT_TEXT, SMS_CONSENT_TEXT_MAX } from '../../../lib/smsConsent'
 import { getTrialStatus } from '../../../lib/trial'
 import { normalizePhone } from '../../../lib/phone'
-import { clientIp, reserveIpRequest, reserveBuyerConfirmation } from '../../../lib/smsLimits'
+import { clientIp, reserveIpRequest, reserveBuyerConfirmation, reserveLeadSubmission, reserveListingLead } from '../../../lib/smsLimits'
 import { isAcceptingRequests, requestsPausedCopy } from '../../../lib/planLock'
 
 export async function POST(request: Request) {
@@ -119,6 +119,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: requestsPausedCopy(property.agent_name as string | null), requestsPaused: true }, { status: 423 })
   }
 
+  // ── flood caps (lib/smsLimits.ts, durable) ──────────────────────────────────
+  // Per client IP: at most 20 submissions an hour across ALL listings. Over
+  // that, nothing is saved. If the counter itself can't be read we still save
+  // the lead (never lose a real buyer to a monitoring hiccup) but send no agent
+  // SMS for it.
+  const ip = clientIp(request)
+  const floodDecision = await reserveLeadSubmission(supabase, ip)
+  if (!floodDecision.ok && floodDecision.reason === 'ip_cap') {
+    return NextResponse.json({ error: 'Too many submissions, please try again later.' }, { status: 429 })
+  }
+  // Per listing: at most 30 leads an hour from all IPs may trigger an agent
+  // SMS. Over that the lead is still saved and the agent still gets the
+  // dashboard entry and email — just no text. Fails closed on SMS only.
+  const listingDecision = await reserveListingLead(supabase, propertyId as string)
+  const agentSmsAllowed = floodDecision.ok && listingDecision.ok
+  if (!agentSmsAllowed) {
+    console.warn('[submit-lead] agent SMS alert suppressed for this lead — reason:',
+      floodDecision.ok ? listingDecision.ok ? '' : listingDecision.reason : floodDecision.reason)
+  }
+
   // ── normalized phone ────────────────────────────────────────────────────────
   // leads.phone keeps exactly what the buyer typed; leads.phone_e164 is the
   // normalized form SMS opt-out matching keys on. A phone that won't parse
@@ -200,8 +220,10 @@ export async function POST(request: Request) {
         plan:                (agentProfile.plan as string | null) ?? null,
         sms_alerts_enabled:  (agentProfile.sms_alerts_enabled as boolean)  ?? false,
       }
-      const dispatch = (message: string, alertType: string) =>
-        queueOrSendAgentSms({ admin: supabase, agent, agentPhone, leadId, message, alertType })
+      const dispatch = async (message: string, alertType: string) => {
+        if (!agentSmsAllowed) return 'rate_limited' as const     // flood cap: dashboard + email only
+        return queueOrSendAgentSms({ admin: supabase, agent, agentPhone, leadId, message, alertType })
+      }
 
       // Email alert — same triggers as SMS (notify_showing/notify_question),
       // sent immediately (quiet hours apply to SMS only), to the agent's own
@@ -277,7 +299,7 @@ export async function POST(request: Request) {
     // Durable caps sit underneath this (lib/smsLimits.ts): per client IP, per
     // destination number, per listing. A refused or unreadable cap only skips
     // THIS text — the lead is already saved and the agent already alerted.
-    const ipDecision = await reserveIpRequest(supabase, 'lead_request', clientIp(request))
+    const ipDecision = await reserveIpRequest(supabase, 'lead_request', ip)
     if ((cta === 'showing' || cta === 'question') && trimmedPhone && hasSmsConsent) {
       const decision: { ok: true } | { ok: false; reason: string } = !ipDecision.ok
         ? ipDecision

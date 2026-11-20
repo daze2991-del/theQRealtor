@@ -217,7 +217,12 @@ describe('when a cap is hit or the count cannot be read', () => {
     expect(buyerTexts()).toHaveLength(0)
   })
   it('lead route fails closed when the log write fails', async () => {
-    db.failWrites.set('sms_rate_events', { message: 'boom' })
+    // every write to the table fails (failWrites is one-shot, and a lead now makes several reservations)
+    const realFrom = db.client.from
+    db.client.from = (t: string) => t !== 'sms_rate_events' ? realFrom(t) : ({
+      insert: () => ({ select: () => ({ single: async () => ({ data: null, error: { message: 'boom' } }) }) }),
+      update: () => ({ eq: async () => ({ error: null }) }),
+    })
     expect((await lead()).status).toBe(200)
     expect(db.tables.leads).toHaveLength(1)
     expect(buyerTexts()).toHaveLength(0)

@@ -7,6 +7,7 @@ import twilio from 'twilio'
 import { createAdminSupabase } from './supabase-admin'
 import { normalizePhone } from './phone'
 import { featuresForPlan } from './plans'
+import { reserveAgentAlert } from './smsLimits'
 
 type Admin = ReturnType<typeof createAdminSupabase>
 
@@ -344,6 +345,7 @@ async function logAndMaybeAlarm(admin: Admin, agentId: string, alertType: string
 //   'suppressed'      — agent's number is opted out / unusable; not queued, not counted.
 //   'failed'          — Twilio/config error; not counted.
 //   'skipped'         — no agent phone on file.
+//   'rate_limited'    — over 20 alert texts this hour (or cap unreadable): skipped.
 //   'plan_restricted' — agent's plan doesn't include SMS alerts (Free), OR the
 //                        agent has turned sms_alerts_enabled off. Checked here,
 //                        the single chokepoint both showing and question
@@ -359,11 +361,22 @@ export async function queueOrSendAgentSms(opts: {
   message: string
   alertType: string
   now?: Date
-}): Promise<'sent' | 'queued' | 'skipped' | 'suppressed' | 'failed' | 'plan_restricted'> {
+}): Promise<'sent' | 'queued' | 'skipped' | 'suppressed' | 'failed' | 'plan_restricted' | 'rate_limited'> {
   const { admin, agent, agentPhone, leadId, message } = opts
   const now = opts.now ?? new Date()
   if (!featuresForPlan(agent.plan).canUseSms || !agent.sms_alerts_enabled) return 'plan_restricted'
   if (!agentPhone) return 'skipped'
+
+  // Durable per-agent cap: at most 20 alert texts per hour across all listings
+  // (lib/smsLimits.ts). Over the cap, or if the count can't be read (fails
+  // closed), this text is skipped — the lead is already on the dashboard and
+  // the email alert is sent separately, so nothing is lost. The 100/day founder
+  // alarm below is unchanged and still counts only texts that go out.
+  const cap = await reserveAgentAlert(admin, agent.id)
+  if (!cap.ok) {
+    console.warn('[twilio] agent alert text skipped — reason:', cap.reason, '| agent:', agent.id)
+    return 'rate_limited'
+  }
 
   // Master toggle checked BEFORE the time-window predicate — when off, this
   // short-circuits straight past isQuietHours() regardless of what the time

@@ -38,7 +38,7 @@ describe('Privacy Policy: full replacement', () => {
   })
 
   it('"Last updated" is today', () => {
-    expect(privacyHtml).toContain('Last updated: October 24, 2026')
+    expect(privacyHtml).toContain('Last updated: November 19, 2026')
   })
 
   it('section 9 uses the shortened override, not the doc\'s longer sentence', () => {
@@ -69,7 +69,7 @@ describe('Privacy Policy: full replacement', () => {
   })
 
   it('lists Resend among the service providers (email alerts, migration 065)', () => {
-    expect(privacyHtml).toContain('Resend (email delivery)')
+    expect(privacyHtml).toContain('Resend (email)')
     const idx = privacyHtml.indexOf('Service providers')
     expect(privacyHtml.slice(idx, idx + 300)).toContain('Supabase')
     expect(privacyHtml.slice(idx, idx + 300)).toContain('Twilio')
@@ -90,13 +90,13 @@ describe('Privacy Policy: full replacement', () => {
 // ── Terms: only the specified pieces change ──────────────────────────────────
 describe('Terms of Service: scoped replacement', () => {
   it('"Last updated" is today', () => {
-    expect(termsHtml).toContain('Last updated: November 18, 2026')
+    expect(termsHtml).toContain('Last updated: November 19, 2026')
   })
 
   it('§5 drops the retired line and gets the new buyer-confirmation wording', () => {
     expect(termsHtml).not.toContain('does not initiate SMS contact')
-    expect(termsHtml).toContain('theQRealtor sends that buyer one text confirming the request')
-    expect(termsHtml).toContain('theQRealtor sends buyers no other texts and no marketing')
+    expect(termsHtml).toContain('theQRealtor sends one confirmation text when the buyer submits a request through a listing page')
+    expect(termsHtml).toContain('We do not send marketing texts to buyers')
   })
 
   it('About + §1 bullets + §4 paragraphs 2–3 carry the new text', () => {
@@ -190,7 +190,7 @@ describe('SMS consent page: other required changes', () => {
 describe('Buyer pages show the privacy notice on load, including paused', () => {
   it.each(['app/p/[propertyId]/page.tsx', 'app/open-house/[propertyId]/page.tsx'])('%s: notice is unconditional, not inside the paused/CTA branch', (file) => {
     const s = src(file)
-    const notice = s.indexOf('This page records your visit')
+    const notice = s.indexOf('This page records visits, photos viewed and time on page')
     expect(notice).toBeGreaterThan(-1)
     expect(s.slice(notice, notice + 600)).toContain('Privacy notice')
     expect(s.slice(notice, notice + 600)).toContain('/privacy#notice-at-collection')

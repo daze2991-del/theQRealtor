@@ -3,10 +3,12 @@ import type { Metadata } from 'next'
 import { Home } from 'lucide-react'
 import SmsAgentConsentText from '../../components/SmsAgentConsentText'
 import { msg } from '../../lib/twilio'
+import { SMS_CONSENT_TEXT } from '../../lib/smsConsent'
+import { REPLY_FREEFORM_OPT_OUT } from '../../lib/sms/inboundReplies'
 
 export const metadata: Metadata = {
   title: 'SMS Opt-In Consent — theqrealtor',
-  description: 'How real estate agents opt in to receive SMS lead alerts from theqrealtor. Provided for carrier and campaign registry verification.',
+  description: 'How real estate agents and buyers opt in to receive text messages from theqrealtor. Provided for carrier and campaign registry verification.',
 }
 
 const L = {
@@ -27,6 +29,10 @@ const L = {
 // (lib/twilio.ts msg.showingAlert) agents actually receive — placeholder
 // buyer/lead details only, so this page can never drift from what's sent.
 const EXAMPLE_SMS = msg.showingAlert('John Buyer', '123 Main St', 'example-lead-id', '(555) 010-1234', null, 'Phone Call')
+
+// Buyer confirmation text, from the same template function (msg.buyerConfirmation)
+// the app sends; placeholder address and agent name only.
+const EXAMPLE_BUYER_SMS = msg.buyerConfirmation('showing', '123 Main St', 'Jane Agent')
 
 function Step({ n, children }: { n: number; children: React.ReactNode }) {
   return (
@@ -75,10 +81,13 @@ export default function SmsConsentPage() {
             SMS Opt-In Consent — theqrealtor
           </h1>
           <p style={{ fontSize: 17, color: L.sub, margin: '0 0 12px', lineHeight: 1.65, fontWeight: 500 }}>
-            How real estate agents opt in to receive SMS lead alerts
+            How agents and buyers opt in to receive text messages from theqrealtor
           </p>
           <p style={{ fontSize: 13, color: L.muted, margin: 0, lineHeight: 1.5 }}>
             This page is provided for carrier and campaign registry verification purposes.
+          </p>
+          <p style={{ fontSize: 13, color: L.muted, margin: '8px 0 0', lineHeight: 1.5 }}>
+            Last updated: November 19, 2026
           </p>
         </div>
 
@@ -158,6 +167,64 @@ export default function SmsConsentPage() {
           </div>
         </div>
 
+        {/* 4b. Buyer confirmation text */}
+        <div style={{ background: L.card, border: `1px solid ${L.border}`, borderRadius: 16, padding: '24px 28px', marginBottom: 28 }}>
+          <h2 style={{ fontSize: 17, fontWeight: 700, color: L.text, margin: '0 0 12px' }}>Buyer Confirmation Text</h2>
+          <p style={{ fontSize: 15, color: L.sub, lineHeight: 1.75, margin: '0 0 16px' }}>
+            Buyers who submit a request on a listing page can tick an unchecked-by-default box to receive one text confirming the request. No text is sent unless the box is ticked. theqrealtor sends buyers no marketing texts.
+          </p>
+          <div style={{ fontSize: 13, fontWeight: 600, color: L.muted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>
+            Checkbox wording shown to buyers:
+          </div>
+          <div style={{
+            background: L.purpleBg,
+            border: `1px solid ${L.purple}40`,
+            borderRadius: 10,
+            padding: '16px 20px',
+            fontSize: 15,
+            color: L.sub,
+            lineHeight: 1.75,
+            marginBottom: 20,
+          }}>
+            {SMS_CONSENT_TEXT}
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: L.muted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>
+            Example buyer confirmation text:
+          </div>
+          <div style={{
+            display: 'inline-block',
+            background: '#E9E9EB',
+            borderRadius: '18px 18px 18px 4px',
+            padding: '12px 16px',
+            fontSize: 14,
+            color: '#1C1C1E',
+            lineHeight: 1.65,
+            maxWidth: '80%',
+            marginBottom: 20,
+          }}>
+            {EXAMPLE_BUYER_SMS}
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: L.muted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>
+            Example reply when a buyer opts out in their own words (for example, &ldquo;please stop texting me&rdquo;):
+          </div>
+          <div style={{
+            display: 'inline-block',
+            background: '#E9E9EB',
+            borderRadius: '18px 18px 18px 4px',
+            padding: '12px 16px',
+            fontSize: 14,
+            color: '#1C1C1E',
+            lineHeight: 1.65,
+            maxWidth: '80%',
+            marginBottom: 16,
+          }}>
+            {REPLY_FREEFORM_OPT_OUT}
+          </div>
+          <p style={{ fontSize: 14, color: L.muted, margin: 0, lineHeight: 1.6 }}>
+            Buyers can reply STOP to opt out, START to resubscribe, or HELP for help. Our number sends messages only; other replies are not read or forwarded.
+          </p>
+        </div>
+
         {/* 5. Sample Message */}
         <div style={{ background: L.card, border: `1px solid ${L.border}`, borderRadius: 16, padding: '24px 28px', marginBottom: 28 }}>
           <h2 style={{ fontSize: 17, fontWeight: 700, color: L.text, margin: '0 0 16px' }}>Example SMS Message</h2>
@@ -185,7 +252,7 @@ export default function SmsConsentPage() {
             <li>
               Replying{' '}
               <strong style={{ color: L.text, fontFamily: 'monospace', background: L.card, padding: '2px 6px', borderRadius: 4 }}>STOP</strong>
-              {' '}to any SMS message received
+              {' '}to any SMS message received (buyers and agents)
             </li>
             <li>
               Navigating to <strong style={{ color: L.text }}>Settings</strong> and disabling the{' '}

@@ -66,7 +66,7 @@ export default function TermsPage() {
             Terms of Service
           </h1>
           <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>
-            Last updated: November 18, 2026
+            Last updated: November 19, 2026
           </p>
         </div>
 
@@ -154,7 +154,7 @@ export default function TermsPage() {
 
         <Section title="5. SMS Messaging — Buyers">
           <p style={{ margin: 0 }}>
-            When a buyer submits a request, they choose to share their contact information with the listing agent, who may contact them about the property using the methods the buyer selected. If the buyer ticks the optional consent box, theQRealtor sends that buyer one text confirming the request. theQRealtor sends buyers no other texts and no marketing. A buyer who replies STOP receives no further texts from theQRealtor. Our number sends messages only and does not forward replies to agents.
+            When a buyer submits a request, they choose to share their contact information with the listing agent, who may contact them about the property using the methods the buyer selected. With a buyer's affirmative consent, theQRealtor sends one confirmation text when the buyer submits a request through a listing page. We do not send marketing texts to buyers. A buyer who replies STOP receives no further texts from theQRealtor. Our number sends messages only and does not forward replies to agents.
           </p>
         </Section>
 

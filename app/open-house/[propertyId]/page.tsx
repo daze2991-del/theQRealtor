@@ -197,7 +197,7 @@ export default function OpenHouseCheckInPage() {
           {/* Privacy notice — visible on load, including when the listing is
               paused (tracking starts before any form is submitted). */}
           <p style={{ color: C.muted, fontSize: 12, lineHeight: 1.5, margin: '0 0 14px' }}>
-            This page records visits, photos viewed and time on page to help the listing agent follow up.{' '}
+            Information you submit is shared with the listing agent.{' '}
             <a href="/privacy#notice-at-collection" style={{ color: C.muted, textDecoration: 'underline' }}>Privacy notice</a>
           </p>
 
